@@ -18,6 +18,14 @@
     "incremental": true,
     "isolatedModules": true,
     "esModuleInterop": true,
+    // Required by the unit tier, and only by it. `node --test` runs .ts directly through
+    // Node 22's type stripping, and Node's ESM resolver needs the real file name — so a
+    // test importing the module beside it has to write `./validate.ts`, which TypeScript
+    // permits only with this flag (and only when nothing is emitted, which is the line
+    // above `incremental`). It is permission, not a convention: application code stays
+    // extensionless, because that is what the bundler resolves and what every other file
+    // here already does.
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
 

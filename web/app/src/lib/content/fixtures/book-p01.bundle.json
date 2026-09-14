@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "tag": "fixture-0",
+  "track": {
+    "id": "math-for-ai-engineers",
+    "titles": {
+      "en": "Mathematics from Zero for the AI Engineer",
+      "pl": "Matematyka od zera dla inżyniera AI"
+    },
+    "languages": [
+      "en",
+      "pl"
+    ]
+  },
+  "units": [
+    {
+      "id": "P01",
+      "titles": {
+        "en": "How a computer stores a number",
+        "pl": "Jak komputer przechowuje liczbę"
+      },
+      "sections": [
+        {
+          "id": "scientific-notation-base-two",
+          "titles": {
+            "en": "Scientific notation, in base two",
+            "pl": "Notacja naukowa o podstawie dwa"
+          },
+          "firstStep": 1
+        },
+        {
+          "id": "the-gap-grows",
+          "titles": {
+            "en": "The gap grows with the magnitude",
+            "pl": "Odstęp rośnie wraz z rzędem wielkości"
+          },
+          "firstStep": 3
+        }
+      ],
+      "steps": [
+        {
+          "n": 1,
+          "kind": "prose",
+          "section": "scientific-notation-base-two",
+          "body": {
+            "en": "A floating-point number is scientific notation with the ten changed to a two and the digits capped. Nothing else about it is new.",
+            "pl": "Liczba zmiennoprzecinkowa to notacja naukowa, w której dziesiątkę zastąpiono dwójką, a liczbę cyfr ograniczono. Nic poza tym nie jest nowe."
+          }
+        },
+        {
+          "n": 2,
+          "kind": "frame",
+          "section": "scientific-notation-base-two",
+          "body": {
+            "en": "Three fields carry it: a sign, an exponent and a significand. Which of the three decides how PRECISE the number is, and which decides how LARGE it can be?",
+            "pl": "Niosą ją trzy pola: znak, wykładnik i mantysa. Które z nich decyduje o PRECYZJI liczby, a które o tym, jak DUŻA może ona być?"
+          },
+          "cue": true
+        },
+        {
+          "n": 3,
+          "kind": "frame",
+          "section": "the-gap-grows",
+          "answer": {
+            "en": "The significand carries the precision; the exponent carries the size.",
+            "pl": "Mantysa niesie precyzję, wykładnik niesie rozmiar."
+          },
+          "body": {
+            "en": "So the digits are fixed and the exponent slides. Work out what that does to the distance between one stored number and the next as the numbers get bigger.",
+            "pl": "Cyfr jest więc stała liczba, a wykładnik się przesuwa. Ustal, co to robi z odległością między kolejnymi przechowywanymi liczbami, gdy liczby rosną."
+          },
+          "cue": true
+        },
+        {
+          "n": 4,
+          "kind": "frame",
+          "section": "the-gap-grows",
+          "answer": {
+            "en": "The gap grows with the magnitude, doubling at every power of two.",
+            "pl": "Odstęp rośnie wraz z rzędem wielkości, podwajając się przy każdej potędze dwójki."
+          },
+          "body": {
+            "en": "Measure it yourself rather than taking it from this page.",
+            "pl": "Zmierz to samodzielnie, zamiast brać z tej strony."
+          },
+          "check": {
+            "lab": "P01",
+            "exercise": "gap"
+          }
+        }
+      ],
+      "routes": [
+        {
+          "kind": "quiz",
+          "labels": {
+            "en": "What are the three fields of a float?",
+            "pl": "Jakie są trzy pola liczby zmiennoprzecinkowej?"
+          },
+          "from": 2,
+          "to": 3
+        },
+        {
+          "kind": "outcome",
+          "labels": {
+            "en": "Say which field carries precision and which carries size",
+            "pl": "Powiedzieć, które pole niesie precyzję, a które rozmiar"
+          },
+          "from": 1,
+          "to": 3
+        },
+        {
+          "kind": "summary",
+          "labels": {
+            "en": "The gap between stored numbers grows with the magnitude",
+            "pl": "Odstęp między przechowywanymi liczbami rośnie wraz z rzędem wielkości"
+          },
+          "from": 3,
+          "to": 4
+        }
+      ]
+    }
+  ],
+  "labs": [
+    {
+      "id": "P01",
+      "runtime": "stdlib",
+      "exercises": [
+        "gap",
+        "epsilon",
+        "tenth",
+        "orders",
+        "threshold",
+        "store",
+        "coin"
+      ]
+    }
+  ]
+}

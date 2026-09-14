@@ -46,7 +46,18 @@
     "prebuild": "node scripts/prepare-lab-assets.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
+    "//test": [
+    "The unit tier. `node --test` runs .ts directly through Node 22's type stripping, so",
+    "this needs no runner, no transform and no dependency — which is why it is here rather",
+    "than being a third toolchain. P13: test at the layer with the logic. A pure function",
+    "asserted through the Playwright suite is an acceptance test doing a unit's job.",
+    "",
+    "Wired into ci.yml in the same commit as the first test. TESTING-STRATEGY.md §9: an",
+    "unreferenced test entry point is not a latent capability, it is documentation that",
+    "lies, and E2E-ACCEPTANCE-TESTING.md §6 says CI wiring is a requirement of test #1."
+  ],
+  "test": "node --test 'src/**/*.test.ts'",
+  "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

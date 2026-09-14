@@ -206,11 +206,19 @@ prompt makes that a standing constraint and
 [ADR-0008](../adr/0008-content-is-a-versioned-bundle.md) records it: the book owns its own
 dialect, and what crosses the boundary is a versioned artefact rather than source.
 
-**Phase 2a is where P11 starts applying**, and it is the first place it can: the content
-schema and its validator are the boundary, the bundle is the one internal model, and
-"nothing downstream knows there was more than one dialect" becomes a property somebody has
-to keep. When that lands, this section is rewritten with a file and a line, or a deviation
-row explains why not.
+**Phase 2a is where P11 starts applying, and the first half of it has landed.**
+`web/app/src/lib/content/content-schema.v1.json` is the boundary: one internal model that
+every track's compiler targets, and the application renders whatever validates without
+knowing which compiler produced it. The book's LaTeX stops at that boundary and is
+normalised on the far side of it, in the repository that knows the dialect.
+
+It is **not yet evidence that nothing downstream knows there was more than one dialect**,
+because there is one dialect and one producer. That becomes checkable when a second track
+exists; §6 of the book's issue #239 sets exactly that test, and
+[ADR-0014](../adr/0014-the-content-schema-is-json-schema-and-knows-nothing-about-frames.md)
+records that the claim is untested until then. What is already true and was not before: the
+minimum unit is a title and a body, so a track without frames is renderable rather than
+forced to fake a question nobody asked.
 
 ### P12 — build once, deploy many
 
@@ -231,6 +239,17 @@ deploys that image by tag rather than rebuilding inside a deploy step.
 through `WebApplicationFactory`, with each `ApiFactory` instance getting its own InMemory
 database so isolation is structural rather than a property of ordering. **No container is
 required**, which is the path `DatabaseProviderExtensions` keeps open deliberately.
+
+`web/app`'s `pnpm test` is the frontend's unit tier: `node --test` over `src/**/*.test.ts`,
+run by Node 22's own type stripping. **No runner, no transform and no dependency** — which
+is the reason it is a tier here rather than a third toolchain, and why the `engines.node`
+floor is 22.18.0 and not 22.0.0. It exists because P13 says to test at the layer with the
+logic: the content validator is a pure function, and asserting a pure function through a
+browser is an acceptance test doing a unit's job, slower and less precisely.
+
+It arrived wired. `ci.yml`'s `web` job runs it before the build, in the same commit as the
+first test, because E2E-ACCEPTANCE-TESTING.md §6 makes CI wiring a requirement of test #1
+and TESTING-STRATEGY.md §9 makes an unreferenced entry point documentation that lies.
 
 `tests/e2e` is the acceptance tier: Playwright, its own pnpm package, its own lockfile, two
 projects — `smoke` on every ready pull request and `core` on every push to `main`.
@@ -428,11 +447,11 @@ book's 47 programs as a versioned bundle published on the book's own releases
 **phase 2b, real content, cannot start until the book publishes one.** It is the only
 external dependency in the plan, and it is owned by a different repository.
 
-**P11 is walked but still not evidenced.** See the P11 section above: §P11 was read, and
-the finding is that phase 1 deliberately preserves the book's dialect rather than
-normalising it, so there is nothing here for the principle to govern yet. The gap stays
-listed because "checked and nothing governs it" and "still nothing built" are different
-sentences and only the first is now true. Phase 2a's schema is where it becomes evidence.
+**P11 has a boundary now, and one dialect to normalise at it.** The content schema is the
+single internal model and the application never parses LaTeX; what is still missing is the
+*second* dialect, which is the only thing that can demonstrate "nothing downstream knows
+there was more than one". The gap stays listed, narrower than it was: it is now waiting on
+a second track rather than on somebody reading the principle.
 
 **No ADR covers the frontend framework, the ORM or the test runner.** Next.js, EF Core and
 xUnit v3 are in the tree with their reasoning in file comments rather than in a decision

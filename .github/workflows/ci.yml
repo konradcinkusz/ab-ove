@@ -242,6 +242,28 @@ jobs:
         run: pnpm typecheck
 
       # ─────────────────────────────────────────────────────────────────────────────────
+      # The unit tier, wired in the same commit as its first test.
+      #
+      # E2E-ACCEPTANCE-TESTING.md §6: "CI wiring is a requirement of test #1, not a
+      # follow-up after test #447." TESTING-STRATEGY.md §9: an unreferenced test entry
+      # point is not a latent capability, it is documentation that lies. So the entry point
+      # and the job step arrive together or neither does.
+      #
+      # It is `node --test` over .ts through Node 22's type stripping — no runner, no
+      # transform, no dependency, and therefore not a third toolchain. It runs BEFORE the
+      # build because it needs nothing the build produces and it fails in under a second:
+      # a validator that has stopped rejecting malformed bundles should not wait behind
+      # thirteen megabytes of Pyodide being staged.
+      #
+      # P13, which is why this exists at all rather than the assertions living in the
+      # Playwright suite: test at the layer with the logic. A pure function asserted
+      # through a browser is an acceptance test doing a unit's job, and it is slower,
+      # flakier and less precise at it.
+      # ─────────────────────────────────────────────────────────────────────────────────
+      - name: Unit tests
+        run: pnpm test
+
+      # ─────────────────────────────────────────────────────────────────────────────────
       # THE BOOK, because `pnpm build` cannot run without it.
       #
       # web/app's `prebuild` script stages the lab pane's two inputs into public/: the
