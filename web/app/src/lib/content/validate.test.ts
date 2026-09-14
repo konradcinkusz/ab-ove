@@ -22,7 +22,12 @@ import fixture from './fixtures/book-p01.bundle.json' with { type: 'json' };
 
 import schemaDocument from './content-schema.v1.json' with { type: 'json' };
 
-import { unimplementedKeywords, validateBundle, type Problem } from './validate.ts';
+import {
+  unimplementedKeywords,
+  validateAgainst,
+  validateBundle,
+  type Problem,
+} from './validate.ts';
 
 /**
  * Break exactly one place in the fixture, named by the same JSON pointer the validator
@@ -257,6 +262,36 @@ test('two units with one id are refused', () => {
   assert.match(problem.message, /more than one unit/);
 });
 
+test('two labs with one id are refused — a check would resolve to whichever came last', () => {
+  const twice = structuredClone(fixture) as { labs: unknown[] };
+  twice.labs = [twice.labs[0], structuredClone(twice.labs[0])];
+  const problem = refusedAt(twice, '/labs/1/id');
+  assert.match(problem.message, /more than one lab/);
+});
+
+test('two sections of one unit with one id are refused', () => {
+  const twice = structuredClone(fixture) as { units: { sections: { id: string }[] }[] };
+  const sections = twice.units[0]!.sections;
+  sections[1]!.id = sections[0]!.id;
+  const problem = refusedAt(twice, '/units/0/sections/1/id');
+  assert.match(problem.message, /more than one section/);
+});
+
+test('a $ref cycle is refused with a sentence, rather than hanging', () => {
+  // WATCHED FIRING. Nothing in v1 is recursive, so this guard is unreachable through
+  // validateBundle — which is why `validateAgainst` is exported. In CI a hang is strictly
+  // worse than a failure: it burns the job's whole timeout and reports "the job timed out",
+  // naming neither the schema nor the cycle.
+  const cyclic = {
+    $ref: '#/$defs/loop',
+    $defs: { loop: { $ref: '#/$defs/loop' } },
+  };
+  const result = validateAgainst(cyclic, { anything: true });
+  assert.equal(result.ok, false);
+  const [problem] = result.ok ? [] : result.problems;
+  assert.match(problem!.message, /\$ref cycle/);
+});
+
 // ── The validator telling on itself ────────────────────────────────────────────────────
 
 test('the shipped schema uses only keywords this validator implements', () => {
@@ -272,6 +307,16 @@ test('and a schema keyword it cannot check is reported rather than skipped', () 
   assert.deepEqual(unimplementedKeywords({ properties: { a: { oneOf: [{ type: 'string' }] } } }), [
     'oneOf',
   ]);
+});
+
+test('and an enum holds data, so its members are not read as keywords', () => {
+  // `enum` and `const` carry VALUES. Walking them would refuse a schema this validator can
+  // check perfectly well, and a guard that fires on something correct is a guard somebody
+  // switches off — which is worse than never having written it.
+  assert.deepEqual(
+    unimplementedKeywords({ properties: { a: { enum: [{ oneOf: 'a value, not a keyword' }] } } }),
+    [],
+  );
 });
 
 test('while a property NAMED like a keyword is not mistaken for one', () => {

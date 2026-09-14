@@ -33,7 +33,7 @@
  */
 import schemaDocument from './content-schema.v1.json' with { type: 'json' };
 
-import { SCHEMA_VERSION, type Bundle } from './schema.ts';
+import { SCHEMA_VERSION, type Bundle, type Lab } from './schema.ts';
 
 /** One thing wrong, at one place. `path` is a JSON pointer into the bundle. */
 export interface Problem {
@@ -73,7 +73,7 @@ const IMPLEMENTED = new Set([
 ]);
 
 type Json = unknown;
-type Schema = Record<string, Json>;
+export type Schema = Record<string, Json>;
 
 /**
  * Every keyword a schema document uses that this validator would silently ignore.
@@ -104,6 +104,11 @@ export function unimplementedKeywords(schema: Json): readonly string[] {
       // as though they were would report every property of every bundle as unimplemented.
       if (keyword === 'properties' || keyword === '$defs') {
         Object.values(value as Record<string, Json>).forEach(walk);
+      } else if (keyword === 'enum' || keyword === 'const') {
+        // These hold DATA rather than a subschema. An enum of objects would otherwise have
+        // its members read as keywords, and the validator would refuse a schema it can
+        // check perfectly well — which is the false positive that gets a guard switched
+        // off, and a guard switched off is worse than one that was never written.
       } else {
         walk(value);
       }
@@ -132,11 +137,34 @@ function resolve(root: Schema, ref: string): Schema {
   return node as Schema;
 }
 
-function checkShape(root: Schema, schema: Schema, value: Json, path: string): Problem[] {
+/**
+ * How many `$ref` hops are followed before the evaluator concludes it is going in a circle.
+ *
+ * Nothing in v1 is recursive, so this never fires today. It exists because the failure it
+ * prevents is the worst-shaped one available here: a cyclic `$ref` added to the schema
+ * would make this function recurse until the stack goes, and in CI a hang is strictly worse
+ * than a failure — it burns the job's whole timeout and reports "the job timed out", naming
+ * neither the schema nor the cycle. Twenty is far past anything a content schema needs and
+ * far short of a stack.
+ */
+const MAX_REF_DEPTH = 20;
+
+function checkShape(
+  root: Schema,
+  schema: Schema,
+  value: Json,
+  path: string,
+  refDepth = 0,
+): Problem[] {
   const problems: Problem[] = [];
 
   if (typeof schema.$ref === 'string') {
-    return checkShape(root, resolve(root, schema.$ref), value, path);
+    if (refDepth >= MAX_REF_DEPTH) {
+      throw new Error(
+        `"${schema.$ref}" was followed ${MAX_REF_DEPTH} times without reaching a value — the schema has a $ref cycle`,
+      );
+    }
+    return checkShape(root, resolve(root, schema.$ref), value, path, refDepth + 1);
   }
 
   if (typeof schema.type === 'string') {
@@ -234,7 +262,17 @@ function checkText(value: Json, languages: readonly string[], path: string): Pro
 function checkStructure(bundle: Bundle): Problem[] {
   const problems: Problem[] = [];
   const languages = bundle.track.languages;
-  const labs = new Map((bundle.labs ?? []).map((lab) => [lab.id, lab]));
+  // Built one at a time rather than from a Map constructor, because a Map built from pairs
+  // keeps the LAST of a duplicate and says nothing — and then a step's check resolves to
+  // whichever lab happened to be later in the file. Same defect as two units sharing an id,
+  // one artefact down.
+  const labs = new Map<string, Lab>();
+  (bundle.labs ?? []).forEach((lab, labIndex) => {
+    if (labs.has(lab.id)) {
+      problems.push({ path: `/labs/${labIndex}/id`, message: `"${lab.id}" is used by more than one lab` });
+    }
+    labs.set(lab.id, lab);
+  });
 
   problems.push(...checkText(bundle.track.titles, languages, '/track/titles'));
 
@@ -294,8 +332,13 @@ function checkStructure(bundle: Bundle): Problem[] {
       }
     });
 
+    const sectionIds = new Set<string>();
     for (const [sectionIndex, section] of (unit.sections ?? []).entries()) {
       const sectionAt = `${at}/sections/${sectionIndex}`;
+      if (sectionIds.has(section.id)) {
+        problems.push({ path: `${sectionAt}/id`, message: `"${section.id}" is used by more than one section of this unit` });
+      }
+      sectionIds.add(section.id);
       problems.push(...checkText(section.titles, languages, `${sectionAt}/titles`));
       if (section.firstStep > lastStep) {
         problems.push({ path: `${sectionAt}/firstStep`, message: `names step ${section.firstStep} of a unit with ${lastStep}` });
@@ -325,8 +368,23 @@ function checkStructure(bundle: Bundle): Problem[] {
  * it over a malformed bundle reports the same defect a second time in a less useful place.
  */
 export function validateBundle(value: Json): ValidationResult {
-  const root = schemaDocument as unknown as Schema;
+  return validateAgainst(schemaDocument as unknown as Schema, value);
+}
 
+/**
+ * The general form: validate a value against a schema document.
+ *
+ * Exported so the guards above can be watched firing. `MAX_REF_DEPTH` in particular is
+ * unreachable through `validateBundle` — v1 has no recursive `$ref` and the test cannot add
+ * one to the shipped document without corrupting every other test — and an untested guard
+ * is a comment with a keyword in it. This is the seam that lets a cyclic schema be handed
+ * in deliberately.
+ *
+ * It is not a general-purpose JSON Schema validator and must not be used as one: it
+ * implements the subset `content-schema.v1.json` uses, and it says so by refusing anything
+ * else.
+ */
+export function validateAgainst(root: Schema, value: Json): ValidationResult {
   const unsupported = unimplementedKeywords(root);
   if (unsupported.length > 0) {
     return {
@@ -335,7 +393,7 @@ export function validateBundle(value: Json): ValidationResult {
         {
           path: '',
           message:
-            `content-schema.v1.json uses ${unsupported.map((k) => `"${k}"`).join(', ')}, which this ` +
+            `the schema uses ${unsupported.map((k) => `"${k}"`).join(', ')}, which this ` +
             'validator does not implement. It would have been ignored, so no bundle can be ' +
             'trusted until validate.ts implements it or the schema stops using it.',
         },
