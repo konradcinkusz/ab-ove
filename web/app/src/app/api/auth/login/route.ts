@@ -200,11 +200,15 @@ const PROBLEM_STATUS: Readonly<Record<SignInProblemCode, number>> = {
  *
  * Built as a PATH rather than an absolute URL, and so is every other `Location` this route
  * emits. RFC 7231 allows a relative one and every browser resolves it against the address
- * the reader actually used, which is the property that matters here: the only absolute
- * origin available on this side is `request.url`, and behind a TLS-terminating proxy that
- * is reconstructed from headers rather than from what the browser typed. Measured locally,
- * a request to `127.0.0.1:3100` produced a `Location` naming `localhost:3100` — harmless
- * there, and the same mechanism on Fly names the container's own host.
+ * the reader actually used, which is the property that matters here.
+ *
+ * The only absolute origin available on this side is `request.url`, and it does not name
+ * the address the browser used. Measured twice, on a production `next start`: a request to
+ * `127.0.0.1:3000` gives `request.url` of `http://localhost:3000/...` while the `host`
+ * header says `127.0.0.1:3000`, so it is not even reconstructed from the header — it is the
+ * server's own origin. An absolute `Location` built from it named `localhost:3100` for a
+ * request nobody made to localhost. Harmless there; behind Fly it would name the
+ * container.
  */
 function loginPagePath(problem: SignInProblemCode, redirectTo: string | null): string {
   const query = new URLSearchParams({ error: problem });

@@ -168,11 +168,12 @@ would run any of this on every push; today none of it does.
 | `content-type: text/plain` | `415` |
 
 One defect was found by that run and fixed: the `Location` header was absolute, built from
-`request.url`. A request to `127.0.0.1:3100` produced a `Location` naming `localhost:3100`,
-because `request.url` is reconstructed from headers rather than from what the browser typed
-— and the same mechanism behind Fly's proxy names the container's own host. Every `Location`
-this route emits is now relative, which RFC 7231 allows and which every browser resolves
-against the address the reader actually used.
+`request.url`. A request to `127.0.0.1:3100` produced a `Location` naming `localhost:3100`.
+A later probe measured why, and it is worse than "reconstructed from the `host` header": on
+a production `next start`, a request whose `host` is `127.0.0.1:3000` has a `request.url` of
+`http://localhost:3000/...`, so the value is the server's own origin and names the browser's
+address in no topology at all. Every `Location` this route emits is now relative, which RFC
+7231 allows and which every browser resolves against the address the reader actually used.
 
 ## Consequences
 
