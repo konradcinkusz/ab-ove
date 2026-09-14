@@ -71,9 +71,21 @@ fetched so the build can prove the exercises solvable and are never served to th
 ([ADR-0012](docs/adr/0012-solutions-are-never-served-to-the-browser.md)), which an
 acceptance test asserts in both directions.
 
-**Phase 2b is blocked and not by us.** The frame view needs the book's 47 programs as a
-versioned bundle on the book's own releases, and no such release exists yet. Phase 2a — the
-schema, the loader and the view against a fixture bundle — can proceed without it.
+**The frame view reads one frame at a time, and the answer is absent rather than hidden.**
+`/read/<track>/<program>/<language>/<frame>` renders one step; the reveal is a navigation,
+so the answer to the frame you are on is rendered by the request for the *next* one and by
+nothing before it. That is the book's own mechanic — a frame opens with the previous
+frame's answer — and modelling it that way
+([ADR-0014](docs/adr/0014-the-content-schema-is-json-schema-and-knows-nothing-about-frames.md))
+is what makes the property structural instead of a discipline somebody has to keep. A
+reader who opens the inspector finds the answer nowhere, and prefetching is off so it is not
+on the wire either. Both halves are asserted, and both were watched failing before they were
+believed.
+
+**Phase 2b is blocked and not by us.** The frame view is reading a **fixture** — four steps
+written for this repository and marked as such. The real content is the book's 47 programs
+as a versioned bundle on the book's own releases, and no such release exists yet. The
+schema, the loader and the view did not have to wait for it, and do not.
 
 The phase plan is in [docs/ux/UI-UX.md](docs/ux/UI-UX.md), ranked, so the first delivery
 session picks it up rather than re-deriving it.
