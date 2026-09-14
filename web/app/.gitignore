@@ -12,3 +12,16 @@ next-env.d.ts
 .env
 .env.local
 .env.*.local
+
+# BUILD OUTPUT, not source. `scripts/prepare-lab-assets.mjs` writes both, on every
+# `pnpm build` and `pnpm dev` (the prebuild/predev scripts), and both are reproducible from
+# the pinned inputs: public/pyodide/ from the `pyodide` version in package.json via the
+# workspace lockfile, public/book/ from content/book.lock.json's revision and digests.
+#
+# They are ignored rather than committed because they are 13 MB of binaries — 9.2 MB of it
+# one wasm file — and a binary in git is a binary nobody diffs, reviews or can tell has been
+# tampered with. The lockfile and the pin are the reviewable artefacts; these are their
+# output. (SHARED-SERVICE-REUSE.md §2, the rule for an image: pinned, never a moving ref.)
+/public/pyodide/
+/public/book/
+/public/lab/

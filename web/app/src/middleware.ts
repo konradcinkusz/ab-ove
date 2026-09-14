@@ -63,12 +63,37 @@ const PUBLIC_PATHS = new Set<string>([
   // finished image rather than by reading it: the page renders, the route answers, and
   // only the check sees the redirect.
   '/healthz',
+
+  // The lab index. It is here rather than in PUBLIC_PREFIXES because every entry in that
+  // list ends in a slash — '/lab' as a prefix also matches '/labour' and '/lab-admin',
+  // and a gate that opens a page nobody has written yet is a gate that will one day open
+  // a page somebody has. The trailing slash costs exactly this: the index path of a public
+  // section needs its own entry. Write both, or the section's front door 307s while every
+  // page behind it is public.
+  '/lab',
 ]);
 
 const PUBLIC_PREFIXES: readonly string[] = [
   '/read/', // the frames — the reader loop needs no account
-  '/lab', // the Pyodide exercise pane — runs in the browser, needs no account
+  '/lab/', // the Pyodide exercise pane — runs in the browser, needs no account
   '/legal/', // see the carve-outs below
+
+  // The bytes the reader loop is MADE of, not merely the pages that frame it.
+  //
+  // These are files under public/, and public/ is served by the Next server at root paths,
+  // so — unlike _next/static/ — they do reach this matcher. Without these two entries the
+  // lab pane renders, asks for its runtime, and is handed a 307 to /login for every asset:
+  // the page looks fine and sits on "loading Python…" for ever. Measured on both `next
+  // start` and the standalone server, and asserted by tests/e2e/specs/lab-p01.spec.ts,
+  // which checks the status code with maxRedirects: 0 — followed, the redirect returns the
+  // login page as 200 and the test passes for the wrong reason.
+  //
+  // They are here rather than in the matcher's exclusion list because that list is for
+  // things that are not the product's business, and these are: the book is readable, and
+  // its exercises runnable, with no account at all (ADR-0004). That is a product decision
+  // and it belongs in the list a reviewer greps for product decisions.
+  '/book/', // the fetched book content, pinned — web/content/book.lock.json
+  '/pyodide/', // the Python runtime, vendored and served from our own origin (FRONTEND-BFF §1)
 ];
 
 /**

@@ -1,0 +1,44 @@
+{
+  "$comment": [
+    "The pin. ADR-0008: content is a versioned artefact of the book, never its source, and",
+    "this repository never parses LaTeX (P11). SHARED-SERVICE-REUSE.md §2's rule for an",
+    "image applies to content too — pinned, never a moving ref.",
+    "",
+    "Every file below is FETCHED by scripts/fetch-book-content.sh and written under",
+    "web/content/book/. None of them is hand-edited here; a change is made in the book and",
+    "arrives by moving the pin. The digests are what make that enforceable: the fetch",
+    "verifies each file against its digest and fails loudly on a mismatch, so a silently",
+    "edited fixture cannot pass for a fetched one.",
+    "",
+    "PROVISIONAL, and stated as such. Phase 2 replaces this file-by-file fetch with the",
+    "content bundle the book attaches to a v* release (book issue #239 §1). That bundle",
+    "does not exist yet, which is why phase 1 fetches the lab engine directly and why this",
+    "is the interim shape rather than the destination."
+  ],
+  "source": {
+    "repository": "konradcinkusz/math-for-ai-engineers",
+    "revision": "0698dca3c9282e60f584d3ce3d9256bac5496bf9",
+    "revisionNote": "the merge commit of the book's PR #238 — the tree the lab engine was verified on",
+    "license": "the book is CC BY-NC-SA; its lab/ code is MIT. See the book's own LICENSE files.",
+    "baseUrl": "https://raw.githubusercontent.com"
+  },
+  "destination": "web/content/book",
+  "files": {
+    "lab/check.py": "sha256:8b1f1c7f775587db3325aa148fbd26beac4a2e5f48d13cb72666ae56fe25ed43",
+    "lab/tests/labkit.py": "sha256:8e56452d8cef3757e09163c0f8a6d4618a12e51b971a6a37c6892d7c2e2a3572",
+    "lab/tests/conftest.py": "sha256:2792aa731bd67288be198c2c1c665567b99172b3ba3adf200a9c188f29392c10",
+    "lab/tests/test_p01.py": "sha256:9bf7363a31a65254d358120dc47a3f0e1cf362c2d3e320c4d771c2edc95f5579",
+    "lab/exercises/p01_floating_point.py": "sha256:ee1a5a0ebc8db3c196556d98efecb878f4deb8b161c52e5579becca7b98357f4",
+    "lab/solutions/p01_floating_point.py": "sha256:672edd0dd5a8d4af59b4c8f77f2977d8bf48761a4ceee1276f22b9ec494777e0",
+    "figures/values/p01.tex": "sha256:c8def9ce325d42c3862a196f63b78774bf724cc0e6b865a645c8b4f75a3efc2c"
+  },
+  "layoutNote": [
+    "The relative layout is load-bearing and must be reproduced exactly in the virtual file",
+    "system Pyodide mounts. labkit.py computes the repository root as",
+    "Path(__file__).resolve().parents[2], so it must sit exactly two directories below the",
+    "root, and it then reads <root>/figures/values/<program>.tex and",
+    "<root>/lab/<exercises|solutions>/<stem>.py. check.py resolves only its own sibling",
+    "tests directory, HERE/'tests'. Flatten any of this and the engine looks for the values",
+    "file in the wrong place and fails at import — as a traceback, not as a FAIL line."
+  ]
+}

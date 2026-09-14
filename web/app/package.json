@@ -2,11 +2,22 @@
   "//": [
     "FRONTEND-BFF.md §7 — a member of the workspace above, which owns the only lockfile.",
     "Dependency count is deliberately tiny (REPO-BASELINE.md §4b publishes these counts):",
-    "next + react + react-dom are the framework, jose is the ONLY runtime dependency added",
-    "on top, and it is there because FRONTEND-BFF.md §4 names jwtVerify as the thing that",
-    "separates verification from the decode-only middleware that accepted forged tokens.",
-    "Nothing here pulls a font, a stylesheet or a script from a CDN: every byte the browser",
-    "loads is served from this app's own origin (§1).",
+    "next + react + react-dom are the framework, and exactly two dependencies sit on top.",
+    "`jose` is there because FRONTEND-BFF.md §4 names jwtVerify as the thing that separates",
+    "verification from the decode-only middleware that accepted forged tokens.",
+    "",
+    "`pyodide` is the second, and it is a dependency rather than a script tag for one",
+    "reason: FRONTEND-BFF.md §1 — 'The browser must talk ONLY to the frontend's own",
+    "origin.' Pyodide's own documentation leads with a jsDelivr indexURL, and taking that",
+    "advice would put a third-party host in the critical path of the reader loop and make",
+    "the loop stop working the day that host is blocked or slow. The package ships the",
+    "same files (pyodide.mjs, pyodide.asm.wasm, python_stdlib.zip, pyodide-lock.json);",
+    "`prebuild` copies them into public/ so every byte is served from this origin.",
+    "The version is PINNED exactly, with no range: the wasm, the .mjs loader and the",
+    "stdlib zip are one artefact and a caret range would let three of them move under a",
+    "lockfile refresh (SHARED-SERVICE-REUSE.md §2's rule for an image, applied to a",
+    "binary asset). It is also the only dependency whose bytes are NOT in the bundle —",
+    "nothing imports it at build time; prepare-lab-assets.mjs copies out of node_modules.",
     "",
     "eslint is held at 9.x, which npm marks as no longer supported, and the pin is not",
     "neglect: eslint-config-next bundles typescript-eslint 8, whose peer range is",
@@ -23,7 +34,16 @@
     "node": ">=22.0.0"
   },
   "scripts": {
+    "//prepare-lab-assets": [
+      "prebuild and predev both run it because the lab pane is broken in exactly the same",
+      "way without it, and `next dev` is where that is discovered. npm lifecycle order runs",
+      "pre<script> before <script> for both, so neither `pnpm build` nor `pnpm dev` can",
+      "start without the assets being present and current."
+    ],
+    "prepare-lab-assets": "node scripts/prepare-lab-assets.mjs",
+    "predev": "node scripts/prepare-lab-assets.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/prepare-lab-assets.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -32,6 +52,7 @@
   "dependencies": {
     "jose": "6.2.12",
     "next": "16.3.5",
+    "pyodide": "314.0.7",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

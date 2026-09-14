@@ -33,7 +33,7 @@ The three banned shapes, for the grep that enforces them:
 
 ## What this suite covers
 
-Four journeys, twenty tests, two layers. Each journey is one file in `specs/`.
+Five journeys, twenty-seven tests, two layers. Each journey is one file in `specs/`.
 
 ### 1. The landing page renders and states the product's anti-goal — `specs/landing.spec.ts`
 
@@ -130,6 +130,137 @@ and no identity service. The middleware is private-by-default and opts routes ou
 time, so `/` being public is a list entry somebody wrote; if it ever falls out of that list,
 the symptom is a redirect to a page a deployment without an identity service cannot serve.
 
+### 5. The Lab P1 pane — `specs/lab-p01.spec.ts`
+
+`notes/10 §6.1` fixes this phase's definition of done as one journey: **open Lab P1, paste the
+reference solution of one exercise, press Check, and see the `ok` line for that check and the
+`SUMMARY` line.** The first test is that journey and nothing else. The six around it are what
+make the first one worth believing.
+
+**Why one exercise, and what that does not buy.** One exercise is what `notes/10 §6.1`
+specifies, and it is the stronger assertion: the result has to be *partial* in exactly the way
+the reader's work was partial — two `ok` lines and eleven `todo` lines, not thirteen of either
+— so the summary's bookkeeping is a claim about the pane having run the reader's code rather
+than about a run having happened. A whole-file paste asserting thirteen `ok` lines would
+collapse every per-check assertion into one.
+
+What it does **not** buy, measured rather than supposed: it does not catch a pane that reports
+success unconditionally. Run against one that rewrites every result line to `ok`, **the
+headline test passes** — the two `ok` lines it looks for are there, and `ok=13 fail=0 todo=0`
+satisfies every property it checks. The second test is what catches that, by requiring the
+untouched stub to report `SUMMARY ok=0 fail=0 todo=13` — and the second test in turn passes
+against a pane that ignores the editor entirely, which is what the first one catches. Neither
+is redundant and neither is sufficient. `E2E-ACCEPTANCE-TESTING.md §2`: a real assertion proves
+only that a test *can* pass, not that it can catch anything, which is why both were written as
+a pair and both were watched failing — see the table at the end of this section. The book's own
+`lab/tools/labcheck.py --tests` holds the engine to exactly this both-directions rule; these two
+tests are that rule applied one artefact over, to the pane.
+
+The other five:
+
+- **a wrong answer** produces one `FAIL` line naming the check, and **hands back no solution**.
+  The lab's three rules say a failed check "names the frames to re-read, never the solution";
+  the assertion is that no line which occurs in `lab/solutions/` and nowhere in the stub appears
+  in the output. The pane is then asserted to be still usable — run enabled, status back to
+  ready, the reader's work still in the editor.
+- **a second Check reports the second answer, not the first.** Two answers one keystroke apart
+  and, deliberately, **the same number of bytes** — see *The re-run test* below, which is the
+  most load-bearing paragraph in this section.
+- **a run that cannot start** — a syntax error in the reader's file — shows the traceback and
+  leaves the pane usable. `lab/check.py` imports the reader's module outside any `try`, so this
+  is the one outcome that arrives as an uncaught Python traceback with no `FAIL` line and no
+  `SUMMARY` line at all, and it is the outcome a reader reaches most often, because a half-typed
+  function is a syntax error.
+- **the whole journey fetches from this origin and from nowhere else** (`FRONTEND-BFF.md §1`,
+  `notes/10 §6.1`). Pyodide's own documentation leads with a jsDelivr `indexURL`, and taking that
+  advice would put a third-party host in the critical path of a reader loop whose first
+  requirement is that it needs no backend. Asserted over the boot *and* the run, with the
+  positive half too — the runtime arrived from `/pyodide/` and the book from `/book/` — without
+  which "nothing off-origin" would be satisfied by a page that fetched nothing.
+- **the reference solutions are not served to the browser.** `lab/solutions/` exists so the
+  build can prove the exercises solvable; copying it into `public/book/` would put every answer
+  one devtools tab away. Asserted in both directions, because a 404 for the solutions proves
+  nothing on its own — a build that copied no book at all would also 404 — so the exercise stub
+  and the values file are asserted present with their real contents. `maxRedirects: 0`
+  throughout: the middleware answers an unauthorised request with a 307 to `/login`, and a
+  followed redirect returns the sign-in page with status 200, which would read as "served" for
+  the one and "absent" for the other, both wrong and both silently.
+
+**The solution is read in Node, not fetched by the page**, and that is the point rather than a
+workaround: it is not served to the browser, so the test supplies it, exactly as the answer
+reaches a real reader from outside the pane. Nothing in `specs/` contains a line of the book's
+Python. `specs/support/lab.ts` reads the pinned files from `web/content/book/` and splices one
+`# region:` block — the book's own markers, which `lab/tools/labcheck.py --files` already
+requires the two files to share — so there is no second copy to drift when the pin moves. How
+many checks the lab has is **counted** from the pinned test module rather than written down;
+`13` appears nowhere in the suite.
+
+#### The re-run test, and a mechanism that is not what it is usually said to be
+
+The defect: a second Check reports the *first* version of the reader's code. It looks like a
+working pane to anybody who presses Check once, and to anybody else it is indistinguishable
+from their own bug — they fix their answer, the same failure comes back, and what they conclude
+is that they have not fixed it.
+
+It is usually attributed to `sys.modules`. **Measured against the pinned engine, it is not.**
+`lab/tests/labkit.py` loads the reader's file with `module_from_spec` + `exec_module`, which
+never registers it — `"p01_floating_point" in sys.modules` is `False` after a run — so popping
+that name and calling `importlib.invalidate_caches()` is a no-op. Run twice with that guard in
+place and the stale result still comes back. What bites in CPython is the `__pycache__`
+**bytecode** cache, validated against the source's mtime *and its size*, with mtime compared as
+whole seconds: two Checks inside one second on a file whose size did not change reuses a stale
+compile. That is measured, three ways — no guard: stale; the `sys.modules` guard: stale;
+`sys.dont_write_bytecode = True`: the result changes.
+
+**And in the browser neither mechanism is live**, which is also measured: Pyodide sets
+`sys.dont_write_bytecode` to `True` by default, and its in-memory file system stamps mtime with
+millisecond precision. So the pane is protected today by two accidents rather than by the guard
+usually written for it — and it stops being protected the day somebody clears either one.
+
+None of that is asserted. The test asserts the *observable* property, which is what a reader
+experiences and is broken by far more mundane things than Python caching — an editor written to
+the virtual file system only at boot, an output pane that is never cleared, a stale read of
+component state. What the mechanism did change is the test's data: the two answers are
+`    return 0.0` and `    return 1.0`, **the same length**, because a wrong and a right answer of
+different lengths would invalidate a stale compile on size alone and the test would pass against
+a pane carrying the defect. The test asserts the two are the same length before it types either,
+so that reasoning is checked rather than trusted.
+
+#### What it cost, and what was watched failing
+
+Pyodide is seconds, not milliseconds, so this file raises its own timeouts rather than inflating
+the suite's: 180 s per test, 90 s for the boot, 60 s for a run. They are ceilings; there is no
+sleep in the file and every wait is a web-first assertion. **Measured: the boot — page,
+`pyodide.mjs` and the ~9 MB `pyodide.asm.wasm` from this origin, the runtime instantiating, the
+virtual file system written and `lab-run` enabled — is about 2 seconds per fresh browser
+context, and a Check on top of a booted runtime is about 100 ms.** Read that with its caveat:
+it was taken against a harness serving the same Pyodide build and the same book from local
+disk, because at the time of writing the real pane could not boot at all — the middleware
+returns 307 to `/login` for `/pyodide/**` and `/book/**`, which is the defect the last test in
+this file reports in 38 ms. **The figure is therefore a floor and has not been measured against
+the shipped route.** Expect a Next.js route with hydration in front of it to cost more, and a
+cold CI runner more again; whoever first sees a green lab run should replace the number. The
+ceilings are several times the floor for exactly that reason.
+
+**Every one of the seven was watched failing**, against panes built to be wrong in one specific
+way each — which is `E2E-ACCEPTANCE-TESTING.md §2`'s mutation-testing argument done by hand,
+and the only thing that separates an assertion that can pass from one that can catch something:
+
+| a pane that… | fails |
+|---|---|
+| is faithful to the contract | *none — all seven pass* |
+| ignores the editor and always runs the stub | 1, 3, 4, 5 |
+| rewrites every result line to `ok` | 2, 3, 4, 5 |
+| writes the editor to the virtual FS only on the first Check | 4, 5 |
+| serves `lab/solutions/` | 7 |
+| makes one third-party fetch | 6 |
+| lets the middleware bounce `/book/**` to sign-in | 7 |
+
+Read rows two and three against each other. The headline journey (1) is absent from row three:
+a pane that reports success unconditionally passes it. The stub test (2) is absent from row two:
+a pane that ignores what the reader typed passes it. Each is caught only by the other, which is
+the whole argument for writing them as a pair.
+
 ---
 
 ## What this suite does NOT cover
@@ -137,15 +268,23 @@ the symptom is a redirect to a page a deployment without an identity service can
 Stated explicitly, because a suite whose scope is implicit gets cited as coverage nobody is
 checking.
 
-- **The lab pane — Phase 1, not built.** The book's computer exercises running in the browser
-  under Pyodide. Nothing of it exists in `web/app` today. When it lands, it needs its own
-  file in `specs/`, and it will need `data-testid` attributes on the editor and the run
-  control, because a code editor has no useful accessible name.
+- **The lab pane's Reset control**, and the run button being disabled *while a run is in
+  flight*. Both are in the pane's contract and neither is asserted. `lab-reset` is asserted
+  present and enabled after a failure — a pane that wedges its own controls fails there — but
+  nothing presses it and asserts the stub comes back. The in-flight disable is deliberately
+  **not** asserted: a run that finishes before the assertion polls would fail a test about a
+  correct pane, and a test that is flaky by construction is worse than the gap it fills. The
+  first is a test somebody should write; the second needs a slow run to observe and has no
+  honest form today.
+- **A second lab.** `specs/lab-p01.spec.ts` drives P1 because P1 is the only lab the book
+  has. The suite's fixtures read `web/content/book/lab/{exercises,solutions}/p01_floating_point.py`
+  by name; a second lab is a second spec and a parameter, not a rewrite.
 - **The frame view and the content schema — Phase 2, not built.** 47 programs, two languages,
-  one structure. The reader loop itself — read a frame, commit an answer, reveal the next —
-  is therefore **completely untested**, because there is no frame view to drive. This is the
-  single largest gap in the suite and it is a gap in the product, not in the tests.
-  `specs/landing.spec.ts` asserts the landing page still *declares* both as unbuilt, which is
+  one structure. The *reading* half of the reader loop — read a frame, commit an answer,
+  reveal the next — is therefore **untested**, because there is no frame view to drive. The
+  *working* half is now covered by journey 5. This is the single largest gap in the suite and
+  it is a gap in the product, not in the tests.
+  `specs/landing.spec.ts` asserts the landing page still names it among the phases, which is
   the cheapest available signal that this section has gone stale.
 - **Progress and accounts — Phase 3, not built.** No sign-in, no registration, no session.
   Consequently there is **no `storageState`** in this suite. `E2E-ACCEPTANCE-TESTING.md §3`
@@ -160,10 +299,12 @@ checking.
   non-goal: each such test is minutes added to every PR forever.
 - **Cross-browser.** One browser, chromium. See *Deliberate deviations*.
 - **Visual regression.** Pixel-checking is a stated non-goal.
-- **Mutation testing.** `E2E-ACCEPTANCE-TESTING.md §2` asks for Stryker to be run at least
-  once after an assertion-discipline pass, as the actual proof the assertions catch broken
-  code. **It has not been run against this suite.** It is a tool, not a per-PR gate, and it is
-  outstanding.
+- **Mutation testing, as a tool.** `E2E-ACCEPTANCE-TESTING.md §2` asks for Stryker to be run
+  at least once after an assertion-discipline pass, as the actual proof the assertions catch
+  broken code. **Stryker has not been run against this suite** and is outstanding. What has
+  been done is the same argument by hand, for journey 5 only: every one of its seven tests was
+  watched failing against a pane deliberately broken in one specific way, and the table is in
+  that journey's section above. Journeys 1 to 4 have had no such pass.
 
 ---
 
@@ -189,16 +330,22 @@ different error overlays and different bundle behaviour from the artifact that s
 suite that only ever sees the dev server is testing a program nobody deploys.
 
 ```bash
+bash ../../scripts/fetch-book-content.sh   # required — web/content/book is not in git
 pnpm --dir ../../web install
 pnpm --dir ../../web build   # required — Playwright starts the server, it does not build it
 
 cd tests/e2e
-pnpm run test:smoke          # 8 tests, the critical path
-pnpm run test:full           # 20 tests, smoke + core regression
+pnpm run test:smoke          # 12 tests, the critical path
+pnpm run test:full           # 27 tests, smoke + core regression
 pnpm test                    # both projects
 pnpm run test:ui             # the Playwright UI, for writing tests
 pnpm run report              # open the last HTML report
 ```
+
+The book fetch is first because two things need it: the web build copies `web/content/book` into
+`public/book` so the lab pane has a file system to mount, and `specs/lab-p01.spec.ts` reads the
+pinned exercise and solution files in Node. Without it the build fails and the lab journey
+cannot run; `.github/workflows/ci.yml`'s `e2e` job runs the same command for the same reason.
 
 `playwright.config.ts` starts the web app itself, on `http://localhost:3000`, with
 `reuseExistingServer: !CI` — so if you already have one running, it is used. If you have not
@@ -257,8 +404,8 @@ script are themselves the sign that nobody has run the suite in a while.
 
 | Layer | Project | Budget | Trigger | Contents |
 |---|---|---|---|---|
-| Smoke | `smoke` | 5–10 min | every ready PR | 8 tests, single browser — the critical path |
-| Core regression | `core` | 20–30 min | push to `main` | 20 tests — the full protected-flow set, smoke included |
+| Smoke | `smoke` | 5–10 min | every ready PR | 12 tests, single browser — the critical path |
+| Core regression | `core` | 20–30 min | push to `main` | 27 tests — the full protected-flow set, smoke included |
 | Extended / edge | — | 30–60 min | nightly | **not present**, see below |
 
 The budget is part of the definition. A layer that grows past its budget is pruned, not
@@ -314,18 +461,31 @@ Fixed, ranked, and the same for anyone adding a test or a component.
 |---|---|---|
 | **1st — role + accessible name** | `getByRole('region', { name: 'Integration report' })` | copy changes (often desirable to catch) or the element's ARIA role changes |
 | **2nd — label / placeholder / text** | `getByRole('main').toContainText(...)` | copy changes |
-| **3rd — `data-testid`, for what the above cannot reach** | `[data-testid="lab-run-button"]` | never, by design — but only covers what it was added for |
+| **3rd — `data-testid`, for what the above cannot reach** | `getByTestId('lab-run')` | never, by design — but only covers what it was added for |
 | **Avoid — CSS class chains, DOM traversal** | `.panel .badge.badge-live` | any styling refactor, with no relation to behaviour |
 
-**`web/app` carries no `data-testid` attributes today, and that is correct, not a shortfall.**
-Accessible locators rank *above* `data-testid`, and every element these journeys drive
-already has a role and an accessible name: `<main>`, the `<h1>`, the two `<section>`s that
-carry `aria-label` / `aria-labelledby` and are therefore `region`s, the `<ol>`/`<ul>` lists
-and their items, and the footer link. `data-testid` is the deliberate fallback for elements
-the first two preferences cannot reach — and the first of those is coming: the lab pane's
-code editor and run control will need them, added **at the moment those components are first
-built**, not retrofitted. Retrofitting means changing both sides at once for every test
-already written against a fragile selector.
+**Journeys 1 to 4 use no `data-testid` at all, and journey 5 uses nothing else. Both are
+correct.** Accessible locators rank *above* `data-testid`, and every element the landing-page
+journeys drive already has a role and an accessible name: `<main>`, the `<h1>`, the two
+`<section>`s that carry `aria-label` / `aria-labelledby` and are therefore `region`s, the
+`<ol>`/`<ul>` lists and their items, and the footer link.
+
+The lab pane is the deliberate fallback the third row is for. A code editor, a stdout pane and
+a machine-readable summary line have no useful accessible name — "the textarea whose label is
+Your code" would be a locator for the label rather than for the thing being driven — so seven
+ids carry that journey:
+
+```
+lab-status  lab-editor  lab-run  lab-reset  lab-output  lab-summary  lab-exercise-count
+```
+
+They were **agreed as a contract before either side was built** and added to the components as
+they were built, which is the whole of what `E2E-ACCEPTANCE-TESTING.md §3` asks: "if the tests
+will live in a separate repo, or be written by a separate team, from the frontend, the chosen
+locator convention must be a contract between them from day one — not a review comment
+discovered months in." The audited estate's failure was the opposite — a strategy doc naming
+`data-testid` as preferred beside four apps carrying none — and retrofitting means changing both
+sides at once for every test already written against a fragile selector.
 
 Two mechanical traps, both from the audit, both avoided here:
 
@@ -346,13 +506,19 @@ assertion (`expect(locator).toBeVisible()`, `.toHaveCount()`, `.toContainText()`
 `page.waitForRequest`, armed *before* the navigation it observes — arming it after is a race
 the fast case loses, and the fix for that race is never a sleep.
 
-Timeouts: 30 s per test, 10 s per assertion. The one test that needs more asks for it at the
-assertion, visibly — the live-API test allows 90 s because a Fly machine may be scaled to
-zero and the proxy's ladder is sized to cover a cold start. There is no global inflation to
-cover one slow case.
+Timeouts: 30 s per test, 10 s per assertion, and there is no global inflation to cover a slow
+case. Two places ask for more, visibly and at the point they need it — the live-API test allows
+90 s at the assertion, because a Fly machine may be scaled to zero and the proxy's ladder is
+sized to cover a cold start; and `specs/lab-p01.spec.ts` raises its own per-test timeout at the
+top of the file, because Pyodide fetches and instantiates a ~9 MB wasm before anything on that
+page can be driven. Raising the suite's 30 s to cover the second would buy every other spec a
+slower failure.
 
 **There are no custom assertion or wait wrappers in this suite.** `specs/support/` contains
-route handlers and an error collector and nothing else, and both files say so at the top. The
+route handlers, an error collector and a file-reading fixture, and nothing else — every file
+says so at the top. `lab.ts` does one thing the others do not: it throws when the pinned book
+no longer has the shape a splice needs, which is not an assertion about the application but a
+refusal to hand a spec a fixture that is quietly wrong. The
 audited estate shipped a helper that accepted a `timeoutMs` and ignored it in five of its
 seven methods, indistinguishable at the call site; the cheapest defence is for shared code to
 have nothing to hide. Every assertion and every wait is in a spec file, in plain sight.
@@ -421,9 +587,11 @@ tests/e2e/
     runtime-config.spec.ts          journey 2 — GET /api/config, resolved at request time
     integration-report.spec.ts      journey 3 — P8, seen from a browser
     no-backend.spec.ts              journey 4 — the reader loop's premise
+    lab-p01.spec.ts                 journey 5 — the Lab P1 pane, Pyodide in the browser
     support/
       service-info.ts               the API's payload shape and the route handlers
       page-errors.ts                uncaught-exception collector
+      lab.ts                        the pinned book's exercise file, solutions and splices
 ```
 
 `specs/support/` holds no assertions and no waits, by design. Playwright's default

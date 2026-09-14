@@ -13,9 +13,16 @@
 #
 #     cd web && docker build -f app/Dockerfile -t ghcr.io/konradcinkusz/ab-ovo-web:<tag> .
 #
-# It has to be. FRONTEND-BFF.md §7 puts the single lockfile at the workspace root, so a
-# context rooted at app/ could not do a --frozen-lockfile install and the image would be
-# built from resolutions nobody recorded.
+# It has to be, for two reasons. FRONTEND-BFF.md §7 puts the single lockfile at the
+# workspace root, so a context rooted at app/ could not do a --frozen-lockfile install and
+# the image would be built from resolutions nobody recorded — and FLY-IO-DEPLOYMENT §4 makes
+# the context the directory that holds the lockfile, which flyio/web.fly.toml quotes.
+#
+# THE CONSEQUENCE, which is ADR-0013: everything this image needs must live under web/. That
+# is why the book's lab engine is at web/content/ and not at the repository root. Docker
+# cannot COPY from outside its context, and widening the context to the repository root is
+# not available either — the root .dockerignore excludes web/ so that the API build does not
+# ship it (REPO-BASELINE.md §1), and one context root gets one ignore file.
 #
 # Note that Docker reads .dockerignore from the CONTEXT root. The rules that matter for this
 # image are in app/.dockerignore (and BuildKit reads app/Dockerfile.dockerignore for a
@@ -60,6 +67,23 @@ WORKDIR /workspace
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY app ./app
+
+# The book's lab engine — ADR-0013, and the reason `content/` sits under web/ rather than at
+# the repository root.
+#
+# app/scripts/prepare-lab-assets.mjs runs as `prebuild` and stages content/book into
+# app/public/book, so the lab pane has a virtual file system to mount under Pyodide. Without
+# this COPY that script fails and `pnpm --filter @ab-ovo/app build` below fails with it —
+# which is correct behaviour and was the symptom: with the lock at the repository root the
+# builder died on "content/book.lock.json was not found at /content/book.lock.json", because
+# Docker cannot COPY from outside its context and there is nothing above a context root.
+#
+# It is a COPY of committed-and-verified bytes rather than a fetch inside the build. The
+# fetch belongs to scripts/fetch-book-content.sh, which runs in CI before this image is
+# built; doing it here would put a network call between two layers that are otherwise
+# reproducible from the context alone. Digests are checked twice regardless — by the fetch
+# as it writes, and by the prebuild as it copies onto a public origin.
+COPY content ./content
 
 # Whatever the build context carried in app/node_modules or app/.next belongs to a
 # developer's machine, not to this image. Removing it before the installed tree is overlaid

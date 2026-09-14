@@ -1,0 +1,69 @@
+# REPO-BASELINE.md §1 — "Write the .dockerignore as EXCLUSION-based for a monorepo: the
+# image build must not ship web/, tests/ or the infra tree as build context."
+#
+# This is the frontend's half of that rule. The context for this image is the pnpm
+# workspace at web/ (see the header of app/Dockerfile for the exact command), so what has to
+# be kept out is everything a developer's working tree accumulates there.
+#
+# IT LIVES AT web/ AND NOT AT web/app/, WHICH IS WHERE IT WAS. Docker reads .dockerignore
+# from the CONTEXT ROOT, and this image's context is web/ — so at web/app/ this file was
+# read by nothing. The daemon's built-in frontend looked for web/.dockerignore, found no
+# such file, and uploaded the whole working tree including app/node_modules on every build.
+# (BuildKit would additionally read app/Dockerfile.dockerignore when the Dockerfile is named
+# on the command line, but this repository deliberately does not depend on a BuildKit-only
+# behaviour — see the first paragraph of app/Dockerfile.) flyio/web.fly.toml states the
+# contract in as many words: "web/.dockerignore must exclude **/node_modules and **/.next".
+# It now exists at the path that contract names.
+#
+# Correctness does not rest on this file: every COPY in the Dockerfile names what it wants,
+# and the builder stage explicitly discards a carried-in node_modules or .next. What this
+# file buys is a context that does not take a minute to upload and a layer cache that is
+# not invalidated by a file the image never uses. That is exactly why the misplacement was
+# invisible — nothing was broken by it, only slow.
+#
+# NOTHING HERE MAY EXCLUDE content/. ADR-0013 puts the book's lab engine inside this context
+# precisely so the builder can stage it into public/; an exclusion would reintroduce the
+# build failure that moved it here, with a message naming a missing path and nothing saying
+# an ignore rule is why.
+
+# The installed tree — hundreds of megabytes, and the image installs its own from the
+# lockfile. Shipping it would also defeat the deps layer entirely.
+**/node_modules
+
+# Build output from a local `pnpm build`. Stale by definition inside this image.
+**/.next
+**/out
+**/.turbo
+**/*.tsbuildinfo
+
+# REPO-BASELINE.md §2 — secrets reach a container through the platform, never through a
+# build context. A .env that was never meant to leave a laptop must not become a layer.
+**/.env
+**/.env.*
+!**/.env.example
+
+# Version control, editor and OS noise.
+.git
+.gitignore
+**/.DS_Store
+**/*.swp
+**/.idea
+**/.vscode
+
+# Logs and local scratch.
+**/*.log
+**/npm-debug.log*
+**/pnpm-debug.log*
+**/coverage
+**/.eslintcache
+
+# The image does not build from a Dockerfile it contains.
+**/Dockerfile
+**/.dockerignore
+
+# Python bytecode. A local `python3 web/content/book/lab/check.py` leaves __pycache__
+# directories in the fetched tree; the image has no interpreter and prepare-lab-assets.mjs
+# copies from the lock's file list rather than walking the directory, so they could never be
+# served — this keeps them out of the context as well.
+**/__pycache__
+**/*.pyc
