@@ -1,0 +1,379 @@
+# ci.yml — the gate every change passes before it can be a tag.
+#
+# TESTING-STRATEGY.md §3 commits a when-to-run matrix and then requires that "the CI
+# workflow files must implement that matrix exactly". This file is that implementation
+# for the three contexts a branch can be in:
+#
+#   |                          | PR draft | PR ready | merge to main |
+#   |--------------------------|----------|----------|---------------|
+#   | Unit + lint (+ guards)   | always   | always   | always        |
+#   | Integration              | skip     | always   | always        |
+#   | Smoke E2E                | skip     | always   | always        |
+#   | Core regression          | skip     | if touched | always      |
+#
+# The .NET suite covers the first two rows at once and runs unconditionally, which is a
+# deliberate reading rather than a shortcut: TESTING-STRATEGY.md §4 tier 1 puts unit AND
+# "most integration tests" in-memory with no container, and tests/AbOvo.Api.Tests is
+# exactly that — WebApplicationFactory over the InMemory provider (P4). Nothing in it
+# costs the minutes the matrix's "skip on draft" column exists to save. The tier that
+# does cost minutes is E2E, and that is the tier gated on draft below.
+#
+# "Core regression: if touched area" is implemented as its stronger neighbour — the full
+# suite runs on every push to main rather than being selected per touched area. Selecting
+# by touched area on a PR needs a path→flow map that does not exist yet; claiming one
+# here would be the kind of configuration nothing executes that TESTING-STRATEGY.md §9
+# forbids.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+# A superseded PR run is minutes spent on a commit nobody will merge. main is never
+# cancelled: every commit on it is a candidate for a tag.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # One place for the Node major. The Dockerfile, web/.npmrc's engine-strict and this
+  # value are the three claims about the toolchain, and they have to agree.
+  NODE_VERSION: '22'
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────────────
+  # The .NET build gate. Warnings are errors here AND in Directory.Build.props, on
+  # purpose: the props file is the developer-facing rule and this flag is the one a
+  # pull request cannot edit out of the build without editing the workflow, which is a
+  # reviewable diff.
+  # ───────────────────────────────────────────────────────────────────────────────────
+  dotnet:
+    name: dotnet build + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          # The SDK version is global.json's to state, never this file's. Two places
+          # naming a version is one place that goes stale.
+          global-json-file: global.json
+
+      # NuGetAudit is on at level `low` with NuGetAuditMode=all in Directory.Build.props,
+      # and TreatWarningsAsErrors promotes NU1901-NU1904 to errors — so a vulnerable
+      # package, transitive ones included, fails HERE, at restore, before anything is
+      # compiled. That is the dependency half of the supply-chain gate; the SAST half is
+      # codeql.yml.
+      - name: Restore
+        run: dotnet restore AbOvo.sln
+
+      - name: Build (warnings are errors)
+        run: dotnet build AbOvo.sln --configuration Release --no-restore -warnaserror
+
+      # The ARCHITECTURE TEST lives in tests/AbOvo.Api.Tests/ArchitectureTests.cs and is
+      # an ordinary xUnit fact, so it runs here and is deliberately NOT duplicated as a
+      # shell script. A rule with two implementations has two behaviours, and the one
+      # that drifts is always the copy nobody runs locally.
+      - name: Test (unit, in-memory integration, and the architecture rules)
+        run: dotnet test AbOvo.sln --configuration Release --no-build --verbosity normal
+
+  # ───────────────────────────────────────────────────────────────────────────────────
+  # The kernel size check (P2).
+  #
+  # WHY THIS GATE COUNTS CODE LINES AND NOT RAW LINES.
+  #
+  # The constitution's ceiling of ~800 is a count of the REFERENCE kernel's .cs lines,
+  # written in a house style that comments sparingly. This kernel is written under P14,
+  # which asks that a block cite the principle it exists to satisfy — and it does, on
+  # nearly every block. Counting raw lines would therefore set P2 and P14 against each
+  # other: every citation P14 asks for would spend a line of the budget P2 sets, and the
+  # only way to satisfy both would be to delete the reasoning, which is the one part of
+  # the kernel that cannot be recovered from the code.
+  #
+  # So the gate counts what the ceiling is a count OF — non-blank, non-comment lines of
+  # C# — and prints the raw figure beside it so the divergence is visible rather than
+  # hidden. The raw number is reported, never gated: the moment it is gated, P14 becomes
+  # expensive again.
+  #
+  # The size check is a PROXY. What it actually protects against is a kernel that has
+  # started to carry domain, and the thing that catches that directly is the
+  # architecture test in the job above. Neither one alone is the gate.
+  # ───────────────────────────────────────────────────────────────────────────────────
+  kernel-size:
+    name: kernel size (P2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      KERNEL_DIR: src/AbOvo.ServiceDefaults
+      # P2's mechanical ceiling, in code lines. Raising it is a decision, and it is a
+      # decision that has to be made in a diff to this file.
+      KERNEL_CEILING: '800'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Count the kernel
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # bin/ and obj/ are build output; a machine-generated AssemblyInfo.cs is not
+          # kernel a human has to hold in their head.
+          mapfile -d '' files < <(
+            find "$KERNEL_DIR" -name '*.cs' \
+              -not -path '*/obj/*' -not -path '*/bin/*' -print0 | sort -z
+          )
+
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::No .cs files found under $KERNEL_DIR. The kernel size check is measuring nothing, which is worse than measuring the wrong thing."
+            exit 1
+          fi
+
+          # NON-BLANK, NON-COMMENT is defined mechanically: after trimming leading
+          # whitespace the line is empty, or begins with //, /*, * or */. That last one
+          # matters — it is every continuation line of the doc comments P14 asks for.
+          report="$(
+            awk '
+              FNR == 1 { n++; order[n] = FILENAME }
+              { rawf[FILENAME]++; total_raw++ }
+              { line = $0; sub(/^[ \t]+/, "", line) }
+              line == ""        { next }
+              line ~ /^\/\//    { next }
+              line ~ /^\/\*/    { next }
+              line ~ /^\*/      { next }
+              { codef[FILENAME]++; total_code++ }
+              END {
+                # The markdown row is emitted here rather than reconstructed downstream.
+                # A sed that rebuilt it would need `$` as an end-of-line anchor inside
+                # single quotes, which is indistinguishable from a variable somebody
+                # forgot to expand — to a reader and to shellcheck alike.
+                for (i = 1; i <= n; i++) {
+                  f = order[i]
+                  printf "| `%s` | %d | %d |\n", f, codef[f] + 0, rawf[f] + 0
+                }
+                printf "TOTAL_CODE=%d\n", total_code + 0
+                printf "TOTAL_RAW=%d\n",  total_raw  + 0
+              }
+            ' "${files[@]}"
+          )"
+
+          code="$(printf '%s\n' "$report" | sed -n 's/^TOTAL_CODE=//p')"
+          raw="$(printf '%s\n' "$report" | sed -n 's/^TOTAL_RAW=//p')"
+
+          {
+            echo "### Kernel size (P2)"
+            echo
+            echo "| File | Code | Raw |"
+            echo "| --- | ---: | ---: |"
+            printf '%s\n' "$report" | grep -v '^TOTAL_'
+            echo "| **Total** | **$code** | **$raw** |"
+            echo
+            echo "Ceiling is **$KERNEL_CEILING code lines**. Raw lines are reported, never gated —"
+            echo "the gap between the two columns is the reasoning P14 asks each block to carry."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "kernel code lines : $code  (ceiling $KERNEL_CEILING)"
+          echo "kernel raw lines  : $raw   (reported, not gated)"
+
+          if [ "$code" -gt "$KERNEL_CEILING" ]; then
+            echo "::error::The kernel is $code code lines, past P2's ceiling of $KERNEL_CEILING. Move something out of $KERNEL_DIR, or change the ceiling in this workflow and say why in the pull request."
+            exit 1
+          fi
+
+  # ───────────────────────────────────────────────────────────────────────────────────
+  # The frontend gate. One setup block for the whole frontend tree, which is what
+  # web/pnpm-workspace.yaml listing every app buys — CI never grows a per-app rung.
+  # ───────────────────────────────────────────────────────────────────────────────────
+  web:
+    name: web lint + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      # setup-node's cache resolves this path before any of our own steps run, so a
+      # missing lockfile would surface as "Some specified paths were not resolved"
+      # rather than as the thing it is. Fail first, with the sentence that fixes it.
+      - name: Require the workspace lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f pnpm-lock.yaml || {
+            echo "::error file=web/pnpm-lock.yaml::web/pnpm-lock.yaml is missing. There is exactly one lockfile for the frontend tree and it lives beside web/pnpm-workspace.yaml. Run 'pnpm install' in web/ and commit it."
+            exit 1
+          }
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          # The pnpm version is declared once, in web/package.json's packageManager
+          # field. This reads it rather than restating it.
+          package_json_file: web/package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      # `pnpm -r --no-bail typecheck` — tsc over every workspace member. `next build`
+      # type-checks the app's own graph, but not files no route reaches, and the BFF's
+      # server-only modules are exactly the shape that can end up unreferenced for a
+      # commit or two.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+  # ───────────────────────────────────────────────────────────────────────────────────
+  # The E2E suite, WIRED IN THE SAME COMMIT AS THE SUITE ITSELF.
+  #
+  # E2E-ACCEPTANCE-TESTING.md §6: "CI wiring is a requirement of test #1, not a follow-up
+  # after test #447." The audited estate had 447 Playwright tests and zero workflows
+  # matching `e2e`, `playwright` or `acceptance`; the suite's existence was then cited as
+  # coverage nobody was checking. Grep this file for those three words — they are here.
+  #
+  # Which layer runs where (TESTING-STRATEGY.md §2):
+  #   pull_request  → test:smoke  — 5-10 min budget, single browser, critical path only
+  #   push to main  → test:full   — 20-30 min budget, the charter's protected-flow set
+  #
+  # There is deliberately NO extended/cross-browser entry point referenced here, because
+  # no CI context in this repository runs one. TESTING-STRATEGY.md §9: an unreferenced
+  # test config is not a latent capability, it is documentation that lies. When a nightly
+  # workflow exists, the extended layer arrives with it and not before.
+  #
+  # WHY THE SUITE IS NOT POINTED AT A DEPLOYED ENVIRONMENT. E2E-ACCEPTANCE-TESTING.md §6
+  # says to aim the job at the estate's ephemeral PR environment rather than booting a
+  # stack in the runner. This estate has no PR-environment workflow — FLY-IO-DEPLOYMENT
+  # §3 fixes the Fly workflow set at three, and the tag pipeline deploys one shared dev
+  # estate. What makes a runner-local server the right answer here rather than a
+  # concession is a product fact: the Phase 1 reader loop works with NO account and NO
+  # backend, so the smoke layer's subject is the web app alone. Nothing is being faked —
+  # there is nothing for it to talk to yet. The day a protected flow crosses into the
+  # API, this job needs a deployed target and E2E_BASE_URL is where it goes.
+  # ───────────────────────────────────────────────────────────────────────────────────
+  e2e:
+    name: e2e (playwright acceptance)
+    runs-on: ubuntu-latest
+    # The one tier the matrix's "skip on PR draft" column is actually about: a draft PR
+    # gets unit, lint and the guards, and does not spend ten minutes on a browser.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    needs: [web]
+    timeout-minutes: 40
+    env:
+      # There is exactly one source of truth for the port, and it is the Aspire
+      # orchestration in src/AbOvo.AppHost/AppHost.cs, which maps web to 3000 — the same
+      # number flyio/web.fly.toml's internal_port and the Dockerfile's EXPOSE carry.
+      # A compiled-in fallback that has drifted from it is the tell that nobody has run
+      # the suite in a while (E2E-ACCEPTANCE-TESTING.md §6).
+      E2E_BASE_URL: http://127.0.0.1:3000
+    steps:
+      - uses: actions/checkout@v4
+
+      # A guard that FAILS, never one that passes. E2E-ACCEPTANCE-TESTING.md §2 bans
+      # guard-then-bail inside a test because "skip if the feature isn't there" is
+      # indistinguishable from "skip if the feature broke"; the same sentence is true one
+      # level up, of a CI job that goes green when it cannot find the suite. The error
+      # states the whole contract this job places on tests/e2e/, which it does not own.
+      - name: Require the E2E suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for f in tests/e2e/package.json tests/e2e/pnpm-lock.yaml tests/e2e/playwright.config.ts; do
+            if [ ! -f "$f" ]; then
+              echo "::error file=$f::$f is missing."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            cat <<'CONTRACT'
+          The E2E job expects a self-contained pnpm package at tests/e2e:
+
+            tests/e2e/package.json         with scripts "test:smoke" and "test:full"
+            tests/e2e/pnpm-lock.yaml       its own lockfile (it is not a member of the
+                                           web/ workspace, which owns exactly one lockfile
+                                           and lists exactly one package)
+            tests/e2e/playwright.config.ts with a webServer entry that starts the web app
+                                           on the E2E_BASE_URL this job exports, and
+                                           reuseExistingServer: !CI
+
+          This job does not skip when the suite is absent. A green run that tested nothing
+          is the failure mode the suite exists to prevent.
+          CONTRACT
+            exit 1
+          fi
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: |
+            web/pnpm-lock.yaml
+            tests/e2e/pnpm-lock.yaml
+
+      # The suite drives a production build, not `next dev`. A dev server has different
+      # timing, different error overlays and different bundle behaviour from the artifact
+      # that ships, and a suite that only ever sees the dev server is testing a program
+      # nobody deploys.
+      - name: Install and build the web app
+        run: |
+          pnpm --dir web install --frozen-lockfile
+          pnpm --dir web build
+
+      - name: Install the E2E suite
+        run: pnpm --dir tests/e2e install --frozen-lockfile
+
+      # Chromium only. TESTING-STRATEGY.md §2 puts cross-browser in the extended layer,
+      # which runs nightly — and this repository has no nightly context yet, so no
+      # browser is installed for a layer nothing runs.
+      - name: Install Playwright's browser
+        run: pnpm --dir tests/e2e exec playwright install --with-deps chromium
+
+      - name: Run the smoke layer
+        if: github.event_name == 'pull_request'
+        run: pnpm --dir tests/e2e run test:smoke
+
+      - name: Run the core regression layer
+        if: github.event_name == 'push'
+        run: pnpm --dir tests/e2e run test:full
+
+      # trace: 'on-first-retry' and screenshot/video on failure are the harness defaults
+      # TESTING-STRATEGY.md §5 prescribes, and they are worth nothing if the report never
+      # leaves the runner. Uploaded only on failure: a green run's trace is bytes nobody
+      # opens.
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: |
+            tests/e2e/playwright-report/
+            tests/e2e/test-results/
+          retention-days: 14
+          if-no-files-found: ignore

@@ -1,0 +1,187 @@
+# flyio-destroy.yml — manual teardown, behind a typed confirmation.
+#
+# FLY-IO-DEPLOYMENT §12: "A workflow that destroys data on a single click eventually gets
+# a single click." So there is no single click here. Three properties carry that:
+#
+#   1. A TYPED CONFIRMATION. The exact string below has to be typed into the dispatch
+#      form. A checkbox is a click; a choice list is a click; typing an app name is an
+#      act, which is the same argument that makes flyio.yml tag-triggered.
+#
+#   2. THE VOLUME IS KEPT BY DEFAULT — and on Fly that means the DATABASE APP is kept by
+#      default, because `flyctl apps destroy` destroys the app's volumes with it. There is
+#      no way to keep the data and destroy the app, so "keep the volume" is implemented as
+#      "do not touch ab-ovo-postgres", and destroying it needs a SECOND typed confirmation
+#      that names it. Everything else in the estate is rebuildable from a tag; the volume
+#      is the only thing in it that is not.
+#
+#   3. REVERSE DEPENDENCY ORDER. flyio.yml deploys postgres → authservice → api → web;
+#      this destroys web → api → authservice → postgres. Forward order would leave the web
+#      app serving pages against an API that has already gone, and the reader would see a
+#      half-working product rather than nothing.
+#
+# GETTING BACK. One tag. flyio.yml's change detection always selects a service whose Fly
+# app does not exist, so `git tag -f v… && git push --force origin v…` — or any new tag —
+# rebuilds the whole estate with no `fly launch` and no manual step. That rule exists
+# partly for this workflow.
+
+name: Destroy (Fly.io)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type exactly: destroy ab-ovo-dev'
+        required: true
+        type: string
+      include_database:
+        description: 'ALSO destroy ab-ovo-postgres AND ITS VOLUME. The data is not recoverable. Requires confirm_database below.'
+        required: false
+        type: boolean
+        default: false
+      confirm_database:
+        description: 'Only if the box above is ticked. Type exactly: destroy ab-ovo-postgres and its volume'
+        required: false
+        type: string
+        default: ''
+
+concurrency:
+  group: flyio-destroy-dev
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FLYCTL_VERSION: latest
+  CONFIRM_PHRASE: 'destroy ab-ovo-dev'
+  CONFIRM_DATABASE_PHRASE: 'destroy ab-ovo-postgres and its volume'
+
+jobs:
+  destroy:
+    name: destroy the dev estate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: dev
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - name: Check the confirmations
+        shell: bash
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          INCLUDE_DATABASE: ${{ inputs.include_database }}
+          CONFIRM_DATABASE: ${{ inputs.confirm_database }}
+        run: |
+          set -euo pipefail
+
+          [ -n "${FLY_API_TOKEN:-}" ] || {
+            echo "::error::FLY_API_TOKEN is not set in the 'dev' GitHub environment."
+            exit 1
+          }
+
+          if [ "$CONFIRM" != "$CONFIRM_PHRASE" ]; then
+            echo "::error::Confirmation does not match. Type exactly: $CONFIRM_PHRASE"
+            exit 1
+          fi
+
+          if [ "$INCLUDE_DATABASE" = "true" ]; then
+            if [ "$CONFIRM_DATABASE" != "$CONFIRM_DATABASE_PHRASE" ]; then
+              echo "::error::include_database is ticked but confirm_database does not match. Type exactly: $CONFIRM_DATABASE_PHRASE"
+              exit 1
+            fi
+            echo "::warning::ab-ovo-postgres AND its volume will be destroyed. apidb and authdb are not recoverable after this run."
+          else
+            echo "ab-ovo-postgres will be KEPT, with its volume. This is the default."
+          fi
+
+      - name: Install flyctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$FLYCTL_VERSION" = "latest" ]; then
+            curl -fsSL https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh
+          else
+            curl -fsSL https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh -s "$FLYCTL_VERSION"
+          fi
+          echo "$HOME/.fly/bin" >> "$GITHUB_PATH"
+
+      # One step per app rather than a loop, so the order is the file order and a reader
+      # can see it without following a variable. An app that is already gone is reported
+      # and skipped: the goal state of this workflow is "the app does not exist", and that
+      # state is already reached. That is idempotence, not a swallowed failure — the
+      # postcondition is asserted, the operation just has nothing to do.
+      - name: 1/4 — destroy ab-ovo-web-dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=ab-ovo-web-dev
+          if flyctl apps list --json | jq -e --arg a "$app" 'any(.[]; (.Name // .name) == $a)' >/dev/null; then
+            flyctl apps destroy "$app" --yes
+            echo "destroyed $app"
+          else
+            echo "$app does not exist — nothing to destroy."
+          fi
+
+      - name: 2/4 — destroy ab-ovo-api-dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=ab-ovo-api-dev
+          if flyctl apps list --json | jq -e --arg a "$app" 'any(.[]; (.Name // .name) == $a)' >/dev/null; then
+            flyctl apps destroy "$app" --yes
+            echo "destroyed $app"
+          else
+            echo "$app does not exist — nothing to destroy."
+          fi
+
+      - name: 3/4 — destroy ab-ovo-authservice-dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=ab-ovo-authservice-dev
+          if flyctl apps list --json | jq -e --arg a "$app" 'any(.[]; (.Name // .name) == $a)' >/dev/null; then
+            flyctl apps destroy "$app" --yes
+            echo "destroyed $app"
+          else
+            echo "$app does not exist — nothing to destroy."
+          fi
+
+      # Last, and only on the second confirmation. Destroying the app destroys the volume
+      # with it; there is no flyctl flag that keeps one and removes the other.
+      - name: 4/4 — destroy ab-ovo-postgres and its volume
+        if: inputs.include_database
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=ab-ovo-postgres
+          if flyctl apps list --json | jq -e --arg a "$app" 'any(.[]; (.Name // .name) == $a)' >/dev/null; then
+            flyctl apps destroy "$app" --yes
+            echo "destroyed $app and its volume"
+          else
+            echo "$app does not exist — nothing to destroy."
+          fi
+
+      - name: Summarize
+        if: always()
+        shell: bash
+        env:
+          # Through env, never interpolated into the script text. This one is a typed
+          # boolean and could carry nothing hostile, but the habit is what holds on the
+          # day somebody changes it to a string.
+          INCLUDE_DATABASE: ${{ inputs.include_database }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Destroy"
+            echo
+            echo "Destroyed in reverse dependency order: web → api → authservice."
+            if [ "$INCLUDE_DATABASE" = "true" ]; then
+              echo
+              echo "**\`ab-ovo-postgres\` and its volume were also destroyed. apidb and authdb are gone.**"
+            else
+              echo
+              echo "\`ab-ovo-postgres\` was kept, with its volume — the default."
+            fi
+            echo
+            echo "To rebuild: push a tag. flyio.yml always selects a service whose Fly app is missing, so one tag brings the estate back with no manual \`fly launch\`."
+          } >> "$GITHUB_STEP_SUMMARY"
