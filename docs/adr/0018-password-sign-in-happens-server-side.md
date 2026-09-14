@@ -210,6 +210,27 @@ so there is no language for it to follow. Giving it one is a decision about what
 *interface* language is, which is a different question from which edition they read, and it
 is not made here.
 
+**The deployed web app was configured with five variables nothing reads, and this is what
+found it.** `flyio/web.fly.toml` carried `AbOvo__ApiBaseUrl`, `AbOvo__AuthBaseUrl`,
+`AbOvo__JwksUri`, `AbOvo__Issuer` and `AbOvo__Audience`, on the stated reasoning that the
+double-underscore prefix is the estate's convention across both runtimes. The Node side does
+not implement that convention: `backends.ts` and `token.ts` read `AB_OVO_API_URL`,
+`AB_OVO_AUTH_URL`, `AB_OVO_AUTH_PUBLIC_URL`, `AB_OVO_JWT_ISSUER` and `AB_OVO_JWT_AUDIENCE`,
+and a grep for each of the five found that file and no reader.
+
+It failed silently for exactly the reason `backendConfigured` exists: the ladder's derived
+`.internal` rung answers, so the proxy and the API would have worked and only a question of
+the form *was this deployment configured* could tell. Sign-in is the first such question, and
+the symptom would have been `/login` reporting no identity service on the one environment
+that has one. Never observed, because nothing has been deployed
+([#21](https://github.com/konradcinkusz/ab-ove/issues/21)).
+
+The file now carries the names the code reads, with the public addresses its own comment
+argued for — `.internal` does not start a stopped machine — and `secrets.env.example`'s
+`value:` lines, which said `.internal`, agree with it. **This is the one change in this PR
+that could not be verified by running anything**: the evidence is static, and it is that the
+names in the config are now the names in the code.
+
 **`publicAuthBaseUrl` keeps its purpose and loses this caller.** The browser no longer needs
 a public address for `authservice`, because it never speaks to it. The function is still the
 right answer for the one thing that cannot be proxied — a navigation to an external identity

@@ -39,22 +39,39 @@ primary_region = "waw"                       # ADR-0002
   # bundle at BUILD time, which gives one image per environment and is precisely the
   # "frontend serves the previous environment's API addresses" failure (§5, §14).
   #
-  # The double-underscore prefix is the system's config convention (AbOvo__) rather
-  # than a Node one, so one grep finds every product setting across both runtimes.
+  # THE NAMES BELOW ARE THE ONES THE CODE READS, which is not what this block said
+  # until sign-in needed them. It carried `AbOvo__ApiBaseUrl`, `AbOvo__AuthBaseUrl`,
+  # `AbOvo__JwksUri`, `AbOvo__Issuer` and `AbOvo__Audience`, on the reasoning that the
+  # double-underscore prefix is the system's convention across both runtimes — and
+  # `web/app/src/lib/server/backends.ts` and `token.ts` read none of them. A grep for
+  # each found this file and no reader. That is precisely the drift scripts/README.md
+  # §"One authoritative source per variable" is about, and it failed silently: the
+  # candidate ladder's derived `.internal` rung answers, so the API and the proxy work
+  # and only the things that ask "was this deployment CONFIGURED" — the sign-in page —
+  # can tell. Never observed, because nothing has been deployed yet (#21).
   #
   # Public URLs, not .internal: the proxy starts a stopped machine and .internal does
   # not, so a server-side call to a scaled-to-zero callee would fail instead of waking
-  # it (§6, §14).
-  AbOvo__ApiBaseUrl  = "https://ab-ovo-api-dev.fly.dev"
-  AbOvo__AuthBaseUrl = "https://ab-ovo-authservice-dev.fly.dev"
+  # it (§6, §14). That matters more now than it did: sign-in calls authservice from
+  # this container, and authservice runs at min_machines_running = 1 precisely because
+  # a cold issuer turns authentication into a failure (ADR-0004).
+  AB_OVO_API_URL  = "https://ab-ovo-api-dev.fly.dev"
+  AB_OVO_AUTH_URL = "https://ab-ovo-authservice-dev.fly.dev"
 
-  # Pointed straight at the JWKS document, and not at a discovery URL. authservice's
-  # `iss` is a BARE STRING ("AbOvo"), not a URL, and a full OIDC discovery client
-  # rejects that. Use jose + createRemoteJWKSet against this URI and treat the issuer
-  # as an opaque string.
-  AbOvo__JwksUri  = "https://ab-ovo-authservice-dev.fly.dev/.well-known/jwks.json"
-  AbOvo__Issuer   = "AbOvo"
-  AbOvo__Audience = "AbOvo"
+  # AB_OVO_AUTH_PUBLIC_URL is deliberately absent. `publicAuthBaseUrl()` falls back to
+  # AB_OVO_AUTH_URL when that is already a public address, which it is here, and a
+  # second variable carrying the same string is a second place for it to go stale.
+  #
+  # There is no JWKS URI either, and that is not an omission: `token.ts` builds the
+  # JWKS address from the same candidate ladder as everything else, so it inherits the
+  # rung that answered rather than naming a sixth address. It points straight at the
+  # document rather than at a discovery URL, because authservice's `iss` is a BARE
+  # STRING ("AbOvo") and a full OIDC discovery client rejects that.
+  #
+  # The issuer and audience are the defaults the code already carries, which is why
+  # they are unset rather than restated. They are set EXPLICITLY on authservice
+  # instead — flyio/authservice.fly.toml — because there the default is "AuthService"
+  # and two products left on it would accept each other's tokens.
 
 [http_service]
   internal_port       = 3000                 # equals the port the Node process binds (§2)
