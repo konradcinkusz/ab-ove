@@ -1,0 +1,165 @@
+# codeql.yml — the two halves of the supply-chain and code-safety gate.
+#
+#   SAST               — CodeQL over both runtimes, on every pull request and weekly.
+#   Dependency audit   — known-vulnerable packages, on every pull request and weekly.
+#
+# WHY BOTH TRIGGERS, AND WHY THE SCHEDULE IS NOT DECORATION. A pull-request run answers
+# "is what this change adds safe against what is known today". The weekly run answers a
+# question no pull request can: an advisory published after the last commit makes a
+# repository that has not changed newly vulnerable, and nothing in a commit-triggered
+# pipeline will ever notice. A repository with no scheduled scan is one whose security
+# posture is frozen at the date of its last merge.
+#
+# WHERE THIS SITS RELATIVE TO THE BUILD. Directory.Build.props sets NuGetAudit with
+# NuGetAuditMode=all at NuGetAuditLevel=low, and TreatWarningsAsErrors promotes NU1901
+# -NU1904, so a vulnerable NuGet package already fails ci.yml at restore. That is the
+# fast gate on a known advisory at merge time. This workflow is the slow one: it names
+# the packages rather than only failing, it covers the pnpm tree that NuGetAudit cannot
+# see, and it runs on a clock.
+
+name: CodeQL
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    # Mondays, 05:17 UTC. An odd minute deliberately: every scheduled job in the world
+    # asking GitHub for a runner at :00 is how a scheduled run becomes an hour late and
+    # then becomes something nobody reads.
+    - cron: '17 5 * * 1'
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      # Writing the SARIF back is what puts a finding on the pull request's Security tab
+      # rather than only in a log nobody opens.
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # UNDERSCORES in the matrix key, not hyphens. A GitHub expression reads `-` as
+          # subtraction, so `matrix.build-mode` is `matrix.build` minus `mode` — which
+          # evaluates to something empty rather than erroring. The ACTION's input is
+          # spelled with a hyphen because that is its name; the matrix key is ours.
+          - language: csharp
+            build_mode: manual
+          - language: javascript-typescript
+            build_mode: none
+    steps:
+      - uses: actions/checkout@v4
+
+      # Only for the C# leg. CodeQL's C# extractor observes a real compilation, so it
+      # needs the SDK this repository actually builds with — global.json's, never a
+      # version restated here. (If a future CodeQL release cannot observe this SDK, the
+      # fallback is build_mode: none for csharp, which analyses the source without a
+      # build and loses some cross-assembly precision. Change the matrix, not the pin.)
+      - name: Set up .NET
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build_mode }}
+
+      # build-mode: manual means CodeQL requires the compilation to happen here, between
+      # init and analyze. Warnings are NOT errors in this build: a CodeQL run failing on
+      # a style warning would report a security tool as broken for a reason that has
+      # nothing to do with security. ci.yml is where -warnaserror belongs.
+      - name: Build (C#)
+        if: matrix.language == 'csharp'
+        run: dotnet build AbOvo.sln --configuration Release
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}
+
+  dependency-audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # `dotnet list package --vulnerable` exits 0 whether or not it found anything, so
+      # its exit code is not a result and reading it as one is how an audit job goes green
+      # on a vulnerable tree. The marker line is what carries the answer.
+      #
+      # --include-transitive because the package that gets you is nearly never one you
+      # named: it is four levels down in something you did.
+      - name: Audit NuGet packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore AbOvo.sln
+          out="$(dotnet list AbOvo.sln package --vulnerable --include-transitive)"
+          printf '%s\n' "$out"
+          if printf '%s\n' "$out" | grep -q 'has the following vulnerable packages'; then
+            echo "::error::Vulnerable NuGet packages are present. The versions live in Directory.Packages.props, exactly once. Bump the offender there, or record why it is accepted."
+            exit 1
+          fi
+          echo "No vulnerable NuGet packages."
+
+      # BOTH pnpm trees, unconditionally.
+      #
+      # An audit that covers half the dependency tree and reports a green tick is the
+      # failure this repository's testing rules name in a different context: a check that
+      # reports pass while checking nothing is worse than no check, because it is trusted.
+      # tests/e2e's dependencies never ship inside an image, but they execute in CI with a
+      # checkout of this repository, which is a supply-chain surface like any other.
+      #
+      # If tests/e2e is not installable this job FAILS, and the message says the audit
+      # could not cover the tree it claims to cover — which is true, and is different from
+      # "no vulnerabilities were found".
+      - name: Audit pnpm packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=0
+          for tree in web tests/e2e; do
+            echo "──────── $tree ────────"
+            if [ ! -f "$tree/pnpm-lock.yaml" ]; then
+              echo "::error::$tree/pnpm-lock.yaml is missing, so this job did NOT audit $tree. That is not a clean result — it is an unaudited tree. (ci.yml is where the existence of tests/e2e is gated; this job only reports that it could not cover it.)"
+              status=1
+              continue
+            fi
+            # `pnpm audit` exits non-zero when it finds something at or above the level,
+            # which is the behaviour `dotnet list package` does not have.
+            pnpm --dir "$tree" audit --audit-level moderate || status=1
+          done
+          exit "$status"

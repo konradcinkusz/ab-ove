@@ -55,3 +55,40 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+## ── Node / Next.js (web/) ───────────────────────────────────────────────────────
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+## ── Playwright (tests/e2e) ──────────────────────────────────────────────────────
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+## ── Secrets: never committed. secrets.env.example IS committed and documents
+## every variable by tier (REPO-BASELINE.md §2, P5). ────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!**/testdata/**/*.pem
+
+## ── LaTeX build output. Only the .tex is committed: a checked-in PDF disagrees
+## with its source the first time the source changes (INIT §9). ─────────────────
+*.aux
+*.log
+*.out
+*.toc
+docs/papers/*.pdf
+
+## ── Local tool state ───────────────────────────────────────────────────────────
+.last-image-tag

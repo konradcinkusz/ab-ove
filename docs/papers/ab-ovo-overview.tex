@@ -1,0 +1,216 @@
+% =====================================================================================
+%  ab-ovo-overview.tex
+%
+%  THIS IS NOT A RESEARCH PAPER, AND IT IS NOT WRITTEN UNDER THE RESEARCH-DOCUMENTATION
+%  STANDARD.
+%
+%  Saying so here, plainly and at the top, is the point of this comment. The document is
+%  typeset like a paper because a typeset overview is easier to hand to somebody than a
+%  directory of markdown, and a reader who mistakes the form for the genre will expect
+%  things this document does not have and must not claim: a research question, a method,
+%  data, a result, a threat-to-validity section, a related-work survey, or a finding that
+%  can be cited. It has none of those. It is a PROJECT OVERVIEW.
+%
+%  It also introduces NO FACT its markdown source does not carry. Every statement below is
+%  in README.md, docs/architecture/00-ARCHITECTURE.md, docs/adr/ or docs/ux/UI-UX.md, and
+%  those files are the source of truth. If this paper and one of them disagree, the
+%  markdown is right and this file is stale.
+%
+%  WHY THAT RULE. A second copy of something that has a source is the defect this estate
+%  keeps paying for: the day the two disagree, nothing says which one is the document. The
+%  rule reduces the failure to a known direction, which is the most a second rendering can
+%  buy. Anything genuinely new belongs in the markdown first, and reaches this file only
+%  afterwards.
+%
+%  BUILD. .github/workflows/build-overview-pdf.yml renders this file on workflow_dispatch
+%  and nothing else, and uploads the PDF as a run artifact. THE PDF IS NEVER COMMITTED: a
+%  committed PDF is a binary in every diff and a second copy of a document whose source is
+%  already here, so the day they disagree nothing says which one is the paper. The .tex is
+%  the paper; the workflow renders it.
+%
+%  The workflow defaults to pdflatex and offers xelatex and lualatex as inputs. This file
+%  is deliberately written to compile under pdflatex with a stock TeX Live: standard
+%  packages only, and no character outside ASCII. The book it describes sets Polish
+%  alongside English; if a future revision of this paper quotes any of it, that revision
+%  needs one of the Unicode engines and should say so here.
+% =====================================================================================
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper,margin=28mm]{geometry}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{ab-ovo: a learning platform that encapsulates\\
+\emph{Mathematics from Zero for the AI Engineer}}
+\author{konradcinkusz}
+\date{14 September 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+ab-ovo is a learning platform built around a book of 47 programmed-learning programs, in
+English and Polish, together with that book's computer exercises. This document is a
+project overview: what the system is, what it deliberately is not, what exists in the
+repository today, and what is planned. It is not a research paper and reports no result.
+Every statement in it is drawn from the repository's markdown documentation, which is the
+source of truth; where the two disagree, the markdown is right.
+\end{abstract}
+
+\section{What ab-ovo is}
+
+The book it encapsulates is built on a mechanism that paper cannot enforce. A Stroud frame
+asks the reader for something \emph{before} it tells them anything, and the next frame opens
+with the answer they were supposed to have written. A reader who skims gets nothing from
+that structure, and a printed page has no way to notice.
+
+ab-ovo is the software that does notice. A reader reads a frame, commits an answer, and
+reveals the next frame, which opens with the answer; where a program carries computer
+exercises, they are worked in a lab pane in which Python runs in the reader's own browser.
+
+The product's first requirement constrains everything else in this document: \textbf{the
+reader loop works with no account and no backend.} Frames are served with the site as a
+versioned content bundle and the exercises run client-side. An account adds synchronisation
+of progress between machines, and nothing else.
+
+\section{What it deliberately is not}
+
+The system collects outcomes, and outcomes about learning drift towards becoming outcomes
+about learners, because that is the easier number to produce and the one that looks like
+progress. The project's answer is an anti-goal stated at the top of the README, above the
+features, and enforced by an architectural absence rather than by policy:
+
+\begin{quote}
+The instrument measures \textbf{the book}, never the reader.
+\end{quote}
+
+The useful question it answers is \emph{where is this book wasting the reader's time}, not
+\emph{which reader is worst}. Concretely, and in a form that a search of the code can
+falsify: there is no per-reader view and adding one is not planned; there is no endpoint
+whose route or query parameter names a person; and there is no table from which a per-reader
+score could be built, because the aggregate store holds no reader identity at all. Outcomes
+are recorded against a frame in a bundle version, an attempt and a check run.
+
+Two further refusals are recorded as decisions rather than left as preferences. No language
+model is called anywhere in the reader loop: the comparison against the next frame is the
+teaching, and a model's judgement would carry its own error rate into evidence used to
+revise a book. And there is no gamification, because a streak is a reason to move a number
+that is not learning.
+
+\section{Status: nothing is deployed}
+
+The repository stands at \emph{builds, tests green, images build}. There is no running
+instance, at any address, for anybody. Four \code{fly.toml} files describe a topology that
+has never been applied, and neither container image has ever been published.
+
+There is also, deliberately, \textbf{no domain model}: the persistence context declares no
+entity and there are no migrations. The mechanism around it --- provider selection, retry,
+migration after the listener starts, the health check --- is wired and proven by tests. The
+first entities arrive with the first ticket that needs them, because entities invented ahead
+of that ticket are code the ticket deletes.
+
+\section{The shape of the repository}
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Path} & \textbf{What it is} \\
+\midrule
+\code{src/AbOvo.AppHost}        & The composition root. Development only; not the production topology. \\
+\code{src/AbOvo.ServiceDefaults} & The shared kernel: cross-cutting plumbing, under a size ceiling. \\
+\code{src/AbOvo.Contracts}      & DTOs that cross a service boundary. \\
+\code{src/AbOvo.Api}            & The HTTP service. Owns one logical database. Validates tokens; mints none. \\
+\code{tests/AbOvo.Api.Tests}    & Unit and in-memory integration, plus the architecture rules. No container. \\
+\code{tests/e2e}                & The Playwright acceptance suite; its own package and lockfile. \\
+\code{web/}                     & The pnpm workspace. One Next.js app, and its backend-for-frontend. \\
+\code{flyio/}                   & The deployed topology, described and never applied. \\
+\code{docs/}                    & Architecture, decisions, UX, diagrams, and this paper. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The HTTP surface that exists today is three endpoints: a readiness endpoint reporting the
+state of every optional integration, a liveness endpoint carrying only liveness-tagged
+checks, and one public endpoint describing the deployment. The authenticated and
+administrative route groups are declared in the composition root and carry nothing yet ---
+written down before the first endpoint arrives, because a group that does not exist cannot
+be seen to be missing.
+
+\section{Architecture, and where it departs from the constitution}
+
+The repository is built against a reference architecture held in a separate standards
+repository, and \code{docs/architecture/00-ARCHITECTURE.md} walks its fifteen principles
+against this tree --- referencing the constitution rather than copying it, because a copied
+principle is a second copy that goes stale.
+
+Three properties are worth naming in an overview. Optional integrations \textbf{degrade
+visibly}: a deployment with no credentials at all starts, serves, and names what it does not
+have, in three renderings produced from one source. The shared kernel is held to plumbing by
+two mechanisms rather than by prose --- a size gate in CI and an architecture test asserting
+that it references no service type and declares no persistence model. And no address is
+compiled into any artifact: the frontend reads its configuration at request time, so one
+image serves every environment.
+
+That document also carries a \textbf{deviation register}, in which every row has a date, a
+reason and an exit condition. Five deviations are recorded at the time of writing: dependency
+version automation declared and switched off; a size gate counting code lines rather than raw
+lines, so that a principle requiring reasoning in comments does not spend the budget of a
+principle capping size; Python in the browser, which the standards do not evidence; a
+repository name that is a typo and a system name that is not; and one Aspire API marked
+evaluation-only, used in a development-only file.
+
+A deviation with no exit condition is a drift rather than a decision, which is why the
+column exists.
+
+\section{The plan}
+
+Five phases, ranked in \code{docs/ux/UI-UX.md} so that the first delivery session picks up a
+decision rather than re-deriving one.
+
+\begin{enumerate}[leftmargin=2em,itemsep=2pt]
+  \item \textbf{The lab pane.} The exercises, in the browser. The largest piece that needs
+        neither a backend nor the content bundle, which is why it is first.
+  \item \textbf{The content schema and the frame view.} Its first half proceeds against a
+        fixture; its second half is \emph{blocked} on the book publishing a content bundle,
+        which is the plan's only external dependency.
+  \item \textbf{Progress and accounts.} Local progress first; an account synchronises it.
+  \item \textbf{The instrument.} Opt-in, versioned consent; outcomes against artifacts; every
+        rate carrying its interval.
+  \item \textbf{The open-source edition.} A one-time, irreversible gate, ordered by
+        irreversibility, in which a full history scan for secrets blocks every other item.
+\end{enumerate}
+
+\section{Where the documents are}
+
+\begin{description}[leftmargin=0pt,itemsep=1pt]
+  \item[\code{README.md}] What the system is, how to run it in one command, and the
+        anti-goals, stated before the features.
+  \item[\code{docs/architecture/00-ARCHITECTURE.md}] The principle-by-principle walk, the
+        deviation register, and the known gaps.
+  \item[\code{docs/adr/}] The decisions, one file each, with what they cost.
+  \item[\code{docs/ux/UI-UX.md}] The screens as scaffolded, and the ranked backlog.
+  \item[\code{docs/diagrams/}] The system topology and the reader loop.
+  \item[\code{AGENTS.md}, \code{CONTRIBUTING.md}, \code{SECURITY.md}] Working in the
+        repository, and what to do when a secret lands in history.
+\end{description}
+
+\vspace{1em}
+\noindent\rule{\linewidth}{0.4pt}
+
+\small
+\noindent
+This document records no measurement of its own and makes no claim that is not already made
+in the repository's markdown. It is rendered on request by a manual workflow, and the
+resulting PDF is not committed.
+
+\end{document}

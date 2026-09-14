@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- DTOs that cross a service boundary. Not the shared kernel (P2) and not a shared
+       domain: "Where two services need the same domain data, it goes in a Contracts
+       project or is owned by one service and served over HTTP." -->
+
+  <PropertyGroup>
+    <RootNamespace>AbOvo.Contracts</RootNamespace>
+  </PropertyGroup>
+
+</Project>

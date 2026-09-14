@@ -1,0 +1,99 @@
+# build-overview-pdf.yml — the overview paper, built on request.
+#
+# WORKFLOW_DISPATCH ONLY, AND THAT IS THE DESIGN. A document with no release cadence
+# should not pretend to have one. Building this paper on every push would put a PDF on
+# every commit that touched a comma, and the run history would say a release happened
+# forty times this week. Building it nightly would say it has a nightly audience. It has
+# neither: somebody wants the current paper, occasionally, and presses the button.
+#
+# THE PDF IS A RUN ARTIFACT AND IS NOT COMMITTED. Two reasons, and the second is the one
+# that matters. A committed PDF is a binary in every diff, and it is a second copy of a
+# document whose source is already in the repository — so the day they disagree, nothing
+# says which one is the paper. The .tex is the paper. This workflow renders it.
+#
+# The E2E and deploy gates in this repository are wired precisely so that nothing here
+# depends on a human remembering to run something. This file is the one exception, and
+# the exception is legitimate because nothing depends on its output: no deploy consumes
+# the PDF, no test asserts against it, and a paper that is one commit stale breaks
+# nothing. That is exactly why it may be manual, and it is worth saying so rather than
+# letting the inconsistency look like an oversight.
+
+name: Build the overview paper
+
+on:
+  workflow_dispatch:
+    inputs:
+      engine:
+        description: 'TeX engine. pdflatex is the default; pick xelatex or lualatex if the paper uses system fonts or needs full Unicode shaping (the book sets Polish alongside English).'
+        required: true
+        type: choice
+        default: pdflatex
+        options:
+          - pdflatex
+          - xelatex
+          - lualatex
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ab-ovo-overview.pdf
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PAPER_DIR: docs/papers
+      PAPER_FILE: ab-ovo-overview.tex
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail here, with the path, rather than letting latexmk report a missing file from
+      # inside a container three steps later. The person who pressed the button is
+      # standing at the run page, and this is the sentence that tells them what to do.
+      - name: Require the source
+        shell: bash
+        env:
+          ENGINE: ${{ inputs.engine }}
+        run: |
+          set -euo pipefail
+          if [ ! -f "$PAPER_DIR/$PAPER_FILE" ]; then
+            echo "::error file=$PAPER_DIR/$PAPER_FILE::$PAPER_DIR/$PAPER_FILE does not exist. This workflow renders that file and nothing else; it does not search for a paper."
+            exit 1
+          fi
+          echo "Building $PAPER_DIR/$PAPER_FILE with $ENGINE."
+
+      # latexmk drives the run, so multi-pass documents resolve their own references,
+      # table of contents and bibliography without this file counting passes. The action
+      # runs a full TeX Live, so a \usepackage the paper adds later needs no change here.
+      - name: Compile
+        uses: xu-cheng/latex-action@v3
+        with:
+          working_directory: ${{ env.PAPER_DIR }}
+          root_file: ${{ env.PAPER_FILE }}
+          latexmk_use_xelatex: ${{ inputs.engine == 'xelatex' }}
+          latexmk_use_lualatex: ${{ inputs.engine == 'lualatex' }}
+
+      # if-no-files-found: error. A compile that "succeeded" and produced no PDF is a
+      # failure that would otherwise be reported as a green run with an empty artifact —
+      # the same shape as every other silent pass this repository's gates are built to
+      # refuse.
+      - name: Upload the PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: ab-ovo-overview-${{ github.sha }}
+          path: ${{ env.PAPER_DIR }}/ab-ovo-overview.pdf
+          if-no-files-found: error
+          retention-days: 90
+
+      # The log is worth keeping whatever happened. A LaTeX run that succeeds with
+      # overfull boxes and undefined references is a PDF somebody will print.
+      - name: Upload the LaTeX log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ab-ovo-overview-log-${{ github.sha }}
+          path: |
+            ${{ env.PAPER_DIR }}/*.log
+            ${{ env.PAPER_DIR }}/*.fls
+          if-no-files-found: ignore
+          retention-days: 14

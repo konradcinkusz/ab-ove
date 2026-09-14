@@ -1,0 +1,93 @@
+# ab-ovo web — Next.js, standalone output (FLY-IO-DEPLOYMENT §4, §5 "Frontend").
+
+app            = "ab-ovo-web-dev"
+primary_region = "waw"                       # ADR-0002
+
+[build]
+  # BOTH fields (§4, §14). They resolve relative to THIS FILE.
+  #
+  # The context is `../web`, the PNPM WORKSPACE ROOT, not `../web/app`. §4's rule of
+  # thumb — "a Node Dockerfile needs the project directory as context" — assumes the
+  # project directory holds the lockfile. Here it does not: pnpm-lock.yaml and
+  # pnpm-workspace.yaml live at web/, and `pnpm install --frozen-lockfile` inside
+  # web/app alone would have no lockfile to freeze against and would silently resolve
+  # a different dependency graph from the one that was tested.
+  #
+  # The contract that follows for web/app/Dockerfile (owned elsewhere): its COPY paths
+  # are relative to web/ — `COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./`
+  # then `COPY app/package.json app/` — and web/.dockerignore must exclude
+  # `**/node_modules` and `**/.next`.
+  dockerfile = "../web/app/Dockerfile"
+  context    = "../web"
+
+# Readable with `fly config show` (§4, §9). There is no secret here today and there
+# should not be one: a browser-facing app that needs a secret is a BFF, and a BFF's
+# secret goes in Fly secrets, never in this block.
+[env]
+  NODE_ENV               = "production"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+  # Next's standalone server reads PORT and HOSTNAME. HOSTNAME is set explicitly
+  # because a server bound to loopback is unreachable from the Fly proxy, and the
+  # symptom is a deploy that hangs and then fails on health checks (§2, §14).
+  PORT     = "3000"
+  HOSTNAME = "0.0.0.0"
+
+  # Runtime configuration, read SERVER-SIDE ONLY — this is the Next.js form of §5's
+  # "write the addresses at container start, do not bake them into the bundle".
+  # Deliberately NOT NEXT_PUBLIC_*: a NEXT_PUBLIC_ variable is inlined into the client
+  # bundle at BUILD time, which gives one image per environment and is precisely the
+  # "frontend serves the previous environment's API addresses" failure (§5, §14).
+  #
+  # The double-underscore prefix is the system's config convention (AbOvo__) rather
+  # than a Node one, so one grep finds every product setting across both runtimes.
+  #
+  # Public URLs, not .internal: the proxy starts a stopped machine and .internal does
+  # not, so a server-side call to a scaled-to-zero callee would fail instead of waking
+  # it (§6, §14).
+  AbOvo__ApiBaseUrl  = "https://ab-ovo-api-dev.fly.dev"
+  AbOvo__AuthBaseUrl = "https://ab-ovo-authservice-dev.fly.dev"
+
+  # Pointed straight at the JWKS document, and not at a discovery URL. authservice's
+  # `iss` is a BARE STRING ("AbOvo"), not a URL, and a full OIDC discovery client
+  # rejects that. Use jose + createRemoteJWKSet against this URI and treat the issuer
+  # as an opaque string.
+  AbOvo__JwksUri  = "https://ab-ovo-authservice-dev.fly.dev/.well-known/jwks.json"
+  AbOvo__Issuer   = "AbOvo"
+  AbOvo__Audience = "AbOvo"
+
+[http_service]
+  internal_port       = 3000                 # equals the port the Node process binds (§2)
+  force_https         = true                 # off the table to disable (§13)
+  auto_stop_machines  = "stop"
+  auto_start_machines = true
+
+  # 0. This app is entered only from a browser: there is no in-request call from
+  # another service to it, so nothing depends on it being warm. A cold start behind a
+  # browser is a slow first page, not a failed call (§7) — and the Phase 1 reader loop
+  # is deliberately backend-free, so the page the cold start delays is the whole
+  # product rather than a degraded part of it.
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type       = "requests"
+    hard_limit = 250
+    soft_limit = 200
+
+  [[http_service.checks]]
+    # A dedicated endpoint that exists only to be checked. NOT "/": a frontend serving
+    # a broken bundle still returns 200 for its index page, so the check would pass on
+    # a white screen (§2).
+    # Contract on web/app (owned elsewhere): a route handler at app/healthz that
+    # returns 200 only when the server can render, and 503 otherwise.
+    path     = "/healthz"
+    interval = "30s"
+    timeout  = "5s"
+    # 20s, not the estate's 60s: a Next standalone server has no schema work to do on
+    # first boot, so this window covers the Node process start and the first render and
+    # nothing else. Sized deliberately rather than copied (§4).
+    grace_period = "20s"
+
+[[vm]]
+  size   = "shared-cpu-1x"
+  memory = "512mb"

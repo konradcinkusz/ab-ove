@@ -1,0 +1,747 @@
+# flyio.yml — build once, deploy in order, from a tag.
+#
+# TRIGGERED ON A TAG AND NOTHING ELSE. FLY-IO-DEPLOYMENT §10: "a deploy should be an act,
+# and a tag is the record of it." A branch push is not an act; it is a save.
+#
+# The four stages are §10's:  test → detect-changes → build (matrix) → deploy (ordered).
+#
+# Two rules in here are the ones most often missing, so they are called out where they
+# live rather than only here:
+#
+#   1. A SERVICE WHOSE FLY APP DOES NOT EXIST IS ALWAYS SELECTED (detect-changes below).
+#      At t=0 nothing exists, so without this rule the first tag computes an empty diff
+#      against no previous tag, deploys nothing, and reports green. This one rule is what
+#      lets a cold estate come up from a single tag with no `fly launch`, and what
+#      rescues the estate after flyio-destroy.yml has run.
+#
+#   2. EVERY DEPLOY GATE ACCEPTS `success || skipped` FROM ITS UPSTREAM. Without it,
+#      change detection and ordering fight: any unchanged service in the middle of the
+#      chain reports `skipped`, and everything behind it waits forever on a job that will
+#      never report success.
+#
+# ONE-TIME HUMAN SETUP, and it is three things (§11, flyio/SECRETS.md §3):
+#   * `fly tokens create org` stored as FLY_API_TOKEN in the GitHub ENVIRONMENT `dev` —
+#     an environment can carry reviewers and a branch restriction; a repository secret
+#     can carry neither and is readable by every workflow in the repo.
+#   * the four other root secrets that environment needs, named in flyio/SECRETS.md.
+#   * the two GHCR packages made public, once, the same way ghcr.io/konradcinkusz/
+#     authservice already is — Fly pulls `--image` anonymously and a private package is
+#     a deploy that fails at pull with an authentication error rather than a build error.
+#
+# NO APP CREATION AND NO VOLUME CREATION IS PART OF THAT SETUP. Both live in this file,
+# idempotently. `fly launch` writes a config nobody reviewed and creates an app whose
+# settings exist nowhere in git (§11).
+
+name: Deploy (Fly.io)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# One deploy at a time. Two tags pushed a minute apart would otherwise race each other
+# through the ordered chain and the loser would win.
+concurrency:
+  group: flyio-deploy-dev
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # flyctl is installed from Fly's own script rather than from a third-party action, so
+  # that the version is named here rather than inherited from a branch someone else
+  # moves. Set this to a version string (e.g. 0.3.196) to pin; `latest` is the honest
+  # default until a known-good version has actually been run against this estate.
+  FLYCTL_VERSION: latest
+  FLY_ORG: personal
+  FLY_REGION: waw
+
+  # The four apps. flyio/*.fly.toml is the source of truth for their configuration; these
+  # names exist here because a workflow cannot read an `app` key out of a toml without
+  # parsing it, and a wrong name would create a fifth app rather than fail.
+  APP_POSTGRES: ab-ovo-postgres
+  APP_AUTHSERVICE: ab-ovo-authservice-dev
+  APP_API: ab-ovo-api-dev
+  APP_WEB: ab-ovo-web-dev
+
+  # ADR-0003 — GHCR. Built once in `build`, referenced by digest-stable tag in every
+  # deploy. Never built inside a deploy step.
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: konradcinkusz
+
+  # PINNED, and not to v0.1.0. RS256, the JWKS endpoint and the discovery document do not
+  # exist before v0.3.0; every upstream doc example shows v0.1.0, and following it leaves
+  # the shared-secret model P5 forbids. This repository builds no image for it.
+  AUTHSERVICE_IMAGE: ghcr.io/konradcinkusz/authservice:v0.3.1
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════════════
+  # STAGE 1 — test. Build, unit tests, and the mechanical guards.
+  #
+  # A tag can point at a commit that never went through a pull request, so ci.yml having
+  # been green on main is not evidence about THIS commit. The gates run again.
+  # ═══════════════════════════════════════════════════════════════════════════════════
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore AbOvo.sln
+
+      - name: Build (warnings are errors)
+        run: dotnet build AbOvo.sln --configuration Release --no-restore -warnaserror
+
+      # Carries the architecture test (tests/AbOvo.Api.Tests/ArchitectureTests.cs) with it.
+      - name: Test
+        run: dotnet test AbOvo.sln --configuration Release --no-build --verbosity normal
+
+      # The same count and the same ceiling as ci.yml's kernel-size job. See that file for
+      # why the gate counts code lines and reports raw lines beside them.
+      - name: Kernel size (P2)
+        shell: bash
+        env:
+          KERNEL_DIR: src/AbOvo.ServiceDefaults
+          KERNEL_CEILING: '800'
+        run: |
+          set -euo pipefail
+          mapfile -d '' files < <(
+            find "$KERNEL_DIR" -name '*.cs' \
+              -not -path '*/obj/*' -not -path '*/bin/*' -print0 | sort -z
+          )
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::No .cs files found under $KERNEL_DIR."
+            exit 1
+          fi
+          read -r code raw < <(
+            awk '
+              { total_raw++ }
+              { line = $0; sub(/^[ \t]+/, "", line) }
+              line == ""     { next }
+              line ~ /^\/\// { next }
+              line ~ /^\/\*/ { next }
+              line ~ /^\*/   { next }
+              { total_code++ }
+              END { printf "%d %d\n", total_code + 0, total_raw + 0 }
+            ' "${files[@]}"
+          )
+          echo "kernel code lines : $code  (ceiling $KERNEL_CEILING)"
+          echo "kernel raw lines  : $raw   (reported, not gated)"
+          [ "$code" -le "$KERNEL_CEILING" ] || {
+            echo "::error::The kernel is $code code lines, past P2's ceiling of $KERNEL_CEILING."
+            exit 1
+          }
+
+  # ═══════════════════════════════════════════════════════════════════════════════════
+  # STAGE 2 — detect-changes.
+  #
+  # Against the PREVIOUS TAG, not the previous commit (§10). A tag collects many commits;
+  # diffing against HEAD~1 would deploy whatever the last commit happened to touch and
+  # silently skip everything the other commits in the release changed.
+  #
+  # Outputs are named with UNDERSCORES. GitHub expression syntax reads `-` as subtraction,
+  # so `deploy-api` in an `if:` is `deploy` minus `api` and evaluates to nothing useful
+  # without erroring (§10).
+  # ═══════════════════════════════════════════════════════════════════════════════════
+  detect-changes:
+    name: detect-changes
+    runs-on: ubuntu-latest
+    needs: [test]
+    timeout-minutes: 10
+    environment: dev
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    outputs:
+      deploy_postgres: ${{ steps.detect.outputs.deploy_postgres }}
+      deploy_authservice: ${{ steps.detect.outputs.deploy_authservice }}
+      deploy_api: ${{ steps.detect.outputs.deploy_api }}
+      deploy_web: ${{ steps.detect.outputs.deploy_web }}
+      build_matrix: ${{ steps.detect.outputs.build_matrix }}
+      build_any: ${{ steps.detect.outputs.build_any }}
+      previous_tag: ${{ steps.detect.outputs.previous_tag }}
+    steps:
+      # The full history AND the tags. `git describe` against a shallow clone finds no
+      # previous tag and reports every service as changed — which is safe, and is also a
+      # full estate redeploy on every tag forever, so it is worth not doing by accident.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install flyctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$FLYCTL_VERSION" = "latest" ]; then
+            curl -fsSL https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh
+          else
+            curl -fsSL https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh -s "$FLYCTL_VERSION"
+          fi
+          echo "$HOME/.fly/bin" >> "$GITHUB_PATH"
+
+      - name: Detect
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${GITHUB_REF_NAME}"
+          echo "tag: $TAG"
+
+          # The tag's own commit is excluded from the search deliberately: `git describe`
+          # on "$TAG" would find "$TAG" itself.
+          PREVIOUS_TAG="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+
+          if [ -n "$PREVIOUS_TAG" ]; then
+            echo "previous tag: $PREVIOUS_TAG"
+            CHANGED="$(git diff --name-only "$PREVIOUS_TAG" "$TAG")"
+          else
+            # The first tag in the repository. There is no diff to take, so everything in
+            # the tree is new.
+            echo "previous tag: (none — this is the first tag)"
+            CHANGED="$(git ls-tree -r --name-only "$TAG")"
+          fi
+          printf 'changed files:\n%s\n' "$CHANGED"
+
+          touched() { printf '%s\n' "$CHANGED" | grep -Eq "$1"; }
+
+          # ── The path map ────────────────────────────────────────────────────────────
+          # AbOvo.ServiceDefaults and AbOvo.Contracts are COMPILED INTO the API image, so
+          # a change to either invalidates it exactly as a change to AbOvo.Api does. This
+          # is the case §10 names explicitly, and the one a naive "src/<Service>/ maps to
+          # <service>" map gets wrong: the kernel has no app of its own, so a kernel-only
+          # release would deploy nothing at all.
+          #
+          # The build-level files — global.json, Directory.*.props, the solution, the root
+          # .dockerignore — are in the same class. They change what `dotnet publish`
+          # produces without any file under src/ changing.
+          #
+          # web/ compiles none of that, so the kernel does not appear in its list.
+          #
+          # A change to THIS FILE selects both built services: it can change what goes
+          # into an image or how it is tagged, and a tag that redeploys neither would
+          # report green having shipped the old ones.
+          API_PATHS='^(src/AbOvo\.(Api|ServiceDefaults|Contracts)/|Directory\.(Build|Packages)\.props$|global\.json$|AbOvo\.sln$|\.dockerignore$|flyio/api\.fly\.toml$|\.github/workflows/flyio\.yml$)'
+          WEB_PATHS='^(web/|flyio/web\.fly\.toml$|\.github/workflows/flyio\.yml$)'
+          # Gated on its OWN config only. Redeploying Postgres restarts it, so it must not
+          # ride along on every tag (§10).
+          POSTGRES_PATHS='^flyio/postgres\.fly\.toml$'
+          # An external service from a pinned published image. The only thing in this
+          # repository that can change it is its own toml — the image tag included.
+          AUTHSERVICE_PATHS='^flyio/authservice\.fly\.toml$'
+
+          api=false;         touched "$API_PATHS"         && api=true
+          web=false;         touched "$WEB_PATHS"         && web=true
+          postgres=false;    touched "$POSTGRES_PATHS"    && postgres=true
+          authservice=false; touched "$AUTHSERVICE_PATHS" && authservice=true
+
+          # ── The rule that makes a cold estate come up from one tag ───────────────────
+          # `(.Name // .name)`: flyctl has changed the field casing between versions, so
+          # matching one spelling silently matches nothing on the other — which would
+          # report every app as missing and redeploy the whole estate, Postgres included.
+          APPS_JSON="$(flyctl apps list --json)"
+          exists() {
+            printf '%s' "$APPS_JSON" | jq -e --arg a "$1" 'any(.[]; (.Name // .name) == $a)' >/dev/null
+          }
+
+          for pair in \
+            "postgres:$APP_POSTGRES" \
+            "authservice:$APP_AUTHSERVICE" \
+            "api:$APP_API" \
+            "web:$APP_WEB"
+          do
+            svc="${pair%%:*}"; app="${pair#*:}"
+            if exists "$app"; then
+              echo "app $app exists"
+            else
+              echo "app $app DOES NOT EXIST — selecting $svc regardless of the diff"
+              printf -v "$svc" '%s' true
+            fi
+          done
+
+          echo "selected: postgres=$postgres authservice=$authservice api=$api web=$web"
+
+          # Only api and web are built here. authservice comes from a published image and
+          # postgres from postgres:17-alpine, so neither has a build matrix entry — a
+          # matrix leg for an image this repository does not produce would be a build with
+          # nothing to build.
+          #
+          # `context` matches the [build] context each flyio/*.fly.toml declares, so the
+          # image this job produces is the image a hand-run `flyctl deploy` would produce:
+          # the repository root for the .NET service, and web/ — the pnpm WORKSPACE root,
+          # where the lockfile is — for the frontend.
+          BUILD_MATRIX="$(jq -cn --argjson api "$api" --argjson web "$web" '
+            { include: [
+                ( if $api then
+                    { service: "api", image: "ab-ovo-api", app: "ab-ovo-api-dev",
+                      dockerfile: "src/AbOvo.Api/Dockerfile", context: "." }
+                  else empty end ),
+                ( if $web then
+                    { service: "web", image: "ab-ovo-web", app: "ab-ovo-web-dev",
+                      dockerfile: "web/app/Dockerfile", context: "web" }
+                  else empty end )
+              ] }')"
+          BUILD_ANY=false
+          [ "$(printf '%s' "$BUILD_MATRIX" | jq '.include | length')" -gt 0 ] && BUILD_ANY=true
+
+          {
+            echo "deploy_postgres=$postgres"
+            echo "deploy_authservice=$authservice"
+            echo "deploy_api=$api"
+            echo "deploy_web=$web"
+            echo "build_matrix=$BUILD_MATRIX"
+            echo "build_any=$BUILD_ANY"
+            echo "previous_tag=$PREVIOUS_TAG"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Deploy plan for \`$TAG\`"
+            echo
+            echo "Compared against \`${PREVIOUS_TAG:-(no previous tag)}\`."
+            echo
+            echo "| Service | Deploy |"
+            echo "| --- | --- |"
+            echo "| ab-ovo-postgres | $postgres |"
+            echo "| ab-ovo-authservice-dev | $authservice |"
+            echo "| ab-ovo-api-dev | $api |"
+            echo "| ab-ovo-web-dev | $web |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ═══════════════════════════════════════════════════════════════════════════════════
+  # STAGE 3 — build. Once per changed service, to GHCR.
+  #
+  # Never inside a deploy step, and never twice for the same source (§10). The image the
+  # deploy references is the image this job pushed, by tag, so what was tested is what
+  # ships.
+  # ═══════════════════════════════════════════════════════════════════════════════════
+  build:
+    name: build ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.build_any == 'true'
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      # So one broken image does not cancel the other mid-push, leaving a half-pushed
+      # registry to reason about (§10).
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.detect-changes.outputs.build_matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # The automatic GITHUB_TOKEN, scoped by `permissions: packages: write` above. There
+      # is no personal access token in this pipeline and there should never be one.
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          # The tag is the release. The sha tag is how you answer "which commit is
+          # actually running" after a tag has been moved, which people do.
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image }}:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image }}:sha-${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          provenance: false
+
+  # ═══════════════════════════════════════════════════════════════════════════════════
+  # STAGE 4 — deploy, in order: postgres → authservice → api → web.
+  #
+  # The order is the dependency order (§10, flyio/INFRASTRUCTURE-ANALYSIS.md §6):
+  # authservice cannot initialise its schema before Postgres is up; the API validates
+  # against authservice's JWKS; the web app's server side calls both.
+  #
+  # flyctl is installed per job rather than once, because a composite action would have
+  # to live at .github/actions/, which this change does not own. Four copies of three
+  # lines is the cost of that boundary and is written down rather than hidden.
+  # ═══════════════════════════════════════════════════════════════════════════════════
+
+  deploy-postgres:
+    name: deploy ab-ovo-postgres
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build]
+    # `success || skipped` on build: if nothing was built, build reports `skipped`, and a
+    # bare `needs: [build]` would hold this job forever. A build FAILURE still stops the
+    # deploy — a half-pushed registry is not a release.
+    if: >-
+      ${{ always() && !cancelled()
+          && needs.detect-changes.outputs.deploy_postgres == 'true'
+          && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    timeout-minutes: 25
+    environment: dev
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      APIDB_PASSWORD: ${{ secrets.APIDB_PASSWORD }}
+      AUTHDB_PASSWORD: ${{ secrets.AUTHDB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install flyctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$FLYCTL_VERSION" = "latest" ]; then
+            curl -fsSL https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh
+          else
+            curl -fsSL https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh -s "$FLYCTL_VERSION"
+          fi
+          echo "$HOME/.fly/bin" >> "$GITHUB_PATH"
+
+      # §9 — check for critical secrets explicitly and exit non-zero. Only the NAMES are
+      # ever printed. A database that comes up with no role passwords is a healthy
+      # Postgres with no application databases in it, and the recovery is to destroy the
+      # volume.
+      - name: Require the root secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in FLY_API_TOKEN POSTGRES_PASSWORD APIDB_PASSWORD AUTHDB_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not set in the 'dev' GitHub environment. See flyio/SECRETS.md §3."
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ]
+
+      - name: Ensure the app exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          if flyctl apps list --json | jq -e --arg a "$APP_POSTGRES" 'any(.[]; (.Name // .name) == $a)' >/dev/null; then
+            echo "App $APP_POSTGRES already exists."
+          else
+            echo "Creating $APP_POSTGRES."
+            flyctl apps create "$APP_POSTGRES" --org "$FLY_ORG"
+          fi
+
+      # ORDERING MATTERS, ONCE (flyio/SECRETS.md §2). The two role passwords are read by
+      # the first-boot init script in postgres.fly.toml, and the postgres entrypoint runs
+      # /docker-entrypoint-initdb.d/* ONLY when the data directory is empty. Stage them
+      # after the first deploy and you get a healthy Postgres with no apidb and no authdb,
+      # and editing the toml will not re-run the script.
+      #
+      # --stage because `fly secrets set` restarts the app, and the deploy below is about
+      # to restart it anyway (§9).
+      - name: Stage the secrets (before the first deploy — this is load-bearing)
+        shell: bash
+        run: |
+          set -euo pipefail
+          flyctl secrets set -a "$APP_POSTGRES" --stage \
+            "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" \
+            "APIDB_PASSWORD=$APIDB_PASSWORD" \
+            "AUTHDB_PASSWORD=$AUTHDB_PASSWORD"
+
+      # Idempotent, and in the workflow rather than in someone's shell history (§11).
+      # Size matches `initial_size = "3gb"` in flyio/postgres.fly.toml: growing a volume
+      # later is possible and shrinking is not, so the two numbers agreeing is not
+      # cosmetic.
+      - name: Ensure the volume exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          if flyctl volumes list -a "$APP_POSTGRES" --json \
+               | jq -e --arg n abovo_pgdata 'any(.[]; (.Name // .name) == $n)' >/dev/null; then
+            echo "Volume abovo_pgdata already exists."
+          else
+            echo "Creating volume abovo_pgdata."
+            flyctl volumes create abovo_pgdata \
+              -a "$APP_POSTGRES" --region "$FLY_REGION" --size 3 --yes
+          fi
+
+      # --ha=false, always. A volume is a local disk bound to one machine in one region —
+      # not network storage, not replicated. A second machine gets a second, EMPTY volume
+      # rather than a replica (§8, §12, §14).
+      #
+      # There is no --image here and no build: postgres.fly.toml declares
+      # `image = "postgres:17-alpine"` itself. A vanilla image pinned to a major, never
+      # Fly's managed postgres-flex, which expects `fly postgres create`-style
+      # bootstrapping and whose symptom on a bare deploy is a database that never
+      # initializes with no useful error (§5, §14).
+      - name: Deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          flyctl deploy --config flyio/postgres.fly.toml --ha=false --wait-timeout 600
+
+  deploy-authservice:
+    name: deploy ab-ovo-authservice-dev
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build, deploy-postgres]
+    if: >-
+      ${{ always() && !cancelled()
+          && needs.detect-changes.outputs.deploy_authservice == 'true'
+          && (needs.build.result == 'success' || needs.build.result == 'skipped')
+          && (needs.deploy-postgres.result == 'success' || needs.deploy-postgres.result == 'skipped') }}
+    timeout-minutes: 25
+    environment: dev
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      AUTHDB_PASSWORD: ${{ secrets.AUTHDB_PASSWORD }}
+      JWT_PRIVATE_KEY_PEM: ${{ secrets.JWT_PRIVATE_KEY_PEM }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install flyctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$FLYCTL_VERSION" = "latest" ]; then
+            curl -fsSL https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh
+          else
+            curl -fsSL https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh -s "$FLYCTL_VERSION"
+          fi
+          echo "$HOME/.fly/bin" >> "$GITHUB_PATH"
+
+      # A missing signing key must STOP the deploy, not degrade it (§9). A service that
+      # boots with an ephemeral key looks perfectly healthy while invalidating every token
+      # it ever issued, on every restart.
+      - name: Require the root secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in FLY_API_TOKEN AUTHDB_PASSWORD JWT_PRIVATE_KEY_PEM; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not set in the 'dev' GitHub environment. See flyio/SECRETS.md §3."
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ]
+
+      - name: Ensure the app exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          if flyctl apps list --json | jq -e --arg a "$APP_AUTHSERVICE" 'any(.[]; (.Name // .name) == $a)' >/dev/null; then
+            echo "App $APP_AUTHSERVICE already exists."
+          else
+            echo "Creating $APP_AUTHSERVICE."
+            flyctl apps create "$APP_AUTHSERVICE" --org "$FLY_ORG"
+          fi
+
+      # The connection string is ASSEMBLED from a password plus a known host, never stored
+      # whole (§9). authdb only: this service gets no credential for apidb (P3), and
+      # postgres.fly.toml's init script revokes CONNECT from PUBLIC so the boundary is
+      # enforced in the database rather than by these two lines alone.
+      #
+      # .internal, and only .internal: a database is reached over 6PN and never has a
+      # public listener. Npgsql is IPv6-capable, which it has to be — .internal resolves
+      # to AAAA records only (§6).
+      #
+      # The PEM is passed as ONE double-quoted argument. Unquoted, the shell splits the
+      # key on its newlines into twenty-odd arguments and flyctl takes the first line as
+      # the whole value; the service then boots on a key it cannot parse, and with
+      # Jwt__Algorithm pinned to RS256 in the toml that is a hard failure rather than a
+      # silent fall back to HS256.
+      - name: Stage the secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          flyctl secrets set -a "$APP_AUTHSERVICE" --stage \
+            "ConnectionStrings__DefaultConnection=Host=${APP_POSTGRES}.internal;Port=5432;Database=authdb;Username=abovo_auth;Password=${AUTHDB_PASSWORD}" \
+            "Jwt__PrivateKeyPem=$JWT_PRIVATE_KEY_PEM"
+
+      # From its PUBLISHED image, never built here. --image overrides the pin in the toml,
+      # which exists so that a bare `flyctl deploy` from a laptop lands on the same image
+      # this line does.
+      #
+      # 600s rather than 300: the Fly health check points at /health/ready, which stays
+      # 503 until EnsureCreated finishes, and on a cold estate that runs against a
+      # Postgres machine that has only just initialised its own data directory.
+      - name: Deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          flyctl deploy --config flyio/authservice.fly.toml \
+            --image "$AUTHSERVICE_IMAGE" \
+            --wait-timeout 600
+
+      # ── THE POST-DEPLOY ASSERTION THE HEALTH CHECK CANNOT MAKE ────────────────────────
+      #
+      # `--wait-timeout` covers "did it start", not "is it correct" (§10).
+      #
+      # The specific failure this catches: with no signing key, or a key it cannot parse,
+      # authservice infers the symmetric path and publishes a SYNTACTICALLY VALID, EMPTY
+      # JWKS — `{"keys":[]}`. Every health check passes. /health/ready returns 200. The
+      # deploy goes green. And every consumer that fetches that document rejects every
+      # token, because there is no key to verify one against. Nothing anywhere reports
+      # unhealthy; the first evidence is a user who cannot sign in.
+      #
+      # One request is the difference between finding out here and finding out from them.
+      - name: Assert the JWKS publishes at least one key
+        shell: bash
+        run: |
+          set -euo pipefail
+          JWKS_URL="https://${APP_AUTHSERVICE}.fly.dev/.well-known/jwks.json"
+          echo "GET $JWKS_URL"
+
+          # --retry-all-errors covers the edge propagating a just-deployed machine; it is
+          # not a substitute for the health check having passed, which it already has.
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "$JWKS_URL" -o jwks.json
+
+          echo "response:"
+          cat jwks.json
+          echo
+
+          if ! jq -e '(.keys // []) | length > 0' jwks.json >/dev/null; then
+            echo "::error::$JWKS_URL returned an EMPTY key set. The deploy is green and every consumer will reject every token. Check that Jwt__PrivateKeyPem is set on $APP_AUTHSERVICE (flyctl secrets list -a $APP_AUTHSERVICE) and that it is a PKCS#8 RSA key with its newlines intact — 'BEGIN PRIVATE KEY', not 'BEGIN RSA PRIVATE KEY'."
+            exit 1
+          fi
+          echo "JWKS publishes $(jq '.keys | length' jwks.json) key(s)."
+
+  deploy-api:
+    name: deploy ab-ovo-api-dev
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build, deploy-authservice]
+    if: >-
+      ${{ always() && !cancelled()
+          && needs.detect-changes.outputs.deploy_api == 'true'
+          && (needs.build.result == 'success' || needs.build.result == 'skipped')
+          && (needs.deploy-authservice.result == 'success' || needs.deploy-authservice.result == 'skipped') }}
+    timeout-minutes: 25
+    environment: dev
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      APIDB_PASSWORD: ${{ secrets.APIDB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install flyctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$FLYCTL_VERSION" = "latest" ]; then
+            curl -fsSL https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh
+          else
+            curl -fsSL https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh -s "$FLYCTL_VERSION"
+          fi
+          echo "$HOME/.fly/bin" >> "$GITHUB_PATH"
+
+      # The API would START without its connection string — P8, it falls back to InMemory
+      # and /health reports the degradation rather than refusing to boot. That is the
+      # right behaviour on a laptop and the wrong outcome for a deploy, which is why it is
+      # treated as critical HERE rather than in the service.
+      - name: Require the root secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in FLY_API_TOKEN APIDB_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not set in the 'dev' GitHub environment. See flyio/SECRETS.md §3."
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ]
+
+      - name: Ensure the app exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          if flyctl apps list --json | jq -e --arg a "$APP_API" 'any(.[]; (.Name // .name) == $a)' >/dev/null; then
+            echo "App $APP_API already exists."
+          else
+            echo "Creating $APP_API."
+            flyctl apps create "$APP_API" --org "$FLY_ORG"
+          fi
+
+      # apidb only. The API holds no key material at all (P5): it validates RS256 against
+      # authservice's published JWKS, and there is no shared symmetric secret, because a
+      # symmetric secret shared between two services means verify = mint.
+      - name: Stage the secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          flyctl secrets set -a "$APP_API" --stage \
+            "ConnectionStrings__apidb=Host=${APP_POSTGRES}.internal;Port=5432;Database=apidb;Username=abovo_api;Password=${APIDB_PASSWORD}"
+
+      - name: Deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          flyctl deploy --config flyio/api.fly.toml \
+            --image "${REGISTRY}/${IMAGE_OWNER}/ab-ovo-api:${GITHUB_REF_NAME}" \
+            --wait-timeout 600
+
+  deploy-web:
+    name: deploy ab-ovo-web-dev
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build, deploy-api]
+    if: >-
+      ${{ always() && !cancelled()
+          && needs.detect-changes.outputs.deploy_web == 'true'
+          && (needs.build.result == 'success' || needs.build.result == 'skipped')
+          && (needs.deploy-api.result == 'success' || needs.deploy-api.result == 'skipped') }}
+    timeout-minutes: 25
+    environment: dev
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install flyctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$FLYCTL_VERSION" = "latest" ]; then
+            curl -fsSL https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh
+          else
+            curl -fsSL https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh -s "$FLYCTL_VERSION"
+          fi
+          echo "$HOME/.fly/bin" >> "$GITHUB_PATH"
+
+      - name: Require the root secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -n "${FLY_API_TOKEN:-}" ] || {
+            echo "::error::FLY_API_TOKEN is not set in the 'dev' GitHub environment. See flyio/SECRETS.md §3."
+            exit 1
+          }
+
+      - name: Ensure the app exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          if flyctl apps list --json | jq -e --arg a "$APP_WEB" 'any(.[]; (.Name // .name) == $a)' >/dev/null; then
+            echo "App $APP_WEB already exists."
+          else
+            echo "Creating $APP_WEB."
+            flyctl apps create "$APP_WEB" --org "$FLY_ORG"
+          fi
+
+      # No secrets are staged here, and that is a property worth keeping. The Phase 1
+      # reader loop works with no account and no backend, so the browser needs no
+      # credential and the server side has nothing to keep. The day this app holds a
+      # session cookie key, that key goes in Fly secrets and a step appears here.
+      - name: Deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          flyctl deploy --config flyio/web.fly.toml \
+            --image "${REGISTRY}/${IMAGE_OWNER}/ab-ovo-web:${GITHUB_REF_NAME}" \
+            --wait-timeout 600

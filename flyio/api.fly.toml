@@ -1,0 +1,104 @@
+# ab-ovo API — stateless HTTP service (FLY-IO-DEPLOYMENT §4, §5 "Stateless HTTP service").
+#
+# `app` is globally unique across all of Fly, so it carries the system name and the
+# environment: ab-ovo-api-dev, never "api" (§4).
+
+app            = "ab-ovo-api-dev"
+primary_region = "waw"                       # ADR-0002
+
+[build]
+  # BOTH fields, always. They resolve relative to THIS FILE, not to the working
+  # directory, and omitting `context` is what makes a build work locally and break
+  # in CI (§4, §14 — "the field most often left out and most often wrong").
+  # The repo root is the context because the Dockerfile copies global.json and
+  # Directory.*.props before it restores.
+  dockerfile = "../src/AbOvo.Api/Dockerfile"
+  context    = ".."
+
+# Everything here is readable with `fly config show` and ends up in the image
+# config. Only values that could be pasted into a pull request belong in it (§4, §9).
+# Connection strings and key material are Fly SECRETS — see flyio/SECRETS.md.
+[env]
+  ASPNETCORE_ENVIRONMENT = "Production"
+  ASPNETCORE_URLS        = "http://+:8080"   # must equal internal_port below (§2)
+
+  # P4 — the provider is a configuration switch, not a compile-time decision.
+  # With no ConnectionStrings__apidb secret the service falls back to InMemory and
+  # /health reports the degradation rather than refusing to start (P8).
+  DATABASE_PROVIDER = "PostgreSQL"
+
+  # P5 — this service validates and mints nothing. Authority is the PUBLIC URL of
+  # the issuer, because that is where JwtBearer fetches the discovery document and
+  # the JWKS from, and because .internal would not wake a stopped machine (§6).
+  # A mismatch between this and the URL the issuer publishes itself at means every
+  # token is rejected after a deploy that looked perfectly healthy (§14).
+  Jwt__Authority = "https://ab-ovo-authservice-dev.fly.dev"
+
+  # authservice stamps a BARE STRING into `iss` — not a URL — and reports the same
+  # bare string in its discovery document. Validating against the origin instead
+  # would reject every token. Audience is exact and strict: 2FA challenge tokens
+  # carry "AbOvo:2fa" and are signed with the SAME key, so only the audience check
+  # keeps a five-minute challenge token from authenticating as the user.
+  Jwt__Issuer   = "AbOvo"
+  Jwt__Audience = "AbOvo"
+
+  # Explicit rather than defaulted. The default is already true; an explicit value
+  # means the switch that would let the RS256 chain be fetched over plain HTTP
+  # shows up in a diff if anyone ever moves it.
+  Jwt__RequireHttpsMetadata = "true"
+
+  # Exact origins, scheme and all. The policy allows credentials, which makes a
+  # wildcard impossible — so the list is enumerated rather than defaulted to "*".
+  Cors__AllowedOrigins__0 = "https://ab-ovo-web-dev.fly.dev"
+
+  # Behind the Fly proxy every TCP peer is the edge, so the socket address puts the
+  # whole internet in one rate-limit bucket — and it fails silently, because the
+  # limiter works perfectly on the key it was given. The header is only trusted
+  # because configuration says a proxy is in front; with nothing in front it would
+  # let every visitor pick their own bucket.
+  Network__TrustProxyClientIpHeader = "true"
+  Network__ClientIpHeader           = "Fly-Client-IP"
+
+  # Swagger publishes the whole API surface. It already defaults off outside
+  # Development, but the default is a function of ASPNETCORE_ENVIRONMENT — so it is
+  # pinned here, and renaming the environment cannot quietly publish the surface.
+  Swagger__Enabled = "false"
+
+[http_service]
+  internal_port       = 8080                 # equals the port Kestrel binds (§2, §14)
+  force_https         = true                 # off the table to disable (§13)
+  auto_stop_machines  = "stop"
+  auto_start_machines = true
+
+  # 1, not 0. The synchronous call that forces it (§7 departure rule): the web
+  # app's SERVER side calls GET https://ab-ovo-api-dev.fly.dev/api/v1/... while
+  # rendering a page, in-request. The rule is "either B keeps a machine running, or
+  # A's timeout comfortably exceeds B's cold start", and the first is the one that
+  # is actually configured rather than merely written down.
+  # The condition under which this becomes 0 is recorded in INFRASTRUCTURE-ANALYSIS.md
+  # §3(a): it is a product fact, not a budget decision.
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type        = "requests"
+    hard_limit  = 250                        # proxy queues past this
+    soft_limit  = 200                        # proxy prefers another machine past this
+
+  [[http_service.checks]]
+    # Readiness, not liveness. /health runs every check including the database and
+    # reports the state of each optional integration; /alive carries only the
+    # `live`-tagged self check and must never be the deploy gate, because it would
+    # pass with the database unreachable (§2).
+    # Pointing this at "/" is what passes on a white screen (§2).
+    path         = "/health"
+    interval     = "30s"
+    timeout      = "5s"
+    # 60s covers .NET cold start plus the first-boot schema work. Migrations run in
+    # a BackgroundService AFTER Kestrel binds, so probes answer while the schema
+    # catches up — but the first migration against a cold Postgres still has to fit
+    # inside this window or the deploy is read as failed (§2, §14).
+    grace_period = "60s"
+
+[[vm]]
+  size   = "shared-cpu-1x"
+  memory = "512mb"

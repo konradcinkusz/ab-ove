@@ -1,0 +1,169 @@
+# flyio-scale.yml — manual scale up and down, for the stateless apps only.
+#
+# FLY-IO-DEPLOYMENT §12. Two rules shape this whole file:
+#
+#   1. STATEFUL APPS ARE EXCLUDED, and not by convention. `flyctl scale count 2` on an
+#      app with a volume does not give you a replica: a Fly volume is a local disk bound
+#      to one machine in one region, so the second machine gets a second, EMPTY volume.
+#      The symptom is an application that works on some requests and reports an empty
+#      database on others, depending which machine the proxy picked. ab-ovo-postgres is
+#      therefore absent from the choice list AND rejected by an explicit guard below —
+#      the choice list is what a person sees, the guard is what holds when someone edits
+#      the choice list.
+#
+#   2. SCALING TO ZERO MACHINES IS NOT `min_machines_running = 0`. They look like the
+#      same saving and they are not: `min_machines_running = 0` leaves a stopped machine
+#      the Fly proxy starts on the next request, and `scale count 0` leaves nothing for
+#      it to start. The first is scale-to-zero; the second is an outage. This workflow
+#      refuses 0 and says so.
+#
+# Idle cost is already handled without this workflow: flyio/web.fly.toml runs at
+# min_machines_running = 0, and the two apps that pin a machine do so because a named
+# synchronous call forces it (see flyio/INFRASTRUCTURE-ANALYSIS.md). This file is for
+# capacity, not for cost.
+
+name: Scale (Fly.io)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Which stateless app to scale. ab-ovo-postgres is deliberately not on this list.'
+        required: true
+        type: choice
+        default: all-stateless
+        options:
+          - all-stateless
+          - ab-ovo-api-dev
+          - ab-ovo-web-dev
+          - ab-ovo-authservice-dev
+      count:
+        description: 'Machines per app, 1-10. This NORMALIZES: every selected app ends at exactly this count. 0 is refused — see the workflow comments.'
+        required: true
+        type: string
+        default: '1'
+
+concurrency:
+  group: flyio-scale-dev
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FLYCTL_VERSION: latest
+  FLY_REGION: waw
+  # Named here so the guard below has something to check against rather than a literal
+  # repeated in three places.
+  STATEFUL_APPS: 'ab-ovo-postgres'
+
+jobs:
+  scale:
+    name: scale ${{ inputs.target }} to ${{ inputs.count }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: dev
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - name: Install flyctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$FLYCTL_VERSION" = "latest" ]; then
+            curl -fsSL https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh
+          else
+            curl -fsSL https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh -s "$FLYCTL_VERSION"
+          fi
+          echo "$HOME/.fly/bin" >> "$GITHUB_PATH"
+
+      - name: Resolve the target list and validate the count
+        id: plan
+        shell: bash
+        env:
+          TARGET: ${{ inputs.target }}
+          COUNT: ${{ inputs.count }}
+        run: |
+          set -euo pipefail
+
+          [ -n "${FLY_API_TOKEN:-}" ] || {
+            echo "::error::FLY_API_TOKEN is not set in the 'dev' GitHub environment."
+            exit 1
+          }
+
+          # A count that is not a plain integer would reach flyctl as a string and be
+          # rejected there, after the app list had already been resolved. Reject it here,
+          # before anything has been touched.
+          if ! printf '%s' "$COUNT" | grep -Eq '^[0-9]+$'; then
+            echo "::error::count must be a whole number, got '$COUNT'."
+            exit 1
+          fi
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::Refusing to scale to 0 machines. That is not scale-to-zero — it leaves nothing for the Fly proxy to start, which is an outage rather than a saving. Idle cost is controlled by min_machines_running in flyio/*.fly.toml, which is already 0 for ab-ovo-web-dev. To take the estate down entirely, use flyio-destroy.yml."
+            exit 1
+          fi
+
+          if [ "$COUNT" -gt 10 ]; then
+            echo "::error::Refusing to scale past 10 machines from a workflow button. If this estate genuinely needs that, it needs a capacity decision recorded in flyio/INFRASTRUCTURE-ANALYSIS.md first."
+            exit 1
+          fi
+
+          if [ "$TARGET" = "all-stateless" ]; then
+            apps="ab-ovo-authservice-dev ab-ovo-api-dev ab-ovo-web-dev"
+          else
+            apps="$TARGET"
+          fi
+
+          # The guard that holds when the choice list above is edited. A stateful app
+          # reaching `flyctl scale count` is a second empty database, and it is silent.
+          for app in $apps; do
+            for stateful in $STATEFUL_APPS; do
+              if [ "$app" = "$stateful" ]; then
+                echo "::error::$app is STATEFUL and must never be scaled. A Fly volume is a local disk bound to one machine; a second machine gets a second, EMPTY volume rather than a replica. Remove it from the choice list."
+                exit 1
+              fi
+            done
+          done
+
+          echo "apps=$apps" >> "$GITHUB_OUTPUT"
+          echo "Will normalize to $COUNT machine(s): $apps"
+
+      - name: Scale
+        shell: bash
+        env:
+          APPS: ${{ steps.plan.outputs.apps }}
+          COUNT: ${{ inputs.count }}
+        run: |
+          set -euo pipefail
+          for app in $APPS; do
+            echo "──────── $app ────────"
+            echo "before:"
+            flyctl status --app "$app" || true
+
+            # `scale count` SETS the count rather than adding to it, which is what makes
+            # this normalization: every selected app ends at exactly $COUNT whatever it
+            # drifted to.
+            flyctl scale count "$COUNT" --app "$app" --region "$FLY_REGION" --yes
+
+            echo "after:"
+            flyctl status --app "$app"
+          done
+
+      - name: Summarize
+        if: always()
+        shell: bash
+        env:
+          APPS: ${{ steps.plan.outputs.apps }}
+          COUNT: ${{ inputs.count }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Scale"
+            echo
+            echo "Normalized to **${COUNT}** machine(s) per app in \`${FLY_REGION}\`:"
+            echo
+            for app in ${APPS:-}; do echo "- \`$app\`"; done
+            echo
+            echo "\`ab-ovo-postgres\` was not touched, and cannot be from this workflow."
+          } >> "$GITHUB_STEP_SUMMARY"

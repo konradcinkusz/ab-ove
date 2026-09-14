@@ -1,0 +1,131 @@
+# ab-ovo Postgres — stateful (FLY-IO-DEPLOYMENT §5 "Database", §8 "State").
+#
+# NO ENVIRONMENT SUFFIX in the app name, deliberately: one instance hosts both
+# databases for this environment, and the name is the one every connection string
+# points at. Physical co-location is a COST decision; the logical boundary is not
+# crossed (P3, §8) — each service gets a connection string to exactly one database
+# and no credentials for the others, so splitting into separate instances later is a
+# configuration change rather than a code change.
+
+app            = "ab-ovo-postgres"
+primary_region = "waw"                       # ADR-0002
+
+# =============================================================================
+# THERE IS NO [http_service] AND NO [[services]] BLOCK HERE. DO NOT ADD ONE.
+# This app is reached only at ab-ovo-postgres.internal:5432 over 6PN. "A database
+# with a public listener is a database waiting to be scanned" (§1, §5).
+# Two consequences worth knowing rather than rediscovering:
+#   - No public listener means no proxy smoke check, so `flyctl deploy` returns
+#     instead of sitting waiting for an HTTP response that is never coming (§5).
+#   - .internal resolves to AAAA records ONLY, so every client must be IPv6-capable.
+#     Npgsql is; some ancient drivers are not (§6).
+# From a laptop:  fly proxy 15432:5432 --app ab-ovo-postgres
+# =============================================================================
+
+# DEPLOY THIS APP WITH --ha=false. A volume is a local disk bound to one machine in
+# one region — not network storage, not replicated, not shared — so a second machine
+# gets a second, EMPTY volume, not a replica (§8, §12, §14). For the same reason this
+# app is excluded from flyio-scale.yml entirely: `flyctl scale count 2` here creates a
+# second empty database.
+#
+#   flyctl deploy --config flyio/postgres.fly.toml --ha=false
+#
+# And it is gated separately from the services in flyio.yml: redeploying Postgres
+# restarts it, so it runs when its own config changed or the app is missing, not on
+# every tag (§10).
+
+[build]
+  # A vanilla image pinned to a MAJOR, never `latest`, and never Fly's managed
+  # postgres-flex — that expects `fly postgres create`-style bootstrapping (cluster
+  # credentials, multi-machine setup) rather than a bare deploy, and the symptom is a
+  # database that never initializes with no useful error (§5, §14).
+  #
+  # No `dockerfile`/`context` here, and that omission is NOT the §4 defect: nothing is
+  # built for this app. The `context` rule exists to make a build reproducible.
+  image = "postgres:17-alpine"
+
+# Readable with `fly config show`, so POSTGRES_PASSWORD is NOT here — it is a Fly
+# secret, along with the two per-database role passwords the init script reads (§9).
+# See flyio/SECRETS.md.
+[env]
+  # No hyphen in either name, on purpose: the Fly app is ab-ovo-postgres, but a
+  # Postgres identifier containing a hyphen has to be double-quoted everywhere it is
+  # named, including inside the init script below.
+  POSTGRES_USER = "abovo"
+  POSTGRES_DB   = "abovo"
+
+  # A SUBDIRECTORY of the mount, never the mount root. The volume root carries
+  # lost+found and initdb refuses a non-empty data directory; the failure "is
+  # silent-looking and costs an hour the first time" (§5, §8, §14).
+  PGDATA = "/var/lib/postgresql/data/pgdata"
+
+  POSTGRES_INITDB_ARGS = "--encoding=UTF8 --locale=C"
+
+[[mounts]]
+  source      = "abovo_pgdata"               # volume names take no hyphen
+  destination = "/var/lib/postgresql/data"
+  # Declared deliberately, because growing a volume later is possible and shrinking is
+  # not (§8). 3gb is sized for what these two databases actually hold — reader progress
+  # rows and accounts; the book's 47 programs ship in the repository, not in the
+  # database — plus headroom for WAL and autovacuum bloat, which is the cheapest
+  # failure to avoid and the most expensive to hit.
+  initial_size = "3gb"
+
+[[vm]]
+  size   = "shared-cpu-1x"
+  memory = "1gb"                             # §4: 1gb for Postgres, 512mb for stateless
+
+# =============================================================================
+# First-boot database and role creation.
+#
+# The postgres entrypoint executes /docker-entrypoint-initdb.d/*.sh ONLY when the
+# data directory is empty, so this runs once, on the very first boot, and never again
+# (§5). Two things follow:
+#   - Adding a third database later means an explicit `psql` against the running
+#     instance, not an edit here. Editing this file will not re-run it.
+#   - If this script FAILS, initdb has already finished, so on restart the scripts do
+#     not run and you get a healthy Postgres with no application databases in it. The
+#     recovery is to destroy the volume and redeploy, which is why the guards below
+#     fail loudly before any SQL is attempted rather than half-way through it.
+#
+# `[[files]]` with raw_value delivers it, so there is no custom image to build and
+# keep current (§5). It is a TOML *literal* multi-line string (''' … ''') rather than
+# a basic one ("""…"""): a literal string processes no escape sequences, so the shell
+# and SQL below are byte-for-byte what runs. In a basic string every backslash would
+# need doubling, and the one that is easiest to get wrong is psql's \gexec.
+#
+# Verify after first boot:
+#   fly ssh console -a ab-ovo-postgres -C "cat /docker-entrypoint-initdb.d/01-databases.sh"
+#
+# P3 is enforced here, not merely described: two roles, each owning one database, and
+# CONNECT revoked from PUBLIC. Without the REVOKE, Postgres lets any role connect to
+# any database by default — so authservice would hold a credential that can read
+# apidb, and the boundary would exist only in the connection strings.
+# =============================================================================
+[[files]]
+  guest_path = "/docker-entrypoint-initdb.d/01-databases.sh"
+  raw_value = '''#!/bin/bash
+set -euo pipefail
+
+# Fly secrets on this app, injected as environment variables. Fail before touching the
+# cluster: a signing key or a database password is not optional, and a service that
+# comes up without one looks healthy while being wrong (§9).
+: "${APIDB_PASSWORD:?APIDB_PASSWORD is not set on ab-ovo-postgres}"
+: "${AUTHDB_PASSWORD:?AUTHDB_PASSWORD is not set on ab-ovo-postgres}"
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<EOSQL
+CREATE ROLE abovo_api  LOGIN PASSWORD '${APIDB_PASSWORD}';
+CREATE ROLE abovo_auth LOGIN PASSWORD '${AUTHDB_PASSWORD}';
+
+CREATE DATABASE apidb  OWNER abovo_api;
+CREATE DATABASE authdb OWNER abovo_auth;
+
+REVOKE CONNECT ON DATABASE apidb  FROM PUBLIC;
+REVOKE CONNECT ON DATABASE authdb FROM PUBLIC;
+
+GRANT CONNECT ON DATABASE apidb  TO abovo_api;
+GRANT CONNECT ON DATABASE authdb TO abovo_auth;
+EOSQL
+
+echo "ab-ovo: apidb (abovo_api) and authdb (abovo_auth) created; CONNECT revoked from PUBLIC."
+'''

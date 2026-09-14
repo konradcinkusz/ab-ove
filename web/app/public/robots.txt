@@ -1,0 +1,8 @@
+# Served from this app's own origin, like every other byte on the site.
+User-agent: *
+Allow: /
+
+# Nothing here is user-specific and nothing behind it is public: /api/proxy requires the
+# session cookie that only this origin can send, and /api/config is a per-request read of
+# this deployment's environment that has no meaning in an index.
+Disallow: /api/

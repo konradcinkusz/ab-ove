@@ -1,0 +1,179 @@
+# .gitattributes — REPO-BASELINE.md §1: "Commit a REAL .gitattributes with rules actually
+# uncommented — never the stock template with every line commented out." The failure it
+# names is precise: the stock template with every rule commented out is decoration, not
+# configuration, and it reads as done.
+#
+# Every rule below is active.
+#
+# Three jobs, in this order of importance:
+#   1. LINE ENDINGS  — so a Windows clone does not turn every file into a whole-file diff,
+#      and so the things that BREAK on CRLF never see one.
+#   2. BINARY        — so git stops trying to diff and merge files where a merge marker is
+#      corruption rather than a conflict to resolve.
+#   3. LINGUIST      — so the language bar and the diff view describe the code somebody
+#      wrote rather than the lockfile a tool generated.
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# 1. Line endings
+# ═════════════════════════════════════════════════════════════════════════════════════
+
+# Default: let git decide what is text, and store LF in the repository. This is the half
+# .editorconfig cannot do — .editorconfig tells an editor what to write, this tells git
+# what to commit, and only the pair of them survives a Windows clone.
+* text=auto eol=lf
+
+# ── Files that MUST be LF, stated rather than inferred ───────────────────────────────
+# A CRLF shebang fails as `bad interpreter: /usr/bin/env bash^M: No such file or
+# directory` — a message that names neither the file nor the cause. scripts/setup.sh and
+# scripts/hooks/pre-commit are exactly the files a Windows contributor clones first.
+*.sh            text eol=lf
+*.bash          text eol=lf
+scripts/hooks/* text eol=lf
+
+# A Dockerfile's RUN lines are shell. Same failure, inside a build nobody can attach to.
+Dockerfile      text eol=lf
+Dockerfile.*    text eol=lf
+*.dockerfile    text eol=lf
+.dockerignore   text eol=lf
+
+# A PEM with CRLF line endings is not a PEM. flyio/SECRETS.md records this as a real
+# failure: a key mangled on the way through Windows tooling parsed as nothing, and the
+# service started anyway on an inferred HS256 with an empty JWKS.
+*.pem           text eol=lf
+*.key           text eol=lf
+*.crt           text eol=lf
+
+# YAML, TOML and the Fly/GitHub configuration read by Linux tooling.
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.toml          text eol=lf
+
+# ── Files that MUST be CRLF ──────────────────────────────────────────────────────────
+# cmd.exe mis-parses an LF batch file in ways that present as a missing command. None
+# exist today; this is here so the first one is born correct.
+*.cmd           text eol=crlf
+*.bat           text eol=crlf
+
+# PowerShell reads LF fine on every supported version, and LF keeps setup.ps1 and
+# setup.sh byte-comparable across platforms.
+*.ps1           text eol=lf
+*.psm1          text eol=lf
+*.psd1          text eol=lf
+
+# ── Everything with a diff worth reading ─────────────────────────────────────────────
+*.cs            text diff=csharp
+*.csproj        text
+*.props         text
+*.targets       text
+*.sln           text eol=crlf
+*.slnx          text
+*.config        text
+*.json          text
+*.jsonc         text
+*.ts            text
+*.tsx           text
+*.js            text
+*.jsx           text
+*.mjs           text
+*.cjs           text
+*.css           text
+*.scss          text
+*.html          text diff=html
+*.md            text diff=markdown
+*.txt           text
+*.tex           text
+*.bib           text
+*.sql           text
+*.csv           text
+.gitignore      text
+.gitattributes  text
+.editorconfig   text
+LICENSE         text
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# 2. Binary
+# ═════════════════════════════════════════════════════════════════════════════════════
+# `binary` is `-text -diff`: git stops converting line endings (which would corrupt the
+# file) and stops offering a textual merge (where a conflict marker is not a conflict to
+# resolve but a broken file).
+
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.webp          binary
+*.avif          binary
+*.ico           binary
+*.bmp           binary
+*.pdf           binary
+*.woff          binary
+*.woff2         binary
+*.ttf           binary
+*.otf           binary
+*.eot           binary
+*.zip           binary
+*.gz            binary
+*.tgz           binary
+*.7z            binary
+*.mp4           binary
+*.webm          binary
+*.mp3           binary
+*.wav           binary
+*.dll           binary
+*.exe           binary
+*.so            binary
+*.dylib         binary
+*.pdb           binary
+*.nupkg         binary
+*.snupkg        binary
+*.wasm          binary
+*.pyc           binary
+
+# SVG is XML and diffs usefully by hand, but an exported one is a single 200 KB line.
+# Text, so line endings are normalised; no diff, so a review is not drowned by it.
+*.svg           text -diff
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# 3. linguist — what GitHub counts, and what a review collapses by default
+# ═════════════════════════════════════════════════════════════════════════════════════
+# `linguist-generated` does two things at once: the file is excluded from the repository
+# language statistics, and the pull-request diff shows it collapsed. Both are what you
+# want for a file a tool wrote — nobody reviews a lockfile line by line, and a 126 KB
+# lockfile at the top of a diff is how the three lines that matter go unread.
+
+pnpm-lock.yaml          linguist-generated=true
+package-lock.json       linguist-generated=true
+yarn.lock               linguist-generated=true
+*.lock                  linguist-generated=true
+packages.lock.json      linguist-generated=true
+
+# Compiler- and framework-generated sources.
+*.Designer.cs           linguist-generated=true
+*.g.cs                  linguist-generated=true
+*.g.i.cs                linguist-generated=true
+next-env.d.ts           linguist-generated=true
+*.min.js                linguist-generated=true
+*.min.css               linguist-generated=true
+
+# Vendored dependency trees, on the off chance one is ever committed. `linguist-vendored`
+# rather than `-generated`: nobody generated it here, and the distinction is real when
+# somebody is looking for where a file came from.
+**/node_modules/**      linguist-vendored=true
+
+# Documentation is documentation, not a language. Without this the bar reads as a TeX
+# and Markdown repository, because docs/ and content/ outweigh src/ by volume — and the
+# bar is the first thing a stranger uses to decide what this repository is.
+docs/**                 linguist-documentation=true
+content/**              linguist-documentation=true
+*.md                    linguist-documentation=true
+LICENSE                 linguist-documentation=true
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# 4. Export
+# ═════════════════════════════════════════════════════════════════════════════════════
+# Keep the repository's own scaffolding out of a `git archive` tarball. It does not
+# affect a clone, a checkout, or CI — only the source archive attached to a release.
+.gitattributes          export-ignore
+.gitignore              export-ignore
+.github/                export-ignore
+.claude/                export-ignore

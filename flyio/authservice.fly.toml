@@ -1,0 +1,100 @@
+# ab-ovo identity — konradcinkusz/authservice, adopted as an EXTERNAL service from
+# its published image (FLY-IO-DEPLOYMENT §4, §5 "Stateless HTTP service").
+#
+# This repository holds no source for it and builds no image for it, so there is no
+# [build] dockerfile and no [build] context here. That omission is deliberate and is
+# NOT the §4/§14 defect: the `context` rule exists to make a BUILD reproducible, and
+# nothing is built. The pipeline deploys this app with
+#   flyctl deploy --config flyio/authservice.fly.toml --image ghcr.io/konradcinkusz/authservice:v0.3.1
+# which overrides the pin below; the pin is here so a bare `flyctl deploy` from a
+# laptop lands on the same image the pipeline would.
+
+app            = "ab-ovo-authservice-dev"
+primary_region = "waw"                       # ADR-0002
+
+[build]
+  # PINNED, and not to v0.1.0. RS256, the JWKS endpoint and the discovery document
+  # DO NOT EXIST before v0.3.0 — every upstream doc example shows v0.1.0, and
+  # following it leaves the shared-secret model P5 forbids ("a symmetric secret
+  # shared between services means verify = mint").
+  image = "ghcr.io/konradcinkusz/authservice:v0.3.1"
+
+# Readable with `fly config show`. The signing key and the connection string are
+# NOT here — they are Fly secrets (§9). See flyio/SECRETS.md.
+[env]
+  ASPNETCORE_ENVIRONMENT = "Production"
+  ASPNETCORE_URLS        = "http://+:8080"   # must equal internal_port below (§2)
+
+  # Set EXPLICITLY. Left unset, a missing key silently infers HS256 and the service
+  # publishes an EMPTY jwks — a deploy that is green on every health check while
+  # every downstream validator rejects every token (§10's post-deploy assertion
+  # exists for exactly this, because --wait-timeout covers "did it start", not
+  # "is it correct").
+  Jwt__Algorithm = "RS256"
+
+  # Product-specific, both of them. The upstream default "AuthService" collides
+  # across products: two products sharing it would issue tokens each other's
+  # validators accept.
+  Jwt__Issuer   = "AbOvo"
+  Jwt__Audience = "AbOvo"
+
+  # The PUBLIC URL, unconditionally (§6, §14). It is what every validator fetches
+  # <base>/.well-known/jwks.json from, and .internal would not wake a stopped
+  # machine. It must equal Jwt__Authority in flyio/api.fly.toml and the JWKS URI the
+  # web app points jose at; a mismatch means every token is rejected after a working
+  # deploy.
+  Jwt__PublicBaseUrl = "https://ab-ovo-authservice-dev.fly.dev"
+
+  # The upstream name. DATABASE_SCHEMA_MODE is DEAD and never works.
+  # EnsureCreated is upstream's own schema mechanism and is accepted here because
+  # this is an adopted external service whose schema this repository does not own;
+  # P4's "migrate, never EnsureCreated" governs the schemas ab-ovo itself owns.
+  Database__SchemaMode = "EnsureCreated"
+
+  # The indexed form. CORS_ALLOWED_ORIGIN does not exist.
+  Cors__AllowedOrigins__0 = "https://ab-ovo-web-dev.fly.dev"
+
+  # Without it every user shares one rate-limit bucket, because behind the Fly proxy
+  # every TCP peer is the edge. It fails silently: the limiter works perfectly on the
+  # key it was given.
+  Network__ClientIpHeader = "Fly-Client-IP"
+
+[http_service]
+  internal_port       = 8080
+  force_https         = true                 # off the table to disable (§13)
+  auto_stop_machines  = "stop"
+  auto_start_machines = true
+
+  # 1, and this one is not negotiable (§7). The synchronous calls that force it:
+  #   AbOvo.Api  (JwtBearer) -> GET /.well-known/openid-configuration, then
+  #                             GET /.well-known/jwks.json    — in-request
+  #   web server side (jose createRemoteJWKSet) -> GET /.well-known/jwks.json — in-request
+  # A JWKS issuer is on the request path of EVERY service, not just on the first
+  # request, because validators re-fetch when their metadata cache expires. A cold
+  # start here is not a slow page: it is a 401 for a user holding a valid token.
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type       = "requests"
+    hard_limit = 250
+    soft_limit = 200
+
+  [[http_service.checks]]
+    # /health/ready, NOT /health. Upstream's /health and /alive are LIVENESS — they
+    # answer 200 as soon as Kestrel binds — while schema initialisation runs in a
+    # BackgroundService AFTER the listener is up. Pointing the deploy gate at /health
+    # would call the deploy a success while the schema is half-created, and the first
+    # login would fail against a table that does not exist yet (§2).
+    path         = "/health/ready"
+    interval     = "30s"
+    timeout      = "5s"
+    # 90s rather than the estate's 60s, deliberately: /health/ready stays 503 until
+    # EnsureCreated finishes, and on a cold estate that runs against a Postgres machine
+    # that has only just initialised its own data directory. This window covers the
+    # container cold start, the first connection to ab-ovo-postgres.internal, and the
+    # schema build.
+    grace_period = "90s"
+
+[[vm]]
+  size   = "shared-cpu-1x"
+  memory = "512mb"

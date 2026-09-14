@@ -1,0 +1,14 @@
+# Build output and the file `next build` generates for its own ambient types.
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Installed by the workspace root, never committed.
+/node_modules/
+
+# FRONTEND-BFF.md §2 / REPO-BASELINE.md §2 — local addresses and secrets reach this app
+# through the environment, never through a tracked file.
+.env
+.env.local
+.env.*.local

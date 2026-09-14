@@ -1,0 +1,28 @@
+{
+  "//": [
+    "FRONTEND-BFF.md §7 — 'One package manager, one workspace, ALL apps members of it.",
+    "A mixed npm/pnpm monorepo is an anti-pattern with no upside.' The workspace exists",
+    "from the first commit even though it holds one app, because the anti-example in §7 is",
+    "a repo that scaffolded the apps first and never got the workspace: four apps, two in",
+    "pnpm, two on standalone npm with their own lockfiles, three CI setup blocks.",
+    "There is exactly ONE lockfile and it is next to this file, never inside app/.",
+    "The @ab-ovo/web-kit package of §7 is deliberately NOT here yet: the kit is what stops",
+    "two apps diverging, so it is created when the SECOND app arrives. Until then app/ is",
+    "the only copy of the BFF code and there is nothing for it to drift from."
+  ],
+  "name": "ab-ovo-web-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @ab-ovo/app dev",
+    "build": "pnpm --filter @ab-ovo/app build",
+    "start": "pnpm --filter @ab-ovo/app start",
+    "lint": "pnpm -r --no-bail lint",
+    "typecheck": "pnpm -r --no-bail typecheck"
+  }
+}

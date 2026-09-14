@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>AbOvo.Api</RootNamespace>
+    <UserSecretsId>ab-ovo-api</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AbOvo.ServiceDefaults/AbOvo.ServiceDefaults.csproj" />
+    <ProjectReference Include="../AbOvo.Contracts/AbOvo.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AbOvo.Api.Tests" />
+  </ItemGroup>
+
+</Project>

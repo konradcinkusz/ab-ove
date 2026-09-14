@@ -1,0 +1,13 @@
+# FRONTEND-BFF.md §7 — one workspace, every app a member of it. The recorded anti-example
+# is four apps with only two of them in here; the cost was three CI setup blocks and four
+# slowly diverging copies of security-relevant code.
+#
+# REPO-BASELINE.md §1 (CI runs what the repo claims) — one setup block for the whole
+# frontend tree follows from this file listing every app, so CI never grows a per-app rung.
+packages:
+  - 'app'
+
+# pnpm 10 blocks dependency lifecycle scripts unless they are named here. Keep this list
+# EMPTY until a build actually needs an entry, and add the entry with a reason: an
+# unexplained allow-listed postinstall is a supply-chain hole nobody can audit.
+onlyBuiltDependencies: []

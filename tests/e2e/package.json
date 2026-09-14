@@ -1,0 +1,52 @@
+{
+  "//": [
+    "The ab-ovo end-to-end acceptance suite.",
+    "",
+    "A SEPARATE pnpm package, not a member of web/'s workspace. That workspace's",
+    "pnpm-workspace.yaml lists exactly one package ('app') and owns exactly one lockfile,",
+    "and FRONTEND-BFF.md §7 is emphatic that it stays that way. This package therefore",
+    "carries its own lockfile, which is what .github/workflows/ci.yml's e2e job checks for",
+    "by name before it will run. The package manager is still pnpm: one package manager for",
+    "the repository, two install roots.",
+    "",
+    "WHY THERE IS NO POSTINSTALL BROWSER DOWNLOAD. `onlyBuiltDependencies: []` below tells",
+    "pnpm 10 to run no dependency lifecycle script, which includes playwright's browser",
+    "download. Browsers are installed by an explicit, greppable command instead — the same",
+    "one CI runs: `pnpm exec playwright install --with-deps chromium`. An install that",
+    "silently pulls ~150 MB of browser binaries is an install nobody can audit, and it is",
+    "the reason a lockfile refresh in an unrelated PR sometimes takes four minutes.",
+    "",
+    "EVERY SCRIPT HERE IS EXECUTED BY A CI CONTEXT. TESTING-STRATEGY.md §9: an unreferenced",
+    "test entry point is not a latent capability, it is documentation that lies. `test:smoke`",
+    "runs on pull_request and `test:full` on push to main, both in ci.yml's e2e job; the",
+    "remaining scripts are developer ergonomics over the same two projects, not a third",
+    "layer. There is deliberately no `test:extended` — see README.md."
+  ],
+  "name": "@ab-ovo/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test --project=smoke",
+    "test:full": "playwright test --project=core",
+    "test:headed": "playwright test --project=smoke --headed",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report",
+    "browsers": "playwright install --with-deps chromium",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.20.2",
+    "typescript": "5.9.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": []
+  }
+}

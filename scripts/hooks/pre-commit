@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+#
+# pre-commit — the HOOK half of secret scanning.
+#
+# REPO-BASELINE.md §1, §2: "Install secret scanning in BOTH places: a pre-commit hook
+# (gitleaks or equivalent) and a CI job. Neither substitutes for the other."
+#
+#   this hook                          catches the mistake BEFORE it becomes history
+#   .github/workflows/secret-scan.yml  catches contributors who have no hooks installed
+#
+# The distinction is the whole point and it is not redundancy. Once a commit is pushed
+# the secret is compromised, and CI can only tell you so; only the hook can stop it being
+# true. The estate's sharpest recorded failure is on the other side of that line — live
+# credentials committed in a tracked helper script, a CI-mirror script for local
+# debugging, genuinely a good pattern, because inline literals were the path of least
+# resistance and NO PRE-COMMIT HOOK EXISTED TO CATCH IT.
+#
+# INSTALLED BY, not copied by:
+#
+#     bash scripts/setup.sh                 (step 2 wires core.hooksPath)
+#     git config core.hooksPath scripts/hooks
+#
+# core.hooksPath rather than a copy into .git/hooks: a copy is a second version of this
+# file that nobody updates and that no review ever sees. Pointing git at the tracked
+# directory means changing the hook is a reviewed diff like anything else.
+#
+# WHAT IT SCANS: the STAGED content, which is what is about to become a commit. Not the
+# working tree — an unstaged experiment is not history and blocking on it teaches people
+# to use --no-verify, which switches the hook off permanently.
+
+set -euo pipefail
+
+CONFIG="$(git rev-parse --show-toplevel)/.gitleaks.toml"
+
+# ─────────────────────────────────────────────────────────────────────────────────────
+# The documented escape hatch, and its cost.
+#
+# `git commit --no-verify` skips every hook, and this variable skips only this one. Both
+# exist and both are fine to use — for a commit you have looked at. Neither is a way to
+# get a secret past the estate: .github/workflows/secret-scan.yml runs on the pull request
+# and on the push to main, and it does not read this variable.
+# ─────────────────────────────────────────────────────────────────────────────────────
+if [ "${ABOVO_SKIP_SECRET_SCAN:-}" = "1" ]; then
+  printf '%s\n' "pre-commit: secret scan SKIPPED (ABOVO_SKIP_SECRET_SCAN=1). CI still scans this." >&2
+  exit 0
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────────────
+# Fail CLOSED when the scanner is missing.
+#
+# The alternative — warn and continue — makes the hook's presence meaningless: the one
+# machine where gitleaks is not installed is the one where the commit goes through, and
+# nothing distinguishes that from a clean scan. Naming the install command turns a block
+# into a thirty-second fix (REPO-BASELINE.md §3 step 1: fail with install pointers, not a
+# bare error).
+# ─────────────────────────────────────────────────────────────────────────────────────
+if ! command -v gitleaks >/dev/null 2>&1; then
+  cat >&2 <<'MISSING'
+
+  pre-commit: gitleaks is not installed, so this commit CANNOT be scanned.
+
+  Refusing rather than waving it through: a hook that passes when the scanner is
+  absent is indistinguishable from a hook that passed because the commit was clean.
+
+  Install it:
+    macOS          brew install gitleaks
+    Linux          https://github.com/gitleaks/gitleaks/releases   (single static binary)
+    Windows        winget install gitleaks     or    scoop install gitleaks
+    Go             go install github.com/zricethezav/gitleaks/v8@latest
+
+  Then retry the commit. To commit once without scanning:
+    ABOVO_SKIP_SECRET_SCAN=1 git commit ...        (CI still scans it)
+
+MISSING
+  exit 1
+fi
+
+if [ ! -f "$CONFIG" ]; then
+  printf 'pre-commit: %s is missing; the hook and CI would scan with different rules.\n' "$CONFIG" >&2
+  exit 1
+fi
+
+# --staged: gitleaks reads the index, which is exactly the content `git commit` is about
+# to write. --redact: a finding is printed as a location and a rule, never as the value —
+# a scanner that echoes the secret into a terminal scrollback and a CI log has leaked it
+# a second time.
+if gitleaks git --staged --no-banner --redact --config "$CONFIG" "$(git rev-parse --show-toplevel)"; then
+  exit 0
+fi
+
+cat >&2 <<'FOUND'
+
+  ─────────────────────────────────────────────────────────────────────────────────
+  COMMIT BLOCKED — the staged changes contain something that looks like a secret.
+  ─────────────────────────────────────────────────────────────────────────────────
+
+  Nothing has been committed, which means nothing has been leaked yet. This is the
+  cheap moment; every later one is a rotation.
+
+  1. IF IT IS A REAL SECRET
+     Take it out of the file. It belongs in one of these, and never in the tree:
+       local development    dotnet user-secrets   (bash scripts/setup.sh)
+       deployed             fly secrets set       (flyio/SECRETS.md)
+       CI                   a GitHub Environment secret
+     secrets.env.example documents every variable this system has, by name.
+
+  2. IF IT IS A FALSE POSITIVE
+     Three options, in order of preference:
+       - Rewrite the line to use a placeholder form: $VAR, ${VAR}, <description>.
+         The scanner already treats those as names rather than values.
+       - Add a trailing `gitleaks:allow` comment on that ONE line.
+       - If it recurs, the rule is wrong: fix .gitleaks.toml, in a reviewed diff.
+
+  3. IF IT IS ALREADY PUSHED SOMEWHERE
+     Stop and read SECURITY.md. The order is ROTATE FIRST, clean history second —
+     scrubbing without rotating is theatre, because the commit was public the moment
+     it was pushed.
+
+FOUND
+exit 1

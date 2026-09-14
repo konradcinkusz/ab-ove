@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- P1 — the composition root, and it exists for DEVELOPMENT.
+       "The AppHost is not the production topology. Production is described by the
+       platform's own configuration (fly.toml, workflow env). The AppHost's IsPublishMode
+       branch is a manifest generator, not a second runtime." -->
+
+  <Sdk Name="Aspire.AppHost.Sdk" Version="13.5.3" />
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>AbOvo.AppHost</RootNamespace>
+    <IsAspireHost>true</IsAspireHost>
+    <UserSecretsId>ab-ovo-apphost</UserSecretsId>
+    <!-- The Aspire CLI bundle is a developer convenience (the `aspire` CLI's dashboard
+         launch path). Nothing in this repository's build, test or deploy needs it, and
+         requiring it would put a second toolchain between a fresh clone and `dotnet run`
+         (REPO-BASELINE.md §3 — one-command onboarding). ASPIRE010 says so on every build;
+         it is acknowledged here rather than left to make the build noisy. -->
+    <AspireUseCliBundle>false</AspireUseCliBundle>
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
+    <!-- AddNextJsApp is marked evaluation-only in Aspire 13.5. It is used anyway, and the
+         blast radius is bounded: the AppHost is DEVELOPMENT ONLY (P1) and is not the
+         production topology, so a breaking change here cannot reach a deployed system —
+         flyio/web.fly.toml and web/app/Dockerfile describe that, and neither imports this. -->
+    <NoWarn>$(NoWarn);ASPIREJAVASCRIPT001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.JavaScript" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AbOvo.Api/AbOvo.Api.csproj" />
+  </ItemGroup>
+
+</Project>
