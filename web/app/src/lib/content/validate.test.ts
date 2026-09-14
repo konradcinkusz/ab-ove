@@ -231,6 +231,41 @@ test('a section anchor past the last step is refused', () => {
   refusedAt(settingAt('/units/0/sections/1/firstStep', 99), '/units/0/sections/1/firstStep');
 });
 
+test('sections that descend are refused, because their order is what bounds them', () => {
+  // A heading's span ends where the next heading begins, so the ARRAY ORDER is the only
+  // thing that says where a section stops. A list that descends leaves every reader of it
+  // two bad choices — sort it, and show an order the bundle never declared, or render a
+  // span that runs backwards — so the refusal lives here rather than in the renderer.
+  //
+  // It is section 0 that is moved, and the problem is reported at section 1: the pair is
+  // what is wrong, and naming the later of the two is what lets the author read the list
+  // downwards and stop at the first place it stops ascending.
+  const problem = refusedAt(
+    settingAt('/units/0/sections/0/firstStep', fixture.units[0]!.steps.length),
+    '/units/0/sections/1/firstStep',
+  );
+  assert.match(problem.message, /not after the previous section's/);
+});
+
+test('and two sections sharing a first step are refused too — the second span would be empty', () => {
+  // The boundary of the rule above, and the reason the comparison is `<=` and not `<`. A
+  // check written with `<` passes here and leaves a heading covering nothing at all, which
+  // is the quieter half of the same defect.
+  const first = fixture.units[0]!.sections![0]!.firstStep;
+  const problem = refusedAt(
+    settingAt('/units/0/sections/1/firstStep', first),
+    '/units/0/sections/1/firstStep',
+  );
+  assert.match(problem.message, new RegExp(`not after the previous section's ${first}`));
+});
+
+test('sections that ascend by one are accepted, which is where an off-by-one would show', () => {
+  // The positive control. Both tests above assert a refusal, and a rule that refused
+  // EVERYTHING would satisfy them; this is the adjacent case that must still pass.
+  const result = validateBundle(settingAt('/units/0/sections/1/firstStep', 2));
+  assert.equal(result.ok, true, 'a section starting one step after the previous was refused');
+});
+
 test('a step naming a section the unit does not have is refused', () => {
   refusedAt(settingAt('/units/0/steps/0/section', 'no-such-section'), '/units/0/steps/0/section');
 });

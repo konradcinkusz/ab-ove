@@ -70,16 +70,25 @@ Deliver one step at a time and the next step's opening has not been sent. The pr
 falls out of the model instead of being bolted onto the renderer, where a refactor could
 lose it.
 
-### Five rules JSON Schema cannot express, and the validator checks anyway
+### The rules JSON Schema cannot express, which the validator checks anyway
 
 A cue is followed by an answer **and** an answer is preceded by a cue; steps run 1..N with
-nothing missing; every route endpoint and section anchor names a step that exists; every
-declared language is present in every text; every check names a lab and an exercise the
-bundle carries.
+nothing missing; every route endpoint and section anchor names a step that exists; a unit's
+sections ascend strictly; every declared language is present in every text; every check
+names a lab and an exercise the bundle carries.
 
 Each is a defect the book shipped and then wrote a gate for. The sharpest is the third: a
 Quiz route to frames 91–93 of a 48-frame program was green on every check that repository
 had, because all of them compared the two editions and both editions said 91–93.
+
+The heading counted them until the list grew, which is the tally-that-decays the book's own
+conventions forbid by name. It names the list instead. The rule that grew it is the section
+ordering, added with the contents page in issue #5: a heading's span ends where the next
+heading begins, so the *array order* is the only thing that says where a section stops, and
+a renderer meeting a list that descends has to either sort it — showing an order the bundle
+never declared — or draw a span that runs backwards. Refusing the bundle is the third
+option and the only honest one. Steps *before* the first heading stay legitimate: the
+book's programs open with a Quiz and an opener before §1.
 
 ## Consequences
 

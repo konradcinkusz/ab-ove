@@ -11,7 +11,8 @@ import { test } from 'node:test';
 
 import fixture from './fixtures/book-p01.bundle.json' with { type: 'json' };
 
-import { PINS, bundleFor, languageIn, say, stepIn, unitIn } from './bundle.ts';
+import { PINS, allBundles, bundleFor, languageIn, say, sectionSpans, stepIn, unitIn } from './bundle.ts';
+import type { Unit } from './schema.ts';
 
 const TRACK = fixture.track.id;
 
@@ -86,4 +87,82 @@ test('the fixture has the question-and-answer pair the whole product rests on', 
   const unit = unitIn(bundleFor(TRACK)!, 'P01')!;
   const pair = unit.steps.findIndex((step, index) => step.cue === true && unit.steps[index + 1]?.answer);
   assert.ok(pair >= 0, 'the fixture no longer has a cue followed by an answer');
+});
+
+test('allBundles() returns one bundle per pin, in the pins’ own order', () => {
+  const bundles = allBundles();
+  assert.equal(bundles.length, PINS.length);
+  assert.deepEqual(
+    bundles.map((bundle) => bundle.track.id),
+    PINS.map((pin) => pin.track),
+  );
+  // The same objects the per-track loader hands out, not second copies of them. Two pages
+  // showing a reader two parses of one bundle is the defect the cache exists to prevent,
+  // and an index that went round it would reintroduce it for the one page that lists
+  // everything.
+  assert.strictEqual(bundles[0], bundleFor(PINS[0]!.track));
+});
+
+/**
+ * A unit built for one assertion. The fixture is the control and these are the cases it
+ * does not have — a unit that opens under no heading, a one-step section, a single section
+ * — and writing them out is cheaper and clearer than bending the fixture into all four.
+ */
+const withSections = (steps: number, sections: readonly number[]): Unit => ({
+  id: 'X',
+  titles: { en: 'x', pl: 'x' },
+  sections: sections.map((firstStep, index) => ({
+    id: `s${index}`,
+    titles: { en: `s${index}`, pl: `s${index}` },
+    firstStep,
+  })),
+  steps: Array.from({ length: steps }, (_unused, index) => ({
+    n: index + 1,
+    kind: 'prose' as const,
+    body: { en: 'b', pl: 'b' },
+  })),
+});
+
+test('a section runs to the step before the next one, and the last runs to the end', () => {
+  const spans = sectionSpans(withSections(10, [1, 4, 8]));
+  assert.deepEqual(
+    spans.map(({ from, to }) => [from, to]),
+    [
+      [1, 3],
+      [4, 7],
+      [8, 10],
+    ],
+  );
+});
+
+test('a section covering one step reports that step at both ends', () => {
+  // The boundary the contents page renders differently: `from === to` prints one number,
+  // because "3–3" reads as a defect.
+  const spans = sectionSpans(withSections(5, [1, 3, 4]));
+  assert.deepEqual(spans[1], { section: spans[1]!.section, from: 3, to: 3 });
+});
+
+test('a unit may open under no heading, and sectionSpans does not invent one', () => {
+  // The book's programs open with a Quiz and an opener before §1, so steps before the first
+  // heading are legitimate. Naming them here would put a title in the contents that is in
+  // no edition of the book; the contents page names the gap instead and titles nothing.
+  const spans = sectionSpans(withSections(6, [3]));
+  assert.equal(spans.length, 1);
+  assert.deepEqual([spans[0]!.from, spans[0]!.to], [3, 6]);
+});
+
+test('a unit with no sections has no spans rather than one span over everything', () => {
+  const spans = sectionSpans({ ...withSections(4, []), sections: undefined });
+  assert.deepEqual(spans, []);
+});
+
+test('the fixture’s own spans cover every step from the first heading to the last', () => {
+  // The control on the FIXTURE. Every assertion above is about invented units; this one
+  // says the shape they model is the shape the application actually serves.
+  const unit = unitIn(bundleFor(TRACK)!, 'P01')!;
+  const spans = sectionSpans(unit);
+  assert.ok(spans.length > 0, 'the fixture lost its sections');
+  assert.equal(spans[0]!.from, 1, 'the fixture no longer opens at its first heading');
+  assert.equal(spans[spans.length - 1]!.to, unit.steps.length);
+  for (const { from, to } of spans) assert.ok(from <= to, `span ${from}–${to} runs backwards`);
 });

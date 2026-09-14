@@ -64,13 +64,14 @@ const PUBLIC_PATHS = new Set<string>([
   // only the check sees the redirect.
   '/healthz',
 
-  // The lab index. It is here rather than in PUBLIC_PREFIXES because every entry in that
-  // list ends in a slash — '/lab' as a prefix also matches '/labour' and '/lab-admin',
-  // and a gate that opens a page nobody has written yet is a gate that will one day open
-  // a page somebody has. The trailing slash costs exactly this: the index path of a public
-  // section needs its own entry. Write both, or the section's front door 307s while every
-  // page behind it is public.
+  // The two index pages. They are here rather than in PUBLIC_PREFIXES because every entry
+  // in that list ends in a slash — '/lab' as a prefix also matches '/labour' and
+  // '/lab-admin', and a gate that opens a page nobody has written yet is a gate that will
+  // one day open a page somebody has. The trailing slash costs exactly this: the index path
+  // of a public section needs its own entry. Write both, or the section's front door 307s
+  // while every page behind it is public.
   '/lab',
+  '/read',
 ]);
 
 const PUBLIC_PREFIXES: readonly string[] = [

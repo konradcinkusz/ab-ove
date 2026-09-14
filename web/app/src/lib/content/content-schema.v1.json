@@ -97,7 +97,7 @@
         "id": { "$ref": "#/$defs/id" },
         "titles": { "$ref": "#/$defs/text" },
         "sections": {
-          "$comment": "HEADINGS, NOT A LEVEL OF THE TREE. The book navigates by unit and step and never by section — 'every Summary back-reference, every Quiz route and every cross-reference in the book names a program and a frame'. Modelling sections as a container would put a level in the schema that nothing addresses.",
+          "$comment": "HEADINGS, NOT A LEVEL OF THE TREE. The book navigates by unit and step and never by section — 'every Summary back-reference, every Quiz route and every cross-reference in the book names a program and a frame'. Modelling sections as a container would put a level in the schema that nothing addresses. ONE RULE HERE IS NOT EXPRESSIBLE IN JSON SCHEMA and validate.ts carries it instead: firstStep must ascend strictly across this array, because a heading's span ends where the next heading begins and nothing else says where it stops. Steps before the first section's firstStep are legitimate — an opener under no heading.",
           "type": "array",
           "items": {
             "type": "object",

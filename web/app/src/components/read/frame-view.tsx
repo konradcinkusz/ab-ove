@@ -45,8 +45,15 @@ export function FrameView({ track, unit, step, language, next }: FrameViewProps)
 
   return (
     <article className={styles.page}>
+      {/*
+        Up, to this program's contents. It carries no `prefetch={false}` and the asymmetry
+        with the reveal below is deliberate rather than an oversight: a contents page holds
+        headings and frame numbers and no frame's text, so nothing about it is a thing a
+        reader has not earned. The reveal is the only link on this page that leads to an
+        answer, and it is the only one that must not be fetched early.
+      */}
       <p className={styles.crumb}>
-        {say(unit.titles, language)}
+        <Link href={`/read/${track}/${unit.id}/${language}`}>{say(unit.titles, language)}</Link>
       </p>
 
       <div className={styles.rule}>

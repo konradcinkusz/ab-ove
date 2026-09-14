@@ -206,11 +206,23 @@ prompt makes that a standing constraint and
 [ADR-0008](../adr/0008-content-is-a-versioned-bundle.md) records it: the book owns its own
 dialect, and what crosses the boundary is a versioned artefact rather than source.
 
-**Phase 2a is where P11 starts applying, and the first half of it has landed.**
-`web/app/src/lib/content/content-schema.v1.json` is the boundary: one internal model that
+**Phase 2a is where P11 starts applying, and the boundary is in the tree.**
+`web/app/src/lib/content/content-schema.v1.json` is that boundary: one internal model that
 every track's compiler targets, and the application renders whatever validates without
-knowing which compiler produced it. The book's LaTeX stops at that boundary and is
-normalised on the far side of it, in the repository that knows the dialect.
+knowing which compiler produced it. The book's LaTeX stops there and is normalised on the
+far side of it, in the repository that knows the dialect. What renders above it is the
+reading surface — `/read`, `/read/<track>/<unit>/<lang>` and
+`/read/<track>/<unit>/<lang>/<n>` — and **every field those pages read is a schema field**:
+`units`, `steps`, `sections`, `titles`, `body`, `answer`, `cue`, `n`, `id` and
+`track.languages` — enumerated from the files rather than remembered, which is how the
+first draft of this sentence came to list a field the pages do not read yet. No
+branch in them tests a macro, a program number or a language code, so the same components
+render a track that has no frames at all.
+
+Their *comments* cite `\ans{}` and `\dotline` by name, and that is the opposite of a leak:
+the model was taken from the book's mechanics rather than invented beside them, and
+recording where a shape came from is what stops the next author redesigning it back. The
+dialect is in the prose that explains the code and in none of the code.
 
 It is **not yet evidence that nothing downstream knows there was more than one dialect**,
 because there is one dialect and one producer. That becomes checkable when a second track
