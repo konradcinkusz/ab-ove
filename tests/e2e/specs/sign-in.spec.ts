@@ -114,6 +114,36 @@ test.describe('the sign-in route refuses a cross-site post', () => {
     expect(response.status()).toBe(403);
   });
 
+  /**
+   * The proxied shape: the browser's host arrives as `x-forwarded-host` and `host` carries
+   * something else. A same-origin browser cannot produce it, so nothing else in this suite
+   * covers it.
+   *
+   * Measured while writing the route: Next synthesises `x-forwarded-host` from `host` when
+   * nothing upstream sent one, and passes a supplied one through untouched — so this request
+   * genuinely overrides it rather than adding a header that was already there. The route
+   * accepts a match against either, which is what makes it independent of whatever proxy is
+   * in front; see `isSameOrigin` for why a header a caller can set is not a weakness in a
+   * check whose whole subject is what a VICTIM'S BROWSER can be made to send.
+   */
+  test('a forwarded host the browser used is a same-origin request @core', async ({ request }) => {
+    const response = await request.post('/api/auth/login', {
+      headers: {
+        origin: 'https://ab-ovo-web-dev.fly.dev',
+        'x-forwarded-host': 'ab-ovo-web-dev.fly.dev',
+        'content-type': 'application/json',
+      },
+      // Empty, so a configured deployment stops at "both fields are needed" and no attempt
+      // is spent against anybody's account. Either answer means the origin check let it by.
+      data: { email: '', password: '' },
+      maxRedirects: 0,
+    });
+
+    expect(response.status(), 'the origin check refused a host the browser really used').not.toBe(
+      403,
+    );
+  });
+
   test('a body shape this route does not accept is refused before anything else happens @core', async ({
     request,
     baseURL,
