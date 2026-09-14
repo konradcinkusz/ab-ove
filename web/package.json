@@ -14,8 +14,17 @@
   "version": "0.0.0",
   "private": true,
   "packageManager": "pnpm@10.33.0",
+  "//engines": [
+    "The node floor is 22.18.0 and not 22.0.0, and the difference is load-bearing rather",
+    "than cautious. `pnpm test` runs the unit tier as `node --test 'src/**/*.test.ts'`,",
+    "which needs Node's TypeScript type stripping — enabled by default from 22.18.0 and",
+    "behind a flag before it. On 22.5 the install would succeed and the tests would die on",
+    "a syntax error in a .ts file, which reads as a broken test rather than as an old",
+    "runtime. CI pins the major and resolves to the latest 22.x, so the floor costs it",
+    "nothing; what it buys is that a contributor is told by the install."
+  ],
   "engines": {
-    "node": ">=22.0.0",
+    "node": ">=22.18.0",
     "pnpm": ">=10.0.0"
   },
   "scripts": {
@@ -23,6 +32,7 @@
     "build": "pnpm --filter @ab-ovo/app build",
     "start": "pnpm --filter @ab-ovo/app start",
     "lint": "pnpm -r --no-bail lint",
-    "typecheck": "pnpm -r --no-bail typecheck"
+    "typecheck": "pnpm -r --no-bail typecheck",
+    "test": "pnpm -r --no-bail test"
   }
 }
