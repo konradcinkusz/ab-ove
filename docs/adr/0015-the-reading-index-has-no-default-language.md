@@ -54,11 +54,13 @@ That is a contents page and it is meant to be long; if it ever needs splitting, 
 `/read/<track>` is an addition rather than a restructure, because the deep links below it
 do not move.
 
-**The chrome is still English on a Polish page.** "Reveal the answer", "Previous", "Start
-at frame 1" are English wherever a reader is. That is a real gap rather than a deviation
-this ADR settles: the repository is English by ground rule and the *content* is bilingual,
-and nothing has yet decided which side the reading controls sit on. Recorded against issue
-#6, which owns the EN/PL switch, so that whoever takes it decides rather than inherits.
+**The chrome was still English on a Polish page**, and this ADR recorded it as a gap rather
+than settling it — the repository is English by ground rule and the *content* is bilingual,
+and nothing had decided which side the reading controls sit on. **Settled since, in
+[ADR-0016](0016-the-reading-controls-follow-the-readers-edition.md): the controls follow the
+reader's edition.** The index's own furniture stays English, which is not in tension with
+the decision above — that one refuses to pick an edition of the *book*, and there is no
+reader language on this page to follow.
 
 **A later "remember my language" feature has to argue with this file.** It is not forbidden
 — a reader who has chosen twice may reasonably be offered a shortcut — but the default for

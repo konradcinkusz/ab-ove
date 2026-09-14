@@ -76,13 +76,12 @@ export default async function FramePage({
 }: {
   params: Promise<RouteParams>;
 }): Promise<React.JSX.Element> {
-  const raw = await params;
-  const resolved = resolve(raw);
+  const resolved = resolve(await params);
   if (!resolved) notFound();
 
   return (
     <FrameView
-      track={raw.track}
+      bundle={resolved.bundle}
       unit={resolved.unit}
       step={resolved.step}
       language={resolved.language}

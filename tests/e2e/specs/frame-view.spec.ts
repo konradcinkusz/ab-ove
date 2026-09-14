@@ -68,6 +68,23 @@ function bundle(): { track: string; unit: string; steps: readonly FixtureStep[] 
 const { track, unit, steps } = bundle();
 const at = (language: string, n: number): string => `/read/${track}/${unit}/${language}/${n}`;
 
+/**
+ * The reveal control, located by WHERE IT GOES rather than by what it says.
+ *
+ * It used to be `getByRole('link', { name: /reveal|next frame/i })`, and that stopped
+ * working the moment the controls started following the reader's edition — on a Polish
+ * frame the link reads "Pokaż odpowiedź". Matching the Polish too would have been a second
+ * copy of a string that has a source, drifting the first time somebody reworded it.
+ *
+ * The href is better than the name ever was, and not merely a workaround: it is the link to
+ * step n + 1 and there is exactly one of those, so this locator says what the control IS
+ * instead of what it currently reads. E2E-ACCEPTANCE-TESTING.md §3 ranks role-plus-name
+ * first, and its reason — that a test should not break when a class does — applies with the
+ * same force to a test that breaks when a language does.
+ */
+const revealTo = (page: import('@playwright/test').Page, language: string, n: number) =>
+  page.locator(`a[href="${at(language, n)}"]`);
+
 /** The first step whose NEXT step opens with an answer — the pair this suite is about. */
 const asking = steps.find((_step, index) => steps[index + 1]?.answer !== undefined);
 const answering = asking ? steps[asking.n] : undefined;
@@ -103,7 +120,7 @@ test.describe('the frame view', () => {
       answer,
     );
 
-    await page.getByRole('link', { name: /reveal|next frame/i }).click();
+    await revealTo(page, 'en', answering!.n).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', answering!.n)}$`));
 
     // WEB-FIRST for the positive, one-shot for the negative, and the asymmetry is
@@ -138,7 +155,7 @@ test.describe('the frame view', () => {
 
     // The control: after the click it IS fetched, so this test can tell "never fetched"
     // from "the listener never fired".
-    await page.getByRole('link', { name: /reveal|next frame/i }).click();
+    await revealTo(page, 'en', answering!.n).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', answering!.n)}$`));
     expect(wanted.length, 'the listener saw nothing at all, so its silence meant nothing').toBeGreaterThan(0);
   });
@@ -164,7 +181,7 @@ test.describe('the frame view', () => {
       answer,
     );
 
-    await page.getByRole('link', { name: /reveal|next frame/i }).click();
+    await revealTo(page, 'pl', answering!.n).click();
     await expect(page).toHaveURL(new RegExp(`${at('pl', answering!.n)}$`));
     await expect(page.locator('body')).toContainText(answer);
   });
