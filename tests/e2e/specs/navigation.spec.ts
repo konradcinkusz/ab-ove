@@ -212,6 +212,35 @@ test.describe('navigation', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Programs' })).toBeVisible();
   });
 
+  test('the reading surface says which language it is in @core', async ({ page }) => {
+    // The document root is `lang="en"` (layout.tsx), so an untagged Polish page is read out
+    // by a screen reader in an English voice: the right edition, announced wrongly. The
+    // assertion is that the element CONTAINING the text carries the language, which is what
+    // a `lang` attribute somewhere else on the page would not satisfy.
+    for (const language of languages) {
+      await page.goto(contentsAt(language));
+      await expect(
+        page.locator(`main[lang="${language}"]`),
+        `the ${language} contents page does not declare its language`,
+      ).toContainText(unitTitles[language]!);
+
+      await page.goto(frameAt(language, 1));
+      await expect(
+        page.locator(`article[lang="${language}"]`),
+        `the ${language} frame does not declare its language`,
+      ).toContainText(steps[0]!.body[language]!);
+    }
+
+    // And the controls really are English today, so they say so rather than inheriting a
+    // language they are not written in. Issue #6 owns whether they stay English; this
+    // assertion moves with the strings either way.
+    await page.goto(frameAt('pl', 1));
+    await expect(page.getByRole('link', { name: /reveal|next frame/i })).toHaveAttribute(
+      'lang',
+      'en',
+    );
+  });
+
   test('a contents page that does not exist is absent, not broken @core', async ({ page }) => {
     // A typo in a URL is a reader's question and the answer is 404 — the same split the
     // loader makes between an unknown track (undefined, so 404) and a bundle that will not

@@ -44,7 +44,20 @@ export function FrameView({ track, unit, step, language, next }: FrameViewProps)
   const section = unit.sections?.find((candidate) => candidate.id === step.section);
 
   return (
-    <article className={styles.page}>
+    /*
+      `lang` ON THE CONTENT, AND `lang="en"` ON EVERY CONTROL AROUND IT.
+
+      The document root is `lang="en"` (layout.tsx), so without this a Polish frame is
+      announced to a screen reader in an English voice — the edition is right and the way
+      it is read out is not. That is a quieter version of the thing ADR-0015 refuses on the
+      index, and the fix is an attribute rather than a decision.
+
+      The controls really are English today, so they are marked English rather than
+      inheriting a language they are not written in. Issue #6 owns whether they stay that
+      way; whichever way it goes, these attributes are correct now and move with the
+      strings.
+    */
+    <article className={styles.page} lang={language}>
       {/*
         Up, to this program's contents. It carries no `prefetch={false}` and the asymmetry
         with the reveal below is deliberate rather than an oversight: a contents page holds
@@ -68,7 +81,9 @@ export function FrameView({ track, unit, step, language, next }: FrameViewProps)
       */}
       {step.answer ? (
         <div className={styles.answer}>
-          <span className={styles.answerLabel}>Answer</span>
+          <span className={styles.answerLabel} lang="en">
+            Answer
+          </span>
           <p>{say(step.answer, language)}</p>
         </div>
       ) : null}
@@ -86,16 +101,22 @@ export function FrameView({ track, unit, step, language, next }: FrameViewProps)
             first place a per-reader record could come from.
           */}
           <div className={styles.dots} aria-hidden="true" />
-          {step.cue ? <p className={styles.cue}>The next frame answers this.</p> : null}
-          <Link className={styles.reveal} href={at(step.n + 1)} prefetch={false}>
+          {step.cue ? (
+            <p className={styles.cue} lang="en">
+              The next frame answers this.
+            </p>
+          ) : null}
+          <Link className={styles.reveal} href={at(step.n + 1)} lang="en" prefetch={false}>
             {step.cue ? 'Reveal the answer' : 'Next frame'}
           </Link>
         </>
       ) : (
-        <p className={styles.end}>That is the last frame of this program.</p>
+        <p className={styles.end} lang="en">
+          That is the last frame of this program.
+        </p>
       )}
 
-      <nav className={styles.foot}>
+      <nav className={styles.foot} lang="en">
         {step.n > 1 ? <Link href={at(step.n - 1)}>← Previous</Link> : <span />}
         <span>
           {step.n} of {unit.steps.length}

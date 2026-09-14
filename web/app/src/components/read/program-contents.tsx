@@ -57,8 +57,15 @@ export function ProgramContents({
       </p>
 
       <h1 className={styles.programTitle}>{say(unit.titles, language)}</h1>
-      <p className={styles.subtitle} lang="en">
-        {say(bundle.track.titles, language)} · {count(unit.steps.length, 'frame', 'frames')}
+      {/*
+        Two languages in one line, so the attribute cannot sit on the paragraph: the track's
+        title is the reader's edition and the frame count is this application's English.
+        Tagging the whole line `en` would have a screen reader read a Polish title in an
+        English voice, which is the defect being fixed rather than a smaller version of it.
+      */}
+      <p className={styles.subtitle}>
+        {say(bundle.track.titles, language)}{' '}
+        <span lang="en">· {count(unit.steps.length, 'frame', 'frames')}</span>
       </p>
 
       {spans.length > 0 ? (
