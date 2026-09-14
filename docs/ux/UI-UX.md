@@ -70,12 +70,15 @@ page depends on it.
 
 ### What is behind them
 
-Not screens, but the reader's experience rests on all four: `/api/config` (addresses read at
-request time, never compiled in), `/api/auth/session` (the only thing that may set the
-session cookie — tokens never touch `localStorage`, and `document.cookie` cannot set
-`HttpOnly`), `/api/proxy/[...path]` (the one path to any backend), and `middleware.ts` (the
-page gate — **UX only**; the services are the boundary, and a service-side authorization
-check may never be removed because middleware exists).
+Not screens, but the reader's experience rests on all five: `/api/config` (addresses read at
+request time, never compiled in), `/api/auth/login` (credentials in, a status out — the
+tokens are minted into this process and the browser never holds one), `/api/auth/session`
+(the same cookies, established from tokens a client already has, which is what an OAuth
+callback produces; between them these two are the only things that may set the session
+cookie — tokens never touch `localStorage`, and `document.cookie` cannot set `HttpOnly`),
+`/api/proxy/[...path]` (the one path to any backend), and `middleware.ts` (the page gate —
+**UX only**; the services are the boundary, and a service-side authorization check may never
+be removed because middleware exists).
 
 ---
 
@@ -186,7 +189,7 @@ by construction.*
 | # | Item | Done when |
 | --- | --- | --- |
 | 3.1 | **Local progress first.** Place in the book, kept in the browser, with no account. | A reader who never signs in still returns to where they were. |
-| 3.2 | **Sign-in**, against `authservice` ([ADR-0004](../adr/0004-identity-authservice-and-anonymous-reader.md)). The form POSTs to `/api/auth/session` and stops there — tokens never reach `localStorage`. | `/login` becomes a form. The middleware's redirect target is finally a screen that does something. |
+| 3.2 | **Sign-in**, against `authservice` ([ADR-0004](../adr/0004-identity-authservice-and-anonymous-reader.md)). Built one step stronger than this row planned: the form posts *credentials* to `/api/auth/login`, which talks to `authservice` server-side, so the tokens are never in the document at all rather than passing through it on the way to `/api/auth/session` ([ADR-0018](../adr/0018-password-sign-in-happens-server-side.md)). No JavaScript on the happy path. | `/login` becomes a form. The middleware's redirect target is finally a screen that does something. |
 | 3.3 | **Synchronisation**, local progress to the account and back, with a conflict rule a reader can predict. | Two machines converge. Signing out leaves local progress intact. |
 | 3.4 | **Progress is state, not evidence.** It is the reader's own, readable by that reader, and is never an input to an aggregate ([ADR-0009](../adr/0009-the-instrument-measures-the-book.md) §1). | No aggregate query touches the progress store. |
 | 3.5 | **Account deletion** that deletes. | It removes the account and the progress, and it says plainly that it cannot retract an anonymous outcome already folded into a rate. |

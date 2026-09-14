@@ -1,13 +1,9 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-import {
-  ACCESS_TOKEN_COOKIE,
-  REFRESH_TOKEN_COOKIE,
-  SESSION_COOKIES,
-  sessionCookieAttributes,
-} from '@/lib/session-cookies';
+import { clearSession, establishSession } from '@/lib/server/session';
 import { verifyAccessToken } from '@/lib/server/token';
+import { ACCESS_TOKEN_COOKIE } from '@/lib/session-cookies';
 
 /**
  * The session routes — FRONTEND-BFF.md §3.
@@ -83,12 +79,12 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'accessToken is required' }, { status: 400 });
   }
 
-  const verification = await verifyAccessToken(accessToken);
+  const outcome = await establishSession(accessToken, refreshToken);
 
-  if (verification.status === 'invalid') {
+  if (outcome.status === 'rejected') {
     return NextResponse.json({ error: 'the token was rejected' }, { status: 401 });
   }
-  if (verification.status === 'unverifiable') {
+  if (outcome.status === 'unverifiable') {
     // 502, not 401: the token may be perfectly good and we could not reach the key set to
     // find out. Reporting this as "your credentials are wrong" sends the reader round the
     // sign-in loop forever while the real fault is an identity service that is down.
@@ -96,31 +92,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       { error: 'the identity service could not be reached to verify the token' },
       { status: 502 },
     );
-  }
-
-  const attributes = sessionCookieAttributes();
-  const store = await cookies();
-
-  store.set({
-    name: ACCESS_TOKEN_COOKIE,
-    value: accessToken,
-    ...attributes,
-    // The cookie should not outlive the token it carries. authservice mints no `iat`, so
-    // the lifetime is computed from `exp` against now rather than from a token age.
-    maxAge: Math.max(0, verification.claims.expiresAt - Math.floor(Date.now() / 1000)),
-  });
-
-  if (refreshToken) {
-    store.set({
-      name: REFRESH_TOKEN_COOKIE,
-      value: refreshToken,
-      ...attributes,
-      // A refresh token's own expiry is not readable here — it is not necessarily a JWT,
-      // and it is authservice's to decide. Thirty days is a ceiling on how long the cookie
-      // is offered, not a claim about how long the token is good for; the service rejects
-      // it whenever it chooses and the reader signs in again.
-      maxAge: 60 * 60 * 24 * 30,
-    });
   }
 
   return new NextResponse(null, { status: 204 });
@@ -176,20 +147,13 @@ export async function GET(): Promise<NextResponse<SessionState>> {
  * FRONTEND-BFF.md §3 — "The logout route deletes each cookie with the SAME attributes
  * (path, sameSite, secure, domain) it was set with." A delete whose attributes do not match
  * does not error; the browser simply keeps the cookie, and the next request is signed in
- * again. That is §8's "Login loop after logout", and it is why the attributes come from
- * `sessionCookieAttributes()` — the one function the POST above also calls — rather than
- * being written out a second time here.
+ * again — §8's "Login loop after logout".
+ *
+ * The attribute set is not written out here at all: `clearSession` and `establishSession`
+ * are the one pair that sets and unsets these two cookies, so the two paths cannot drift.
  */
 export async function DELETE(): Promise<NextResponse> {
-  const store = await cookies();
-  const attributes = sessionCookieAttributes();
-
-  for (const name of SESSION_COOKIES) {
-    // Setting an empty value with maxAge 0 AND the original attributes is the form that
-    // actually removes it. A bare `delete(name)` would omit the attributes and is exactly
-    // the mismatch the guide warns about.
-    store.set({ name, value: '', ...attributes, maxAge: 0 });
-  }
+  await clearSession();
 
   return new NextResponse(null, { status: 204, headers: { 'cache-control': 'no-store' } });
 }

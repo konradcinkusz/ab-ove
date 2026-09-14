@@ -267,7 +267,7 @@ script duplicated in two languages to serve an interim step is two things to del
 | `src/AbOvo.Api` | The HTTP service. Owns `apidb`. Validates RS256 tokens; holds no key material and mints nothing (P5). |
 | `tests/AbOvo.Api.Tests` | xUnit v3. In-memory integration over the real pipeline, plus the NetArchTest rules that keep domain out of the kernel. No container required. |
 | `tests/e2e` | The Playwright acceptance suite. Its own pnpm package and its own lockfile. |
-| `web/` | The pnpm workspace. `web/app` is the Next.js frontend and its backend-for-frontend: `/api/config`, `/api/auth/session`, `/api/proxy/[...path]`. |
+| `web/` | The pnpm workspace. `web/app` is the Next.js frontend and its backend-for-frontend: `/api/config`, `/api/auth/login`, `/api/auth/session`, `/api/proxy/[...path]`. |
 | `scripts/` | Onboarding (`setup.sh`, `setup.ps1`), the local mirror of the CI secret scan, and the pre-commit hook. Each runs alone, from any working directory. |
 | `flyio/` | The deployed topology — four `fly.toml` files, `SECRETS.md`, `INFRASTRUCTURE-ANALYSIS.md`. Nothing here has been applied. |
 | `docs/` | Architecture, ADRs, UX and the overview paper. See below. |
