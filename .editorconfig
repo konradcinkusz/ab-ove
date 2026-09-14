@@ -1,0 +1,299 @@
+# .editorconfig — REPO-BASELINE.md §1: "Commit an .editorconfig at the repository root
+# covering BOTH the .NET and the TypeScript/Next.js trees." The failure it prevents is
+# named in the same table: per-IDE formatting wars across a multi-project solution.
+#
+# This file is REAL. Every rule below is active; none of it is a commented-out template.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────
+# THE ONE THING TO KNOW BEFORE EDITING THE C# SECTION
+#
+# Directory.Build.props sets BOTH of these:
+#
+#     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+#     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+#
+# Together they mean a C# code-style rule raised to `warning` here is a BUILD ERROR
+# everywhere — on a laptop, in CI, and inside the API image build. So every style
+# preference below carries `:suggestion`, and the formatting analyser IDE0055 is pinned
+# to `suggestion` EXPLICITLY rather than left to its SDK default, which is `warning`.
+#
+# That is a deliberate trade and not an oversight. A style preference is advice to the
+# editor; a red build is a claim that the code is wrong. Raising any of these to
+# `warning` is a decision somebody can make later — after running `dotnet format` over
+# the tree first, because the rule will fire on existing code the moment it is raised.
+# ─────────────────────────────────────────────────────────────────────────────────────
+
+root = true
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# Everything
+# ═════════════════════════════════════════════════════════════════════════════════════
+[*]
+charset = utf-8
+# LF in the working tree everywhere. .gitattributes carries the matching half — it
+# normalises to LF in the repository and is what makes this true on a Windows clone.
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# The .NET tree — src/, tests/
+# ═════════════════════════════════════════════════════════════════════════════════════
+
+[*.cs]
+indent_size = 4
+# Not a hard wrap: editors use it for the guide line and `dotnet format` respects it.
+max_line_length = 120
+
+# ── using directives ─────────────────────────────────────────────────────────────────
+# What the tree already does: System first, then the rest, all above the namespace.
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+csharp_using_directive_placement = outside_namespace:suggestion
+
+# ── namespaces ───────────────────────────────────────────────────────────────────────
+# File-scoped. Every file in src/ is already written this way; stating it stops an IDE
+# from offering the block form to the next contributor.
+csharp_style_namespace_declarations = file_scoped:suggestion
+
+# ── this. and Me. ────────────────────────────────────────────────────────────────────
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+dotnet_style_qualification_for_method = false:suggestion
+dotnet_style_qualification_for_event = false:suggestion
+
+# ── language keywords over framework type names ──────────────────────────────────────
+dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
+dotnet_style_predefined_type_for_member_access = true:suggestion
+
+# ── var ──────────────────────────────────────────────────────────────────────────────
+# `var` where the right-hand side already says the type, the explicit type where it does
+# not. This is what src/ does today (`var section = configuration.GetSection(...)`).
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = false:suggestion
+
+# ── modern C# the codebase relies on ─────────────────────────────────────────────────
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_constructors = false:suggestion
+csharp_style_expression_bodied_operators = when_on_single_line:suggestion
+csharp_style_expression_bodied_properties = true:suggestion
+csharp_style_expression_bodied_indexers = true:suggestion
+csharp_style_expression_bodied_accessors = true:suggestion
+csharp_style_expression_bodied_lambdas = true:suggestion
+csharp_style_expression_bodied_local_functions = when_on_single_line:suggestion
+
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+csharp_style_prefer_switch_expression = true:suggestion
+csharp_style_prefer_pattern_matching = true:suggestion
+csharp_style_prefer_not_pattern = true:suggestion
+csharp_style_prefer_null_check_over_type_check = true:suggestion
+
+csharp_style_throw_expression = true:suggestion
+csharp_style_conditional_delegate_call = true:suggestion
+csharp_style_prefer_index_operator = true:suggestion
+csharp_style_prefer_range_operator = true:suggestion
+csharp_style_implicit_object_creation_when_type_is_apparent = true:suggestion
+csharp_style_prefer_primary_constructors = true:suggestion
+csharp_style_prefer_utf8_string_literals = true:suggestion
+
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_collection_initializer = true:suggestion
+dotnet_style_prefer_collection_expression = when_types_loosely_match:suggestion
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:suggestion
+dotnet_style_prefer_auto_properties = true:suggestion
+dotnet_style_prefer_conditional_expression_over_assignment = true:suggestion
+dotnet_style_prefer_conditional_expression_over_return = true:suggestion
+dotnet_style_prefer_compound_assignment = true:suggestion
+dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
+dotnet_style_prefer_simplified_interpolation = true:suggestion
+dotnet_style_namespace_match_folder = true:suggestion
+
+# ── readonly, which is a correctness preference rather than a cosmetic one ───────────
+dotnet_style_readonly_field = true:suggestion
+csharp_prefer_static_local_function = true:suggestion
+csharp_style_prefer_readonly_struct = true:suggestion
+csharp_style_prefer_readonly_struct_member = true:suggestion
+
+# ── braces ───────────────────────────────────────────────────────────────────────────
+# Always braced, including a single-statement if. The unbraced form is one careless
+# diff away from a second statement that only looks guarded.
+csharp_prefer_braces = true:suggestion
+csharp_prefer_simple_using_statement = true:suggestion
+csharp_style_prefer_method_group_conversion = true:suggestion
+csharp_style_prefer_top_level_statements = true:suggestion
+
+# ── new lines (Allman, which is what src/ is written in) ─────────────────────────────
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_between_query_expression_clauses = true
+
+# ── indentation ──────────────────────────────────────────────────────────────────────
+csharp_indent_case_contents = true
+csharp_indent_case_contents_when_block = false
+csharp_indent_switch_labels = true
+csharp_indent_labels = one_less_than_current
+csharp_indent_block_contents = true
+csharp_indent_braces = false
+
+# ── spacing ──────────────────────────────────────────────────────────────────────────
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_method_declaration_empty_parameter_list_parentheses = false
+csharp_space_between_method_declaration_name_and_open_parenthesis = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_between_method_call_empty_parameter_list_parentheses = false
+csharp_space_between_method_call_name_and_opening_parenthesis = false
+csharp_space_before_colon_in_inheritance_clause = true
+csharp_space_after_colon_in_inheritance_clause = true
+csharp_space_around_binary_operators = before_and_after
+csharp_space_before_open_square_brackets = false
+csharp_space_between_empty_square_brackets = false
+csharp_space_between_square_brackets = false
+csharp_space_after_comma = true
+csharp_space_before_comma = false
+csharp_space_after_dot = false
+csharp_space_before_dot = false
+csharp_space_after_semicolon_in_for_statement = true
+csharp_space_before_semicolon_in_for_statement = false
+csharp_space_around_declaration_statements = false
+
+# ── wrapping ─────────────────────────────────────────────────────────────────────────
+csharp_preserve_single_line_statements = false
+csharp_preserve_single_line_blocks = true
+
+# ── unused code ──────────────────────────────────────────────────────────────────────
+csharp_style_unused_value_expression_statement_preference = discard_variable:suggestion
+csharp_style_unused_value_assignment_preference = discard_variable:suggestion
+dotnet_code_quality_unused_parameters = all:suggestion
+dotnet_remove_unnecessary_suppression_exclusions = none
+
+# ── the analyser severities that would otherwise become build errors ─────────────────
+# IDE0055 is the formatting rule, and its SDK default severity is `warning` — which with
+# TreatWarningsAsErrors is a build error on the first line somebody wraps differently.
+# Pinned here so this file, and not the SDK version in use, decides.
+dotnet_diagnostic.IDE0055.severity = suggestion
+# Unnecessary usings. A suggestion in the editor; not a reason to fail a build.
+dotnet_diagnostic.IDE0005.severity = suggestion
+
+# ── naming ───────────────────────────────────────────────────────────────────────────
+# Three rules, which is all this codebase needs: interfaces I-prefixed, private instance
+# fields _camelCase (what ClientIdentityResolver already does), everything else Pascal.
+
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+dotnet_naming_style.camel_case.capitalization = camel_case
+dotnet_naming_style.i_prefixed_pascal_case.capitalization = pascal_case
+dotnet_naming_style.i_prefixed_pascal_case.required_prefix = I
+dotnet_naming_style.underscore_camel_case.capitalization = camel_case
+dotnet_naming_style.underscore_camel_case.required_prefix = _
+
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+dotnet_naming_symbols.interfaces.applicable_accessibilities = *
+dotnet_naming_rule.interfaces_are_i_prefixed.symbols = interfaces
+dotnet_naming_rule.interfaces_are_i_prefixed.style = i_prefixed_pascal_case
+dotnet_naming_rule.interfaces_are_i_prefixed.severity = suggestion
+
+dotnet_naming_symbols.private_instance_fields.applicable_kinds = field
+dotnet_naming_symbols.private_instance_fields.applicable_accessibilities = private
+dotnet_naming_rule.private_fields_are_underscore_camel.symbols = private_instance_fields
+dotnet_naming_rule.private_fields_are_underscore_camel.style = underscore_camel_case
+dotnet_naming_rule.private_fields_are_underscore_camel.severity = suggestion
+
+dotnet_naming_symbols.public_members.applicable_kinds = class, struct, enum, property, method, event, delegate, namespace
+dotnet_naming_symbols.public_members.applicable_accessibilities = public, internal, protected, protected_internal, private_protected
+dotnet_naming_rule.public_members_are_pascal.symbols = public_members
+dotnet_naming_rule.public_members_are_pascal.style = pascal_case
+dotnet_naming_rule.public_members_are_pascal.severity = suggestion
+
+# ── MSBuild and .NET config files ────────────────────────────────────────────────────
+[*.{csproj,props,targets,sln,slnx,config,nuspec,resx}]
+indent_size = 2
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# The TypeScript / Next.js tree — web/
+# ═════════════════════════════════════════════════════════════════════════════════════
+# Two spaces, which is what the ecosystem's formatters emit and what web/app/src is
+# written in. The .NET tree's 4 is not a disagreement to be reconciled; each tree keeps
+# the convention its own tooling produces, which is the whole reason one file has to
+# cover both.
+[*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}]
+indent_size = 2
+max_line_length = 100
+quote_type = single
+
+[*.{json,jsonc,json5}]
+indent_size = 2
+
+# tsconfig.json in this repo carries comments (it is JSONC in practice). Trailing
+# whitespace trimming is still correct there; nothing about it is significant.
+[*.{css,scss,sass,less}]
+indent_size = 2
+
+[*.{yml,yaml}]
+indent_size = 2
+# YAML has no tab character at all: a tab is a parse error, not a style difference.
+indent_style = space
+
+[*.{html,htm}]
+indent_size = 2
+
+[{package.json,pnpm-workspace.yaml,.npmrc}]
+indent_size = 2
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# Everything else
+# ═════════════════════════════════════════════════════════════════════════════════════
+
+# Markdown: trailing whitespace is SYNTAX here — two spaces at end of line is a hard
+# line break. Trimming it silently reflows the document.
+[*.md]
+trim_trailing_whitespace = false
+indent_size = 2
+max_line_length = off
+
+# Shell scripts. LF is not a preference: a CRLF `#!/usr/bin/env bash` fails with
+# "bad interpreter: No such file or directory", which names neither the file nor the
+# cause. .gitattributes enforces the same thing at checkout.
+[*.{sh,bash}]
+indent_size = 2
+end_of_line = lf
+
+# PowerShell reads LF fine on Windows; keeping it LF means setup.sh and setup.ps1 have
+# the same diff behaviour and the same hash across platforms.
+[*.ps1]
+indent_size = 4
+end_of_line = lf
+
+# Batch files REQUIRE CRLF. cmd.exe mis-parses an LF .cmd in ways that look like a
+# missing command. None exist today; the rule is here so the first one is born correct.
+[*.{cmd,bat}]
+end_of_line = crlf
+
+[Dockerfile*]
+indent_size = 4
+
+[Makefile]
+indent_style = tab
+
+[*.{tex,bib}]
+indent_size = 2
+max_line_length = off
+
+# Fly.io app configuration.
+[*.toml]
+indent_size = 2
+
+# Generated or vendored: formatting them is churn nobody asked for.
+[{pnpm-lock.yaml,package-lock.json,*.min.js,*.min.css}]
+insert_final_newline = false
+trim_trailing_whitespace = false

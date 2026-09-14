@@ -1,0 +1,37 @@
+<Project>
+
+  <!-- Everything that is not a version. Versions live in Directory.Packages.props,
+       exactly once (INIT-GENERIC-TEMPLATE.md §4, REPO-BASELINE.md §1). -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors></WarningsNotAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- The half of dependency hygiene that is about RISK rather than freshness, and the
+       reason the Dependabot deviation (ADR-0006) is defensible: a vulnerable package,
+       transitive ones included, fails the restore (INIT §4). -->
+  <PropertyGroup>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Product>ab-ovo</Product>
+    <Company>konradcinkusz</Company>
+    <Authors>konradcinkusz</Authors>
+    <RepositoryUrl>https://github.com/konradcinkusz/ab-ovo</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+</Project>

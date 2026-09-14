@@ -1,0 +1,161 @@
+# .dockerignore (repository root) — REPO-BASELINE.md §1, §9:
+# "Write the .dockerignore as EXCLUSION-based for a monorepo: the backend image build
+#  must not ship web/, tests/ or the infra tree as build context."
+#
+# ─────────────────────────────────────────────────────────────────────────────────────
+# WHICH BUILD THIS FILE GOVERNS
+#
+# Docker reads .dockerignore from the CONTEXT ROOT. Exactly one image in this repository
+# has the repository root as its context:
+#
+#     src/AbOvo.Api/Dockerfile      context = repo root   (flyio/api.fly.toml: context = "..")
+#
+# The web image does NOT read this file. Its context is the pnpm workspace at web/ (see
+# flyio/web.fly.toml and the header of web/app/Dockerfile), so its rules live under web/.
+# Excluding `web/` below therefore costs the frontend build nothing — it is not reading
+# this file, and it would not be shipping this tree either way.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────
+# WHAT THE API BUILD NEEDS, AND WHICH MUST THEREFORE SURVIVE EVERY RULE BELOW
+#
+#     global.json                                  the SDK pin
+#     Directory.Build.props                        TFM, warnings-as-errors, NuGetAudit
+#     Directory.Packages.props                     central package management
+#     src/AbOvo.Api/                               the service
+#     src/AbOvo.ServiceDefaults/                   referenced project
+#     src/AbOvo.Contracts/                         referenced project
+#
+# Central package management is why the two props files are not optional: the .csproj
+# files carry no Version attribute, so a restore that cannot see Directory.Packages.props
+# fails on every package rather than on one. Check any new rule against this list before
+# committing it — the failure mode is a COPY that cannot find a path, and the message
+# names the path without saying that an ignore rule is why it is absent.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────
+# THE LOAD-BEARING TWO
+#
+# `**/bin/` and `**/obj/` are not tidiness. Without them the source COPY overwrites the
+# container's restore output with the HOST's obj/project.assets.json, whose packageFolders
+# point at a path that does not exist in the image — and `dotnet publish --no-restore` then
+# fails on packages it was just told were restored. flyio/README.md records the same thing.
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# 1. Build output — the load-bearing exclusions
+# ═════════════════════════════════════════════════════════════════════════════════════
+**/bin/
+**/obj/
+**/.vs/
+**/TestResults/
+**/artifacts/
+**/*.binlog
+**/*.user
+**/*.suo
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# 2. Whole trees the backend image has no use for
+# ═════════════════════════════════════════════════════════════════════════════════════
+# This is the §1 rule itself. Every one of these would otherwise be uploaded to the
+# builder on every build, invalidate the cache on every unrelated edit, and — for the
+# frontend tree — dwarf the thing being built.
+
+# The frontend. Its own image is built from web/ as context; this build never reads it.
+web/
+
+# Tests. Nothing in the runtime image runs them, and the API Dockerfile never COPYs them.
+tests/
+
+# Documentation, ADRs, diagrams, papers.
+docs/
+
+# The book's own content — the product's source material, served at runtime from the
+# database, never baked into the API image.
+content/
+
+# The infrastructure tree. fly.toml files describe how the built image is deployed; they
+# are read by flyctl, not by the build.
+flyio/
+
+# Repository automation and agent definitions.
+.github/
+.claude/
+
+# Onboarding and operational scripts. The image runs `dotnet AbOvo.Api.dll` and nothing else.
+scripts/
+
+# The development-only composition root (P1). The API Dockerfile restores the PROJECT and
+# not the solution precisely so the Aspire SDK never enters this build; keeping AppHost out
+# of the context makes that structural rather than incidental.
+src/AbOvo.AppHost/
+
+# The solution file, for the same reason: `dotnet restore src/AbOvo.Api/AbOvo.Api.csproj`
+# walks the ProjectReference graph itself and never wants a solution that includes AppHost.
+AbOvo.sln
+AbOvo.slnx
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# 3. Node and frontend artefacts, wherever they are
+# ═════════════════════════════════════════════════════════════════════════════════════
+# web/ is already excluded wholesale. These are the belt to that braces: a stray
+# node_modules anywhere under src/ (a tool, an experiment) must not become a layer.
+**/node_modules/
+**/.next/
+**/out/
+**/.turbo/
+**/*.tsbuildinfo
+**/.pnpm-store/
+**/coverage/
+**/playwright-report/
+**/test-results/
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# 4. Secrets — REPO-BASELINE.md §2, P5
+# ═════════════════════════════════════════════════════════════════════════════════════
+# A secret reaches a container through the platform, never through a build context. A
+# build context becomes an image layer, and an image layer is readable by anyone who can
+# pull the image. A .env that was never meant to leave a laptop must not become one.
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.pfx
+**/*.p12
+**/secrets.env
+secrets.env.example
+**/.fly/
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# 5. Version control, editors, OS noise
+# ═════════════════════════════════════════════════════════════════════════════════════
+# .git is excluded deliberately and safely: nothing in this build reads git metadata.
+# There is no SourceLink package in Directory.Packages.props, and no build step derives a
+# version from a commit. If one is ever added, this line is what will have to change —
+# and the symptom will be a version stamped `0.0.0` rather than a failure.
+.git/
+.gitignore
+.gitattributes
+.github
+.editorconfig
+**/.DS_Store
+**/Thumbs.db
+**/.idea/
+**/.vscode/
+**/*.swp
+**/*~
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# 6. Documentation at the root
+# ═════════════════════════════════════════════════════════════════════════════════════
+*.md
+LICENSE
+.gitleaks.toml
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# NOT excluded, on purpose: Dockerfiles.
+#
+# The obvious rule here is `**/Dockerfile`, and it is left out. The Dockerfile is named
+# on the command line with -f, and whether a given builder reads it from the filesystem or
+# from the uploaded context is a property of the builder, not of this repository — flyctl,
+# BuildKit and the classic builder have not always agreed. The upside of excluding it is
+# four kilobytes; the downside is a deploy that fails with "failed to read dockerfile" on
+# one builder and works on another. Not worth it.
+# ═════════════════════════════════════════════════════════════════════════════════════

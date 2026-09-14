@@ -1,0 +1,228 @@
+# .gitleaks.toml — the configuration BOTH halves of secret scanning read.
+#
+# REPO-BASELINE.md §1, §2: "Install secret scanning in BOTH places: a pre-commit hook
+# (gitleaks or equivalent) and a CI job. Neither substitutes for the other." The hook
+# catches the mistake before it becomes history; the CI job catches contributors who have
+# no hooks installed. This file is what makes the two agree — a hook tuned differently
+# from CI is two scanners, and the looser one defines the repository's real posture.
+#
+#   scripts/hooks/pre-commit          the hook half        (staged changes, pre-commit)
+#   scripts/scan-secrets.sh           the local mirror     (history, 1:1 with CI)
+#   .github/workflows/secret-scan.yml the CI half          (pull request + push to main)
+#
+# All three resolve this file: gitleaks reads `<target>/.gitleaks.toml` when no -c is
+# given, and the two scripts pass it explicitly so a scan run from a subdirectory reads
+# the same rules.
+#
+# WHAT A GREEN SCAN DOES NOT MEAN. Once a secret has been pushed it is compromised, and
+# this finds it rather than unfinding it. SECURITY.md carries the order that follows a
+# hit: ROTATE first, clean history second. A scanner is the backstop for the discipline
+# that every secret in this repository is named and never written down — it is not a
+# substitute for it.
+
+title = "ab-ovo"
+
+[extend]
+# gitleaks' own ~170 rules — AWS, GitHub, Stripe, Slack, generic API keys, private key
+# blocks, and the rest. The rules below are ADDED to those, never instead of them.
+# Turning this off to silence one false positive is how a scanner stops finding anything.
+useDefault = true
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# Rules this estate needs on top of the defaults
+#
+# Each one exists because it corresponds to a credential this repository actually has,
+# named in flyio/SECRETS.md, and because the shape it would take when leaked is specific
+# enough to match without drowning the scan in noise.
+# ═════════════════════════════════════════════════════════════════════════════════════
+
+# ── 1. The RSA signing key, pasted as a single-line environment value ────────────────
+# The default `private-key` rule catches a PEM block in a file. It does not catch the
+# form this estate would actually leak it in: the variable name, an equals sign, and the
+# PEM header run onto ONE line -- in a script, a workflow, or a shell history that got
+# committed. (Written as a description rather than as an example on purpose: the example
+# matches this rule, and a comment that trips its own rule is what pushed the first draft
+# of this file into allowlisting itself.) flyio/SECRETS.md
+# warns that a PEM whose newlines are stripped still LOOKS like a key and is what a
+# careless copy produces, so this is the leak shape with the highest chance of arriving.
+[[rules]]
+id = "ab-ovo-jwt-private-key-assignment"
+description = "RSA signing key assigned to Jwt__PrivateKeyPem (the one key that signs every token in the estate)"
+regex = '''(?i)(Jwt__PrivateKeyPem|JWT_PRIVATE_KEY_PEM)[ \t]*[:=][ \t]*["']?-{3,}BEGIN'''
+keywords = ["jwt__privatekeypem", "jwt_private_key_pem"]
+tags = ["key", "rsa", "authservice"]
+
+# ── 2. A connection string with a literal password ───────────────────────────────────
+# The estate's rule is that connection strings are ASSEMBLED from a password plus a known
+# host, never stored whole (flyio/SECRETS.md §4). This rule fires on the violation: a
+# Host=...;Password=<something that is not a variable reference>. The allowlist below
+# keeps every documented `Password=$APIDB_PASSWORD` form quiet, which is what makes this
+# rule usable rather than permanently red.
+[[rules]]
+id = "ab-ovo-connection-string-password"
+description = "ADO.NET/Npgsql connection string carrying a literal password rather than an assembled one"
+# `[ \t]` AND NOT `\s`, throughout these rules. `\s` includes the newline, so
+# `[:=]\s*` happily walks off the end of one line and matches the NEXT line's variable
+# name as this line's value. Found by scanning secrets.env.example, where two adjacent
+# empty assignments --
+#     APIDB_PASSWORD=
+#     AUTHDB_PASSWORD=
+# -- matched as one credential. A single-line test fixture cannot catch it; the file with
+# the blank assignments in it can, which is why that file is deliberately not
+# path-allowlisted.
+#
+# RE2, not PCRE: gitleaks compiles with go-re2, which has NO LOOKAHEAD and no
+# backreferences. `(?!...)` is not "unsupported and ignored" — it is a parse error that
+# panics the scanner on startup, so a rule written with one takes the whole scan down
+# rather than matching too much. The exclusion is therefore expressed as a FIRST
+# CHARACTER CLASS: a value starting with a letter or a digit is a literal, and one
+# starting with $ { < or % is a placeholder.
+regex = '''(?i)(?:Password|Pwd)[ \t]*=[ \t]*["']?[A-Za-z0-9][^\s;"'<>${}]{7,}'''
+keywords = ["password=", "pwd="]
+tags = ["database", "connection-string"]
+
+# ── 3. A Fly.io deploy token ─────────────────────────────────────────────────────────
+# `FLY_API_TOKEN` is the single credential that can deploy, scale or destroy every app in
+# this estate. Its wire format is distinctive enough to match exactly, and a token pasted
+# into a script for "just this once" is precisely the recorded failure REPO-BASELINE §2
+# names: a CI-mirror script committed with live credentials, because inline literals were
+# the path of least resistance and nothing said no.
+[[rules]]
+id = "ab-ovo-fly-api-token"
+description = "Fly.io API / deploy token"
+regex = '''(?i)\b(FlyV1[ \t]+fm2_[A-Za-z0-9+/_=-]{40,}|fo1_[A-Za-z0-9_-]{40,})'''
+keywords = ["flyv1", "fm2_", "fo1_"]
+tags = ["token", "fly.io", "deploy"]
+
+# ── 4. A Postgres superuser password set inline ──────────────────────────────────────
+# The three database passwords are `openssl rand -hex 32` output — 64 hex characters,
+# which is a shape a generic rule will not reliably flag next to a name it does not know.
+[[rules]]
+id = "ab-ovo-postgres-password-assignment"
+description = "One of the three ab-ovo-postgres role passwords assigned a literal value"
+# Same RE2 constraint as above: first-character class instead of a lookahead.
+regex = '''(?i)\b(POSTGRES_PASSWORD|APIDB_PASSWORD|AUTHDB_PASSWORD)[ \t]*[:=][ \t]*["']?[A-Za-z0-9][A-Za-z0-9+/=_-]{15,}'''
+keywords = ["postgres_password", "apidb_password", "authdb_password"]
+tags = ["password", "postgres"]
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# Allowlists
+#
+# Every entry here is a decision to stop looking somewhere, so each one carries the reason
+# it is not a place a secret can hide. An allowlist entry that cannot state that reason is
+# how a scanner goes quiet — the failure this file exists to prevent, arriving from the
+# inside.
+# ═════════════════════════════════════════════════════════════════════════════════════
+
+# ── Generated and installed trees ────────────────────────────────────────────────────
+# Not "noisy" — STRUCTURALLY incapable of holding a committed secret, because every path
+# here is gitignored. `.next/` is the one that matters: Next.js writes a fresh preview and
+# server-actions encryption key into its build manifests on every build, which a default
+# scan reports as eighteen generic API keys. They are per-build, they are never committed,
+# and leaving them to fire trains everyone to ignore the output.
+[[allowlists]]
+description = "Build output and installed dependency trees — all gitignored, none committed"
+paths = [
+    '''(^|/)\.next/''',
+    '''(^|/)node_modules/''',
+    '''(^|/)bin/''',
+    '''(^|/)obj/''',
+    '''(^|/)\.turbo/''',
+    '''(^|/)artifacts/''',
+    '''(^|/)test-results/''',
+    '''(^|/)playwright-report/''',
+    '''(^|/)coverage/''',
+    '''(^|/)\.git/''',
+    '''pnpm-lock\.yaml$''',
+    '''package-lock\.json$''',
+]
+
+# ── This file: no exemption here, because one would be redundant ─────────────────────
+# The first draft allowlisted this file by path, on the reasoning that a rule containing
+# the pattern it hunts for matches its own definition. Two measurements retired it.
+#
+# First, only ONE rule ever fired on this file, and what it matched was a PROSE EXAMPLE in
+# a comment rather than a rule. Describing the leak shape instead of writing it out removed
+# the match. (That is why the comment on rule 1 reads the way it does.)
+#
+# Second, and the reason there is nothing to add back: GITLEAKS SKIPS A FILE NAMED
+# `.gitleaks.toml` BY CONSTRUCTION. Measured -- a scan of this path reports "scanned ~0
+# bytes", with our config and with a defaults-only config alike, while the byte-identical
+# file under any other name is scanned normally and a PEM appended to it is reported.
+#
+# So the honest statement is not "this file is scanned like any other". It is that this
+# file is a blind spot in every gitleaks deployment, ours included, and no configuration
+# here can open or close it. What covers it instead is review: `.github/CODEOWNERS` assigns
+# this path to the repository owner, for exactly the reason that loosening a scanner is the
+# change that makes every later leak possible and looks like tidying.
+
+# ── Placeholders, in any file ────────────────────────────────────────────────────────
+# This is the allowlist that keeps the whole thing usable, and it is deliberately scoped
+# to the SHAPE of a placeholder rather than to a list of files. Allowlisting
+# flyio/SECRETS.md, scripts/README.md and secrets.env.example by path would mean a real
+# key pasted into any of the three goes unnoticed — and those are documentation files
+# about secrets, which is exactly where somebody pastes one "as an example".
+#
+# regexTarget = "match": the rule's whole match is tested, not just its captured secret,
+# so `Password=$APIDB_PASSWORD` is recognised by the `$` that follows the `=`.
+[[allowlists]]
+description = "Variable references and placeholder forms — a name, never a value"
+regexTarget = "match"
+regexes = [
+    # Shell and workflow interpolation: $VAR, ${VAR}, $(cmd), ${{ secrets.NAME }}
+    '''[:=]\s*["']?\$[({]?[A-Za-z_]''',
+    # Angle-bracket and double-brace placeholders: <your-password>, {{ value }}
+    '''[:=]\s*["']?[<{]''',
+    # The words a placeholder is actually written with
+    '''(?i)(REPLACE_ME|CHANGE_?ME|YOUR[_-]?[A-Z]+|EXAMPLE|PLACEHOLDER|REDACTED|xxxxx+|\.\.\.)''',
+    # Percent-style templating: %PASSWORD%, %(name)s
+    '''[:=]\s*["']?%''',
+]
+
+# ── Test fixtures ────────────────────────────────────────────────────────────────────
+# A key generated for a test, committed on purpose, under a path that says so. It is
+# allowlisted by LOCATION and by NAME together: a fixture is only a fixture if it lives in
+# a testdata directory AND is named as one, so a real key cannot inherit the exemption by
+# being dropped into the folder.
+[[allowlists]]
+description = "Deliberately committed test fixtures"
+paths = [
+    '''(^|/)testdata/.*\.(pem|key|jwk|json)$''',
+    '''(^|/)__fixtures__/''',
+]
+
+# ── The documented example file ──────────────────────────────────────────────────────
+# secrets.env.example is committed and names every variable in the estate. It is NOT
+# path-allowlisted, on the reasoning above — the placeholder allowlist covers its
+# documented forms, and anything in it that does not look like a placeholder SHOULD fire,
+# because a value in that file is a leak with a README wrapped round it.
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# A TRAP WORTH KNOWING BEFORE YOU WRITE ABOUT KEYS
+#
+# The default `private-key` rule is GREEDY and MULTI-LINE: its regex runs from a complete
+# PEM header to the last `...KEY----` anywhere below it, however far. So one complete
+# header literal in a file -- in a comment, in an error message, in documentation -- makes
+# everything after it part of a single enormous match. If ANY allowlist then matches that
+# span, and a long span of prose very often contains a word like "example", the whole thing
+# is suppressed and a REAL key further down the same file is reported clean.
+#
+# Measured here, in both directions: a real PEM appended to scripts/setup.ps1 was not
+# reported while that file carried a full header literal in a comment, and is reported
+# once the literal is trimmed to `-----BEGIN PRIVATE KEY` without its closing dashes.
+#
+# So: when writing about key formats, describe the header or stop short of completing it.
+# Do NOT reach for `gitleaks:allow` -- on a multi-line finding the marker is read from the
+# line where the match STARTS, so it suppresses the entire span rather than one line, which
+# is the same hole with a comment on it.
+#
+# ═════════════════════════════════════════════════════════════════════════════════════
+# Escape hatch, and its cost
+#
+# A single line can be exempted with a trailing `gitleaks:allow` comment. It is the right
+# tool for a one-off — a documentation string that happens to match, a vendor identifier
+# that is not a credential. It is the wrong tool for anything recurring: three of them in
+# one file means the rule needs fixing, not suppressing. A `.gitleaksignore` file holding
+# commit-and-path fingerprints exists too, and is for grandfathering a finding somebody
+# has already decided about — never for a new one.
+# ═════════════════════════════════════════════════════════════════════════════════════

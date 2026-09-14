@@ -1,0 +1,197 @@
+# dependabot.yml — REPO-BASELINE.md §1:
+# "Commit dependency-update automation covering EVERY ecosystem in the repo (NuGet for the
+#  .NET projects, npm for the Next.js app, github-actions for the workflows, docker for
+#  the Dockerfiles)."
+#
+# All four are declared below. Every one of them carries `open-pull-requests-limit: 0`.
+#
+# ═════════════════════════════════════════════════════════════════════════════════════
+# THIS IS A DELIBERATE DEVIATION FROM REPO-BASELINE §1, RECORDED IN ADR-0006 (docs/adr/).
+# ═════════════════════════════════════════════════════════════════════════════════════
+#
+# `open-pull-requests-limit: 0` is Dependabot's OWN switch for "declared, but opening no
+# version-update pull requests". It is not a disabled file, not a commented-out block, and
+# not a deleted one — which matters, because each of those would have lost the declaration
+# itself. What survives is the complete, reviewed list of which ecosystems this repository
+# has, where their manifests live, and on what cadence they would be checked. Turning the
+# automation on is one number per ecosystem, in a diff somebody can read.
+#
+# ── WHAT IS *NOT* TURNED OFF BY THIS FILE ───────────────────────────────────────────
+#
+# Dependabot SECURITY UPDATES and VULNERABILITY ALERTS are a REPOSITORY SETTING
+# (Settings -> Code security), not a configuration in this file. `open-pull-requests-limit`
+# governs VERSION updates — the routine "a new minor is out" pull requests. A published
+# advisory against a dependency still raises an alert, and a security update pull request
+# is still opened, with this file exactly as it is.
+#
+# So the thing being declined is the churn, never the vulnerability reporting. And it is
+# not the only thing watching: `Directory.Build.props` sets `NuGetAudit` with
+# `NuGetAuditMode=all` and `NuGetAuditLevel=low`, so a newly published advisory against any
+# package — transitive ones included — FAILS THE RESTORE, on a laptop and in CI and inside
+# the API image build. `.github/workflows/codeql.yml` carries a dependency audit job for
+# both ecosystems alongside it. The risk half of dependency hygiene is covered by things
+# that fail loudly; what this file declines is the freshness half.
+#
+# ── WHY ────────────────────────────────────────────────────────────────────────────
+#
+# §1's own justification for the automation is "vulnerable pins nobody owns; the 'we'll
+# update later' that never comes". The failure mode it names is a pin with NO OWNER. A
+# single-maintainer repository at its first commit has the opposite problem: unreviewed
+# dependency pull requests accumulating faster than one person triages them, which trains
+# that person to bulk-merge or to ignore the queue. Both outcomes are worse than the
+# manual cadence, because a bulk-merged update is an unreviewed change to the dependency
+# tree and an ignored queue hides the security ones among the cosmetic ones.
+#
+# There is a live instance of exactly that trade-off in this repository already, and it is
+# the reason this is a judgement rather than a preference. `web/app/package.json` holds
+# eslint at 9.x against npm's "no longer supported" notice, because `eslint-config-next`
+# bundles a typescript-eslint whose peer range constrains both eslint and typescript.
+# Moving any one of the three alone breaks the linter. That is a dependency-update decision
+# with an owner — not something to resolve by merging whichever bump arrives first.
+#
+# ── THE TRIGGER FOR TURNING IT ON ──────────────────────────────────────────────────
+#
+#     the repository has a maintainer who triages,  OR  it goes public.
+#
+# Either one, not both. A second maintainer means the queue has someone to work it; going
+# public means strangers read the dependency tree and a stale pin is a claim about the
+# project. When either happens: raise `open-pull-requests-limit` on each ecosystem below
+# (5 is a reasonable start), and update ADR-0006 to say what changed and when — an ADR
+# that records only the original decision is half a record.
+
+version: 2
+
+updates:
+  # ── NuGet ──────────────────────────────────────────────────────────────────────────
+  # Directory is "/" because this repository uses CENTRAL PACKAGE MANAGEMENT: every
+  # version lives in /Directory.Packages.props and no .csproj carries a Version attribute.
+  # Pointing Dependabot at a project directory instead would find nothing to update, and
+  # would report that as success.
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 0
+    labels:
+      - dependencies
+      - nuget
+    commit-message:
+      prefix: "deps(nuget)"
+    groups:
+      # Grouping is pre-declared so that switching the limit on gives a reviewable queue
+      # rather than fifteen separate pull requests. These three families version in
+      # lockstep upstream and are meaningless to bump individually.
+      aspnetcore-and-ef:
+        patterns:
+          - "Microsoft.AspNetCore.*"
+          - "Microsoft.EntityFrameworkCore*"
+          - "Microsoft.Extensions.*"
+      opentelemetry:
+        patterns:
+          - "OpenTelemetry*"
+      aspire:
+        patterns:
+          - "Aspire.*"
+      test-stack:
+        patterns:
+          - "xunit*"
+          - "Microsoft.NET.Test.Sdk"
+          - "NetArchTest.*"
+
+  # ── npm (pnpm workspace) ───────────────────────────────────────────────────────────
+  # Directory is "/web", the WORKSPACE root, because that is where the single lockfile
+  # lives. "/web/app" has a package.json and no lockfile; an update resolved there would
+  # not be the resolution the image is built from.
+  - package-ecosystem: npm
+    directory: "/web"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 0
+    labels:
+      - dependencies
+      - npm
+    commit-message:
+      prefix: "deps(web)"
+    groups:
+      next:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+          - "@next/*"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      # eslint and typescript are grouped because their peer ranges tie them together —
+      # see the note above. Bumping one of them alone is the change that breaks the linter.
+      lint-and-types:
+        patterns:
+          - "eslint"
+          - "typescript"
+          - "@types/node"
+
+  # ── GitHub Actions ─────────────────────────────────────────────────────────────────
+  # The ecosystem most worth watching even here: an action is code that runs with the
+  # repository's token attached, and a pinned tag can be moved under you.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 0
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: "deps(actions)"
+
+  # ── Docker ─────────────────────────────────────────────────────────────────────────
+  # Two Dockerfiles, two entries: Dependabot's docker ecosystem takes ONE directory per
+  # entry and does not search recursively. A single "/" entry would watch neither of them,
+  # and would not say so.
+  #
+  #   src/AbOvo.Api/Dockerfile   mcr.microsoft.com/dotnet/{sdk,aspnet}:10.0
+  #   web/app/Dockerfile         node:22-alpine
+  #
+  # Both are major-version tags on purpose, so a patched base image is picked up by a
+  # rebuild without any file changing. What Dependabot would add here is the MAJOR bump —
+  # and for the .NET images that is not a routine update at all: the runtime image's major
+  # must equal the target framework's major, so aspnet:11 without net11.0 is a container
+  # that exits immediately with no useful error.
+  - package-ecosystem: docker
+    directory: "/src/AbOvo.Api"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 0
+    labels:
+      - dependencies
+      - docker
+    commit-message:
+      prefix: "deps(docker-api)"
+
+  - package-ecosystem: docker
+    directory: "/web/app"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 0
+    labels:
+      - dependencies
+      - docker
+    commit-message:
+      prefix: "deps(docker-web)"

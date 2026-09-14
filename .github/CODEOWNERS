@@ -1,0 +1,111 @@
+# CODEOWNERS — REPO-BASELINE.md §1:
+# "Commit a CODEOWNERS file that assigns reviewers to security-relevant paths (auth,
+#  secrets handling, CI workflow definitions, infra/deploy scripts) BEFORE THE FIRST
+#  FEATURE LANDS."
+#
+# The failure it prevents, in the table's own words: security-relevant paths get merged
+# without the right reviewer.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────
+# HOW THIS FILE IS READ
+#
+#   LAST MATCHING PATTERN WINS. Not the most specific one — the last one. So the global
+#   default is FIRST and every narrowing rule is below it, and reordering this file
+#   changes who reviews what. That is the single most common way a CODEOWNERS file ends
+#   up meaning something other than it looks like it means.
+#
+#   Ownership is only ENFORCED if the branch protection rule on `main` has "Require
+#   review from Code Owners" enabled. Without it this file is a notification list: the
+#   right person is asked, and nothing stops a merge without them. That setting is a
+#   repository setting and cannot be committed, which is worth knowing before assuming
+#   this file is a gate.
+#
+#   A single-maintainer repository makes owner review advisory in practice — GitHub does
+#   not ask an author to review their own pull request. The file is still worth having
+#   for the day a second contributor arrives, and for what it DOCUMENTS: this is the list
+#   of paths where a change is a security decision, written down where a reviewer sees it.
+# ─────────────────────────────────────────────────────────────────────────────────────
+
+# ── Global default ───────────────────────────────────────────────────────────────────
+# Everything, unless a rule below overrides it.
+*                                       @konradcinkusz
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# Security-relevant paths — the four §1 names, in order
+# ═════════════════════════════════════════════════════════════════════════════════════
+
+# ── 1. Auth ──────────────────────────────────────────────────────────────────────────
+# Token validation, the client-identity resolver the rate limiter keys on, CORS, and the
+# BFF's server-side token and session handling. A change here can turn signature
+# verification into decoding, put every user in one rate-limit bucket, or move a token
+# into browser storage — none of which fails a build.
+/src/AbOvo.ServiceDefaults/AuthenticationExtensions.cs   @konradcinkusz
+/src/AbOvo.ServiceDefaults/CorsExtensions.cs             @konradcinkusz
+/src/AbOvo.ServiceDefaults/ClientIdentity.cs             @konradcinkusz
+/src/AbOvo.ServiceDefaults/RateLimitingExtensions.cs     @konradcinkusz
+/src/AbOvo.ServiceDefaults/OpenApiExtensions.cs          @konradcinkusz
+/web/app/src/lib/server/                                 @konradcinkusz
+/web/app/src/lib/session-cookies.ts                      @konradcinkusz
+/web/app/src/middleware.ts                               @konradcinkusz
+/web/app/src/app/api/auth/                               @konradcinkusz
+/web/app/src/app/api/proxy/                              @konradcinkusz
+
+# ── 2. Secrets handling ──────────────────────────────────────────────────────────────
+# The scanner's rules, both halves of the scanning, the documented variable list, and the
+# document that carries the rotate-then-scrub order. Loosening any of these is the change
+# that makes every later leak possible, and it looks like tidying.
+/.gitleaks.toml                         @konradcinkusz
+/secrets.env.example                    @konradcinkusz
+/SECURITY.md                            @konradcinkusz
+/scripts/hooks/                         @konradcinkusz
+/scripts/scan-secrets.sh                @konradcinkusz
+/flyio/SECRETS.md                       @konradcinkusz
+
+# ── 3. CI workflow definitions ───────────────────────────────────────────────────────
+# A workflow holds the deploy token and decides what runs before a merge. Both halves
+# matter: a job added here can exfiltrate a secret, and a job REMOVED here silently ends
+# a guarantee the repository still claims to have.
+/.github/workflows/                     @konradcinkusz
+/.github/workflows-archive/             @konradcinkusz
+/.github/dependabot.yml                 @konradcinkusz
+/.github/CODEOWNERS                     @konradcinkusz
+
+# ── 4. Infra and deploy scripts ──────────────────────────────────────────────────────
+# The Fly topology, the image definitions and the onboarding script. A fly.toml decides
+# what is exposed to the public internet and which health check the platform believes;
+# a Dockerfile decides which user the process runs as.
+/flyio/                                 @konradcinkusz
+/scripts/                               @konradcinkusz
+/src/AbOvo.Api/Dockerfile               @konradcinkusz
+/web/app/Dockerfile                     @konradcinkusz
+/.dockerignore                          @konradcinkusz
+/web/app/.dockerignore                  @konradcinkusz
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# Build and dependency surface
+# ═════════════════════════════════════════════════════════════════════════════════════
+# Central package management and the SDK pin. One line here changes every project's
+# dependency versions at once, which is the point of central package management and also
+# what makes it worth a reviewer.
+/Directory.Build.props                  @konradcinkusz
+/Directory.Packages.props               @konradcinkusz
+/global.json                            @konradcinkusz
+/web/package.json                       @konradcinkusz
+/web/pnpm-workspace.yaml                @konradcinkusz
+/web/pnpm-lock.yaml                     @konradcinkusz
+/web/app/package.json                   @konradcinkusz
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# Agent definitions
+# ═════════════════════════════════════════════════════════════════════════════════════
+# An agent definition is code that runs with tools attached, and its tool allowlist IS
+# the safety boundary. Widening one is a privilege change and reads like a config tweak.
+/.claude/                               @konradcinkusz
+/.github/agents/                        @konradcinkusz
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# Architectural decisions
+# ═════════════════════════════════════════════════════════════════════════════════════
+# An ADR is the record of why something is the way it is. Editing one after the fact is
+# how a decision becomes folklore.
+/docs/adr/                              @konradcinkusz
