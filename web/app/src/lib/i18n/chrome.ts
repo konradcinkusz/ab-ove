@@ -47,6 +47,7 @@ interface Plural {
 interface Strings {
   readonly answer: string;
   readonly keys: string;
+  readonly forget: string;
   readonly cue: string;
   readonly reveal: string;
   readonly next: string;
@@ -58,6 +59,7 @@ interface Strings {
   readonly opening: string;
   readonly position: (n: number, total: number) => string;
   readonly startAtFrame: (n: number) => string;
+  readonly continueAtFrame: (n: number) => string;
   readonly frame: Plural;
   readonly section: Plural;
 }
@@ -79,6 +81,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   en: {
     answer: 'Answer',
     keys: '→ next frame · ← back',
+    forget: 'Forget where I am',
     cue: 'The next frame answers this.',
     reveal: 'Reveal the answer',
     next: 'Next frame',
@@ -90,12 +93,14 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     opening: 'Opening',
     position: (n, total) => `${n} of ${total}`,
     startAtFrame: (n) => `Start at frame ${n}`,
+    continueAtFrame: (n) => `Continue at frame ${n}`,
     frame: { one: 'frame', other: 'frames' },
     section: { one: 'section', other: 'sections' },
   },
   pl: {
     answer: 'Odpowiedź',
     keys: '→ kolejna ramka · ← wstecz',
+    forget: 'Zapomnij, gdzie jestem',
     cue: 'Odpowiedź znajdziesz w kolejnej ramce.',
     reveal: 'Pokaż odpowiedź',
     next: 'Kolejna ramka',
@@ -107,6 +112,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     opening: 'Wstęp',
     position: (n, total) => `${n} z ${total}`,
     startAtFrame: (n) => `Zacznij od ramki ${n}`,
+    continueAtFrame: (n) => `Wróć do ramki ${n}`,
     frame: { one: 'ramka', few: 'ramki', many: 'ramek', other: 'ramki' },
     section: { one: 'sekcja', few: 'sekcje', many: 'sekcji', other: 'sekcji' },
   },
@@ -131,6 +137,7 @@ export interface Chrome {
   readonly language: string;
   readonly answer: string;
   readonly keys: string;
+  readonly forget: string;
   readonly cue: string;
   readonly reveal: string;
   readonly next: string;
@@ -142,6 +149,7 @@ export interface Chrome {
   readonly opening: string;
   readonly position: (n: number, total: number) => string;
   readonly startAtFrame: (n: number) => string;
+  readonly continueAtFrame: (n: number) => string;
   readonly frames: (n: number) => string;
   readonly sections: (n: number) => string;
 }

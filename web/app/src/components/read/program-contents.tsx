@@ -7,6 +7,7 @@ import { chromeFor } from '@/lib/i18n/chrome';
 
 import styles from './contents.module.css';
 import { LanguageSwitch } from './language-switch';
+import { ResumeHere } from './resume';
 
 export interface ProgramContentsProps {
   readonly bundle: Bundle;
@@ -56,12 +57,25 @@ export function ProgramContents({
 
   return (
     <main className={styles.page} lang={language}>
-      {/* The wordmark is a name and is not translated; the section is. */}
+      {/*
+        The wordmark is a name and is not translated; the section is. The resume control
+        sits at the right-hand end of this row rather than in a block of its own — it is
+        read from the browser, so it cannot exist in the first paint, and extending a line
+        moves nothing where adding a block would move everything under it.
+      */}
       <p className={styles.crumb} lang={chrome.language}>
-        <Link href="/" lang="en">
-          ab-ovo
-        </Link>{' '}
-        · <Link href="/read">{chrome.programs}</Link>
+        <span>
+          <Link href="/" lang="en">
+            ab-ovo
+          </Link>{' '}
+          · <Link href="/read">{chrome.programs}</Link>
+        </span>
+        <ResumeHere
+          language={language}
+          last={unit.steps.length}
+          track={track}
+          unit={unit.id}
+        />
       </p>
 
       <LanguageSwitch

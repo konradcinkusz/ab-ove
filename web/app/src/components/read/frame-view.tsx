@@ -7,6 +7,7 @@ import { chromeFor } from '@/lib/i18n/chrome';
 import { FrameKeys } from './frame-keys';
 import styles from './frame-view.module.css';
 import { LanguageSwitch } from './language-switch';
+import { RememberPosition } from './remember-position';
 
 export interface FrameViewProps {
   readonly bundle: Bundle;
@@ -80,6 +81,14 @@ export function FrameView({
         frame-keys.tsx for why both halves of that are load-bearing rather than tidy.
       */}
       <FrameKeys base={`/read/${track}/${unit.id}/${language}`} last={unit.steps.length} />
+
+      {/*
+        The reader's place, in the reader's browser. It renders nothing — no badge, no
+        "12 of 45 read", no bar — because ADR-0009 §1 puts the instrument on the book and
+        the cheapest way to keep a record from becoming a score is for it to hold nothing
+        worth scoring. Four identifiers cross the client boundary and no content does.
+      */}
+      <RememberPosition language={language} step={step.n} track={track} unit={unit.id} />
 
       {/*
         Up, to this program's contents, and across, to the same frame in another edition.
