@@ -147,3 +147,30 @@
   margin-top: 3rem;
   padding-top: 1rem;
 }
+
+/*
+ * The keyboard hint, under the reveal.
+ *
+ * Quiet on purpose — it is read once and then not wanted in the way of the frame — but
+ * present on every frame rather than on the first, because the reader who needs it is the
+ * one who arrived at frame 30 through a deep link.
+ */
+.keys {
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  margin: 0.625rem 0 0;
+  /*
+   * Hidden until the handler that makes it true is attached — frame-keys.tsx sets the flag
+   * when it binds and clears it when it unbinds, so the hint cannot outlive the shortcut.
+   *
+   * `visibility`, never `display`: the line keeps its space either way, so revealing it
+   * moves nothing on the page. Using `display` here would trade a lying hint for a layout
+   * shift, and specs/reading.spec.ts asserts against exactly that.
+   */
+  visibility: hidden;
+}
+
+:global([data-frame-keys='on']) .keys {
+  visibility: visible;
+}
