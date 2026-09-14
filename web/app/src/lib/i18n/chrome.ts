@@ -46,6 +46,7 @@ interface Plural {
 
 interface Strings {
   readonly answer: string;
+  readonly keys: string;
   readonly cue: string;
   readonly reveal: string;
   readonly next: string;
@@ -77,6 +78,7 @@ interface Strings {
 export const TABLE: Readonly<Record<string, Strings>> = {
   en: {
     answer: 'Answer',
+    keys: '→ next frame · ← back',
     cue: 'The next frame answers this.',
     reveal: 'Reveal the answer',
     next: 'Next frame',
@@ -93,6 +95,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   },
   pl: {
     answer: 'Odpowiedź',
+    keys: '→ kolejna ramka · ← wstecz',
     cue: 'Odpowiedź znajdziesz w kolejnej ramce.',
     reveal: 'Pokaż odpowiedź',
     next: 'Kolejna ramka',
@@ -127,6 +130,7 @@ export interface Chrome {
    */
   readonly language: string;
   readonly answer: string;
+  readonly keys: string;
   readonly cue: string;
   readonly reveal: string;
   readonly next: string;

@@ -228,6 +228,18 @@ two language sets apart that are easy to conflate — `track.languages` is what 
 was written in, and the table is what the *controls* were, and a track may declare an
 edition this repository has no word for.
 
+**The reading surface is Server Components with exactly one exception, and the exception's
+props are a boundary rather than a signature.** `components/read/frame-keys.tsx` is a Client
+Component — it binds a `keydown` listener so a program can be read end to end from the
+keyboard — and the props of a Client Component are **serialised into the document** so the
+browser can hydrate them. It therefore takes a path prefix and an integer, never a step: a
+draft that handed it the next step would put that step's answer into the HTML of the frame
+that asks the question, which is the one thing the frame view exists not to do. Measured
+rather than argued — widening those props on purpose turns both of
+`specs/frame-view.spec.ts`'s absence assertions red, in English and in Polish, which is
+those assertions being over `page.content()` rather than over rendered text finally doing
+work.
+
 Their *comments* cite `\ans{}` and `\dotline` by name, and that is the opposite of a leak:
 the model was taken from the book's mechanics rather than invented beside them, and
 recording where a shape came from is what stops the next author redesigning it back. The

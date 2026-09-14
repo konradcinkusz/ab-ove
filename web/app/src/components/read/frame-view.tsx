@@ -4,6 +4,7 @@ import { say } from '@/lib/content/bundle';
 import type { Bundle, Step, Unit } from '@/lib/content/schema';
 import { chromeFor } from '@/lib/i18n/chrome';
 
+import { FrameKeys } from './frame-keys';
 import styles from './frame-view.module.css';
 import { LanguageSwitch } from './language-switch';
 
@@ -53,6 +54,8 @@ export function FrameView({
   const at = (n: number): string => `/read/${track}/${unit.id}/${language}/${n}`;
   const section = unit.sections?.find((candidate) => candidate.id === step.section);
   const chrome = chromeFor(language);
+  const forward = next ? at(step.n + 1) : undefined;
+  const back = step.n > 1 ? at(step.n - 1) : undefined;
 
   return (
     /*
@@ -68,6 +71,16 @@ export function FrameView({
       where the two language sets are kept apart on purpose.
     */
     <article className={styles.page} lang={language}>
+      {/*
+        The keyboard path, and the reason a program can be READ from the keyboard rather
+        than merely reached by one: without it a reader tabs past the crumb, the edition
+        switch and the reveal on every frame — three presses and an Enter, forty-five times
+        (measured). It is handed a path prefix and a count, neither of which changes while a
+        reader moves through the program and neither of which is content; see
+        frame-keys.tsx for why both halves of that are load-bearing rather than tidy.
+      */}
+      <FrameKeys base={`/read/${track}/${unit.id}/${language}`} last={unit.steps.length} />
+
       {/*
         Up, to this program's contents, and across, to the same frame in another edition.
         Neither carries `prefetch={false}` and the asymmetry with the reveal below is
@@ -111,7 +124,7 @@ export function FrameView({
         <p>{say(step.body, language)}</p>
       </div>
 
-      {next ? (
+      {forward ? (
         <>
           {/*
             The dotted row is `\dotline`: somewhere to write before turning over. It carries
@@ -125,14 +138,18 @@ export function FrameView({
               {chrome.cue}
             </p>
           ) : null}
-          <Link
-            className={styles.reveal}
-            href={at(step.n + 1)}
-            lang={chrome.language}
-            prefetch={false}
-          >
+          <Link className={styles.reveal} href={forward} lang={chrome.language} prefetch={false}>
             {step.cue ? chrome.reveal : chrome.next}
           </Link>
+          {/*
+            The shortcut, said out loud. A keyboard path nobody is told about is not an
+            ergonomic feature, it is a secret — and this is the line that makes the "read
+            end to end from the keyboard" claim something a reader can act on rather than
+            something a test knows.
+          */}
+          <p className={styles.keys} lang={chrome.language}>
+            {chrome.keys}
+          </p>
         </>
       ) : (
         <p className={styles.end} lang={chrome.language}>
@@ -141,7 +158,7 @@ export function FrameView({
       )}
 
       <nav className={styles.foot} lang={chrome.language}>
-        {step.n > 1 ? <Link href={at(step.n - 1)}>← {chrome.previous}</Link> : <span />}
+        {back ? <Link href={back}>← {chrome.previous}</Link> : <span />}
         <span>{chrome.position(step.n, unit.steps.length)}</span>
       </nav>
     </article>
