@@ -1,0 +1,53 @@
+// TypeScript strict, and then some.
+//
+// Two of the values below are NOT free choices: `jsx` must be "react-jsx" and the two
+// .next/**/types globs must be in `include`, because `next build` rewrites this file to
+// them if they are absent. A build that edits a tracked file leaves a dirty tree, which
+// turns any CI step that checks for one into a failure nobody caused — so the values Next
+// mandates are written here deliberately rather than discovered on every build.
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    // Mandatory (Next uses the React automatic runtime).
+    "jsx": "react-jsx",
+    "allowJs": false,
+    "noEmit": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    // The strict family. `strict` alone leaves the two that catch the most in this app:
+    // noUncheckedIndexedAccess is what forces the catch-all proxy to admit that a path
+    // segment may be absent, and verbatimModuleSyntax keeps type-only imports from being
+    // emitted as real ones — which matters when a module that must never reach the client
+    // is imported for its types.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "plugins": [{ "name": "next" }],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    // Mandatory: generated route and root-param types.
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": ["node_modules", ".next"]
+}
