@@ -106,6 +106,13 @@ interface Credentials {
   readonly email: string;
   readonly password: string;
   readonly redirectTo: string | null;
+  /**
+   * Whether this caller is a plain HTML form, and therefore whether the answer is a 303 or
+   * a status. It is decided HERE, by the branch that actually parsed the body, rather than
+   * by a second `content-type` test beside the first: two reads of one header are two
+   * chances for a form post to be handed a JSON answer it cannot do anything with.
+   */
+  readonly wantsRedirect: boolean;
 }
 
 /**
@@ -125,6 +132,7 @@ async function readCredentials(request: Request): Promise<Credentials | null> {
         email: String(form.get('email') ?? '').trim(),
         password: String(form.get('password') ?? ''),
         redirectTo: safeRedirectTarget(String(form.get('redirect') ?? '')),
+        wantsRedirect: true,
       };
     }
 
@@ -136,6 +144,7 @@ async function readCredentials(request: Request): Promise<Credentials | null> {
         redirectTo: safeRedirectTarget(
           typeof body['redirect'] === 'string' ? body['redirect'] : undefined,
         ),
+        wantsRedirect: false,
       };
     }
   } catch {
@@ -222,10 +231,6 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const wantsRedirect = (request.headers.get('content-type') ?? '').includes(
-    'application/x-www-form-urlencoded',
-  );
-
   const credentials = await readCredentials(request);
   if (!credentials) {
     return NextResponse.json(
@@ -235,7 +240,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const fail = (problem: SignInProblemCode): NextResponse =>
-    wantsRedirect
+    credentials.wantsRedirect
       ? seeOther(loginPagePath(problem, credentials.redirectTo))
       : NextResponse.json(
           { problem },
@@ -270,7 +275,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const destination = credentials.redirectTo ?? DEFAULT_DESTINATION;
 
-  return wantsRedirect
+  return credentials.wantsRedirect
     ? seeOther(destination)
     : new NextResponse(null, { status: 204, headers: { 'cache-control': 'no-store' } });
 }
