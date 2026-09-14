@@ -6,6 +6,7 @@ import type { Bundle } from '@/lib/content/schema';
 import { FALLBACK_LANGUAGE, chromeFor } from '@/lib/i18n/chrome';
 
 import styles from './contents.module.css';
+import { ForgetProgress, ResumeLast, type Limits } from './resume';
 
 export interface ProgramListProps {
   readonly bundles: readonly Bundle[];
@@ -45,10 +46,31 @@ export function ProgramList({ bundles }: ProgramListProps): React.JSX.Element {
   */
   const chrome = chromeFor(FALLBACK_LANGUAGE);
 
+  /*
+    How long each program is, so a reader whose stored place is past the end of a shortened
+    program gets clamped rather than a 404 — and so a place in a program this index no
+    longer lists produces no control at all. Identifiers and integers; the client boundary
+    carries no content here either.
+  */
+  const limits: Limits = Object.fromEntries(
+    bundles.flatMap((bundle) =>
+      bundle.units.map((unit) => [`${bundle.track.id}/${unit.id}`, unit.steps.length] as const),
+    ),
+  );
+
   return (
     <main className={styles.page} lang={chrome.language}>
+      {/*
+        The resume and forget controls extend this line rather than adding a block, for the
+        reason resume.tsx gives: they are read from the browser, so they arrive after the
+        first paint, and a block would move the whole page when they did.
+      */}
       <p className={styles.crumb}>
         <Link href="/">ab-ovo</Link>
+        <span className={styles.crumbEnd}>
+          <ResumeLast language={chrome.language} limits={limits} />
+          <ForgetProgress language={chrome.language} />
+        </span>
       </p>
 
       <h1 className={styles.heading}>{chrome.programs}</h1>

@@ -1,0 +1,39 @@
+/*
+ * The resume and forget controls, at the right-hand end of a crumb row.
+ *
+ * They appear after hydration — the record is in the browser and cannot be read on the
+ * server — so they sit on a line that already exists rather than in a block of their own.
+ * Extending a line moves nothing; adding a block moves everything under it, which is what
+ * `specs/reading.spec.ts` asserts against.
+ */
+.resume {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.resume:hover,
+.resume:focus-visible {
+  text-decoration: underline;
+}
+
+/*
+ * A button that reads as prose, because it is destructive and should not invite the eye.
+ * It is still a <button>: it performs an action rather than going somewhere, and a link
+ * that deleted something would be wrong for a keyboard and wrong for a crawler.
+ */
+.forget {
+  background: none;
+  border: 0;
+  color: var(--ink-faint);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.forget:hover,
+.forget:focus-visible {
+  color: var(--ink);
+  text-decoration-style: solid;
+}

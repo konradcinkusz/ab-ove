@@ -12,11 +12,30 @@
   padding: 2rem 1.25rem 4rem;
 }
 
+/*
+ * The crumb row carries the resume and forget controls at its right-hand end.
+ *
+ * Flex with `space-between`, so a control that arrives after hydration extends this line
+ * instead of pushing the page down — which is what a block of its own would do, and what
+ * specs/reading.spec.ts asserts against. It wraps rather than overflowing at phone width:
+ * a second line here costs a shift the first time and nothing after, which is the better
+ * trade than a truncated control.
+ */
 .crumb {
+  align-items: baseline;
   color: var(--ink-faint);
+  display: flex;
+  flex-wrap: wrap;
   font-size: 0.8125rem;
+  gap: 0.5rem 1rem;
+  justify-content: space-between;
   letter-spacing: 0.02em;
   margin: 0 0 2rem;
+}
+
+.crumbEnd {
+  display: flex;
+  gap: 1rem;
 }
 
 .crumb a {

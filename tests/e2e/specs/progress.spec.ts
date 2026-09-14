@@ -1,0 +1,212 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { expect, test } from '@playwright/test';
+
+/**
+ * JOURNEY — coming back.
+ *
+ * Issue #9's "done when" is one sentence: *a reader who never signs in still returns to
+ * where they were*. Every test below holds it to the letter — no account is created, no
+ * form is filled, no cookie is set, and nothing is sent anywhere.
+ *
+ * WHY THIS PHASE STARTS HERE RATHER THAN WITH SIGN-IN. ADR-0004 has two halves and they
+ * collapse into one very easily: identity is adopted rather than built, **and** the reader
+ * loop works with no account at all. Build sign-in first and the anonymous path becomes the
+ * degraded one, which is the opposite of the decision. So the account is an addition to a
+ * working loop, and this suite is what says the loop already works.
+ */
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+function bundle() {
+  const path = join(
+    HERE,
+    '..',
+    '..',
+    '..',
+    'web',
+    'app',
+    'src',
+    'lib',
+    'content',
+    'fixtures',
+    'book-p01.bundle.json',
+  );
+  const parsed = JSON.parse(readFileSync(path, 'utf8'));
+  const unit = parsed?.units?.[0];
+  if (!parsed?.track?.id || !unit?.id || !Array.isArray(unit.steps)) {
+    throw new Error(
+      `${path} no longer has the shape this suite reads. Fixture and spec must move together.`,
+    );
+  }
+  return {
+    track: parsed.track.id as string,
+    unit: unit.id as string,
+    sections: (unit.sections ?? []) as { firstStep: number }[],
+    steps: unit.steps as { n: number; body: Record<string, string> }[],
+  };
+}
+
+const { track, unit, sections, steps } = bundle();
+const KEY = 'ab-ovo:progress:v1';
+
+const contentsAt = (language: string): string => `/read/${track}/${unit}/${language}`;
+const frameAt = (language: string, n: number): string => `${contentsAt(language)}/${n}`;
+
+/**
+ * The frame a reader gets to before wandering off.
+ *
+ * Not 1 — that is where a resume control that had learnt nothing would land, so a test
+ * stopping there would pass against one. And not a frame a SECTION starts at, which is the
+ * constraint the first draft of this suite missed: a contents page already links to every
+ * section's first frame, so `a[href=".../3"]` matched the heading link as well as the
+ * resume control and `toHaveCount(1)` failed against a perfectly good page. Derived from
+ * the fixture rather than written down, so it stays true when the fixture's headings move.
+ */
+const anchors = new Set(sections.map((section) => section.firstStep));
+const STOPPED_AT = steps
+  .map((step) => step.n)
+  .filter((n) => n > 1 && !anchors.has(n))
+  .at(-1);
+
+/** The resume control, wherever it is: the only link on the page back into a frame. */
+const resumeOn = (page: import('@playwright/test').Page, language: string, n: number) =>
+  page.locator(`a[href="${frameAt(language, n)}"]`);
+
+test.describe('local progress', () => {
+  test.beforeAll(() => {
+    // Every test below is about a frame the reader stopped at. If the fixture ever has no
+    // frame meeting the two conditions above, this suite would silently assert about
+    // `undefined` rather than about a page.
+    expect(
+      STOPPED_AT,
+      'the fixture has no frame that is neither the first nor a section anchor',
+    ).toBeGreaterThan(1);
+  });
+
+  test('a reader with no account returns to where they were @smoke', async ({ page }) => {
+
+    // Read a little way in, the way a reader does.
+    await page.goto(frameAt('en', STOPPED_AT!));
+    await expect(page.locator('body')).toContainText(steps[STOPPED_AT! - 1]!.body.en!);
+
+    // Wander off, and come back to the front door.
+    await page.goto('/read');
+    const resume = resumeOn(page, 'en', STOPPED_AT!);
+    await expect(resume, 'the index offered no way back').toHaveCount(1);
+
+    await resume.click();
+    await expect(page).toHaveURL(new RegExp(`${frameAt('en', STOPPED_AT!)}$`));
+    await expect(page.locator('body')).toContainText(steps[STOPPED_AT! - 1]!.body.en!);
+
+    // NO ACCOUNT, asserted rather than implied: nothing set a cookie, and the record is in
+    // this browser. A test that only checked the link would pass against a product that
+    // had quietly started a session to store it.
+    expect(await page.evaluate(() => document.cookie), 'the reading loop set a cookie').toBe('');
+    const stored = await page.evaluate((key) => window.localStorage.getItem(key), KEY);
+    expect(stored, 'the place was not kept in the browser').toBeTruthy();
+  });
+
+  test('a reader who has read nothing is offered nothing @core', async ({ page }) => {
+    // The positive control for the test above. Without it, an index that always rendered a
+    // resume link to frame 1 would satisfy the journey and mean nothing.
+    await page.goto('/read');
+    await expect(page.locator(`a[href^="${contentsAt('en')}/"]`)).toHaveCount(0);
+    await expect(page.locator(`a[href^="${contentsAt('pl')}/"]`)).toHaveCount(0);
+  });
+
+  test('the edition is part of the place @core', async ({ page }) => {
+    // #6 put the edition in the URL; a record that dropped it would put a Polish reader
+    // back into English, which is the thing ADR-0015 refuses on the index.
+    await page.goto(frameAt('pl', STOPPED_AT!));
+    await expect(page.locator('body')).toContainText(steps[STOPPED_AT! - 1]!.body.pl!);
+
+    await page.goto('/read');
+    await expect(resumeOn(page, 'pl', STOPPED_AT!), 'came back in the wrong edition').toHaveCount(1);
+    await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(0);
+  });
+
+  test('a program’s contents offer that program’s own place @core', async ({ page }) => {
+    await page.goto(frameAt('en', STOPPED_AT!));
+    await page.goto(contentsAt('en'));
+
+    await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
+
+    // And the way in for a reader who has not started is still there beside it: resuming is
+    // an addition to the loop, never a replacement for its front door.
+    //
+    // `.first()` rather than a count, because a contents page legitimately links frame 1
+    // TWICE — the opening section's heading and the start control — and a count here would
+    // be asserting the fixture's section layout rather than the claim. The claim is that a
+    // way in exists.
+    await expect(page.locator(`a[href="${frameAt('en', 1)}"]`).first()).toBeVisible();
+  });
+
+  test('a reader can be forgotten, and stays forgotten @core', async ({ page }) => {
+    // A product that remembers a reader with no way to be forgotten is the local half of
+    // what issue #13 owes the account. One click, because what it destroys is one integer
+    // and one language tag per program — see resume.tsx for why that argument stops holding
+    // the day the record holds more.
+    await page.goto(frameAt('en', STOPPED_AT!));
+    await page.goto('/read');
+    await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
+
+    await page.getByRole('button').click();
+    await expect(resumeOn(page, 'en', STOPPED_AT!), 'the control survived being forgotten').toHaveCount(0);
+
+    // And it was the STORE that was cleared, not the screen: a reload is the only assertion
+    // that tells one from the other.
+    await page.reload();
+    await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(0);
+    expect(await page.evaluate((key) => window.localStorage.getItem(key), KEY)).toBeNull();
+  });
+
+  test('anything else in that key leaves the page working @core', async ({ page }) => {
+    // `localStorage` is a text field a reader can edit and a place an older version of this
+    // application wrote a different shape. The parsing is asserted at the unit tier, where
+    // each branch is one assertion; what only a browser can say is that the PAGE survives.
+    for (const junk of ['not json', '{"positions":{"a":{"step":"twelve"}}}', '[]', '{}']) {
+      await page.addInitScript(
+        ([key, value]) => window.localStorage.setItem(key!, value!),
+        [KEY, junk] as const,
+      );
+      const response = await page.goto('/read');
+      expect(response?.status(), `/read broke on a stored ${junk}`).toBe(200);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await expect(page.locator(`a[href^="${contentsAt('en')}/"]`)).toHaveCount(0);
+    }
+  });
+
+  test('the controls arriving shift nothing already on the page @core', async ({ page }) => {
+    // ──────────────────────────────────────────────────────────────────────────────────
+    // The record is in the browser, so these controls cannot exist in the first paint and
+    // must appear afterwards. That is exactly the shape of a layout shift, which is why
+    // they live at the end of a line that already exists rather than in a block of their
+    // own — see resume.tsx. A BOUND rather than the measurement, on issue #7's reasoning:
+    // this build scores 0 and committing 0 would make the test about one machine's timing.
+    // ──────────────────────────────────────────────────────────────────────────────────
+    await page.goto(frameAt('en', STOPPED_AT!));
+
+    await page.addInitScript(() => {
+      const scope = window as unknown as { __shift: number };
+      scope.__shift = 0;
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries() as unknown as {
+          value: number;
+          hadRecentInput: boolean;
+        }[]) {
+          if (!entry.hadRecentInput) scope.__shift += entry.value;
+        }
+      }).observe({ type: 'layout-shift', buffered: true });
+    });
+
+    await page.goto('/read');
+    // The control really did arrive, so the number below is about a page that changed.
+    await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
+    await page.waitForTimeout(700);
+
+    const shift = await page.evaluate(() => (window as unknown as { __shift: number }).__shift);
+    expect(shift, 'the resume control moved the page under the reader').toBeLessThan(0.01);
+  });
+});
