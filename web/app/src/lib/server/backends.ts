@@ -109,6 +109,28 @@ export function backendCandidates(id: BackendId): string[] {
 }
 
 /**
+ * Whether an operator or an orchestrator has SAID where this backend is.
+ *
+ * `backendCandidates` always returns something — rungs three and four are derived and
+ * guessed so that one code path works on a laptop, under Aspire and on Fly — so "is there a
+ * candidate" is true in every deployment and answers nothing. This answers the different
+ * question the sign-in page has to ask: *was this deployment given an identity service?*
+ *
+ * P8 — a deployment with no identity service is a supported state, and the page that would
+ * offer a sign-in form has to know which state it is in. Only the configured rungs count:
+ * `ab-ovo-authservice.internal` and `localhost:8081` are addresses this app invented, and
+ * offering a form on the strength of a guess is how a reader ends up typing a password into
+ * a page that had no one to ask.
+ *
+ * Conservative on purpose. A laptop running authservice on 8081 with no variable set reads
+ * as "not configured", and the fix is to set the variable (P5 — configuration through the
+ * environment), which is the same fix every other environment already applies.
+ */
+export function backendConfigured(id: BackendId): boolean {
+  return BACKENDS[id].envCandidates().some((value) => !!value && value.trim().length > 0);
+}
+
+/**
  * The BROWSER-facing address of authservice, for the one thing that cannot be proxied: a
  * navigation to its sign-in page. See `RuntimeConfig.authBaseUrl`.
  *

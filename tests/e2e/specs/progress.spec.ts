@@ -74,6 +74,30 @@ const STOPPED_AT = steps
 const resumeOn = (page: import('@playwright/test').Page, language: string, n: number) =>
   page.locator(`a[href="${frameAt(language, n)}"]`);
 
+/**
+ * Read a frame, and WAIT FOR THE PRODUCT TO HAVE NOTICED before doing anything else.
+ *
+ * `page.goto` resolves on `load`; the recorder is a client component that writes in an
+ * effect, so it runs after hydration, which is after `load`. Navigating away in between
+ * leaves nothing recorded — and the test then fails on its own SETUP, reporting an absent
+ * resume control as though the feature were broken.
+ *
+ * Found under load: the suite passed on its own and failed once in a full 69-test run, which
+ * is the shape of a race rather than a defect. A retry would have hidden it, and
+ * TESTING-STRATEGY.md §6 holds zero tolerance for a test that only passes on retry.
+ *
+ * The wait is on the STORE rather than on a timeout or a DOM signal invented for it: the
+ * write is the thing the next assertion depends on, so it is the thing to wait for.
+ */
+async function readUpTo(
+  page: import('@playwright/test').Page,
+  language: string,
+  n: number,
+): Promise<void> {
+  await page.goto(frameAt(language, n));
+  await page.waitForFunction((key) => window.localStorage.getItem(key) !== null, KEY);
+}
+
 test.describe('local progress', () => {
   test.beforeAll(() => {
     // Every test below is about a frame the reader stopped at. If the fixture ever has no
@@ -88,7 +112,7 @@ test.describe('local progress', () => {
   test('a reader with no account returns to where they were @smoke', async ({ page }) => {
 
     // Read a little way in, the way a reader does.
-    await page.goto(frameAt('en', STOPPED_AT!));
+    await readUpTo(page, 'en', STOPPED_AT!);
     await expect(page.locator('body')).toContainText(steps[STOPPED_AT! - 1]!.body.en!);
 
     // Wander off, and come back to the front door.
@@ -119,7 +143,7 @@ test.describe('local progress', () => {
   test('the edition is part of the place @core', async ({ page }) => {
     // #6 put the edition in the URL; a record that dropped it would put a Polish reader
     // back into English, which is the thing ADR-0015 refuses on the index.
-    await page.goto(frameAt('pl', STOPPED_AT!));
+    await readUpTo(page, 'pl', STOPPED_AT!);
     await expect(page.locator('body')).toContainText(steps[STOPPED_AT! - 1]!.body.pl!);
 
     await page.goto('/read');
@@ -128,7 +152,7 @@ test.describe('local progress', () => {
   });
 
   test('a program’s contents offer that program’s own place @core', async ({ page }) => {
-    await page.goto(frameAt('en', STOPPED_AT!));
+    await readUpTo(page, 'en', STOPPED_AT!);
     await page.goto(contentsAt('en'));
 
     await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
@@ -148,7 +172,7 @@ test.describe('local progress', () => {
     // what issue #13 owes the account. One click, because what it destroys is one integer
     // and one language tag per program — see resume.tsx for why that argument stops holding
     // the day the record holds more.
-    await page.goto(frameAt('en', STOPPED_AT!));
+    await readUpTo(page, 'en', STOPPED_AT!);
     await page.goto('/read');
     await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
 
@@ -186,7 +210,7 @@ test.describe('local progress', () => {
     // own — see resume.tsx. A BOUND rather than the measurement, on issue #7's reasoning:
     // this build scores 0 and committing 0 would make the test about one machine's timing.
     // ──────────────────────────────────────────────────────────────────────────────────
-    await page.goto(frameAt('en', STOPPED_AT!));
+    await readUpTo(page, 'en', STOPPED_AT!);
 
     await page.addInitScript(() => {
       const scope = window as unknown as { __shift: number };
