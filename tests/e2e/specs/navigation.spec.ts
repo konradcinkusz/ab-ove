@@ -186,7 +186,7 @@ test.describe('navigation', () => {
     // there at all rather than disabled — a disabled control is a thing a reader tries.
     await expect(page.getByRole('link', { name: /previous/i })).toHaveCount(0);
 
-    await page.getByRole('link', { name: /reveal|next frame/i }).click();
+    await page.locator(`a[href="${frameAt('en', 2)}"]`).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt('en', 2)}$`));
 
     await page.getByRole('link', { name: /previous/i }).click();
@@ -231,14 +231,22 @@ test.describe('navigation', () => {
       ).toContainText(steps[0]!.body[language]!);
     }
 
-    // And the controls really are English today, so they say so rather than inheriting a
-    // language they are not written in. Issue #6 owns whether they stay English; this
-    // assertion moves with the strings either way.
-    await page.goto(frameAt('pl', 1));
-    await expect(page.getByRole('link', { name: /reveal|next frame/i })).toHaveAttribute(
-      'lang',
-      'en',
-    );
+    // And the controls follow the edition, which is what #6 settled: on a Polish frame the
+    // reveal is Polish and says so. Located by href rather than by its words, because a
+    // locator matching the words would be a second copy of the string it is testing.
+    for (const language of languages) {
+      await page.goto(frameAt(language, 1));
+      await expect(
+        page.locator(`a[href="${frameAt(language, 2)}"]`),
+        `the ${language} reveal does not declare the language it is written in`,
+      ).toHaveAttribute('lang', language);
+    }
+
+    // The OTHER half — a track declaring a language this application has no controls for
+    // gets English controls that say `lang="en"` — is not reachable from here: the fixture
+    // declares en and pl, and a route for anything else 404s by design. It is asserted at
+    // the unit tier instead, in lib/i18n/chrome.test.ts, which is where a pure function
+    // belongs (P13).
   });
 
   test('a contents page that does not exist is absent, not broken @core', async ({ page }) => {

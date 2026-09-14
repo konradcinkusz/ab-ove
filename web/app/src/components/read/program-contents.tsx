@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { say, sectionSpans } from '@/lib/content/bundle';
 import type { Bundle, Unit } from '@/lib/content/schema';
 
+import { chromeFor } from '@/lib/i18n/chrome';
+
 import styles from './contents.module.css';
-import { count } from './plural';
+import { LanguageSwitch } from './language-switch';
 
 export interface ProgramContentsProps {
   readonly bundle: Bundle;
@@ -43,7 +45,9 @@ export function ProgramContents({
   language,
 }: ProgramContentsProps): React.JSX.Element {
   const spans = sectionSpans(unit);
-  const at = (n: number): string => `/read/${bundle.track.id}/${unit.id}/${language}/${n}`;
+  const track = bundle.track.id;
+  const at = (n: number): string => `/read/${track}/${unit.id}/${language}/${n}`;
+  const chrome = chromeFor(language);
 
   // Steps before the first heading. The book's programs open with a Quiz and an opener
   // before §1, so this is a legitimate span rather than a defect — see sectionSpans, which
@@ -52,26 +56,38 @@ export function ProgramContents({
 
   return (
     <main className={styles.page} lang={language}>
-      <p className={styles.crumb} lang="en">
-        <Link href="/">ab-ovo</Link> · <Link href="/read">Programs</Link>
+      {/* The wordmark is a name and is not translated; the section is. */}
+      <p className={styles.crumb} lang={chrome.language}>
+        <Link href="/" lang="en">
+          ab-ovo
+        </Link>{' '}
+        · <Link href="/read">{chrome.programs}</Link>
       </p>
+
+      <LanguageSwitch
+        current={language}
+        hrefFor={(other) => `/read/${track}/${unit.id}/${other}`}
+        label={chrome.languageLabel}
+        labelLanguage={chrome.language}
+        languages={bundle.track.languages}
+      />
 
       <h1 className={styles.programTitle}>{say(unit.titles, language)}</h1>
       {/*
         Two languages in one line, so the attribute cannot sit on the paragraph: the track's
-        title is the reader's edition and the frame count is this application's English.
-        Tagging the whole line `en` would have a screen reader read a Polish title in an
-        English voice, which is the defect being fixed rather than a smaller version of it.
+        title is the reader's EDITION and the count is the application's CHROME, and those
+        are different language sets (lib/i18n/chrome.ts). They agree today for en and pl and
+        would not for a track declaring a language this repository has no controls for.
       */}
       <p className={styles.subtitle}>
         {say(bundle.track.titles, language)}{' '}
-        <span lang="en">· {count(unit.steps.length, 'frame', 'frames')}</span>
+        <span lang={chrome.language}>· {chrome.frames(unit.steps.length)}</span>
       </p>
 
       {spans.length > 0 ? (
         <>
-          <h2 className={styles.heading} lang="en">
-            Contents
+          <h2 className={styles.heading} lang={chrome.language}>
+            {chrome.contents}
           </h2>
           <ol className={styles.list}>
             {openingEnds >= 1 ? (
@@ -80,8 +96,8 @@ export function ProgramContents({
                   {openingEnds === 1 ? '1' : `1–${openingEnds}`}
                 </span>
                 <Link className={styles.sectionTitle} href={at(1)}>
-                  <span className={styles.opening} lang="en">
-                    Opening
+                  <span className={styles.opening} lang={chrome.language}>
+                    {chrome.opening}
                   </span>
                 </Link>
               </li>
@@ -104,8 +120,8 @@ export function ProgramContents({
         </>
       ) : null}
 
-      <Link className={styles.start} href={at(1)} lang="en">
-        Start at frame 1
+      <Link className={styles.start} href={at(1)} lang={chrome.language}>
+        {chrome.startAtFrame(1)}
       </Link>
     </main>
   );

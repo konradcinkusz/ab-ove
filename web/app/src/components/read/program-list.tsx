@@ -3,8 +3,9 @@ import Link from 'next/link';
 import { say, sectionSpans } from '@/lib/content/bundle';
 import type { Bundle } from '@/lib/content/schema';
 
+import { FALLBACK_LANGUAGE, chromeFor } from '@/lib/i18n/chrome';
+
 import styles from './contents.module.css';
-import { count } from './plural';
 
 export interface ProgramListProps {
   readonly bundles: readonly Bundle[];
@@ -34,13 +35,23 @@ export interface ProgramListProps {
  * the deep links below it do not move.
  */
 export function ProgramList({ bundles }: ProgramListProps): React.JSX.Element {
+  /*
+    The index's own controls are English, and that is not the thing ADR-0015 refuses.
+    That ADR is about the BOOK's editions: picking one for the reader is an editorial claim
+    this product has no standing to make. The furniture is the application's, the repository
+    is English by ground rule, and there is no reader language here to follow — every page
+    below this one has one in its URL and uses it. The `lang` attribute says which it is
+    rather than letting it be inferred.
+  */
+  const chrome = chromeFor(FALLBACK_LANGUAGE);
+
   return (
-    <main className={styles.page}>
+    <main className={styles.page} lang={chrome.language}>
       <p className={styles.crumb}>
         <Link href="/">ab-ovo</Link>
       </p>
 
-      <h1 className={styles.heading}>Programs</h1>
+      <h1 className={styles.heading}>{chrome.programs}</h1>
 
       {bundles.map((bundle) => (
         <section key={bundle.track.id}>
@@ -71,8 +82,8 @@ export function ProgramList({ bundles }: ProgramListProps): React.JSX.Element {
                     ))}
                   </span>
                   <p className={styles.meta}>
-                    {count(unit.steps.length, 'frame', 'frames')}
-                    {sections > 0 ? ` · ${count(sections, 'section', 'sections')}` : null}
+                    {chrome.frames(unit.steps.length)}
+                    {sections > 0 ? ` · ${chrome.sections(sections)}` : null}
                   </p>
                 </li>
               );

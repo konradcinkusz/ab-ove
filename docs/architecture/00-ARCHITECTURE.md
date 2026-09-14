@@ -219,6 +219,15 @@ first draft of this sentence came to list a field the pages do not read yet. No
 branch in them tests a macro, a program number or a language code, so the same components
 render a track that has no frames at all.
 
+**And what the pages need that the bundle does NOT supply is as much the boundary as what
+it does.** The reading controls — "Reveal the answer", "Contents", `5 ramek` — are in
+`web/app/src/lib/i18n/chrome.ts` and never in a bundle
+([ADR-0016](../adr/0016-the-reading-controls-follow-the-readers-edition.md)): labels there
+would make every track's compiler responsible for this application's chrome. It also keeps
+two language sets apart that are easy to conflate — `track.languages` is what the *content*
+was written in, and the table is what the *controls* were, and a track may declare an
+edition this repository has no word for.
+
 Their *comments* cite `\ans{}` and `\dotline` by name, and that is the opposite of a leak:
 the model was taken from the book's mechanics rather than invented beside them, and
 recording where a shape came from is what stops the next author redesigning it back. The
