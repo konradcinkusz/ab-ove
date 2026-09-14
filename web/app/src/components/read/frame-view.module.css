@@ -1,0 +1,149 @@
+/*
+ * The reading column.
+ *
+ * UI-UX.md's phase 2a.5 fixes the measure at 34rem, which globals.css already declares as
+ * --measure and the landing page already uses. Read from there rather than restated: one
+ * number, one place. It is not a taste, either. The book
+ * made the same decision and wrote down why: both its paper formats are set to about the
+ * same measure because a wider block "would be some eighty-five characters, past the point
+ * where the eye loses the line return". A wider column is not more content per screen; it
+ * is a line the reader has to find the start of.
+ */
+.page {
+  margin: 0 auto;
+  max-width: var(--measure);
+  padding: 2rem 1.25rem 4rem;
+}
+
+.crumb {
+  color: var(--ink-faint);
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+  margin: 0 0 2rem;
+}
+
+.crumb a {
+  color: inherit;
+}
+
+/*
+ * THE RULE AND THE BADGE — notes/07 §3, by way of the book's own layout.
+ *
+ * "The frame boundary is a hairline across the measure, with the frame's number in the
+ * OUTER margin beside it", so that a reader thumbing for frame 37 runs a finger down the
+ * edge of the block and never crosses the text. On a screen there is no spread and no outer
+ * margin, so the badge sits at the start of the rule: the navigational job survives, the
+ * mirroring does not apply, and pretending otherwise would be imitating a printed page
+ * rather than reproducing what it was for.
+ */
+.rule {
+  align-items: center;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 0.75rem;
+  margin: 0 0 1.0625rem;
+  padding-top: 0.5rem;
+}
+
+.badge {
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.section {
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+/*
+ * The answer to the PREVIOUS step, opening this one.
+ *
+ * Set apart and centred "so the eye can find the edge to cover" — the book's own reason for
+ * the shape of `\ans{}`. It is a real answer box rather than a decorative one: a reader who
+ * has arrived here has already committed, because getting here at all took the reveal.
+ */
+.answer {
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  margin: 0 0 1.75rem;
+  padding: 1rem 1.25rem;
+}
+
+.answerLabel {
+  color: var(--ink-faint);
+  display: block;
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.375rem;
+  text-transform: uppercase;
+}
+
+.body {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  margin: 0 0 1.5rem;
+}
+
+.body :last-child {
+  margin-bottom: 0;
+}
+
+/*
+ * The cue, and then the reveal.
+ *
+ * The dotted row is `\dotline`'s job on paper: somewhere to write before turning over. Here
+ * it is the visual pause between the question and the control that answers it, and it
+ * carries no input — the reader's answer is theirs and the product never asks for it. That
+ * is not an omission: METRIC-ETHICS and ADR-0009 put the instrument on the book, and a text
+ * box here would be the first place a per-reader record could come from.
+ */
+.dots {
+  border-bottom: 1px dashed var(--rule);
+  margin: 0 0 1.25rem;
+}
+
+.cue {
+  color: var(--ink-faint);
+  font-size: 0.875rem;
+  font-style: italic;
+  margin: 0 0 0.75rem;
+}
+
+.reveal {
+  background: var(--accent);
+  border: 0;
+  border-radius: 3px;
+  color: var(--paper-raised);
+  cursor: pointer;
+  display: inline-block;
+  font: inherit;
+  font-size: 0.9375rem;
+  padding: 0.5rem 1.125rem;
+  text-decoration: none;
+}
+
+.reveal:hover,
+.reveal:focus-visible {
+  filter: brightness(1.1);
+}
+
+.end {
+  color: var(--ink-faint);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.foot {
+  border-top: 1px solid var(--rule);
+  color: var(--ink-faint);
+  display: flex;
+  font-size: 0.8125rem;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: 3rem;
+  padding-top: 1rem;
+}
