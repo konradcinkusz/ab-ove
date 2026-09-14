@@ -1,0 +1,49 @@
+%% The ab-ovo reader loop.
+%% ONE DIAGRAM PER FILE. ASCII ONLY. See ab-ovo-system.mmd for why no comment line here is
+%% a bare %% marker.
+
+%% EVERY BOX IN THIS DIAGRAM RUNS WITH NO ACCOUNT AND NO BACKEND. That is the product's
+%% first requirement, not an optimisation: frames are served with the site as a versioned
+%% bundle (ADR-0008) and the exercise checks run in the browser under Pyodide (ADR-0007).
+
+%% The two dotted edges leaving the loop are the only places a server appears, and neither
+%% is on the path: an account synchronises progress between machines and buys nothing else,
+%% and an outcome is contributed only if the reader opted in. Both can be absent and the
+%% loop is unchanged.
+
+%% WHAT IS NOT DRAWN, deliberately: no grading step. The next frame opens with the answer
+%% and the reader compares. Nothing scores the comparison, and no language model is called
+%% (ADR-0010). The comparison IS the teaching.
+
+flowchart TD
+  START(["Open a program"])
+  READ["Read a frame<br/>one idea, sometimes one line"]
+  COMMIT["Commit an answer<br/>before turning over"]
+  REVEAL["Reveal the next frame<br/>it opens with the answer"]
+  COMPARE{"Does it match?"}
+  BACK["Go back one frame"]
+  LAB{"Does this frame<br/>carry an exercise?"}
+  WORK["Work it in the lab pane<br/>Python, in the browser"]
+  CHECK{"Check passes?"}
+  FRAMES["Re-read the frames the<br/>failure names<br/>never the solution"]
+  NEXT["Carry on"]
+  SYNC["Account<br/>synchronises progress<br/>between machines"]
+  INST["Instrument<br/>outcome against frame,<br/>attempt, check run<br/>never against the reader"]
+
+  START --> READ
+  READ --> COMMIT
+  COMMIT --> REVEAL
+  REVEAL --> COMPARE
+  COMPARE -->|"no"| BACK
+  BACK --> READ
+  COMPARE -->|"yes"| LAB
+  LAB -->|"no"| NEXT
+  LAB -->|"yes"| WORK
+  WORK --> CHECK
+  CHECK -->|"no"| FRAMES
+  FRAMES --> WORK
+  CHECK -->|"yes"| NEXT
+  NEXT --> READ
+
+  NEXT -.->|"optional, phase 3"| SYNC
+  CHECK -.->|"opt-in consent, phase 4"| INST

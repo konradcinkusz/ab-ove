@@ -1,0 +1,54 @@
+%% ab-ovo system topology.
+%% ONE DIAGRAM PER FILE. ASCII ONLY: no em dashes, no arrows as glyphs, no diacritics.
+%% The unrendered fallback is typeset verbatim, and a multi-byte character with no mapping
+%% is a build error rather than a wrong glyph.
+%% NOTE ON THE COMMENT STYLE BELOW: every comment line carries text after its %% marker.
+%% Mermaid strips a comment with a regex that requires at least one character after the
+%% marker, so a bare %% spacer line SURVIVES stripping, is concatenated with the next
+%% line, and the diagram fails to parse on line 1. Use a genuinely blank line to space
+%% comment blocks, never a bare marker.
+
+%% WHAT THIS DRAWS. The dashed boxes are Fly apps that DO NOT EXIST YET: nothing is
+%% deployed. flyio/*.fly.toml describes them and has never been applied. What runs today
+%% is src/AbOvo.AppHost, which is DEVELOPMENT ONLY and is not the production topology (P1).
+
+%% The one edge that is not drawn is the point of the picture: the browser has no arrow to
+%% the API or to authservice. It talks to the web app's own origin and to nothing else
+%% (FRONTEND-BFF.md section 1), which is why this estate needs no CORS on the frontend's
+%% account, and why needing one would mean the rule had already been broken.
+
+flowchart LR
+  subgraph browser["Reader's browser"]
+    UI["Next.js pages<br/>frames, lab pane"]
+    PYO["Pyodide<br/>exercise checks run here<br/>reader code never leaves"]
+  end
+
+  subgraph web["ab-ovo-web-dev :3000"]
+    BFF["Backend for frontend<br/>/api/config<br/>/api/auth/session<br/>/api/proxy/*"]
+  end
+
+  subgraph api["ab-ovo-api-dev :8080"]
+    SVC["AbOvo.Api<br/>/health  /alive  /api/v1/info<br/>validates RS256, mints nothing"]
+  end
+
+  subgraph auth["ab-ovo-authservice-dev"]
+    AS["authservice v0.3.1<br/>external published image<br/>/.well-known/jwks.json"]
+  end
+
+  subgraph pg["ab-ovo-postgres"]
+    APIDB[("apidb<br/>owned by AbOvo.Api")]
+    AUTHDB[("authdb<br/>owned by authservice")]
+  end
+
+  UI -->|"same origin only"| BFF
+  UI -.->|"loaded once, lazily"| PYO
+
+  BFF -->|"server side, injects bearer"| SVC
+  BFF -->|"verifies token, jose plus remote JWKS"| AS
+
+  SVC -->|"JWKS, in request"| AS
+  SVC -->|"6PN, .internal:5432"| APIDB
+  AS -->|"6PN, .internal:5432"| AUTHDB
+
+  classDef notdeployed stroke-dasharray: 5 5;
+  class web,api,auth,pg notdeployed;
