@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { IntegrationReport } from '@/components/integration-report';
 
 /**
@@ -27,6 +29,14 @@ export default function LandingPage(): React.JSX.Element {
           computer exercises. The frames are Stroud&rsquo;s: each one asks for something before
           it tells you anything, and the next frame opens with the answer you should have
           written.
+        </p>
+        {/*
+          The entry point. It leads to /read, which needs no account and no backend — so
+          the first thing on the page a reader can act on is also the thing that proves the
+          claim two sections below it (ADR-0004).
+        */}
+        <p className="enter">
+          <Link href="/read">Open the programs</Link>
         </p>
       </header>
 

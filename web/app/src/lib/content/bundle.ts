@@ -19,7 +19,7 @@
  */
 import fixture from './fixtures/book-p01.bundle.json' with { type: 'json' };
 
-import type { Bundle, ContentPin, Step, Unit } from './schema.ts';
+import type { Bundle, ContentPin, Section, Step, Unit } from './schema.ts';
 import { validateBundle } from './validate.ts';
 
 /**
@@ -112,4 +112,60 @@ export function say(text: Readonly<Record<string, string>>, language: string): s
     throw new Error(`this text has no "${language}", which a validated bundle cannot do`);
   }
   return written;
+}
+
+/**
+ * Every pinned bundle, in the order the pins are declared.
+ *
+ * It THROWS if a pin does not resolve, and that is unreachable-by-construction rather than
+ * defensive: the track names come from `PINS`, so `bundleFor` can only miss if this file
+ * disagrees with itself. Filtering the absent one away would be the worse answer — the
+ * index would quietly get shorter and the reader would be told a program does not exist
+ * when what happened is that a deployment is broken. Same reasoning as the validate branch
+ * above: a reader's typo is a 404, a deployment defect is a 500 with a sentence.
+ */
+export function allBundles(): readonly Bundle[] {
+  return PINS.map((pin) => {
+    const bundle = bundleFor(pin.track);
+    if (!bundle) {
+      throw new Error(`the pin ${keyOf(pin)} names a track bundleFor() does not serve`);
+    }
+    return bundle;
+  });
+}
+
+/** A heading and the steps it covers, both ends inclusive. */
+export interface SectionSpan {
+  readonly section: Section;
+  readonly from: number;
+  readonly to: number;
+}
+
+/**
+ * Where each of a unit's headings starts and stops.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE ORDER OF `unit.sections` IS THE DATA, AND THIS FUNCTION DOES NOT SORT IT.
+ *
+ * A heading's span ends where the next heading begins, so the array's order is the only
+ * thing that says where a section stops. Sorting here would display an order the bundle
+ * never declared and would hide the defect rather than fix it, which is why the ascent is
+ * a VALIDATOR rule instead — a bundle whose sections descend does not load at all, and the
+ * author is told the JSON pointer. This function may therefore read `sections[i + 1]`
+ * and trust it.
+ *
+ * Steps before the first heading are not returned by design: a unit may legitimately open
+ * under no heading (the book's programs open with a Quiz and an opener before §1), and
+ * inventing a heading for them here would put a title in the contents that is in no
+ * edition of the book.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+export function sectionSpans(unit: Unit): readonly SectionSpan[] {
+  const sections = unit.sections ?? [];
+  return sections.map((section, index) => ({
+    section,
+    from: section.firstStep,
+    // The validator has already refused anything where this could invert.
+    to: (sections[index + 1]?.firstStep ?? unit.steps.length + 1) - 1,
+  }));
 }

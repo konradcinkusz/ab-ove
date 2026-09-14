@@ -23,6 +23,7 @@
  *   - a cue is followed by an answer, and an answer is preceded by a cue;
  *   - steps run 1, 2, 3 … with nothing missing and nothing repeated;
  *   - every route endpoint, and every section anchor, names a step that exists;
+ *   - a unit's sections ascend strictly, because their order is what bounds them;
  *   - every declared language is present in every text;
  *   - every check names a lab and an exercise the bundle carries.
  *
@@ -333,6 +334,22 @@ function checkStructure(bundle: Bundle): Problem[] {
     });
 
     const sectionIds = new Set<string>();
+    /*
+     * SECTIONS ASCEND, STRICTLY, AND THAT IS A RULE RATHER THAN A CONVENTION.
+     *
+     * A section is a heading over a span, and the span runs from its own `firstStep` to the
+     * step before the next heading's. So the ORDER of this array is the only thing that
+     * says where a heading stops — and a list that does not ascend leaves every reader of
+     * it two bad choices: sort it, and show an order the bundle did not declare, or render
+     * a heading whose span is empty or runs backwards. Two sections sharing a `firstStep`
+     * is the same defect with the second span empty.
+     *
+     * It is not expressible in JSON Schema, which cannot compare one array item with the
+     * one before it, so it lives here beside the route rule it is a twin of — the book's
+     * own `check_structure.py --frames` refuses a range that runs backwards for exactly
+     * this reason.
+     */
+    let previousFirstStep = 0;
     for (const [sectionIndex, section] of (unit.sections ?? []).entries()) {
       const sectionAt = `${at}/sections/${sectionIndex}`;
       if (sectionIds.has(section.id)) {
@@ -343,6 +360,13 @@ function checkStructure(bundle: Bundle): Problem[] {
       if (section.firstStep > lastStep) {
         problems.push({ path: `${sectionAt}/firstStep`, message: `names step ${section.firstStep} of a unit with ${lastStep}` });
       }
+      if (sectionIndex > 0 && section.firstStep <= previousFirstStep) {
+        problems.push({
+          path: `${sectionAt}/firstStep`,
+          message: `starts at step ${section.firstStep}, which is not after the previous section's ${previousFirstStep}`,
+        });
+      }
+      previousFirstStep = section.firstStep;
     }
 
     for (const [routeIndex, route] of (unit.routes ?? []).entries()) {
