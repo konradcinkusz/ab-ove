@@ -10,7 +10,13 @@ import nextTypeScript from 'eslint-config-next/typescript';
 /** @type {import('eslint').Linter.Config[]} */
 const config = [
   {
-    ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts'],
+    // `public/**` is not source. scripts/prepare-lab-assets.mjs stages Pyodide's own
+    // pyodide.mjs and pyodide.asm.mjs there (13 MB, minified, someone else's), and ESLint
+    // reads any .mjs it is pointed at — so without this entry `pnpm lint` reports several
+    // thousand findings about an upstream artefact nobody here can act on, and the six
+    // findings that are about this repository are invisible among them. A linter whose
+    // output nobody reads is a linter that is not running (REPO-BASELINE.md §1).
+    ignores: ['.next/**', 'node_modules/**', 'public/**', 'next-env.d.ts'],
   },
   ...nextCoreWebVitals,
   ...nextTypeScript,

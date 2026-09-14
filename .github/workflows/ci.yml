@@ -241,6 +241,30 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # ─────────────────────────────────────────────────────────────────────────────────
+      # THE BOOK, because `pnpm build` cannot run without it.
+      #
+      # web/app's `prebuild` script stages the lab pane's two inputs into public/: the
+      # Pyodide runtime from node_modules, and the book's lab engine from web/content/book.
+      # The second is NOT in git (see .gitignore) — ADR-0008 makes it a versioned artefact
+      # fetched at a pinned revision, with a sha256 per file in web/content/book.lock.json.
+      # Nothing on a fresh runner fetches it but this step, and prebuild fails loudly
+      # rather than silently shipping a pane with no engine.
+      #
+      # A FETCH, not `--check`. There is nothing on a fresh runner to check, and a --check
+      # placed after the fetch would verify the bytes the fetch had just written and
+      # verified — an assertion that cannot fail. The fetch is the gate: it compares every
+      # file against its digest as it writes and exits non-zero on any mismatch, so a moved
+      # pin, a stale digest or a hand-edited fixture all stop here. `--check` is the local
+      # instrument, for the developer asking whether they edited a fetched file by hand.
+      #
+      # working-directory is overridden because this job otherwise runs in web/ and the
+      # script resolves its own repository root from its own path.
+      # ─────────────────────────────────────────────────────────────────────────────────
+      - name: Fetch the book content at its pinned revision
+        working-directory: .
+        run: bash scripts/fetch-book-content.sh
+
       - name: Build
         run: pnpm build
 
@@ -336,6 +360,39 @@ jobs:
           cache-dependency-path: |
             web/pnpm-lock.yaml
             tests/e2e/pnpm-lock.yaml
+
+      # ─────────────────────────────────────────────────────────────────────────────────
+      # THE BOOK. Added with specs/lab-p01.spec.ts, which cannot run without it.
+      #
+      # web/content/book is NOT in git — `git ls-files web/content/` is empty. ADR-0008 makes the
+      # book's lab engine a versioned ARTEFACT fetched at a pinned revision, with a sha256
+      # per file in web/content/book.lock.json, so that "nothing under web/content/ is authored
+      # here" is a checkable claim rather than a request. Nothing in CI fetched it until
+      # now, because nothing in CI needed it.
+      #
+      # Two things need it, and the job fails at different points without it:
+      #
+      #   1. `pnpm --dir web build` runs a prebuild that copies web/content/book into
+      #      public/book (minus lab/solutions/), so the lab pane has a virtual file system
+      #      to mount. That script fails loudly when the book is absent — which is correct,
+      #      and which is this step failing one line later with a worse message.
+      #   2. specs/lab-p01.spec.ts reads web/content/book/lab/{exercises,solutions}/ IN NODE.
+      #      The reference solutions are deliberately not served to the browser, so the
+      #      test supplies them, and it reads the pinned file rather than carrying a copy
+      #      of it that could drift.
+      #
+      # It is a FETCH and not a `--check`: there is nothing on a fresh runner to check. The
+      # script verifies every digest as it writes and exits non-zero on any mismatch, so a
+      # moved pin or a tampered file fails here rather than surfacing as a lab suite that
+      # quietly tests different numbers from the ones the book prints.
+      #
+      # The `web` job runs `pnpm build` too and carries the same step, for the other of
+      # the two reasons: its need comes from the prebuild script, this one's from the
+      # spec. Two jobs, two independent needs, one script — which is why the step is
+      # duplicated rather than factored into a composite action nobody would read.
+      # ─────────────────────────────────────────────────────────────────────────────────
+      - name: Fetch the book content at its pinned revision
+        run: bash scripts/fetch-book-content.sh
 
       # The suite drives a production build, not `next dev`. A dev server has different
       # timing, different error overlays and different bundle behaviour from the artifact

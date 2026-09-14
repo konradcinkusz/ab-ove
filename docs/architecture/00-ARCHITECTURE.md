@@ -185,18 +185,32 @@ to derive from and a service opts in line by line.
 enforces it, with one named exception: `MigrationHostedService<T>`, which is a
 `BackgroundService` the kernel instantiates itself rather than something a service inherits.
 
-### P11 — not evidenced in this tree
+### P11 — read, and deliberately not yet evidenced
 
-**P11 is not cited anywhere in this repository.** `grep -rn "P11" .` returns nothing: no
-source file, no workflow, no `fly.toml`, no comment. Every other principle from P1 to P15
-is cited at least once at the point it governs.
+**The reading job this section used to owe has been done.** §P11 reads: *"External dialects
+are normalized into one internal model at the boundary, once. Nothing downstream knows there
+was more than one dialect."* The finding is that **this repository has nothing P11 governs
+today**, and that phase 1 does not change it — which is worth a paragraph rather than a
+citation, because the reason is a decision and not an absence.
 
-This document will not invent a section for it. A walk that manufactures an artifact to
-fill a row is worse than a walk with a gap in it, because the gap is actionable and the
-manufactured row is a claim nobody checked. What is owed is a reading job: open
-`00-REFERENCE-ARCHITECTURE.md` §P11, decide whether this repository is inside it, outside
-it, or has nothing it governs, and then either write the section or put a row in the
-deviation register. It is in [known gaps](#known-gaps) until somebody does.
+Phase 1 fetches the book's lab engine and runs it. It does **not** normalise it. The Python
+files are mounted into Pyodide's virtual file system in the book's own layout, byte for byte
+and digest-verified, because the external code is the thing that executes: `labkit.py`
+computes the repository root from its own path, so flattening the tree would break it at
+import. `web/content/README.md` calls that layout load-bearing and says so at the point it
+matters. Preserving a dialect exactly is the opposite of an anti-corruption layer, and
+calling it one would be the manufactured row this section was written to refuse.
+
+The LaTeX is the dialect P11 is about, and **this repository never parses it** — the master
+prompt makes that a standing constraint and
+[ADR-0008](../adr/0008-content-is-a-versioned-bundle.md) records it: the book owns its own
+dialect, and what crosses the boundary is a versioned artefact rather than source.
+
+**Phase 2a is where P11 starts applying**, and it is the first place it can: the content
+schema and its validator are the boundary, the bundle is the one internal model, and
+"nothing downstream knows there was more than one dialect" becomes a property somebody has
+to keep. When that lands, this section is rewritten with a file and a line, or a deviation
+row explains why not.
 
 ### P12 — build once, deploy many
 
@@ -414,9 +428,11 @@ book's 47 programs as a versioned bundle published on the book's own releases
 **phase 2b, real content, cannot start until the book publishes one.** It is the only
 external dependency in the plan, and it is owned by a different repository.
 
-**P11 has not been walked.** See the P11 section above. A principle that no file in this
-repository cites is either one this repository has nothing under, or one nobody has checked
-it against, and the two look identical from here.
+**P11 is walked but still not evidenced.** See the P11 section above: §P11 was read, and
+the finding is that phase 1 deliberately preserves the book's dialect rather than
+normalising it, so there is nothing here for the principle to govern yet. The gap stays
+listed because "checked and nothing governs it" and "still nothing built" are different
+sentences and only the first is now true. Phase 2a's schema is where it becomes evidence.
 
 **No ADR covers the frontend framework, the ORM or the test runner.** Next.js, EF Core and
 xUnit v3 are in the tree with their reasoning in file comments rather than in a decision

@@ -92,3 +92,20 @@ docs/papers/*.pdf
 
 ## ── Local tool state ───────────────────────────────────────────────────────────
 .last-image-tag
+
+## ── Fetched book content. web/content/book.lock.json and web/content/README.md ARE
+## committed; the tree they describe is not. ADR-0008 makes the book's lab engine a versioned
+## artefact fetched at a pinned revision, and scripts/fetch-book-content.sh verifies a
+## sha256 per file as it writes — so the reviewable artefact is the pin, and the files
+## are its output. Without this entry the claim "nothing under content/book is authored
+## here" is a request rather than a rule: seven untracked files sit in `git status` for
+## ever and the first `git add -A` makes them source. ADR-0013 explains why the directory
+## sits under web/ rather than at the repository root.
+##
+## The __pycache__ entry is not hypothetical. A local `python3 web/content/book/lab/check.py`
+## leaves four .pyc files in that tree; prepare-lab-assets.mjs copies from the lock's file
+## list rather than walking the directory precisely so a stale .pyc can never be served to
+## Pyodide, and this keeps them out of a commit as well. ────────────────────────────────
+/web/content/book/
+__pycache__/
+*.pyc

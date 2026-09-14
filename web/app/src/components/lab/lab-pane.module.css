@@ -1,0 +1,339 @@
+/*
+ * The lab pane's own styles, scoped by CSS Modules.
+ *
+ * It reuses the custom properties globals.css declares — --ink, --paper, --rule, --accent,
+ * --live, --degraded and the three type stacks — and declares no colour of its own, so the
+ * pane follows the light and dark schemes the rest of the site already answers to. Nothing
+ * here loads a font, an icon set or a stylesheet from anywhere (FRONTEND-BFF.md §1).
+ */
+
+.page {
+  /* Wider than globals.css's .shell (62rem), because at full width this page is two
+     columns of code rather than one column of prose. */
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vw, 3.5rem) clamp(1.15rem, 4vw, 2.5rem) 5rem;
+}
+
+.crumb {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+  margin: 0 0 0.5rem;
+}
+
+.title {
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+  line-height: 1.2;
+  font-weight: 400;
+  margin: 0;
+  letter-spacing: -0.012em;
+}
+
+.subtitle {
+  margin: 0.6rem 0 0;
+  max-width: var(--measure);
+  color: var(--ink-soft);
+}
+
+/*
+ * The privacy note. It is at the top rather than in the footer because it is the reason
+ * this page asks for no account, and a reader deciding whether to paste their work into a
+ * box on the internet should not have to scroll to find out where it goes.
+ */
+.privacy {
+  margin: 1.5rem 0 0;
+  padding: 0.9rem 1.15rem;
+  border-left: 3px solid var(--live);
+  background: var(--live-soft);
+  font-size: 0.95rem;
+  max-width: var(--measure);
+}
+
+.privacy p {
+  margin: 0;
+}
+
+.privacy p + p {
+  margin-top: 0.5rem;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin: 2rem 0 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.status {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  /* So the line never collapses to nothing and shift the buttons as it changes. */
+  min-height: 1.4em;
+}
+
+.statusFailed {
+  color: var(--degraded);
+}
+
+.count {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+  margin-left: auto;
+}
+
+.button {
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.45rem 1.1rem;
+  border-radius: 4px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--paper-raised);
+  cursor: pointer;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.secondary {
+  background: transparent;
+  color: var(--accent);
+}
+
+/*
+ * Mobile first: one column. The two-column arrangement is opted into at 900px, which is
+ * where two 40-character columns of monospace stop being cramped — below it the editor and
+ * the transcript stack, in that order, so a phone reader types and then scrolls to what
+ * the runner said.
+ */
+.workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+@media (min-width: 900px) {
+  .workbench {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.panelHead {
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 0.6rem;
+}
+
+/*
+ * The two panel headings are a FILE PATH and a COMMAND, so they keep their own case and
+ * their own font. Small caps on `book/lab/exercises/p01_floating_point.py` reads as a
+ * label; a reader is meant to recognise it as the path they would open on their own
+ * machine, and paths are case-sensitive.
+ */
+.panelHeadMono {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-faint);
+  margin: 0 0 0.6rem;
+  overflow-wrap: anywhere;
+}
+
+.editor {
+  width: 100%;
+  min-height: 26rem;
+  /* Tall enough to show the whole stub on a laptop, and resizable for anything longer. */
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 0.83rem;
+  line-height: 1.55;
+  tab-size: 4;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+.editor:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.transcript {
+  margin: 0;
+  min-height: 26rem;
+  max-height: 44rem;
+  overflow: auto;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper-raised);
+  font-family: var(--font-mono);
+  font-size: 0.83rem;
+  line-height: 1.55;
+  /*
+   * `pre-wrap`, not `pre`: a FAIL line carries the message that names the frames to
+   * re-read, and it is long. Wrapping it is the difference between reading it and
+   * scrolling for it. The TEXT is untouched either way — only where the glyphs fall
+   * changes, and the leading spaces the runner prints are preserved.
+   */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Colour BY PREFIX, over text that is never rewritten. The runner aligns its own output
+ * (two spaces before `todo` and `FAIL`, two before `ok` and four after it) and that
+ * alignment is its, not ours — a pane that re-rendered these lines would be a second
+ * implementation of the runner's formatting, free to disagree with it.
+ */
+.ok {
+  color: var(--live);
+}
+
+.fail {
+  color: var(--degraded);
+}
+
+.todo {
+  color: var(--ink-faint);
+}
+
+.summaryLine {
+  font-weight: 650;
+}
+
+.summary {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  margin: 0.7rem 0 0;
+  min-height: 1.4em;
+  color: var(--ink);
+}
+
+.traceback {
+  margin: 0.9rem 0 0;
+  padding: 0.75rem 0.9rem;
+  border-left: 3px solid var(--degraded);
+  background: var(--degraded-soft);
+  font-size: 0.9rem;
+}
+
+.traceback p {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-ui);
+}
+
+.traceback pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.checks {
+  margin: 2.5rem 0 0;
+}
+
+.checksIntro {
+  max-width: var(--measure);
+  color: var(--ink-soft);
+  margin: 0 0 1.25rem;
+}
+
+.checkList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.9rem;
+}
+
+@media (min-width: 900px) {
+  .checkList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem 1.5rem;
+  }
+}
+
+.check {
+  border-left: 2px solid var(--rule);
+  padding: 0.1rem 0 0.1rem 0.9rem;
+  min-width: 0;
+}
+
+.checkName {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.checkDoc {
+  margin: 0.25rem 0 0;
+  font-size: 0.93rem;
+  color: var(--ink-soft);
+  /* The docstrings are wrapped at the book's own width; re-flow them for the pane. */
+  white-space: normal;
+}
+
+.empty {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+.labList {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0 0;
+  display: grid;
+  gap: 1rem;
+  max-width: var(--measure);
+}
+
+.labCard {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  background: var(--paper-raised);
+}
+
+.labCard a {
+  font-family: var(--font-ui);
+  font-weight: 650;
+  font-size: 1.02rem;
+  text-decoration: none;
+}
+
+.labCard p {
+  margin: 0.35rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}

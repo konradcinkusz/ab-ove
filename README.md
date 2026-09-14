@@ -52,13 +52,28 @@ the reader who skims gets nothing, and paper has no way to notice.
 This repository stands at **builds, tests green, images build**. There is no running
 instance of ab-ovo, at any address, for anybody.
 
-What exists is the scaffold and one thin vertical slice through it: an API with a health
-endpoint and a service-info endpoint, a web app with a landing page and a live integration
-panel, a Playwright acceptance suite, four `fly.toml` files describing a topology that has
-never been applied, and the CI gates that would catch a regression in any of it. There is
-deliberately **no domain model yet** — no frames, no progress, no exercises in the
-database — because inventing entities ahead of the ticket that needs them produces code the
-first real ticket deletes (INIT-GENERIC-TEMPLATE.md §12).
+What exists is the scaffold, one thin vertical slice through it, and **the lab pane**: an
+API with a health endpoint and a service-info endpoint, a web app with a landing page and a
+live integration panel, a Playwright acceptance suite, four `fly.toml` files describing a
+topology that has never been applied, and the CI gates that would catch a regression in any
+of it. There is deliberately **no domain model yet** — no frames, no progress, no exercises
+in the database — because inventing entities ahead of the ticket that needs them produces
+code the first real ticket deletes (INIT-GENERIC-TEMPLATE.md §12).
+
+**Phase 1 is done and it is the first thing here that is a product rather than a
+scaffold.** `/lab/p01` runs the book's own Lab P1 — seven exercises, thirteen checks —
+against the numbers the book prints, in the reader's browser, under Pyodide. No account, no
+backend, no Python on any server, and no code leaving the machine
+([ADR-0007](docs/adr/0007-exercise-checks-are-python-in-the-browser.md)). The engine is the
+book's, fetched at a pinned revision and verified file by file
+([ADR-0008](docs/adr/0008-content-is-a-versioned-bundle.md)); the reference solutions are
+fetched so the build can prove the exercises solvable and are never served to the browser
+([ADR-0012](docs/adr/0012-solutions-are-never-served-to-the-browser.md)), which an
+acceptance test asserts in both directions.
+
+**Phase 2b is blocked and not by us.** The frame view needs the book's 47 programs as a
+versioned bundle on the book's own releases, and no such release exists yet. Phase 2a — the
+schema, the loader and the view against a fixture bundle — can proceed without it.
 
 The phase plan is in [docs/ux/UI-UX.md](docs/ux/UI-UX.md), ranked, so the first delivery
 session picks it up rather than re-deriving it.
@@ -206,13 +221,25 @@ degradation rather than failing to start (P8).
 ### Running the pieces separately
 
 ```bash
-dotnet test AbOvo.sln          # unit, in-memory integration, and the architecture rules
-pnpm --dir web install         # once
-pnpm --dir web dev             # the web app alone, no API, no container
+dotnet test AbOvo.sln              # unit, in-memory integration, and the architecture rules
+bash scripts/fetch-book-content.sh # once — the lab engine, pinned and digest-verified
+pnpm --dir web install             # once
+pnpm --dir web dev                 # the web app alone, no API, no container
 ```
 
 The last line is worth knowing: the reader loop is required to work with no backend, so the
 web app runs on its own and the integration panel simply reports that no API answered.
+
+The fetch is a **separate line rather than a step in `scripts/setup.sh`**, and that is a
+decision with a cost. `web/content/book/` is not committed — it is the book's lab engine at
+a pinned revision ([ADR-0008](docs/adr/0008-content-is-a-versioned-bundle.md),
+[ADR-0013](docs/adr/0013-the-book-lives-inside-the-web-build-context.md)) — so a fresh clone
+has no lab engine and `pnpm dev` stops in its prebuild. It stops well: the message names
+this exact command. Putting it in the onboarding script would mean writing it twice, once
+in bash and once in `scripts/setup.ps1`, and REPO-BASELINE.md §3 is emphatic that there is
+one setup script per repository and that it works on both platforms. That is worth doing
+when the fetch stops being provisional; today the bundle of phase 2 replaces it, and a
+script duplicated in two languages to serve an interim step is two things to delete.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
