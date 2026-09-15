@@ -151,13 +151,30 @@ export function RateRanking({ track, unit, bundleTag }: RateRankingProps): React
       */}
       {selection ? (
         <section className={styles.margin} aria-label="What ranking this costs">
+          {/*
+            One cell is worth its own sentence rather than the general one with a 1 in it.
+            "The worst of 1 would sit about 0.0 points below the truth" is arithmetically right
+            and reads as a rounding rather than as the fact it is — choosing the extreme of one
+            thing chooses for nothing, exactly, which is the clearest statement of what the
+            correction is for that this screen ever gets to make.
+          */}
           <p className={styles.marginBody}>
-            Ranked worst first, over {selection.ranked} {selection.ranked === 1 ? 'cell' : 'cells'}.
-            Sorting selects for whichever estimate the noise pushed furthest, so even if every cell
-            were equally good the worst of {selection.ranked} would sit about{' '}
-            <strong>{selection.points.toFixed(1)} points</strong> below the truth —{' '}
-            {selection.standardErrors.toFixed(2)} standard errors. Read the order as a place to
-            look, never as a verdict.
+            {selection.ranked === 1 ? (
+              <>
+                One cell, so this list is not yet a ranking: choosing the extreme of one thing
+                chooses for nothing, and the correction below is <strong>exactly zero</strong>.
+                Everything the interval says still applies.
+              </>
+            ) : (
+              <>
+                Ranked worst first, over {selection.ranked} cells. Sorting selects for whichever
+                estimate the noise pushed furthest, so even if every cell were equally good the
+                worst of {selection.ranked} would sit about{' '}
+                <strong>{selection.points.toFixed(1)} points</strong> below the truth —{' '}
+                {selection.standardErrors.toFixed(2)} standard errors. Read the order as a place to
+                look, never as a verdict.
+              </>
+            )}
           </p>
         </section>
       ) : null}
