@@ -67,10 +67,11 @@ publicApi.MapSystemEndpoints();
 authApi.MapProgressEndpoints();
 openWriteApi.MapOutcomeEndpoints();
 
-// adminApi carries no endpoint yet. It is declared here rather than when the first one
-// arrives, because the triad is what a reviewer greps for: a group that does not exist
-// cannot be seen to be missing (SERVICE-API-PATTERNS.md §2).
-_ = adminApi;
+// The instrument's read, and the admin group's first endpoint. Nothing on it is about a
+// reader, so the gate is not a confidentiality one — it is that a thin ranked list misleads
+// its reader, and the author's view carries the sentence that says so where a public JSON
+// endpoint would carry nothing (ADR-0024 §4, issue #17).
+adminApi.MapRateEndpoints();
 
 app.LogIntegrationBanner();
 

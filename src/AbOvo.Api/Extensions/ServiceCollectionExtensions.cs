@@ -23,7 +23,12 @@ public static class ServiceCollectionExtensions
             // registered HERE, in the composition root, because that is where a reviewer
             // greps for what this service does (P9) — and because the kernel may not know
             // the entity it is about.
-            options => options.AddInterceptors(ReaderScopedQueries.Instance));
+            // And its mirror over the outcomes table: a query that does not pin one
+            // bundle tag spans two wordings of a frame, so its answer is an average
+            // over two texts. ADR-0024; issue #16.
+            options => options.AddInterceptors(
+                ReaderScopedQueries.Instance,
+                BundlePinnedQueries.Instance));
 
         // P4 — schema by MigrateAsync, in a hosted service, after Kestrel starts, so probes
         // answer while schema work is in flight and a slow migration is not read as a

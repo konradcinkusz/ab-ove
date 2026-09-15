@@ -14,4 +14,6 @@ public static class EndpointNames
     public const string DeleteProgress = "DeleteProgress";
 
     public const string PostOutcomes = "PostOutcomes";
+
+    public const string GetRates = "GetRates";
 }
