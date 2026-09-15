@@ -173,3 +173,83 @@ test('anything that is not a document at all is refused', () => {
     assert.equal(readRates(value), null, `${JSON.stringify(value)} was accepted`);
   }
 });
+
+// ── The selection margin: required exactly when there is a list ─────────────────────────
+
+test('the contract carries the margin its ranking would cost', () => {
+  // Issue #17's caveat is a number and not a slogan, so it travels on the wire with the rows
+  // it is about. A document that carried rows and no margin would render as a ranked table
+  // with nothing beside it, which is the one outcome the issue is written against.
+  const { selection } = readRates(sample())!;
+
+  assert.notEqual(selection, null, 'the C# side sent cells with no selection margin');
+  assert.equal(selection!.ranked, 1);
+
+  // One cell, so the ranking chooses from one thing and selects for nothing.
+  assert.equal(selection!.standardErrors, 0);
+  assert.equal(selection!.points, 0);
+});
+
+test('cells with no margin are refused', () => {
+  for (const missing of [undefined, null]) {
+    const document = sample();
+    if (missing === undefined) delete document['selection'];
+    else document['selection'] = null;
+
+    assert.equal(
+      readRates(document),
+      null,
+      `cells with selection = ${String(missing)} were accepted`,
+    );
+  }
+});
+
+test('a margin missing any of its three fields is refused', () => {
+  for (const field of ['ranked', 'standardErrors', 'points']) {
+    const document = sample();
+    delete (document['selection'] as Record<string, unknown>)[field];
+
+    assert.equal(readRates(document), null, `a margin without "${field}" was accepted`);
+  }
+});
+
+test('a margin whose numbers cannot mean what they say is refused', () => {
+  // Not type checks — these all parse. They are refused because of what they would claim: a
+  // ranking of no rows, or a correction saying that sorting a list makes its extreme look
+  // BETTER than the truth, which is the opposite of what selection does.
+  const impossible: [string, unknown][] = [
+    ['ranked', 0],
+    ['ranked', -3],
+    ['standardErrors', -0.1],
+    ['points', -1],
+    ['standardErrors', Number.NaN],
+    ['points', Number.POSITIVE_INFINITY],
+  ];
+
+  for (const [field, value] of impossible) {
+    const document = sample();
+    (document['selection'] as Record<string, unknown>)[field] = value;
+
+    assert.equal(readRates(document), null, `${field} = ${String(value)} was accepted`);
+  }
+});
+
+test('a margin beside NO cells is refused, and its absence there is not', () => {
+  const empty = (): Record<string, unknown> => ({
+    bundleTag: 'fixture-0',
+    track: 'math-for-ai-engineers',
+    unit: 'P02',
+    cells: [],
+  });
+
+  // Absent, and explicitly null, both mean "there is no list". Both are answers.
+  assert.notEqual(readRates(empty()), null);
+  assert.notEqual(readRates({ ...empty(), selection: null }), null);
+  assert.equal(readRates(empty())!.selection, null);
+
+  // Present is not: a correction for a ranking of no rows is a number about nothing.
+  assert.equal(
+    readRates({ ...empty(), selection: { ranked: 1, standardErrors: 0, points: 0 } }),
+    null,
+  );
+});

@@ -1,0 +1,77 @@
+/*
+ * The instrument's pages.
+ *
+ * Set at the reading measure like every other page in this product, and deliberately NOT as
+ * a dashboard: a dense grid of numbers is read as a status board, and the one thing issue
+ * #17 asks is that this not be read as a verdict. Prose width, prose weight, one number per
+ * line.
+ */
+
+.page {
+  margin: 0 auto;
+  max-width: var(--measure);
+  padding: 3rem 1.25rem 5rem;
+}
+
+.crumb {
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  margin: 0 0 1.5rem;
+}
+
+.title {
+  font-size: 1.75rem;
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+
+.subtitle {
+  color: var(--ink-soft);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.antiGoal {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  margin: 1.75rem 0 0;
+  padding: 1rem 1.125rem;
+}
+
+.antiGoal p {
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.units {
+  list-style: none;
+  margin: 2rem 0 0;
+  padding: 0;
+}
+
+.unit {
+  border-top: 1px solid var(--rule);
+  display: flex;
+  flex-wrap: wrap;
+  font-family: var(--font-ui);
+  gap: 0.5rem 0.875rem;
+  padding: 0.875rem 0;
+}
+
+.unitTitle {
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
+.tag {
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  margin-left: auto;
+}

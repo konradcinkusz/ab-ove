@@ -191,6 +191,33 @@ widened.
 An anti-goal that exists only as prose is a request. One the architecture cannot express is
 a rule.
 
+**And the one screen that ranks anything says what the ranking cost** (#17). The author's
+view lists a unit's frames worst first, each carrying its own interval and its own checks,
+with a frame's place decided by its **worst cell** rather than by an average of them — an
+average would need an interval, and the only place one could come from is a pooled rate the
+data cannot support. Above the list is a number rather than a disclaimer: sorting selects for
+whichever estimate the noise pushed furthest, so the extreme of `m` equally-good cells sits
+beyond the truth by `E[max of m]` standard errors. That is Program P27 §5's own arithmetic,
+and it needs an error function .NET does not have — `Math.Erf` and `double.Erf` both fail to
+compile here, measured with `Math.Sqrt` as the control in the same probe.
+
+Against every row whose interval is not disjoint from the row below it, the screen says
+*early, not wrong* — in those words, because issue #17 specifies them and gives the reason: an
+author who reads an early list as a verdict rewrites a frame that was fine and leaves one that
+is not. On thin data that is every row, which is correct and is what an early list is.
+
+**The routine that supplies all of it was refuted by its own gate, and not where it was
+expected to be.** The first implementation was the standard seven-term rational, chosen
+because the page prints two decimals and it is good to seven. It reproduced *both* of the
+book's committed figures at printed precision and failed *both* of the book's own closed-form
+self-checks — so the figures the screen shows would have accepted a routine the book would
+not. What replaced it is within about four ulp of a correctly rounded
+error function over the whole range anything here asks for — measured against one, because the
+first draft of its own comment claimed "exact to the last bit" and that was not true either —
+and
+[ADR-0025](docs/adr/0025-a-frames-place-is-its-worst-cell-and-the-sort-says-what-it-cost.md)
+records the measurement rather than the conclusion.
+
 The reasoning behind all of it, in the form the guide asks for — which metric is
 pressurable, what its degenerate strategy is, which counter-metric catches it, what
 confidence means here, and what the unit of evaluation is — is
