@@ -63,10 +63,20 @@ export const SIGN_IN_PROBLEMS = {
       'The password was correct. Signing in with an authenticator code is not built here yet, so there is no way through this screen for that account — everything except cross-machine progress works without signing in at all.',
     retryable: false,
   },
+  /**
+   * WORDED TO BE TRUE UNDER BOTH CONFIGURATIONS, which is the only reason it says "an
+   * address" rather than naming one. authservice rate-limits by the address it sees. With
+   * `AB_OVO_TRUST_PROXY_CLIENT_IP` off that address is this server's, so the bucket is
+   * shared by every reader at once; with it on it is the reader's own, and is still shared
+   * with anyone behind the same network. The previous wording said the limit "counts
+   * attempts from this server rather than from you" — true today, and false on a Fly
+   * deployment the moment the flag is turned on, which is a sentence that would have gone
+   * quietly wrong rather than visibly.
+   */
   'rate-limited': {
     title: 'Too many sign-in attempts have been made recently.',
     detail:
-      'The identity service is refusing new attempts for a minute or so. This limit counts attempts from this server rather than from you, so it can be reached by someone else.',
+      'The identity service is refusing new attempts for a minute or so. The limit counts an address rather than an account, so you can meet it on your first attempt — someone else on the same network, or using this site at the same time, may have spent it.',
     retryable: false,
   },
   unavailable: {

@@ -1,4 +1,5 @@
 import { backendCandidates } from './backends.ts';
+import { clientIpHeader } from './client-ip.ts';
 
 /**
  * Sign-in against authservice, from the server side only.
@@ -178,6 +179,7 @@ export async function signIn(
   email: string,
   password: string,
   fetchImpl: FetchLike = fetch,
+  readerAddress: string | null = null,
 ): Promise<SignInOutcome> {
   const candidates = backendCandidates('authservice');
   let last: SignInOutcome = { kind: 'unavailable', reason: 'no identity service is configured' };
@@ -189,7 +191,24 @@ export async function signIn(
     try {
       const response = await fetchImpl(`${base}${LOGIN_PATH}`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          accept: 'application/json',
+          /*
+           * THE READER'S ADDRESS, WHEN THIS DEPLOYMENT HAS ONE IT TRUSTS.
+           *
+           * authservice partitions its sign-in rate limit on this header and has no trust
+           * flag of its own, so whatever arrives here is what it buckets on. `readerAddress`
+           * is what decides whether there is anything worth sending — see `client-ip.ts`,
+           * which will not forward a client-supplied value, because every visitor picking
+           * their own partition is strictly worse than one shared bucket.
+           *
+           * Absent is the configured answer rather than a failure: authservice then falls
+           * through to the socket peer, which is this web machine, and the bucket is per
+           * machine. That is what every deployment did before this header existed.
+           */
+          ...(readerAddress === null ? {} : { [clientIpHeader()]: readerAddress }),
+        },
         body: JSON.stringify({ email, password }),
         // A redirect is not part of this contract, and following one would post the
         // credentials to an address nobody chose.

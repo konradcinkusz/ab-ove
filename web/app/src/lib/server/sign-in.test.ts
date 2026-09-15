@@ -247,3 +247,84 @@ test('the credentials are sent as JSON, and nothing else goes with them', async 
   // A redirect would post the credentials to an address nobody chose.
   assert.equal(sent?.redirect, 'manual');
 });
+
+/**
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * THE READER'S ADDRESS (#31).
+ *
+ * `signIn` does not decide whether to forward one — `client-ip.ts` does, and its own tests
+ * cover the deciding. What is asserted here is the other half: that the decision reaches the
+ * wire under the name both ends agreed on, and that "no address" sends NO HEADER rather than
+ * an empty one.
+ *
+ * The distinction is not cosmetic. authservice's `ResolveClientIp` falls through to the
+ * socket peer only when the header is absent or blank, so an empty header happens to work
+ * today — and it says this side had an opinion it does not have, which is the kind of thing
+ * that survives into a version that reads it differently.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
+
+/** Runs `body` with one environment variable set, and puts it back however it started. */
+async function withEnv(name: string, value: string | undefined, body: () => Promise<void>) {
+  const previous = process.env[name];
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+  try {
+    await body();
+  } finally {
+    if (previous === undefined) delete process.env[name];
+    else process.env[name] = previous;
+  }
+}
+
+/** The headers of one call, lower-cased, so an assertion cannot pass on a casing accident. */
+function headersOf(init: RequestInit | undefined): Record<string, string> {
+  const raw = (init?.headers ?? {}) as Record<string, string>;
+  return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k.toLowerCase(), v]));
+}
+
+test("the reader's address travels under the header both ends name", async () => {
+  let sent: RequestInit | undefined;
+  const fetchImpl: FetchLike = async (_input, init) => {
+    sent = init;
+    return json(200, TOKENS);
+  };
+
+  await withEnv('AB_OVO_CLIENT_IP_HEADER', undefined, async () => {
+    await signIn('reader@example.test', 'correct horse', fetchImpl, '203.0.113.7');
+  });
+
+  assert.equal(headersOf(sent)['fly-client-ip'], '203.0.113.7');
+});
+
+test('no address sends no header, rather than an empty one', async () => {
+  let sent: RequestInit | undefined;
+  const fetchImpl: FetchLike = async (_input, init) => {
+    sent = init;
+    return json(200, TOKENS);
+  };
+
+  await signIn('reader@example.test', 'correct horse', fetchImpl, null);
+
+  const headers = headersOf(sent);
+  assert.equal(Object.hasOwn(headers, 'fly-client-ip'), false);
+  // The default argument is the same thing said a second way: every caller that predates #31
+  // still sends nothing, and there is no path on which an undeclared address becomes a header.
+  assert.deepEqual(Object.keys(headers).sort(), ['accept', 'content-type']);
+});
+
+test('the header name follows the configuration, so a renamed one is not hard-coded here', async () => {
+  let sent: RequestInit | undefined;
+  const fetchImpl: FetchLike = async (_input, init) => {
+    sent = init;
+    return json(200, TOKENS);
+  };
+
+  await withEnv('AB_OVO_CLIENT_IP_HEADER', 'X-Forwarded-For', async () => {
+    await signIn('reader@example.test', 'correct horse', fetchImpl, '198.51.100.4');
+  });
+
+  const headers = headersOf(sent);
+  assert.equal(headers['x-forwarded-for'], '198.51.100.4');
+  assert.equal(Object.hasOwn(headers, 'fly-client-ip'), false);
+});

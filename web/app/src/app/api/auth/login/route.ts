@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { backendConfigured } from '@/lib/server/backends';
+import { readerAddress } from '@/lib/server/client-ip';
 import { isSameOrigin } from '@/lib/server/same-origin';
 import { establishSession } from '@/lib/server/session';
 import { signIn, type SignInOutcome } from '@/lib/server/sign-in';
@@ -195,7 +196,18 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   if (!credentials.email || !credentials.password) return fail('incomplete');
 
-  const outcome = await signIn(credentials.email, credentials.password);
+  /*
+   * The reader's own address goes with the credentials, so authservice's rate limit is theirs
+   * rather than everybody's. `readerAddress` returns null unless this deployment has said a
+   * proxy is in front of it — see `client-ip.ts` for why forwarding a client-supplied header
+   * would be worse than forwarding nothing.
+   */
+  const outcome = await signIn(
+    credentials.email,
+    credentials.password,
+    fetch,
+    readerAddress(request),
+  );
   if (outcome.kind !== 'signed-in') return fail(problemFor(outcome));
 
   /**

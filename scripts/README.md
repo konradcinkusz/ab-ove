@@ -126,6 +126,17 @@ not fail — it silently picks the other behaviour.**
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
 | `AB_OVO_AUTH_PUBLIC_URL` | the server-side address is reused |
 | `AB_OVO_JWT_ISSUER`, `AB_OVO_JWT_AUDIENCE` | `AbOvo` |
+| `AB_OVO_TRUST_PROXY_CLIENT_IP` | `false` — the BFF forwards no address, and authservice buckets its sign-in limit per web machine |
+| `AB_OVO_CLIENT_IP_HEADER` | `Fly-Client-IP` — **must equal `Network__ClientIpHeader` on authservice** |
+
+The last two are the web side of the pair above them, and the two halves of the table now
+describe two different limiters: `Network__*` is this estate's own, in
+`ServiceDefaults/ClientIdentity.cs`; `AB_OVO_*` is what the BFF forwards to authservice's,
+which it otherwise reaches as a single client. Both default to the safe answer — one shared
+bucket — because a header is a claim and forwarding an unverified one lets a caller choose
+the partition it is limited in. `flyio/web.fly.toml` carries the reasoning and
+`fly-config-agrees.test.ts` asserts the two file names still match, which is the one thing
+about this that fails silently.
 
 ### secret
 
