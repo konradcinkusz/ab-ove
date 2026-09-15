@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { AccountControl } from '@/components/account/account-control';
 import { say, sectionSpans } from '@/lib/content/bundle';
 import type { Bundle } from '@/lib/content/schema';
 
@@ -70,6 +71,14 @@ export function ProgramList({ bundles }: ProgramListProps): React.JSX.Element {
         <span className={styles.crumbEnd}>
           <ResumeLast language={chrome.language} limits={limits} />
           <ForgetProgress language={chrome.language} />
+          {/*
+            The index is the only page that offers an account, and that is a decision about
+            where furniture belongs rather than an omission. Every page under this one is a
+            frame, and a frame is the one screen in the product that should carry nothing
+            but the frame — a sign-out control beside the question is chrome competing with
+            the thing the reader is meant to be committing an answer to.
+          */}
+          <AccountControl language={chrome.language} />
         </span>
       </p>
 

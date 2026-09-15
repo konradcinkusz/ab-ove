@@ -8,4 +8,8 @@ namespace AbOvo.Api.Endpoints;
 public static class EndpointNames
 {
     public const string GetServiceInfo = "GetServiceInfo";
+
+    public const string GetProgress = "GetProgress";
+    public const string PutProgress = "PutProgress";
+    public const string DeleteProgress = "DeleteProgress";
 }

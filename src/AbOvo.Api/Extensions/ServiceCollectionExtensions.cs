@@ -1,5 +1,6 @@
 using AbOvo.Api.Persistence;
 using AbOvo.ServiceDefaults;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AbOvo.Api.Extensions;
 
@@ -19,6 +20,12 @@ public static class ServiceCollectionExtensions
         // answer while schema work is in flight and a slow migration is not read as a
         // failed deploy.
         services.AddDatabaseMigration<AbOvoDbContext>();
+
+        // The clock, injected rather than read from a static. `DateTimeOffset.UtcNow` inside
+        // a handler is a dependency that cannot be substituted, and the first thing that
+        // wants to substitute it is a test asserting that a write which changed nothing also
+        // left `UpdatedAt` alone. TimeProvider.System is the real one everywhere else.
+        services.TryAddSingleton(TimeProvider.System);
 
         return services;
     }

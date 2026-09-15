@@ -48,6 +48,11 @@ interface Strings {
   readonly answer: string;
   readonly keys: string;
   readonly forget: string;
+  readonly signIn: string;
+  readonly signOut: string;
+  /** The conflict rule, said where the conflict happened. See `raised-notice.tsx`. */
+  readonly raised: (unit: string, step: number) => string;
+  readonly dismiss: string;
   readonly cue: string;
   readonly reveal: string;
   readonly next: string;
@@ -82,6 +87,11 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     answer: 'Answer',
     keys: '→ next frame · ← back',
     forget: 'Forget where I am',
+    signIn: 'Sign in',
+    signOut: 'Sign out',
+    raised: (unit, step) =>
+      `${unit} moved to frame ${step}, read on another device. The furthest frame wins.`,
+    dismiss: 'Got it',
     cue: 'The next frame answers this.',
     reveal: 'Reveal the answer',
     next: 'Next frame',
@@ -101,6 +111,11 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     answer: 'Odpowiedź',
     keys: '→ kolejna ramka · ← wstecz',
     forget: 'Zapomnij, gdzie jestem',
+    signIn: 'Zaloguj się',
+    signOut: 'Wyloguj się',
+    raised: (unit, step) =>
+      `${unit} przesunięto do ramki ${step}, czytanej na innym urządzeniu. Wygrywa najdalsza ramka.`,
+    dismiss: 'Rozumiem',
     cue: 'Odpowiedź znajdziesz w kolejnej ramce.',
     reveal: 'Pokaż odpowiedź',
     next: 'Kolejna ramka',
@@ -138,6 +153,10 @@ export interface Chrome {
   readonly answer: string;
   readonly keys: string;
   readonly forget: string;
+  readonly signIn: string;
+  readonly signOut: string;
+  readonly raised: (unit: string, step: number) => string;
+  readonly dismiss: string;
   readonly cue: string;
   readonly reveal: string;
   readonly next: string;

@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useSyncExternalStore } from 'react';
 
 import { chromeFor } from '@/lib/i18n/chrome';
-import { forgetAll, serverSnapshot, snapshot, subscribe } from '@/lib/progress/client';
+import { serverSnapshot, snapshot, subscribe } from '@/lib/progress/client';
+import { forgetEverywhere } from '@/lib/progress/sync';
 import { positionIn } from '@/lib/progress/store';
 
 import styles from './resume.module.css';
@@ -119,9 +120,19 @@ export function ResumeHere({
  * guarding it would cost every reader a click to protect against something that repairs
  * itself.
  *
- * That argument is about the CURRENT record and it stops holding the moment the record
- * holds anything a reader cannot trivially rebuild — which is phase 3.3's synchronisation
- * (#11) and phase 3.5's deletion (#13). Whoever widens the record reopens this question.
+ * THAT ARGUMENT ENDED WITH #11, AND THE ANSWER SURVIVED IT FOR A DIFFERENT REASON. The
+ * paragraph above used to say the question reopens "the moment the record holds anything a
+ * reader cannot trivially rebuild — which is phase 3.3's synchronisation (#11)". It does,
+ * and it did: `forgetEverywhere` now destroys the ACCOUNT copy as well, so what goes is a
+ * second machine's position too, and reading one frame does not bring it back.
+ *
+ * It still has no confirmation, and the reason has changed rather than survived. This is
+ * now the only control that makes the product forget a reader — the local half of what
+ * account deletion (#13) owes at the account level — and a destructive control behind a
+ * modal is a privacy control that is measurably less used. What it destroys is still a
+ * frame number and a language tag per program: no note, no answer, no history, because
+ * ADR-0009 §1 keeps the record too thin to be worth anything else. The day that stops
+ * being true, this question reopens again.
  *
  * It is rendered only when there is something to forget, so a reader with no record is not
  * offered a control that does nothing — and it is at the end of the crumb row rather than
@@ -136,7 +147,20 @@ export function ForgetProgress({ language }: { readonly language: string }): Rea
   if (!has) return null;
 
   return (
-    <button className={styles.forget} lang={chrome.language} onClick={forgetAll} type="button">
+    <button
+      className={styles.forget}
+      lang={chrome.language}
+      /*
+        Fire and forget, deliberately. The local record is gone the instant this returns
+        and the control disappears with it; the account copy is the network's problem, and
+        `forgetEverywhere` leaves a marker that blocks the next PULL until the account has
+        actually been told — so a DELETE that does not land cannot resurrect what the
+        reader just watched disappear. Awaiting it here would only mean a spinner over a
+        deletion that has already happened as far as this browser is concerned.
+      */
+      onClick={() => void forgetEverywhere()}
+      type="button"
+    >
       {chrome.forget}
     </button>
   );

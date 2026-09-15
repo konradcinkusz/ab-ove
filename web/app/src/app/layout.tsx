@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 
+import { ProgressSync } from '@/components/sync/progress-sync';
+
 import './globals.css';
 
 /**
@@ -33,7 +35,28 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>): React.JSX.Element {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        {/*
+          Synchronisation runs from the ROOT layout, for two reasons that pull the same way.
+
+          A conflict does not happen on a page a reader navigates to — it happens when a
+          sync lands, on whatever page they are looking at — so the notice it renders has
+          to be reachable from every one of them (#11: "on the screen where the conflict
+          happens"). And a layout is not remounted by a soft navigation, so a reader moving
+          between frames keeps ONE subscriber and one debounce timer instead of acquiring a
+          pair per page and firing a cycle on every frame turn.
+
+          It renders nothing at all unless a position moved under the reader, and what it
+          does render is `position: fixed` — so a page with no conflict is byte-identical to
+          one built without it, and a page with one does not move when it arrives.
+
+          It is last in the body so the reading content is the first thing in the document
+          order for a screen reader, and so a notice that IS rendered comes after the page
+          it is about rather than before it.
+        */}
+        <ProgressSync />
+      </body>
     </html>
   );
 }

@@ -45,11 +45,11 @@ var adminApi = app.MapGroup("/api/v1/admin").WithTags("admin")
     .RequireRateLimiting(RateLimitPolicies.Api);
 
 publicApi.MapSystemEndpoints();
+authApi.MapProgressEndpoints();
 
-// authApi and adminApi carry no endpoint yet. They are declared here rather than when the
-// first one arrives, because the triad is what a reviewer greps for: a group that does not
-// exist cannot be seen to be missing (SERVICE-API-PATTERNS.md §2).
-_ = authApi;
+// adminApi carries no endpoint yet. It is declared here rather than when the first one
+// arrives, because the triad is what a reviewer greps for: a group that does not exist
+// cannot be seen to be missing (SERVICE-API-PATTERNS.md §2).
 _ = adminApi;
 
 app.LogIntegrationBanner();

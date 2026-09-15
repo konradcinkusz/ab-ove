@@ -1,0 +1,66 @@
+/*
+ * The conflict notice.
+ *
+ * FIXED, because it appears after a network round trip and anything in the flow would push
+ * the page down under a reader who is mid-frame — the shift `specs/reading.spec.ts` bounds.
+ * A fixed element takes part in no layout, so it can arrive at any moment and move nothing.
+ *
+ * Bottom-left rather than top-right: the top of every page here is the crumb row, which is
+ * where the resume control it is talking about lives, and a notice over the top of that
+ * control would obscure the thing it is about. The bottom of a reading column is empty.
+ */
+.notice {
+  align-items: baseline;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  bottom: 1rem;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 12%);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  left: 1rem;
+  max-width: min(34rem, calc(100vw - 2rem));
+  padding: 0.6rem 0.9rem;
+  position: fixed;
+  z-index: 10;
+}
+
+.lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.line {
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.line + .line {
+  margin-top: 0.3rem;
+}
+
+/*
+ * It dismisses a notice; it does not undo anything and it does not go anywhere. Quiet, and
+ * still a <button>, for the reason resume.module.css gives about the forget control.
+ */
+.dismiss {
+  background: none;
+  border: 0;
+  color: var(--ink-faint);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  margin-left: auto;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.dismiss:hover,
+.dismiss:focus-visible {
+  color: var(--ink);
+  text-decoration-style: solid;
+}
