@@ -58,6 +58,38 @@ primary_region = "waw"                       # ADR-0002
   AB_OVO_API_URL  = "https://ab-ovo-api-dev.fly.dev"
   AB_OVO_AUTH_URL = "https://ab-ovo-authservice-dev.fly.dev"
 
+  # ─────────────────────────────────────────────────────────────────────────────────
+  # THE READER'S OWN ADDRESS, FORWARDED TO authservice SO ITS RATE LIMIT IS THEIRS.
+  #
+  # authservice limits sign-in attempts per address. Every request reaching it from
+  # this container has ONE peer — this container — so without these two variables
+  # every reader on the deployment shares a single bucket, and one person retyping a
+  # password locks out everybody. That is the same failure this file's sibling
+  # describes at Network__ClientIpHeader, one hop further out: it fails silently,
+  # because the limiter works perfectly on the key it was given.
+  #
+  # WHY IT IS A FLAG AND WHY IT DEFAULTS OFF. A header is a claim, not an observation.
+  # Forwarding one unconditionally would let anybody choose the bucket they are
+  # limited in by sending their own Fly-Client-IP, which is STRICTLY WORSE than the
+  # shared bucket it replaces: the shared bucket is at least a limit. The flag is the
+  # deployment asserting that a proxy it trusts overwrites the header on the way in —
+  # which Fly's does, on every request, so a value from the public internet cannot
+  # survive to be read here. Anywhere without such a proxy leaves this unset and gets
+  # one bucket, which is correct rather than degraded. P5: the value is named here and
+  # read from the environment; the code carries no default that turns it on.
+  #
+  # AB_OVO_CLIENT_IP_HEADER MUST EQUAL Network__ClientIpHeader IN
+  # flyio/authservice.fly.toml. Two names that disagree are two half-working halves:
+  # this side would send a header authservice does not read, and authservice would
+  # read one nothing sends, leaving the shared bucket in place with both files looking
+  # configured. `fly-config-agrees.test.ts` parses both files and asserts
+  # the pair, because nothing about a deployment reports a silent agreement failure.
+  #
+  # Not NEXT_PUBLIC_*, for the reason the block above gives — and additionally because
+  # a reader's address is not a thing to inline into a bundle.
+  AB_OVO_TRUST_PROXY_CLIENT_IP = "true"
+  AB_OVO_CLIENT_IP_HEADER      = "Fly-Client-IP"
+
   # AB_OVO_AUTH_PUBLIC_URL is deliberately absent. `publicAuthBaseUrl()` falls back to
   # AB_OVO_AUTH_URL when that is already a public address, which it is here, and a
   # second variable carrying the same string is a second place for it to go stale.
