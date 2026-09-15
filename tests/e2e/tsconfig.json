@@ -29,8 +29,28 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true
+    "noEmit": true,
+
+    "allowImportingTsExtensions": true
   },
-  "include": ["specs/**/*.ts", "playwright.config.ts"],
+
+  "//allowImportingTsExtensions": [
+    "Documented up here and not beside the option, because `compilerOptions` rejects an",
+    "unknown key and a `//` inside it fails the typecheck with TS5025 — measured.",
+    "",
+    "The specs import `../fixtures/accounts.mts` WITH its extension, and that is the real",
+    "runtime path rather than a compiler convenience: Playwright transpiles the spec and",
+    "Node runs the fixture server under --experimental-strip-types, and both resolve the",
+    "file by the name written here. TypeScript permits the option only alongside `noEmit`,",
+    "which this package already sets because nothing here is built."
+  ],
+
+  "//include": [
+    "`fixtures/` is in the list because it was not, and a fixture nothing typechecks is the",
+    "one place in this package where a type error survives to run time: the server is",
+    "started by Playwright as a subprocess, so its failure would arrive as a webServer that",
+    "never answered rather than as a compiler error."
+  ],
+  "include": ["specs/**/*.ts", "fixtures/**/*.mts", "playwright.config.ts"],
   "exclude": ["node_modules", "playwright-report", "test-results"]
 }

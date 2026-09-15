@@ -459,6 +459,32 @@ jobs:
         if: github.event_name == 'push'
         run: pnpm --dir tests/e2e run test:full
 
+      # ─────────────────────────────────────────────────────────────────────────────────
+      # THE SIGNED-IN PATH (issue #29), on BOTH events rather than one.
+      #
+      # Everything above runs against a web app with no identity service, because that is
+      # what this job could start. The four things a signed-in reader depends on — a form
+      # post answered with two cookies, their attributes, session rehydration, and the
+      # middleware opening a gated page — were measured by hand once (docs/adr/0018) and
+      # were evidence about one afternoon.
+      #
+      # This project starts a fixture (tests/e2e/fixtures/authservice-stub.mts) and a
+      # SECOND web app pointed at it. It is seven tests and about eight seconds, so it runs
+      # on a pull request as well as on a push: a gate that only runs after merge tells you
+      # about a commit you can no longer decline.
+      #
+      # It is a separate step rather than `--project=identity` on the two above, because
+      # the project exists only when this config is starting the servers — see
+      # tests/e2e/playwright.config.ts and the note in tests/e2e/package.json.
+      #
+      # WHAT IT DOES NOT PROVE: the fixture and the code that reads it agree by
+      # construction, so a green run here is not evidence that authservice still answers
+      # this way. That half is web/app/src/lib/server/sign-in.test.ts, written from
+      # authservice's own source. Issue #29 says so and does not close it.
+      # ─────────────────────────────────────────────────────────────────────────────────
+      - name: Run the identity layer
+        run: pnpm --dir tests/e2e run test:identity
+
       # trace: 'on-first-retry' and screenshot/video on failure are the harness defaults
       # TESTING-STRATEGY.md §5 prescribes, and they are worth nothing if the report never
       # leaves the runner. Uploaded only on failure: a green run's trace is bytes nobody
