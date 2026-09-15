@@ -94,8 +94,15 @@ failed deploy. It applies migrations and seeds nothing.
 InMemory whatever the provider says**. `EnsureCreated` exists on exactly one path, the
 InMemory one, and the file says so where it happens.
 
-There are no migrations in the tree yet, because there are no entities yet. See
-[known gaps](#known-gaps).
+`src/AbOvo.Api/Persistence/Migrations/` holds the first migration, `AddReaderProgress`,
+and `DesignTimeDbContextFactory` exists because the runtime provider is a configuration
+switch: without it `ef migrations add` builds the host, gets InMemory, and reports that the
+context does not support migrations. **They are PostgreSQL migrations, and that is not a
+formality** — `MigrationBuilder` looks provider-agnostic and bakes the column types in at
+generation time, so `character varying(64)` and `timestamp with time zone` are in the
+generated SQL. `DATABASE_PROVIDER=SqlServer` therefore has no migrations; the folder's own
+README records what supporting it would cost, and why a second untested set is worse than
+the option written down.
 
 ### P5 — this service validates tokens and mints nothing
 
@@ -466,16 +473,21 @@ root secrets in `flyio/SECRETS.md` has been set. The repository stands at *build
 green, images build*. Every statement in this document about the deployed system is a
 statement about a file.
 
-**There is no domain model, by design.** `AbOvoDbContext` declares no entity and there are
-no migrations. INIT-GENERIC-TEMPLATE.md §12: the template ships the mechanism and one thin
-vertical slice, and inventing entities for a product nobody has specified produces code the
-first ticket deletes. The mechanism — provider selection, retry, migration-after-Kestrel,
-the health check — is wired and proven by tests; the first entities arrive with the ticket
-that needs them, each with its own migration.
+**The domain model is one table, and the anti-goal is now a rule rather than an absence.**
+`AbOvoDbContext` declared no entity until #11; it now declares `ReaderProgress`, with the
+first migration beside it. INIT-GENERIC-TEMPLATE.md §12 is why it took that long — the
+template ships the mechanism and one thin vertical slice, and inventing entities for a
+product nobody has specified produces code the first ticket deletes.
 
-This gap is load-bearing for the anti-goal in the README: the claim that there is no table
-from which a per-reader score could be built is currently true because there are no tables.
-It becomes a rule somebody has to keep the day the first migration lands.
+That paragraph used to say the README's anti-goal was true *because there are no tables*,
+and that it "becomes a rule somebody has to keep the day the first migration lands." **That
+day has come.** The rule is kept in the shape of the table rather than in a policy: the
+primary key is `(Subject, Track, Unit)` so the subject leads every index, there is one row
+per reader per program, and there is **no outcome, no score, no duration and no history** —
+only where a reader is, in which edition, and when that last moved. Aggregating it would
+mean counting rows, which says how far readers have got and nothing about whether they were
+right. [ADR-0009](../adr/0009-the-instrument-measures-the-book.md) §1 and issue #12 are the
+gate; [ADR-0019](../adr/0019-furthest-frame-wins.md) records the schema decision.
 
 **The content bundle does not exist, and this blocks phase 2b.** The frame view needs the
 book's 47 programs as a versioned bundle published on the book's own releases
