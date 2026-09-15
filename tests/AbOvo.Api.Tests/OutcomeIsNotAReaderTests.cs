@@ -25,9 +25,21 @@ namespace AbOvo.Api.Tests;
 /// </summary>
 public sealed class OutcomeIsNotAReaderTests
 {
+    /// <summary>
+    /// The tag every report in this file is written under, and the one every read below pins.
+    ///
+    /// <para>
+    /// Named rather than repeated because <c>BundlePinnedQueries</c> refuses a read that does
+    /// not pin one — and it refused all three of these on its first run, which is the guard
+    /// working rather than a nuisance. Only one tag is ever written here, so pinning it
+    /// changes nothing these tests assert; what it changes is that they now say so.
+    /// </para>
+    /// </summary>
+    private const string Tag = "fixture-0";
+
     private static OutcomeReport Report(int step = 7, int attempt = 1, bool passed = true) => new()
     {
-        BundleTag = "fixture-0",
+        BundleTag = Tag,
         Track = "math-for-ai-engineers",
         Unit = "P01",
         Step = step,
@@ -191,7 +203,9 @@ public sealed class OutcomeIsNotAReaderTests
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AbOvoDbContext>();
 
-        var rows = await db.FrameOutcomes.AsNoTracking().ToListAsync(token);
+        var rows = await db.FrameOutcomes.AsNoTracking()
+            .Where(o => o.BundleTag == Tag)
+            .ToListAsync(token);
 
         Assert.Single(rows);
         Assert.Equal(2, rows[0].Count);
@@ -222,6 +236,7 @@ public sealed class OutcomeIsNotAReaderTests
         var db = scope.ServiceProvider.GetRequiredService<AbOvoDbContext>();
 
         var rows = await db.FrameOutcomes.AsNoTracking()
+            .Where(o => o.BundleTag == Tag)
             .OrderBy(o => o.Passed)
             .ToListAsync(token);
 
@@ -262,7 +277,9 @@ public sealed class OutcomeIsNotAReaderTests
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AbOvoDbContext>();
 
-        var rows = await db.FrameOutcomes.AsNoTracking().ToListAsync(token);
+        var rows = await db.FrameOutcomes.AsNoTracking()
+            .Where(o => o.BundleTag == Tag)
+            .ToListAsync(token);
         Assert.Single(rows);
         Assert.Equal(1, rows[0].Count);
     }

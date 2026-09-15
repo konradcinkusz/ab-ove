@@ -1,0 +1,20 @@
+{
+  "bundleTag": "fixture-0",
+  "track": "math-for-ai-engineers",
+  "unit": "P01",
+  "cells": [
+    {
+      "step": 7,
+      "check": "test_1_gap_matches_the_table",
+      "attempt": 1,
+      "rate": {
+        "passed": 143,
+        "total": 200,
+        "percent": 71.5,
+        "halfWidth": 6.256284999902099,
+        "low": 65.24371500009791,
+        "high": 77.75628499990209
+      }
+    }
+  ]
+}

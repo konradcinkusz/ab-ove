@@ -40,6 +40,19 @@ public sealed class SignedInApiFactory : WebApplicationFactory<Program>
     /// <summary>The header a test uses to say who is calling. Test-only; no product code reads it.</summary>
     public const string SubjectHeader = "X-Test-Subject";
 
+    /// <summary>
+    /// The roles that caller carries, comma-separated. Test-only, like the header above.
+    ///
+    /// <para>
+    /// Added for the admin group, whose policy is <c>RequireRole("Admin", "SuperAdmin")</c>.
+    /// The alternative — granting every test principal the role — would make "a signed-in
+    /// reader cannot read the instrument" unassertable, and that is the half of the gate worth
+    /// having: the group refusing an anonymous caller is the framework, and the group refusing
+    /// an ORDINARY reader is this service's own configuration.
+    /// </para>
+    /// </summary>
+    public const string RolesHeader = "X-Test-Roles";
+
     private readonly string _databaseName = $"AbOvoApiTests-{Guid.NewGuid():N}";
 
     /// <summary>Substituted so a test can assert that a write which changed nothing also left
@@ -79,6 +92,14 @@ public sealed class SignedInApiFactory : WebApplicationFactory<Program>
         client.DefaultRequestHeaders.Add(SubjectHeader, subject);
         return client;
     }
+
+    /// <summary>The same, carrying roles — for the endpoints behind the admin policy.</summary>
+    public HttpClient ClientFor(string subject, params string[] roles)
+    {
+        var client = ClientFor(subject);
+        client.DefaultRequestHeaders.Add(RolesHeader, string.Join(",", roles));
+        return client;
+    }
 }
 
 /// <summary>Authenticates whoever the <c>X-Test-Subject</c> header names, and nobody else.</summary>
@@ -98,9 +119,17 @@ public sealed class SignedInHandler(
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
-        var identity = new ClaimsIdentity(
-            [new Claim(ClaimTypes.NameIdentifier, subject.ToString())],
-            SignedInApiFactory.SchemeName);
+        var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, subject.ToString()) };
+
+        if (Request.Headers.TryGetValue(SignedInApiFactory.RolesHeader, out var roles))
+        {
+            claims.AddRange(roles
+                .ToString()
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(role => new Claim(ClaimTypes.Role, role)));
+        }
+
+        var identity = new ClaimsIdentity(claims, SignedInApiFactory.SchemeName);
 
         return Task.FromResult(AuthenticateResult.Success(
             new AuthenticationTicket(new ClaimsPrincipal(identity), SignedInApiFactory.SchemeName)));

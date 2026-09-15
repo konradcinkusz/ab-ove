@@ -164,6 +164,14 @@ the key — so no row can belong to one run — and every key and index must lea
 frame, across every version*, which is the query that would make the ledger lie about a
 frame somebody has already fixed.
 
+**And the query that would do it is refused before EF compiles it** (#16). `BundlePinnedQueries`
+is the reader rule's mirror over the other table — but not the same rule with a different
+column on it: that one refuses a query that spans **readers**, because a per-reader score is
+being made unbuildable, and this one refuses a query that spans **texts**, because an average
+over two wordings of a frame is meaningless rather than forbidden. It was watched refusing
+something nobody planted: three of the outcome store's own tests read it without pinning a
+tag ([ADR-0024](docs/adr/0024-a-rate-and-its-interval-are-one-value-over-one-cell.md) §5).
+
 **And the reader is told what that costs them**, which is the half an architectural absence
 cannot deliver on its own. Because an outcome carries no reader, nothing can find the rows
 that were yours — so deleting an account cannot retract a contribution already folded into a

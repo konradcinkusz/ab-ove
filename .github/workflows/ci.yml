@@ -73,6 +73,23 @@ jobs:
       # package, transitive ones included, fails HERE, at restore, before anything is
       # compiled. That is the dependency half of the supply-chain gate; the SAST half is
       # codeql.yml.
+      # ─────────────────────────────────────────────────────────────────────────────────
+      # THE BOOK'S OWN VALUES, because one test in this suite is a gate ACROSS repositories.
+      #
+      # `RatesCarryTheirIntervalTests` requires this service's interval arithmetic to
+      # reproduce four figures Program P27 commits — read out of
+      # web/content/book/figures/values/p27.tex rather than typed here, because a test that
+      # hard-coded them would be this repository remembering a number the book computes and
+      # would keep passing on the day the book's own figures moved (ADR-0024 §1).
+      #
+      # web/content/book/ is gitignored: it is derived, fetched at the pinned revision and
+      # verified against a digest per file. So without this step the test fails with
+      # "p27.tex is missing" — which was measured by deleting the file and running the suite,
+      # rather than assumed from the .gitignore.
+      # ─────────────────────────────────────────────────────────────────────────────────
+      - name: Fetch the book content at its pinned revision
+        run: bash scripts/fetch-book-content.sh
+
       - name: Restore
         run: dotnet restore AbOvo.sln
 

@@ -30,7 +30,8 @@
     "lab/tests/test_p01.py": "sha256:9bf7363a31a65254d358120dc47a3f0e1cf362c2d3e320c4d771c2edc95f5579",
     "lab/exercises/p01_floating_point.py": "sha256:ee1a5a0ebc8db3c196556d98efecb878f4deb8b161c52e5579becca7b98357f4",
     "lab/solutions/p01_floating_point.py": "sha256:672edd0dd5a8d4af59b4c8f77f2977d8bf48761a4ceee1276f22b9ec494777e0",
-    "figures/values/p01.tex": "sha256:c8def9ce325d42c3862a196f63b78774bf724cc0e6b865a645c8b4f75a3efc2c"
+    "figures/values/p01.tex": "sha256:c8def9ce325d42c3862a196f63b78774bf724cc0e6b865a645c8b4f75a3efc2c",
+    "figures/values/p27.tex": "sha256:d0443dda9037b16981f123e21b190de8f3b2f95717b001de7dd8d8d70e4c5f98"
   },
   "layoutNote": [
     "The relative layout is load-bearing and must be reproduced exactly in the virtual file",
