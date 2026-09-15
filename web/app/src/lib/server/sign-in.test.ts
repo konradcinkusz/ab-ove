@@ -59,7 +59,45 @@ test('a refresh token is optional, and its absence is null rather than undefined
  * whose password was right that it was wrong — for ever, since no password fixes it.
  */
 test('a 200 carrying a two-factor challenge is NOT a session', () => {
-  assert.deepEqual(classifyLoginResponse(200, CHALLENGE), { kind: 'second-factor-required' });
+  assert.deepEqual(classifyLoginResponse(200, CHALLENGE), {
+    kind: 'second-factor-required',
+    challengeToken: 'header.challenge.signature',
+    expiresIn: 300,
+  });
+});
+
+/**
+ * A challenge with nothing to exchange. Reported as OUR fault rather than as a step the
+ * reader can take: a screen asking for an authenticator code with no challenge to send it
+ * with would be asking for something it cannot use, which is the sign-in loop this union
+ * exists to prevent, one outcome further in than the 200-with-no-token case below.
+ */
+test('a challenge carrying no challenge token is not a challenge', () => {
+  const outcome = classifyLoginResponse(200, { requiresTwoFactor: true, expiresIn: 300 });
+  assert.equal(outcome.kind, 'unavailable');
+
+  // And an empty string is the same as absent, for the same reason the access token is.
+  assert.equal(
+    classifyLoginResponse(200, { requiresTwoFactor: true, challengeToken: '' }).kind,
+    'unavailable',
+  );
+});
+
+/**
+ * `expiresIn` is carried rather than assumed, so nothing in this app has to know that
+ * authservice's challenge lives five minutes. A value that is not a positive whole number
+ * of seconds is not a lifetime, and `null` means the caller picks its own bound — which is
+ * a different thing from believing a lifetime that was never sent.
+ */
+test('a lifetime that is not a positive whole number of seconds is null', () => {
+  for (const expiresIn of [0, -300, 12.5, '300', null, undefined]) {
+    const outcome = classifyLoginResponse(200, {
+      requiresTwoFactor: true,
+      challengeToken: 'header.challenge.signature',
+      expiresIn,
+    });
+    assert.partialDeepStrictEqual(outcome, { kind: 'second-factor-required', expiresIn: null });
+  }
 });
 
 test('a 200 carrying neither is a contract this app does not recognise', () => {
@@ -193,7 +231,10 @@ test('a second factor is terminal too — the password was accepted', async () =
 
   const outcome = await signIn('reader@example.test', 'correct horse', fetchImpl);
 
-  assert.deepEqual(outcome, { kind: 'second-factor-required' });
+  assert.partialDeepStrictEqual(outcome, {
+    kind: 'second-factor-required',
+    challengeToken: 'header.challenge.signature',
+  });
   assert.equal(fetchImpl.calls.length, 1);
 });
 

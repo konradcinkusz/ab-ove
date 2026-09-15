@@ -119,6 +119,41 @@ function accessTokenFor(account: FixtureAccount) {
   });
 }
 
+/**
+ * The challenge, minted the way `TokenService.GenerateTwoFactorChallengeToken` mints one.
+ *
+ * The audience is the ONLY thing separating it from a session token — same key, same
+ * issuer — which is why `verifyAccessToken` refuses it and why this fixture reproduces the
+ * suffix rather than inventing a distinguishable shape. A fixture whose challenge could not
+ * be mistaken for a session would not be able to prove that this app does not mistake it.
+ */
+const TWO_FACTOR_AUDIENCE_SUFFIX = ':2fa';
+
+/** Five minutes, which is `TokenService.TwoFactorChallengeMinutes`. */
+const CHALLENGE_SECONDS = 300;
+
+function challengeTokenFor(account: FixtureAccount) {
+  const now = Math.floor(Date.now() / 1000);
+  return sign({
+    sub: account.id,
+    jti: randomUUID(),
+    purpose: 'two_factor_challenge',
+    iss: ISSUER,
+    aud: `${AUDIENCE}${TWO_FACTOR_AUDIENCE_SUFFIX}`,
+    iat: now,
+    exp: now + CHALLENGE_SECONDS,
+  });
+}
+
+/**
+ * Recovery codes spent in this process, so a second use is refused.
+ *
+ * In memory and per process, which is correct for a fixture that generates a fresh signing
+ * key on every boot anyway — and `playwright.config.ts` refuses to reuse a running one for
+ * exactly that reason. It makes the single-use property real rather than described.
+ */
+const spentRecoveryCodes = new Set<string>();
+
 const json = (response: ServerResponse, status: number, body: unknown) => {
   const encoded = JSON.stringify(body);
   response.writeHead(status, {
@@ -137,6 +172,40 @@ const readBody = (request: IncomingMessage): Promise<string> =>
     });
     request.on('end', () => resolve(raw));
   });
+
+/**
+ * The account a challenge names, or `undefined`.
+ *
+ * VERIFIED ONLY AS FAR AS A FIXTURE NEEDS TO BE: the signature is not checked, because the
+ * only thing that mints these is this process and the property under test is what the WEB
+ * APP does with the exchange. What IS checked is the audience suffix and the expiry, which
+ * are the two things a client could get wrong — sending a session token where a challenge
+ * belongs, or sending one that has run out.
+ */
+function accountForChallenge(token: unknown): FixtureAccount | undefined {
+  if (typeof token !== 'string' || token.length === 0) return undefined;
+
+  const payload = token.split('.')[1];
+  if (!payload) return undefined;
+
+  let claims: Record<string, unknown>;
+  try {
+    claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Record<
+      string,
+      unknown
+    >;
+  } catch {
+    return undefined;
+  }
+
+  if (claims['aud'] !== `${AUDIENCE}${TWO_FACTOR_AUDIENCE_SUFFIX}`) return undefined;
+  if (claims['purpose'] !== 'two_factor_challenge') return undefined;
+  if (typeof claims['exp'] !== 'number' || claims['exp'] <= Math.floor(Date.now() / 1000)) {
+    return undefined;
+  }
+
+  return ACCOUNTS.find((candidate) => candidate.id === claims['sub']);
+}
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? '/', `http://127.0.0.1:${PORT}`);
@@ -179,8 +248,71 @@ const server = createServer(async (request, response) => {
       return json(response, 401, { error: 'Invalid email or password' });
     }
 
+    /*
+     * THE SHARP EDGE OF THE CONTRACT: a CORRECT password answers 200 in two different
+     * shapes. An account with a second factor gets `TwoFactorRequiredResponse` at the same
+     * status as one that gets tokens, because only one type can be declared per status
+     * code — authservice's own controller says so in a comment.
+     */
+    if (account.secondFactor) {
+      return json(response, 200, {
+        requiresTwoFactor: true,
+        challengeToken: challengeTokenFor(account),
+        expiresIn: CHALLENGE_SECONDS,
+      });
+    }
+
     // `TokenResponse(AccessToken, RefreshToken, ExpiresIn, TokenType)`, camelCase because
     // authservice's Program.cs sets PropertyNamingPolicy = JsonNamingPolicy.CamelCase.
+    return json(response, 200, {
+      accessToken: accessTokenFor(account),
+      refreshToken: `fixture-refresh-${randomUUID()}`,
+      expiresIn: 3600,
+      tokenType: 'Bearer',
+    });
+  }
+
+  /*
+   * `TwoFactorController.LoginWithTwoFactor`, in its own order of checks. The order is not
+   * cosmetic: lockout is tested BEFORE the code, so an account that locked between the two
+   * factors is told so rather than being told its correct code was wrong.
+   */
+  if (request.method === 'POST' && url.pathname === '/api/v1/auth/2fa/login') {
+    let body: { challengeToken?: unknown; code?: unknown; recoveryCode?: unknown };
+    try {
+      body = JSON.parse(await readBody(request)) as typeof body;
+    } catch {
+      return json(response, 400, { error: 'Invalid request' });
+    }
+
+    const account = accountForChallenge(body.challengeToken);
+    if (!account?.secondFactor) {
+      return json(response, 401, {
+        error: 'Invalid or expired challenge. Start the sign-in again.',
+      });
+    }
+
+    const code = typeof body.code === 'string' ? body.code.trim() : '';
+    const recoveryCode = typeof body.recoveryCode === 'string' ? body.recoveryCode.trim() : '';
+
+    // Code first, and a recovery code beside it is ignored — upstream's precedence, so a
+    // client that sends both cannot get a different answer here than it would there.
+    if (code) {
+      if (code !== account.secondFactor.code) {
+        return json(response, 401, { error: 'Invalid two-factor code' });
+      }
+    } else if (recoveryCode) {
+      const spent = spentRecoveryCodes.has(recoveryCode);
+      if (spent || recoveryCode !== account.secondFactor.recoveryCode) {
+        return json(response, 401, { error: 'Invalid recovery code' });
+      }
+      spentRecoveryCodes.add(recoveryCode);
+    } else {
+      return json(response, 400, {
+        error: 'Provide either an authenticator code or a recovery code.',
+      });
+    }
+
     return json(response, 200, {
       accessToken: accessTokenFor(account),
       refreshToken: `fixture-refresh-${randomUUID()}`,

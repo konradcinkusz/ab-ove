@@ -147,8 +147,10 @@ That proves the **wiring**. It does not prove the **contract**, because the fixt
 code agree by construction. The contract is pinned separately, in
 `web/app/src/lib/server/sign-in.test.ts`, whose cases were written from `authservice`'s
 source rather than from this module's behaviour — and even that is a claim about one tag.
-[#29](https://github.com/konradcinkusz/ab-ove/issues/29) is open for the CI fixture that
-would run any of this on every push; today none of it does.
+~~[#29](https://github.com/konradcinkusz/ab-ove/issues/29) is open for the CI fixture that
+would run any of this on every push; today none of it does.~~ **#29 is closed**: four of
+the rows below now run on every push and on every pull request, against a fixture the
+suite starts. See [ADR-0028](0028-the-acceptance-suite-signs-in-against-a-fixture-and-says-what-that-does-not-prove.md).
 
 | what was driven | what came back |
 |---|---|
@@ -156,7 +158,7 @@ would run any of this on every push; today none of it does.
 | correct password, form-encoded, same-origin | `303`, `location: /`, two cookies, each `Secure; HttpOnly; SameSite=strict` |
 | then `GET /api/auth/session` | `authenticated: true`, with the subject, email and roles off the token |
 | wrong password | `303 /login?error=rejected`, **no cookie** |
-| an account answering with a 2FA challenge | `303 /login?error=second-factor`, **no cookie** |
+| an account answering with a 2FA challenge | `303 /login?error=second-factor`, **no cookie** — **superseded by ADR-0029**: it is now `303 /login/2fa`, with a challenge cookie and no session cookie |
 | `Origin: https://evil.example` | `403` |
 | no `Origin` header | `403` |
 | `redirect=//evil.example` | refused; destination falls back to `/` |
@@ -181,8 +183,16 @@ address in no topology at all. Every `Location` this route emits is now relative
 route hands one out; the proxy injects the bearer server-side from the cookie; the cookie is
 `HttpOnly`. There is nothing for a later refactor to lose.
 
-**An account with two factors cannot sign in.** It is detected and reported honestly, and it
-is [#30](https://github.com/konradcinkusz/ab-ove/issues/30).
+**~~An account with two factors cannot sign in.~~** It was detected and reported honestly,
+and it was [#30](https://github.com/konradcinkusz/ab-ove/issues/30) — **now closed**. The
+challenge this route detects is stored in a short-lived `HttpOnly` cookie and exchanged at
+`/api/auth/2fa`; the tokens that come back go through `establishSession` by exactly the path
+described above, so nothing in this ADR's reasoning changed. See
+[ADR-0029](0029-the-two-factor-challenge-is-a-cookie-and-the-code-is-the-only-thing-the-reader-supplies.md).
+
+Struck through rather than deleted, because the sentence records what this design cost when
+it was taken, and a consequence that was true and has been paid is worth more on the page
+than an absence.
 
 **Sign-in is deniable, and this decision is what made it so.** `authservice`'s `auth`
 policy is twenty attempts a minute per client IP. ADR-0004 already met that problem and

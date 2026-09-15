@@ -27,6 +27,43 @@ export const REFRESH_TOKEN_COOKIE = 'ab_ovo_rt';
 /** Both session cookies, so no caller has to remember that there are two. */
 export const SESSION_COOKIES = [ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE] as const;
 
+/**
+ * The two-factor challenge, between the password and the code.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * WHY A COOKIE AND NOT A HIDDEN FIELD, which is the obvious alternative and the one issue
+ * #30 names first.
+ *
+ * The challenge is signed with the SAME key as a session token and separated from one only
+ * by audience (`<audience>:2fa`). It proves the first factor passed. Putting it in the DOM
+ * would be FRONTEND-BFF.md §8's "token visible in devtools" — the exact property the
+ * server-side sign-in design took trouble to buy for the access and refresh tokens — and it
+ * would additionally survive in the browser's form restore and in a page the reader might
+ * share a screenshot of.
+ *
+ * It is NOT a session cookie and must not be confused for one: it cannot authenticate any
+ * request (`verifyAccessToken` refuses its audience), it lives about five minutes, and it
+ * is useless for anything except completing this one sign-in.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * IT IS ABSENT FROM `SESSION_COOKIES` ON PURPOSE. That list is what `establishSession`
+ * writes and what the middleware reads, and a challenge in it would be a credential the
+ * gate could be asked about. What clears it is `CLEARABLE_COOKIES` below, which is the
+ * list the delete path uses — because a dangling challenge after a sign-out is a loose end
+ * even though it is not a session.
+ */
+export const CHALLENGE_COOKIE = 'ab_ovo_2fa';
+
+/**
+ * Everything the delete path removes, which is deliberately WIDER than `SESSION_COOKIES`.
+ *
+ * The two lists differ by exactly the challenge, and keeping them separate is the point:
+ * one answers "what makes a session", the other answers "what must not survive a sign-out".
+ * Collapsing them would either leave the challenge behind or make it look like a
+ * credential, and FRONTEND-BFF.md §8's login loop is what a half-cleared set produces.
+ */
+export const CLEARABLE_COOKIES = [...SESSION_COOKIES, CHALLENGE_COOKIE] as const;
+
 export interface SessionCookieAttributes {
   httpOnly: true;
   secure: boolean;
