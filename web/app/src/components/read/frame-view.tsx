@@ -4,10 +4,10 @@ import { say } from '@/lib/content/bundle';
 import type { Bundle, Step, Unit } from '@/lib/content/schema';
 import { chromeFor } from '@/lib/i18n/chrome';
 
-import { FrameKeys } from './frame-keys';
+import { FrameKeys } from './frame-keys.tsx';
 import styles from './frame-view.module.css';
-import { LanguageSwitch } from './language-switch';
-import { RememberPosition } from './remember-position';
+import { LanguageSwitch } from './language-switch.tsx';
+import { RememberPosition } from './remember-position.tsx';
 
 export interface FrameViewProps {
   readonly bundle: Bundle;

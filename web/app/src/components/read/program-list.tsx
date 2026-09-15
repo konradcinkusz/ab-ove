@@ -9,7 +9,7 @@ import { FALLBACK_LANGUAGE, chromeFor } from '@/lib/i18n/chrome';
 import styles from './contents.module.css';
 import { ConsentControl } from '@/components/consent/consent-control';
 
-import { ForgetProgress, ResumeLast, type Limits } from './resume';
+import { ForgetProgress, ResumeLast, type Limits } from './resume.tsx';
 
 export interface ProgramListProps {
   readonly bundles: readonly Bundle[];

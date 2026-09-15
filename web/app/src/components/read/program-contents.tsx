@@ -6,8 +6,8 @@ import type { Bundle, Unit } from '@/lib/content/schema';
 import { chromeFor } from '@/lib/i18n/chrome';
 
 import styles from './contents.module.css';
-import { LanguageSwitch } from './language-switch';
-import { ResumeHere } from './resume';
+import { LanguageSwitch } from './language-switch.tsx';
+import { ResumeHere } from './resume.tsx';
 
 export interface ProgramContentsProps {
   readonly bundle: Bundle;

@@ -18,7 +18,7 @@ import {
   type LabDescriptor,
   type LabRequest,
   type LabResponse,
-} from './protocol';
+} from './protocol.ts';
 
 export type RuntimeStatus = 'loading' | 'ready' | 'running' | 'failed';
 

@@ -6,7 +6,7 @@ import {
   CLEARABLE_COOKIES,
   sessionCookieAttributes,
 } from '@/lib/session-cookies';
-import { verifyAccessToken } from './token';
+import { verifyAccessToken } from './token.ts';
 
 /**
  * Establishing and clearing the session — the ONE implementation.

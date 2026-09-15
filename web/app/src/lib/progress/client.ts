@@ -30,7 +30,7 @@ import {
   type ProgramRef,
   type Position,
   type Progress,
-} from './store';
+} from './store.ts';
 
 const listeners = new Set<() => void>();
 
