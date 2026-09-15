@@ -27,9 +27,9 @@
  */
 import { ask } from '@/lib/session/client';
 
-import { adoptRecord, forgetAll, subscribe as subscribeProgress } from './client';
-import { reconcile, type Push, type Raised, type RemoteRecord } from './reconcile';
-import { keyOf, read, type Position, type Progress } from './store';
+import { adoptRecord, forgetAll, subscribe as subscribeProgress } from './client.ts';
+import { reconcile, type Push, type Raised, type RemoteRecord } from './reconcile.ts';
+import { keyOf, read, type Position, type Progress } from './store.ts';
 
 /** The BFF path. `/api/proxy` + the service's own route — see the §5 routing table. */
 const PROGRESS = '/api/proxy/api/v1/progress';

@@ -10,7 +10,7 @@ import {
   startSync,
   subscribeRaised,
 } from '@/lib/progress/sync';
-import { useOnMount } from './use-on-mount';
+import { useOnMount } from './use-on-mount.ts';
 
 import styles from './progress-sync.module.css';
 

@@ -1,6 +1,6 @@
 import { createRemoteJWKSet, decodeJwt, jwtVerify, type JWTPayload } from 'jose';
 
-import { backendCandidates } from './backends';
+import { backendCandidates } from './backends.ts';
 
 /**
  * Token verification for this app's server side.
@@ -34,11 +34,18 @@ const JWKS_PATH = '/.well-known/jwks.json';
  * purpose: authservice defaults both to "AuthService", and two products left on the
  * defaults would accept each other's tokens.
  */
-function expectedIssuer(): string {
+/*
+ * EXPORTED for `identity-config-agrees.test.ts`, which asserts that these defaults are the
+ * same two strings `flyio/authservice.fly.toml`, `flyio/api.fly.toml` and `AbOvoIdentity`
+ * name. The test calls them rather than re-reading the literals out of this file, because a
+ * test that parses the source it is checking agrees with itself: it would pass on a
+ * deployment where the ENVIRONMENT overrode them into disagreement.
+ */
+export function expectedIssuer(): string {
   return process.env.AB_OVO_JWT_ISSUER?.trim() || 'AbOvo';
 }
 
-function expectedAudience(): string {
+export function expectedAudience(): string {
   return process.env.AB_OVO_JWT_AUDIENCE?.trim() || 'AbOvo';
 }
 

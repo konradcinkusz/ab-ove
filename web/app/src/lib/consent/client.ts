@@ -9,7 +9,7 @@
  * `store.ts` stays pure and knows nothing about React or about `window`; this is the only
  * file in `consent/` that touches either.
  */
-import { CONSENT_KEY, DEFAULT, decide, read, type Consent } from './store';
+import { CONSENT_KEY, DEFAULT, decide, read, type Consent } from './store.ts';
 
 const listeners = new Set<() => void>();
 

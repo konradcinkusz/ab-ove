@@ -1,4 +1,4 @@
-import { SSR_FALLBACK_CONFIG, type RuntimeConfig } from './runtime-config';
+import { SSR_FALLBACK_CONFIG, type RuntimeConfig } from './runtime-config.ts';
 
 /**
  * FRONTEND-BFF.md §2 — "The client consumes /api/config through ONE small module that

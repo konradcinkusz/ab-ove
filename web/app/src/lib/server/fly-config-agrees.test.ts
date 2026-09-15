@@ -1,10 +1,8 @@
 import { strict as assert } from 'node:assert';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import { clientIpHeader } from './client-ip.ts';
+import { repositoryFile, settingIn } from './deployment-config.ts';
 
 /**
  * The two ends of the client-IP forwarding must name the SAME HEADER, and nothing about a
@@ -25,56 +23,14 @@ import { clientIpHeader } from './client-ip.ts';
  *
  * It reads the files rather than a fixture on purpose: a fixture would agree with itself
  * forever while the deployment drifted.
+ *
+ * The readers live in `deployment-config.ts`, shared with the identity agreement next door,
+ * because two parsers of one format are two parsers that can drift.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 
-/** Walk up for the file that marks the repository root, from wherever the runner started. */
-function repositoryRoot(): string {
-  let directory = dirname(fileURLToPath(import.meta.url));
-  for (let hop = 0; hop < 12; hop++) {
-    try {
-      readFileSync(join(directory, 'AbOvo.sln'));
-      return directory;
-    } catch {
-      const parent = dirname(directory);
-      if (parent === directory) break;
-      directory = parent;
-    }
-  }
-  throw new Error('could not find AbOvo.sln above this test');
-}
-
-/**
- * The value of one `key = "value"` in a fly config, ignoring comments.
- *
- * **NOT A GREP, AND MEASURED RATHER THAN ASSUMED — the first draft of this comment gave one
- * reason for two mechanisms and was wrong about which did what.** `web.fly.toml` explains the
- * coupling in prose above the setting, so `AB_OVO_CLIENT_IP_HEADER` appears three times in
- * that file and the first two are commentary. Run on it, `grep -m1` returns
- * `# AB_OVO_CLIENT_IP_HEADER MUST EQUAL Network__ClientIpHeader IN` — the documentation,
- * reported as the configuration, and it would go on doing so after somebody changed the value
- * it was meant to be watching.
- *
- * That is what the ANCHORS defeat: `^\s*KEY\s*=` cannot match a line whose key sits behind a
- * `#`. Stripping the comment is a second and narrower thing, and the claim that it was doing
- * the same job did not survive being run — with the stripping removed, both real files still
- * parse to `Fly-Client-IP`. What it actually buys is a TRAILING comment: `KEY = "v"  # note`
- * fails the closing `\s*$` without it and the setting reads as absent, which is a false alarm
- * rather than a false pass. The fixture below carries exactly that line, so the stripping is
- * held by a test rather than by this paragraph.
- */
-function settingIn(file: string, key: string): string | null {
-  for (const line of file.split('\n')) {
-    const code = line.split('#')[0] ?? '';
-    const match = new RegExp(`^\\s*${key}\\s*=\\s*"([^"]*)"\\s*$`).exec(code);
-    if (match) return match[1] ?? null;
-  }
-  return null;
-}
-
-const root = repositoryRoot();
-const web = readFileSync(join(root, 'flyio/web.fly.toml'), 'utf8');
-const authservice = readFileSync(join(root, 'flyio/authservice.fly.toml'), 'utf8');
+const web = repositoryFile('flyio/web.fly.toml');
+const authservice = repositoryFile('flyio/authservice.fly.toml');
 
 /*
  * The instrument first, on a fixture whose answer is known before it is asked — the estate's
