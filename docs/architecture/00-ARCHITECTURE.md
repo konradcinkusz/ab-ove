@@ -481,13 +481,31 @@ product nobody has specified produces code the first ticket deletes.
 
 That paragraph used to say the README's anti-goal was true *because there are no tables*,
 and that it "becomes a rule somebody has to keep the day the first migration lands." **That
-day has come.** The rule is kept in the shape of the table rather than in a policy: the
-primary key is `(Subject, Track, Unit)` so the subject leads every index, there is one row
-per reader per program, and there is **no outcome, no score, no duration and no history** —
-only where a reader is, in which edition, and when that last moved. Aggregating it would
-mean counting rows, which says how far readers have got and nothing about whether they were
-right. [ADR-0009](../adr/0009-the-instrument-measures-the-book.md) §1 and issue #12 are the
-gate; [ADR-0019](../adr/0019-furthest-frame-wins.md) records the schema decision.
+day has come, and the rule is now kept by three things rather than by a policy** — each
+watched refusing something before it was believed
+([ADR-0020](../adr/0020-no-aggregate-touches-the-progress-store.md)):
+
+1. **A query over the progress store that does not pin one reader is refused at run time**,
+   before EF compiles it, by an interceptor registered in the composition root. Not a test:
+   an aggregate throws on the first run whether or not anybody ran the suite. It requires an
+   **equality** on `Subject` rather than a mention, because `GroupBy(p => p.Subject)` is the
+   per-reader score, spelled differently.
+2. **The column list is closed.** Six columns, every one of which says *where* a reader is
+   and none of which says *how they did*. An outcome, a duration or a count of attempts
+   breaks the build rather than arriving in a reasonable-looking commit.
+3. **Every key and index leads with `Subject`**, so the table is not even prepared to answer
+   a cross-reader question — and preparing it is an earlier, cheaper thing to refuse than
+   the query itself.
+
+A NetArchTest rule limits which types may reference the entity, and its blind spot is
+recorded rather than papered over: it catches an ordinary class, and it is **invisible to a
+new Minimal API endpoint group**, because that access lives in compiler-generated closures.
+That is why (1) exists as a runtime refusal rather than as a fourth test.
+
+The kernel gained one thing for this: `AddDatabaseContext` takes an optional
+`Action<DbContextOptionsBuilder>`. A delegate, so the capability crosses and the knowledge
+does not — P10, and the architecture test above would fail the build if this library named a
+service type.
 
 **The content bundle does not exist, and this blocks phase 2b.** The frame view needs the
 book's 47 programs as a versioned bundle published on the book's own releases

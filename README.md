@@ -122,11 +122,32 @@ Every one of them is false the moment somebody ships the thing it denies:
   *attempt* and a *check run* — the artifact, never the person (METRIC-ETHICS.md §5).
 
 That third one is the anti-goal enforced by an **architectural absence** rather than by
-policy, and today the absence is total: `src/AbOvo.Api/Persistence/AbOvoDbContext.cs`
-declares no entity at all. The claim that has to survive the first migration is the rule,
-not the current emptiness — a reader identifier may not be a column on a score row, a
-foreign key from one, or a group-by key over one. `grep -rn "ReaderId\|UserId\|AuthorId"
-src/AbOvo.Api/Persistence` is the check, and it is meant to keep returning nothing.
+policy. **The absence used to be total and no longer is**: `ReaderProgress` arrived with
+synchronisation (#11), and it carries the reader's identity in its key, because an account
+that keeps your place has to know whose place it is.
+
+The rule survives the table, and it is the rule rather than the emptiness that was ever the
+claim: a reader identifier may not be a column on a **score** row, a foreign key from one,
+or a group-by key over one. `ReaderProgress` is not a score row — it says where a reader is
+and never how they did — and three things now hold that, none of them a promise:
+
+- **a query over it that does not pin one reader is refused at run time**, before EF compiles
+  it (`ReaderScopedQueries`);
+- **its column list is closed**, so an outcome, a duration or a count of attempts breaks the
+  build rather than arriving in a reasonable-looking commit;
+- **every key and index leads with the reader**, so the table is not even *prepared* to answer
+  a question about readers.
+
+Each was watched refusing something before it was believed, and
+[ADR-0020](docs/adr/0020-no-aggregate-touches-the-progress-store.md) records what each one
+does and does not see.
+
+This paragraph used to end with `grep -rn "ReaderId\|UserId\|AuthorId"
+src/AbOvo.Api/Persistence`, "meant to keep returning nothing". It still returns nothing, and
+it has stopped meaning anything: the column that holds a reader's identity is called
+`Subject`, which is none of those three names. A check that passes because it is looking for
+the wrong thing is worse than no check, so it is replaced by the tests above rather than
+widened.
 
 An anti-goal that exists only as prose is a request. One the architecture cannot express is
 a rule.
