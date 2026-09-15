@@ -206,6 +206,32 @@ Against every row whose interval is not disjoint from the row below it, the scre
 author who reads an early list as a verdict rewrites a frame that was fine and leaves one that
 is not. On thin data that is every row, which is correct and is what an early list is.
 
+**And the number that list is sorted by cannot be pushed on without the counter-metric
+moving** (#18). A frame's teaching score is one weighted component with two measures inside it:
+*did the reader get it right first time*, which an author can raise by giving the frame's answer
+away, and *did the checks that need this frame later still pass*, which the same move cannot
+raise. The first carries the smaller share. Model the giveaway — immediate correctness up,
+downstream correctness down — and the blend falls; that is a test rather than an intention, and
+it was watched failing with the weights swapped.
+
+**The downstream measure is the book's own structure rather than an edge this product
+invented.** A check's docstring names the frames it rests on, so a check appearing under several
+frames is one that needs all of them at once, and a check whose last frame is beyond this one
+carries this frame forward. Measured before it was designed: eight of Lab P1's thirteen checks
+rest on more than one frame, and `test_6_store_rounds_to_the_format` rests on frames 20 to 24
+**and 32**. A frame that no check carries forward gets no score at all rather than a zero —
+a zero would read as *readers could not use this frame later*, which is the opposite of *nobody
+has asked*, and would sort it to the top of a list somebody acts on.
+
+**Anything that guesses at a reader's state is absent, not present at zero.** `Measure` is a
+closed enum, so a weight cannot be added by editing a dictionary — the member has to exist
+first, beside the note that justifies it. The test asserts over the enum rather than the
+dictionary, so a member added and left unweighted fails too; adding `Measure.Frustration` at
+weight `0.0` fails two tests, which is the requirement as something that happens rather than
+something written down. `src/AbOvo.Api/Instrument/weights.json` is generated from the table and
+asserted to match it, so the whole scoring policy is a short document a reviewer can read
+without reading any arithmetic.
+
 **The routine that supplies all of it was refuted by its own gate, and not where it was
 expected to be.** The first implementation was the standard seven-term rational, chosen
 because the page prints two decimals and it is good to seven. It reproduced *both* of the

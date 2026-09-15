@@ -265,4 +265,114 @@ public sealed record UnitRates
     /// </para>
     /// </summary>
     public SelectionMargin? Selection { get; init; }
+
+    /// <summary>
+    /// A teaching score per frame, for the frames that have one.
+    ///
+    /// <para>
+    /// Shorter than the set of frames in <see cref="Cells"/>, and the difference is meaningful:
+    /// a frame whose checks are used nowhere later has no downstream measure, so it has no
+    /// blended score rather than one computed from half its definition (issue #18 §4.5, and
+    /// <see cref="FrameScore"/>'s own note).
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<FrameScore> Frames { get; init; } = [];
+}
+
+/// <summary>
+/// A blended score and the interval around it — one value, like <see cref="Rate"/>.
+///
+/// <para>
+/// Distinct from <see cref="Rate"/> because it has no two counts behind it. A rate is
+/// <c>passed / total</c> and can say so; a blend is a weighted sum of two rates and the
+/// honest answer to "out of how many" is that the question does not apply. Giving it a
+/// <c>passed</c> would be inventing one.
+/// </para>
+/// <para>
+/// <b>THE INTERVAL IS A BOUND, AND DELIBERATELY WIDER THAN THE TRUTH.</b> The two measures it
+/// blends are computed over overlapping observations — the downstream checks are a subset of
+/// the frame's checks — so their errors are positively correlated and the exact variance needs
+/// a covariance this service cannot compute, having no reader identifier to compute it from.
+/// <c>Teaching.Of</c> therefore takes <c>w1·hw1 + w2·hw2</c>, which is what perfect correlation
+/// would give and is an upper bound under any correlation at all. A bound that is too wide
+/// reads as <em>early, not wrong</em>; one that is too narrow reads as certainty nobody has.
+/// </para>
+/// </summary>
+public sealed record Score
+{
+    private Score(double percent, double halfWidth, double low, double high)
+    {
+        Percent = percent;
+        HalfWidth = halfWidth;
+        Low = low;
+        High = high;
+    }
+
+    public double Percent { get; }
+
+    /// <summary>Half the interval's width, in percentage points, UNCLAMPED — <see cref="Rate"/>'s reasoning.</summary>
+    public double HalfWidth { get; }
+
+    public double Low { get; }
+
+    public double High { get; }
+
+    public static Score Of(double percent, double halfWidth)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(halfWidth);
+
+        if (!double.IsFinite(percent) || !double.IsFinite(halfWidth))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(percent),
+                "A score must be a number. NaN and Infinity both survive serialisation and both "
+                + "render, which is the failure mode readRates refuses at the other edge.");
+        }
+
+        ArgumentOutOfRangeException.ThrowIfLessThan(percent, 0.0);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(percent, 100.0);
+
+        return new Score(
+            percent,
+            halfWidth,
+            Math.Clamp(percent - halfWidth, 0.0, 100.0),
+            Math.Clamp(percent + halfWidth, 0.0, 100.0));
+    }
+}
+
+/// <summary>
+/// One frame's teaching score, with the two measures that make it up.
+///
+/// <para>
+/// <b>THE COMPONENTS TRAVEL WITH THE BLEND, INSIDE IT, NEVER BESIDE IT.</b> Issue #18 §4.5
+/// asks that there be <em>"no panel a reviewer can decline to look at"</em>, and the shape is
+/// what delivers that: <see cref="Teaching"/> is the number the view ranks by, and it cannot
+/// move without both components moving, because it is their weighted sum. The components are
+/// here so the author can see WHICH way a score moved — that is diagnosis, not a second score
+/// — and they are on the same record rather than on a second endpoint, so there is nothing to
+/// close.
+/// </para>
+/// <para>
+/// A frame appears here only when BOTH measures exist. A frame whose checks are used nowhere
+/// later has no <see cref="Downstream"/> — there is nothing downstream of it — and so has no
+/// teaching score at all rather than a score computed from half its definition. Its cells are
+/// still reported in <c>UnitRates.Cells</c>; see <c>ADR-0026</c>.
+/// </para>
+/// </summary>
+public sealed record FrameScore
+{
+    [Range(1, int.MaxValue)]
+    public int Step { get; init; }
+
+    /// <summary>The blend, and the only number anything ranks by.</summary>
+    [Required]
+    public required Score Teaching { get; init; }
+
+    /// <summary>The pressurable measure: did the reader get it right first time.</summary>
+    [Required]
+    public required Rate FirstAttempt { get; init; }
+
+    /// <summary>The counter-metric: did the checks that need this frame later still pass.</summary>
+    [Required]
+    public required Rate Downstream { get; init; }
 }

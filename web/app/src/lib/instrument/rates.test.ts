@@ -57,6 +57,11 @@ test('the committed contract parses, field for field', () => {
   assert.equal(rates!.track, 'math-for-ai-engineers');
   assert.equal(rates!.unit, 'P01');
 
+  // Three cells, which is the book's own shape rather than a convenient one: one check
+  // resting on frames 7 AND 8, and one resting on frame 7 alone. That is what makes frame 7
+  // a frame whose checks are used later and frame 8 one whose are not.
+  assert.equal(rates!.cells.length, 3);
+
   const [cell] = rates!.cells;
   assert.ok(cell, 'the contract sample has no cell, so it exercises no rate');
   assert.equal(cell.step, 7);
@@ -180,14 +185,16 @@ test('the contract carries the margin its ranking would cost', () => {
   // Issue #17's caveat is a number and not a slogan, so it travels on the wire with the rows
   // it is about. A document that carried rows and no margin would render as a ranked table
   // with nothing beside it, which is the one outcome the issue is written against.
-  const { selection } = readRates(sample())!;
+  const rates = readRates(sample())!;
+  const { selection } = rates;
 
   assert.notEqual(selection, null, 'the C# side sent cells with no selection margin');
-  assert.equal(selection!.ranked, 1);
 
-  // One cell, so the ranking chooses from one thing and selects for nothing.
-  assert.equal(selection!.standardErrors, 0);
-  assert.equal(selection!.points, 0);
+  // Read from the document rather than written down: the sample's shape is the book's, and
+  // the count is whatever that shape has.
+  assert.equal(selection!.ranked, rates.cells.length);
+  assert.ok(selection!.standardErrors > 0, 'more than one cell must carry a margin above zero');
+  assert.ok(selection!.points > 0);
 });
 
 test('cells with no margin are refused', () => {
@@ -252,4 +259,105 @@ test('a margin beside NO cells is refused, and its absence there is not', () => 
     readRates({ ...empty(), selection: { ranked: 1, standardErrors: 0, points: 0 } }),
     null,
   );
+});
+
+// ── The blended score: the counter-metric travels with it (#18) ─────────────────────────
+
+test('the contract carries a teaching score with both its components', () => {
+  // Issue #18 §4.5's shape on the wire. A score whose components did not arrive would be a
+  // number an author cannot interrogate; components with no score would be the counter-metric
+  // on its own panel, which is the one arrangement the issue forbids.
+  const { frames } = readRates(sample())!;
+
+  const [frame] = frames;
+  assert.ok(frame, 'the contract sample carries no frame score, so it exercises none');
+  assert.equal(frame.step, 7);
+
+  for (const part of [frame.teaching, frame.firstAttempt, frame.downstream]) {
+    assert.ok(Number.isFinite(part.percent));
+    assert.ok(Number.isFinite(part.low));
+    assert.ok(Number.isFinite(part.high));
+  }
+});
+
+test('the committed score is the blend of its own components, not one of them', () => {
+  // Read out of the document, so it catches what a field-by-field check cannot: a fixture
+  // regenerated from a blend that ignored its weights matches itself perfectly. The weights
+  // are the API's and are not repeated here — what is asserted is that the score lies strictly
+  // BETWEEN its components, which is true of every weighting and of no single component.
+  const [frame] = readRates(sample())!.frames;
+  const { teaching, firstAttempt, downstream } = frame!;
+
+  assert.notEqual(
+    firstAttempt.percent,
+    downstream.percent,
+    'the components coincide, so this fixture cannot tell a blend from either of them',
+  );
+
+  const lo = Math.min(firstAttempt.percent, downstream.percent);
+  const hi = Math.max(firstAttempt.percent, downstream.percent);
+  assert.ok(
+    teaching.percent > lo && teaching.percent < hi,
+    `the score ${teaching.percent} is not strictly between ${lo} and ${hi}`,
+  );
+});
+
+test('a frame score missing any of its four fields is refused', () => {
+  for (const field of ['step', 'teaching', 'firstAttempt', 'downstream']) {
+    const document = sample();
+    delete (document['frames'] as Record<string, unknown>[])[0]![field];
+
+    assert.equal(readRates(document), null, `a frame score without "${field}" was accepted`);
+  }
+});
+
+test('a teaching score missing any of its four fields is refused', () => {
+  for (const field of ['percent', 'halfWidth', 'low', 'high']) {
+    const document = sample();
+    const frames = document['frames'] as Record<string, unknown>[];
+    delete (frames[0]!['teaching'] as Record<string, unknown>)[field];
+
+    assert.equal(readRates(document), null, `a score without "${field}" was accepted`);
+  }
+});
+
+test('a score whose numbers cannot mean what they say is refused', () => {
+  const impossible: [string, unknown][] = [
+    ['percent', -1],
+    ['percent', 101],
+    ['halfWidth', -0.1],
+    ['percent', Number.NaN],
+    ['high', Number.POSITIVE_INFINITY],
+  ];
+
+  for (const [field, value] of impossible) {
+    const document = sample();
+    const frames = document['frames'] as Record<string, unknown>[];
+    (frames[0]!['teaching'] as Record<string, unknown>)[field] = value;
+
+    assert.equal(readRates(document), null, `${field} = ${String(value)} was accepted`);
+  }
+});
+
+test('an envelope with no frames array at all is refused', () => {
+  const document = sample();
+  delete document['frames'];
+
+  assert.equal(readRates(document), null);
+});
+
+test('a unit nobody has run needs no frames, and refuses any', () => {
+  const empty = (): Record<string, unknown> => ({
+    bundleTag: 'fixture-0',
+    track: 'math-for-ai-engineers',
+    unit: 'P02',
+    cells: [],
+  });
+
+  assert.notEqual(readRates(empty()), null);
+  assert.deepEqual(readRates(empty())!.frames, []);
+  assert.notEqual(readRates({ ...empty(), frames: [] }), null);
+
+  // A score about a unit with no cells is a number about nothing.
+  assert.equal(readRates({ ...empty(), frames: [{ step: 7 }] }), null);
 });

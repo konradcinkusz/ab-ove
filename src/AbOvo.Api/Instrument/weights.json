@@ -1,0 +1,20 @@
+{
+  "component": "teaching",
+  "note": "The whole of this product's scoring policy. Generated from Weights.Teaching and asserted to match it, so reading this is reading the code. One component, both measures inside it: the pressurable number cannot move without the counter-metric moving, which is METRIC-ETHICS.md section 2 and issue #18 section 4.5.",
+  "humanStateHeuristics": "Absent from this table, and absent from the Measure enum it is generated from — not present at zero. Anything that guesses at a reader's state belongs outside the scoring engine entirely (METRIC-ETHICS.md section 4, issue #18 section 4.6). HumanStateIsNotAMeasureTests is what makes that structural rather than stated.",
+  "weights": [
+    {
+      "measure": "FirstAttempt",
+      "weight": 0.35,
+      "pressurable": true,
+      "because": "Give the frame's answer away and this rises immediately. An author watching only this would read that as the frame improving."
+    },
+    {
+      "measure": "Downstream",
+      "weight": 0.65,
+      "pressurable": false,
+      "because": "A check resting on this frame and on a later one passes only if the reader still has this frame when they arrive, so giving the answer away cannot raise it and replacing teaching with a giveaway lowers it."
+    }
+  ],
+  "sum": 1
+}

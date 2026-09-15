@@ -359,29 +359,54 @@ public sealed class RatesCarryTheirIntervalTests
     [Fact]
     public void The_wire_shape_is_the_committed_contract()
     {
+        /*
+         * The sample mirrors the book's own shape rather than a convenient one: one check
+         * resting on frames 7 AND 8, and one resting on frame 7 alone. That makes frame 7 a
+         * frame whose checks are used later and frame 8 one whose are not, so a single fixture
+         * carries a teaching score, the absence of one, and two components that DIFFER — a
+         * sample where they coincided would be satisfied by a blend that ignored its weights.
+         */
+        const string carried = "test_1_gap_matches_the_table";
+        const string local = "test_1_gap_is_the_ulp_everywhere";
+
+        static CellRate Cell(int step, string check, long passed, long total) => new()
+        {
+            Step = step,
+            Check = check,
+            Attempt = 1,
+            Rate = Rate.Of(passed, total, Proportion.HalfWidthOf(passed, total)),
+        };
+
+        List<CellRate> cells =
+        [
+            Cell(7, carried, 143, 200),
+            Cell(7, local, 60, 100),
+            Cell(8, carried, 143, 200),
+        ];
+
+        var first = Rate.Of(203, 300, Proportion.HalfWidthOf(203, 300));
+        var down = Rate.Of(143, 200, Proportion.HalfWidthOf(143, 200));
+        var margin = Math.Abs(Normal.ExpectedMaxOfStandardNormals(cells.Count));
+        var worst = cells.MinBy(c => c.Rate.Percent)!;
+
         var sample = new UnitRates
         {
             BundleTag = "fixture-0",
             Track = "math-for-ai-engineers",
             Unit = "P01",
-            Cells =
+            Cells = cells,
+            Selection = SelectionMargin.Of(
+                cells.Count, margin, margin * worst.Rate.HalfWidth / Proportion.Z),
+            Frames =
             [
-                new CellRate
+                new FrameScore
                 {
                     Step = 7,
-                    Check = "test_1_gap_matches_the_table",
-                    Attempt = 1,
-                    Rate = Rate.Of(143, 200, Proportion.HalfWidthOf(143, 200)),
+                    FirstAttempt = first,
+                    Downstream = down,
+                    Teaching = Teaching.Of(first, down),
                 },
             ],
-            // One cell, so the ranking chooses from one thing and selects for nothing.
-            //
-            // The zero here is TYPED, because this sample is a shape and not an output: it is
-            // built by hand to pin the wire format, and the endpoint's own value at m = 1 is a
-            // quadrature residual of about 2.4e-17 rather than a literal zero. Asserting the
-            // two are the same number would be asserting something false — see
-            // RateEndpointTests.One_cell_carries_a_margin_of_zero, which bounds it instead.
-            Selection = SelectionMargin.Of(1, 0.0, 0.0),
         };
 
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true };
@@ -391,5 +416,38 @@ public sealed class RatesCarryTheirIntervalTests
         var expected = File.ReadAllText(contractPath).ReplaceLineEndings("\n").TrimEnd();
 
         Assert.Equal(expected, actual.ReplaceLineEndings("\n").TrimEnd());
+    }
+
+    /// <summary>
+    /// The committed sample's score IS the blend of the two components beside it.
+    ///
+    /// <para>
+    /// Read out of the document rather than recomputed from the test's own operands, so it
+    /// catches the one thing the byte comparison above cannot: a fixture regenerated from a
+    /// broken <c>Teaching.Of</c> matches itself perfectly. This asserts the relationship the
+    /// numbers are supposed to stand in — which is issue #18's whole subject, on the wire.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void The_committed_score_is_the_blend_of_its_own_components()
+    {
+        var contractPath = Path.Combine(RepositoryRoot, "src", "AbOvo.Contracts", "rates.contract.json");
+        var frame = JsonDocument.Parse(File.ReadAllText(contractPath))
+            .RootElement.GetProperty("frames").EnumerateArray().Single();
+
+        double Percent(string field) => frame.GetProperty(field).GetProperty("percent").GetDouble();
+
+        var firstAttempt = Percent("firstAttempt");
+        var downstream = Percent("downstream");
+
+        // The fixture only says anything if the two differ; equal components make every
+        // weighting agree.
+        Assert.NotEqual(firstAttempt, downstream, 6);
+
+        Assert.Equal(
+            Weights.Of(Measure.FirstAttempt) * firstAttempt
+            + Weights.Of(Measure.Downstream) * downstream,
+            Percent("teaching"),
+            10);
     }
 }
