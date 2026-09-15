@@ -48,5 +48,34 @@ test('a prototype property is not a problem code', () => {
  */
 test('only the problems a reader can act on are retryable', () => {
   const retryable = CODES.filter((code) => SIGN_IN_PROBLEMS[code].retryable);
-  assert.deepEqual(retryable.sort(), ['incomplete', 'rejected']);
+  assert.deepEqual(retryable.sort(), ['incomplete', 'rejected', 'second-factor-rejected']);
+});
+
+/**
+ * THE WHITELIST ABOVE IS A DECISION POINT, and this records what it decided about the three
+ * codes issue #30 added — because the list is the kind of thing a later change extends to
+ * make a test pass rather than to say something.
+ *
+ * `second-factor-rejected` joins it: a wrong authenticator code is the reader's to fix and
+ * is the ordinary case, exactly like a mistyped password.
+ *
+ * `second-factor-expired` does not: the challenge is gone, so this form has nothing left to
+ * send and the sign-in restarts at the password. Offering the code box again would be the
+ * loop the whole table exists to prevent.
+ *
+ * `second-factor` does not either, and that one was settled by this test failing. It is
+ * `unavailable` under a second-factor name — the service could not be reached — and the
+ * first draft marked it retryable on the strength of its own wording.
+ */
+test('the second-factor codes each sit on the right side of that line', () => {
+  assert.equal(SIGN_IN_PROBLEMS['second-factor-rejected'].retryable, true);
+  assert.equal(SIGN_IN_PROBLEMS['second-factor-expired'].retryable, false);
+  assert.equal(SIGN_IN_PROBLEMS['second-factor'].retryable, false);
+
+  // And the two the reader can be told apart must not say the same thing, which is the
+  // whole reason there are two: one means "try the code again", the other "start over".
+  assert.notEqual(
+    SIGN_IN_PROBLEMS['second-factor-rejected'].title,
+    SIGN_IN_PROBLEMS['second-factor-expired'].title,
+  );
 });

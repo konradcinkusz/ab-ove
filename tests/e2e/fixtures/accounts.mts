@@ -29,6 +29,14 @@ export interface FixtureAccount {
    * so the two accounts below exist to cover both shapes. See `roleClaim` in the server.
    */
   readonly roles: readonly string[];
+  /**
+   * Present iff the account has a second factor. Its presence is what makes the fixture
+   * answer a correct password with a challenge instead of tokens.
+   */
+  readonly secondFactor?: {
+    readonly code: string;
+    readonly recoveryCode: string;
+  };
 }
 
 /** One role, so the token carries the role claim as a BARE STRING. */
@@ -47,4 +55,29 @@ export const AUTHOR: FixtureAccount = {
   roles: ['Reader', 'Author'],
 };
 
-export const ACCOUNTS: readonly FixtureAccount[] = [READER, AUTHOR];
+/**
+ * An account with a second factor (issue #30).
+ *
+ * The correct password gets a CHALLENGE rather than tokens, which is authservice answering
+ * 200 with a different body — the sharp edge of the contract `classifyLoginResponse` exists
+ * for. The code and the recovery code below are what the fixture's `/api/v1/auth/2fa/login`
+ * accepts.
+ *
+ * NOT A REAL TOTP. The fixture checks a fixed string rather than computing a time-based
+ * code, and that is deliberate: a real one would make every assertion depend on the clock,
+ * and what the acceptance suite is testing is this application's handling of the exchange,
+ * not an implementation of RFC 6238. The unit tests pin the contract; see ADR-0029.
+ */
+export const TWO_FACTOR: FixtureAccount = {
+  id: 'fixture-2fa-1',
+  email: 'twofactor@example.test',
+  password: 'fixture-password-not-a-secret',
+  roles: ['Reader'],
+  secondFactor: {
+    code: '424242',
+    /** Single use, exactly as a real one is — the fixture spends it. */
+    recoveryCode: 'FIXTURE-RECOVERY-1',
+  },
+};
+
+export const ACCOUNTS: readonly FixtureAccount[] = [READER, AUTHOR, TWO_FACTOR];

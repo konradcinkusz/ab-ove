@@ -57,10 +57,37 @@ export const SIGN_IN_PROBLEMS = {
       'The account exists and the password was right. Open the verification email the identity service sent when the account was created, then sign in here.',
     retryable: false,
   },
+  /**
+   * WHAT THIS MEANS CHANGED WITH ISSUE #30, and the code was kept rather than renamed.
+   *
+   * It used to mean "this page cannot complete a second factor". It now means the reader
+   * reached the code screen and something went wrong getting back out of it — the message
+   * below is the one case where the second factor is genuinely unavailable, which is a
+   * deployment whose identity service offers it while this app cannot reach the endpoint.
+   *
+   * The ordinary path no longer produces a problem at all: a challenge is a redirect to
+   * `/login/2fa`, not an error.
+   */
   'second-factor': {
-    title: 'That account uses a second factor, which this page cannot complete yet.',
+    title: 'That account uses a second factor and this sign-in could not complete it.',
     detail:
-      'The password was correct. Signing in with an authenticator code is not built here yet, so there is no way through this screen for that account — everything except cross-machine progress works without signing in at all.',
+      'The password was correct and the code never got a fair hearing: something between here and the identity service failed on the second step. That is our side rather than yours, and the sign-in has to start from the password again.',
+    // NOT retryable, and it took a failing test to settle it. This is `unavailable` wearing
+    // a second-factor label — the service could not be reached — so offering the code form
+    // again would be the interface inviting an attempt that cannot work. The route has
+    // already cleared the challenge, so the page renders its start-again branch.
+    retryable: false,
+  },
+  'second-factor-rejected': {
+    title: 'That code was not accepted.',
+    detail:
+      'Check the current code in your authenticator app and enter it again — they change every thirty seconds, and one that has just expired will be refused. A recovery code works here too if you have one left.',
+    retryable: true,
+  },
+  'second-factor-expired': {
+    title: 'That sign-in took too long and has to start again.',
+    detail:
+      'The challenge from the first step is good for about five minutes. Nothing is wrong with the account or the password — enter them again and you will get a fresh one.',
     retryable: false,
   },
   /**

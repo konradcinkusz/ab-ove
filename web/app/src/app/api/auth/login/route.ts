@@ -4,6 +4,7 @@ import { backendConfigured } from '@/lib/server/backends';
 import { readerAddress } from '@/lib/server/client-ip';
 import { isSameOrigin } from '@/lib/server/same-origin';
 import { establishSession } from '@/lib/server/session';
+import { storeChallenge } from '@/lib/server/challenge';
 import { signIn, type SignInOutcome } from '@/lib/server/sign-in';
 import { safeRedirectTarget } from '@/lib/redirect-target';
 import type { SignInProblemCode } from '@/lib/sign-in-problem';
@@ -92,10 +93,15 @@ async function readCredentials(request: Request): Promise<Credentials | null> {
 }
 
 /** This app's outcomes, mapped onto the codes the sign-in page knows how to render. */
-function problemFor(outcome: Exclude<SignInOutcome, { kind: 'signed-in' }>): SignInProblemCode {
+/**
+ * `second-factor-required` is excluded as well as `signed-in`, and the type says so rather
+ * than a comment: both are handled in `POST` before this is reached, and neither is a
+ * problem to report. A future outcome that forgets to handle one fails to compile here.
+ */
+function problemFor(
+  outcome: Exclude<SignInOutcome, { kind: 'signed-in' | 'second-factor-required' }>,
+): SignInProblemCode {
   switch (outcome.kind) {
-    case 'second-factor-required':
-      return 'second-factor';
     case 'rejected':
       return 'rejected';
     case 'locked':
@@ -123,6 +129,11 @@ const PROBLEM_STATUS: Readonly<Record<SignInProblemCode, number>> = {
   locked: 423,
   unverified: 403,
   'second-factor': 409,
+  // A wrong code is the same class as a wrong password, and an expired challenge is a
+  // request this app can no longer complete — 410 rather than 401, because the thing that
+  // is gone is the challenge and not the credentials.
+  'second-factor-rejected': 401,
+  'second-factor-expired': 410,
   'rate-limited': 429,
   // Ours, not theirs. A 5xx is the honest class for all three: the credentials may have
   // been perfect and this deployment could not turn them into a session.
@@ -208,6 +219,36 @@ export async function POST(request: Request): Promise<NextResponse> {
     fetch,
     readerAddress(request),
   );
+
+  /**
+   * A CHALLENGE IS NOT A FAILURE, and it is handled before the failure mapping so that it
+   * cannot be turned into one.
+   *
+   * The password was correct. What comes back is a five-minute token that buys exactly one
+   * thing — the right to present a second factor — so it is stored the way every other
+   * credential in this app is stored (HttpOnly, never in the document; see
+   * `session-cookies.ts` for why a hidden field was refused) and the reader is sent to the
+   * screen that asks for the code.
+   *
+   * The destination survives the detour: a reader bounced off `/instrument` must land on
+   * `/instrument` when the second factor completes, not on the top of the site.
+   */
+  if (outcome.kind === 'second-factor-required') {
+    await storeChallenge(outcome.challengeToken, outcome.expiresIn);
+
+    const next = new URLSearchParams();
+    if (credentials.redirectTo) next.set('redirect', credentials.redirectTo);
+    const query = next.toString();
+    const destination = query ? `/login/2fa?${query}` : '/login/2fa';
+
+    return credentials.wantsRedirect
+      ? seeOther(destination)
+      : NextResponse.json(
+          { secondFactorRequired: true, next: destination },
+          { status: 200, headers: { 'cache-control': 'no-store' } },
+        );
+  }
+
   if (outcome.kind !== 'signed-in') return fail(problemFor(outcome));
 
   /**

@@ -56,8 +56,18 @@ export type SignInOutcome =
   /**
    * authservice answered 200 with a two-factor CHALLENGE rather than tokens. See
    * `classifyLoginResponse` — this is the sharp edge of the contract.
+   *
+   * THE CHALLENGE TOKEN IS CARRIED, which it was not when this outcome only had to be
+   * REPORTED. It is what `POST /api/v1/auth/2fa/login` exchanges for real tokens, it is
+   * signed with the same key as a session token and separated only by audience
+   * (`<audience>:2fa`), and it expires in five minutes — `expiresIn` says in how many
+   * seconds, and it is carried rather than assumed so nothing here has to know the number.
    */
-  | { readonly kind: 'second-factor-required' }
+  | {
+      readonly kind: 'second-factor-required';
+      readonly challengeToken: string;
+      readonly expiresIn: number | null;
+    }
   /** The credentials were not accepted. No further detail, deliberately. */
   | { readonly kind: 'rejected' }
   /** The password was right and the account is locked out. authservice's own disclosure. */
@@ -72,12 +82,19 @@ interface LoginBody {
   readonly accessToken?: unknown;
   readonly refreshToken?: unknown;
   readonly requiresTwoFactor?: unknown;
+  readonly challengeToken?: unknown;
+  readonly expiresIn?: unknown;
   readonly lockedOut?: unknown;
   readonly emailVerificationRequired?: unknown;
 }
 
 function text(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+/** A positive whole number of seconds, or null. Anything else is not a lifetime. */
+function seconds(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
 }
 
 /**
@@ -107,7 +124,24 @@ export function classifyLoginResponse(status: number, body: unknown): SignInOutc
   const parsed: LoginBody = typeof body === 'object' && body !== null ? (body as LoginBody) : {};
 
   if (status === 200) {
-    if (parsed.requiresTwoFactor === true) return { kind: 'second-factor-required' };
+    if (parsed.requiresTwoFactor === true) {
+      /*
+       * A CHALLENGE WITH NO TOKEN IS NOT A CHALLENGE, and it is reported as our fault
+       * rather than as a step the reader can take. There is nothing to exchange, so a
+       * screen asking for an authenticator code would be asking for something it could not
+       * use — which is the shape of the sign-in loop this whole union exists to prevent,
+       * one outcome further in than the case the paragraph above describes.
+       */
+      const challengeToken = text(parsed.challengeToken);
+      if (!challengeToken) {
+        return { kind: 'unavailable', reason: 'two-factor challenge carried no challenge token' };
+      }
+      return {
+        kind: 'second-factor-required',
+        challengeToken,
+        expiresIn: seconds(parsed.expiresIn),
+      };
+    }
 
     const accessToken = text(parsed.accessToken);
     if (accessToken) {

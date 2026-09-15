@@ -443,6 +443,20 @@ pointed at it, so the signed-in half of the product is gated rather than measure
 A gate that only ran after merge would report on a commit you can no longer decline, which
 is why it is on the pull request too.
 
+The fixture knows three accounts, in `fixtures/accounts.mts`, and each exists for a
+property rather than for a scenario:
+
+| account | what it is for |
+|---|---|
+| `READER` | one role, so the token carries the role claim as a **bare string** |
+| `AUTHOR` | two roles, so it carries an **array** — the shape a naive consumer gets wrong |
+| `TWO_FACTOR` | a correct password answers with a **challenge** rather than tokens (ADR-0029) |
+
+None of them is a credential: no deployment of ab-ovo has ever accepted them, and they are
+in the tree rather than in the environment because a test's inputs must not depend on a
+deployment. `TWO_FACTOR`'s code is a fixed string and not a real TOTP — computing one would
+make every assertion depend on the clock, and the exchange is what is under test.
+
 **Every script in `package.json` is executed by a CI context.** An unreferenced test entry
 point is not a latent capability, it is documentation that lies.
 

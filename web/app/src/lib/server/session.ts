@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
-  SESSION_COOKIES,
+  CLEARABLE_COOKIES,
   sessionCookieAttributes,
 } from '@/lib/session-cookies';
 import { verifyAccessToken } from './token';
@@ -102,7 +102,18 @@ export async function clearSession(): Promise<void> {
   const store = await cookies();
   const attributes = sessionCookieAttributes();
 
-  for (const name of SESSION_COOKIES) {
+  /*
+   * `CLEARABLE_COOKIES`, which is WIDER than `SESSION_COOKIES` by exactly the two-factor
+   * challenge. A challenge is not a session — it authenticates nothing, and the middleware
+   * would not accept one — but a reader who abandons a half-finished sign-in and then signs
+   * out should not be left holding a credential that proves their password was right.
+   *
+   * The MIDDLEWARE deliberately still clears only `SESSION_COOKIES`, and the difference is
+   * not an oversight: it clears on the way to /login because a token it could not verify
+   * must not linger, and a reader who opens a gated page in a second tab while their
+   * authenticator app is open has done nothing that should cost them the challenge.
+   */
+  for (const name of CLEARABLE_COOKIES) {
     store.set({ name, value: '', ...attributes, maxAge: 0 });
   }
 }
