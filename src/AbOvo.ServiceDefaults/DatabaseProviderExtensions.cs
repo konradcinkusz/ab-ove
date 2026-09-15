@@ -20,11 +20,28 @@ public static class DatabaseProviderExtensions
     /// The InMemory database name used when no connection string is configured. Tests and a
     /// fresh clone need no container — which is half of why P8's literal test passes.
     /// </param>
+    /// <param name="configure">
+    /// The service's own say over its context, applied after the provider is selected.
+    /// <para>
+    /// A DELEGATE rather than anything the kernel understands. `AbOvo.Api` adds a query
+    /// interceptor here that refuses a query spanning readers (ADR-0009 §1, ADR-0020), and
+    /// that is a rule about a table this library must never hear of — P10, and the
+    /// architecture test that fails the build if the kernel names a service type. The seam
+    /// carries the capability without the knowledge.
+    /// </para>
+    /// <para>
+    /// It is here because EF does NOT pick up an <c>IInterceptor</c> registered in the
+    /// application container under this composition: measured rather than assumed, by making
+    /// the interceptor write a line on every call and counting zero. A guard nobody has
+    /// watched fire is a comment.
+    /// </para>
+    /// </param>
     public static IServiceCollection AddDatabaseContext<TContext>(
         this IServiceCollection services,
         IConfiguration configuration,
         string connectionName,
-        string inMemoryDatabaseName)
+        string inMemoryDatabaseName,
+        Action<DbContextOptionsBuilder>? configure = null)
         where TContext : DbContext
     {
         var provider = configuration["DATABASE_PROVIDER"];
@@ -59,6 +76,8 @@ public static class DatabaseProviderExtensions
                     options.UseInMemoryDatabase(inMemoryDatabaseName);
                     break;
             }
+
+            configure?.Invoke(options);
         });
 
         // Readiness must fail while the database is unreachable — and must NOT carry the

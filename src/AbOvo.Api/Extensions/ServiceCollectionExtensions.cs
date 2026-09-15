@@ -1,5 +1,6 @@
 using AbOvo.Api.Persistence;
 using AbOvo.ServiceDefaults;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AbOvo.Api.Extensions;
@@ -14,7 +15,15 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDatabaseContext<AbOvoDbContext>(
-            configuration, AbOvoDbContext.ConnectionName, AbOvoDbContext.InMemoryDatabaseName);
+            configuration,
+            AbOvoDbContext.ConnectionName,
+            AbOvoDbContext.InMemoryDatabaseName,
+            // ADR-0009 §1 as a refusal rather than a promise: a query over the progress
+            // store that does not pin one reader throws before EF compiles it. It is
+            // registered HERE, in the composition root, because that is where a reviewer
+            // greps for what this service does (P9) — and because the kernel may not know
+            // the entity it is about.
+            options => options.AddInterceptors(ReaderScopedQueries.Instance));
 
         // P4 — schema by MigrateAsync, in a hosted service, after Kestrel starts, so probes
         // answer while schema work is in flight and a slow migration is not read as a
