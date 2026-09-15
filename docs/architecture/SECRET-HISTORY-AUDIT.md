@@ -1,6 +1,6 @@
 # Secret history audit
 
-**Date:** 2026-09-15 · **Auditor:** Claude Opus 5, session `017pcMb2STj1DKWkKjvTAMXR`
+**Date:** 2026-09-15 · **Run by:** Claude Code, session `017pcMb2STj1DKWkKjvTAMXR`
 **Issue:** [#19](https://github.com/konradcinkusz/ab-ove/issues/19) — phase 5.1
 **Result:** **No secret found**, across every commit publicly fetchable from the remote.
 
