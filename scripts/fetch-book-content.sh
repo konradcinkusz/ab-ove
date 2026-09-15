@@ -64,6 +64,7 @@ printf 'destination   %s/\n\n' "$DEST"
 failed=0
 fetched=0
 verified=0
+fetch_failures=0
 
 for entry in "${ENTRIES[@]}"; do
   path="${entry%%$'\t'*}"
@@ -80,10 +81,20 @@ for entry in "${ENTRIES[@]}"; do
   else
     mkdir -p "$(dirname "$target")"
     url="$BASE/$REPO/$REV/$path"
-    if ! curl -fsSL --max-time 60 --retry 3 --retry-delay 2 -o "$target.tmp" "$url"; then
+    # --retry-all-errors, and it was added because --retry alone was NOT enough. Measured:
+    # a CI run lost two of eight files to `curl: (35) Recv failure: Connection reset by
+    # peer` with `--retry 3 --retry-delay 2` already set. Exit 35 is a TLS-handshake
+    # failure, and curl's plain --retry covers transient HTTP statuses and timeouts rather
+    # than a connection torn down mid-handshake — so the retries this script thought it had
+    # were never attempted for the one failure it actually met.
+    #
+    # The failure counter below does not care which kind this was, so the epilogue has to.
+    if ! curl -fsSL --max-time 60 --retry 3 --retry-delay 2 --retry-all-errors \
+         -o "$target.tmp" "$url"; then
       printf '  FETCH FAILED  %s\n            %s\n' "$path" "$url"
       rm -f "$target.tmp"
       failed=$((failed + 1))
+      fetch_failures=$((fetch_failures + 1))
       continue
     fi
     mv "$target.tmp" "$target"
@@ -107,10 +118,29 @@ done
 
 echo
 if (( failed > 0 )); then
-  cat >&2 <<EOF
-FAILED: $failed of ${#ENTRIES[@]} file(s).
+  echo "FAILED: $failed of ${#ENTRIES[@]} file(s)." >&2
+  echo >&2
 
-A digest mismatch means one of two things, and they need opposite fixes:
+  # WHICH ADVICE, and it used to give only one. A CI run that lost two files to a
+  # connection reset was told "a digest mismatch means one of two things" and sent looking
+  # for a hand-edited file that did not exist. The counter above cannot tell the two apart;
+  # this can, and the two failures need entirely different responses — one is the network,
+  # the other is a claim about this repository being false.
+  if (( fetch_failures > 0 )); then
+    cat >&2 <<EOF
+$fetch_failures of them could not be DOWNLOADED. That is the network rather than this
+repository: nothing was verified for those files, so nothing is known about them.
+
+  - Re-run. curl already retries, including on a connection reset.
+  - If it persists, check that $BASE is reachable and that the pin names a commit that
+    still exists on $REPO.
+EOF
+  fi
+
+  if (( failed > fetch_failures )); then
+    cat >&2 <<EOF
+$((failed - fetch_failures)) of them were downloaded or found and DID NOT MATCH their
+digest. That means one of two things, and they need opposite fixes:
 
   - Someone edited a file under $DEST/ by hand. Do not "fix" the lock file to match.
     Nothing under $DEST/ is authored in this repository; make the change in the book,
@@ -118,6 +148,8 @@ A digest mismatch means one of two things, and they need opposite fixes:
   - The pin was moved without updating the digests. Re-run without --check to refetch,
     and commit the lock file and the content together so they cannot disagree.
 EOF
+  fi
+
   exit 1
 fi
 
