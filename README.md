@@ -56,9 +56,14 @@ What exists is the scaffold, one thin vertical slice through it, and **the lab p
 API with a health endpoint and a service-info endpoint, a web app with a landing page and a
 live integration panel, a Playwright acceptance suite, four `fly.toml` files describing a
 topology that has never been applied, and the CI gates that would catch a regression in any
-of it. There is deliberately **no domain model yet** — no frames, no progress, no exercises
-in the database — because inventing entities ahead of the ticket that needs them produces
-code the first real ticket deletes (INIT-GENERIC-TEMPLATE.md §12).
+of it. The domain model is still **one entity** — `ReaderProgress`, which arrived with
+synchronisation (#11) and is the only thing this estate stores about anybody. There are no
+frames and no exercises in any database, because the frames are a content bundle the reader
+fetches and the lab runs in the browser; entities invented ahead of the ticket that needs
+them are code the first real ticket deletes (INIT-GENERIC-TEMPLATE.md §12).
+
+That sentence used to read "there is deliberately no domain model yet — no frames, no
+progress, no exercises in the database". It had been false since #11, on the front page.
 
 **Phase 1 is done and it is the first thing here that is a product rather than a
 scaffold.** `/lab/p01` runs the book's own Lab P1 — seven exercises, thirteen checks —
@@ -141,6 +146,15 @@ and never how they did — and three things now hold that, none of them a promis
 Each was watched refusing something before it was believed, and
 [ADR-0020](docs/adr/0020-no-aggregate-touches-the-progress-store.md) records what each one
 does and does not see.
+
+**And the reader is told what that costs them**, which is the half an architectural absence
+cannot deliver on its own. Because an outcome carries no reader, nothing can find the rows
+that were yours — so deleting an account cannot retract a contribution already folded into a
+rate. The deletion screen says exactly that, beside what the deletion *does* remove and
+beside the fact that the identity service marks and schedules rather than erases
+([ADR-0021](docs/adr/0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md)).
+A screen that implied otherwise would be claiming a capability the schema was designed not
+to have.
 
 This paragraph used to end with `grep -rn "ReaderId\|UserId\|AuthorId"
 src/AbOvo.Api/Persistence`, "meant to keep returning nothing". It still returns nothing, and

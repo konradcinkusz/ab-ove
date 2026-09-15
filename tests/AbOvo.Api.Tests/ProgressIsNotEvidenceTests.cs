@@ -179,6 +179,55 @@ public sealed class ProgressIsNotEvidenceTests
     }
 
     /// <summary>
+    /// The instrument is not built, and the deletion screen says so.
+    ///
+    /// <para>
+    /// This is not a rule about the architecture. It is a gate on ONE SENTENCE that is true
+    /// today and will stop being true without anybody editing it.
+    /// </para>
+    /// <para>
+    /// The account-deletion screen (issue #13) has to tell a reader that a contribution
+    /// already folded into a rate cannot be taken back out, because the instrument records
+    /// an outcome with no reader on it (ADR-0009 §1). That sentence describes a DESIGN and
+    /// is true whether the instrument holds a million rows or none. Beside it the screen
+    /// says <c>nothingRecordedYet</c> — "nothing of that kind is recorded yet: the
+    /// instrument is not built" — which describes a STATE, is true only while phase 4 is
+    /// unbuilt, and is the difference between describing a design and implying a
+    /// collection.
+    /// </para>
+    /// <para>
+    /// Nothing else would catch it. The phase-4 pull request adds an entity, a migration
+    /// and an endpoint; it has no reason to open a string table in the web app, and a
+    /// sentence on a deletion screen saying nothing is recorded — while something is — is
+    /// exactly the class of claim this product refuses to make.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void The_instrument_is_not_built_and_the_deletion_screen_says_so()
+    {
+        using var factory = new SignedInApiFactory();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AbOvoDbContext>();
+
+        var entities = db.Model.GetEntityTypes()
+            .Select(e => e.ClrType.Name)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(
+            entities.SequenceEqual([nameof(ReaderProgress)]),
+            "This service now stores something besides the reader's place in the book. If "
+            + "that is the instrument, the account-deletion screen is now lying: "
+            + "`deleteAccount.nothingRecordedYet` in web/app/src/lib/i18n/chrome.ts says "
+            + "\"nothing of that kind is recorded yet: the instrument is not built\", in "
+            + "both editions, and is rendered on /account and /account/deleted. Remove the "
+            + "clause from both language entries and from both pages, then delete this "
+            + "test. The sentence ABOVE it — that an outcome carries no reader, so no "
+            + "deletion can find one — stays, and ADR-0009 §1 is what keeps it true. "
+            + "Found: " + string.Join(", ", entities));
+    }
+
+    /// <summary>
     /// Every way into the table leads with the reader.
     ///
     /// <para>

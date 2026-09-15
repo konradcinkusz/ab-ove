@@ -26,3 +26,15 @@
   color: var(--ink);
   text-decoration-style: solid;
 }
+
+/*
+ * Two controls where there was one. `inline-flex` so the pair sits on the crumb row's
+ * baseline exactly as the single control did — the row is a flex line, and a block wrapper
+ * here would have made the sign-out button move the moment an account link appeared beside
+ * it.
+ */
+.group {
+  align-items: baseline;
+  display: inline-flex;
+  gap: 0.75rem;
+}
