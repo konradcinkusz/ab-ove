@@ -122,6 +122,7 @@ public static class RateEndpoints
                     Track = track,
                     Unit = unit,
                     Cells = cells,
+                    Selection = MarginOver(cells),
                 });
             })
             .WithName(EndpointNames.GetRates)
@@ -136,5 +137,57 @@ public static class RateEndpoints
             .ProducesValidationProblem();
 
         return adminApi;
+    }
+
+    /// <summary>
+    /// What ranking these cells costs, by Program P27 §5's arithmetic.
+    ///
+    /// <para>
+    /// COMPUTED EVEN THOUGH THIS ENDPOINT DOES NOT RANK, which is the decision worth naming.
+    /// The response is in <c>(step, check, attempt)</c> order and the author's view sorts it;
+    /// but the margin is not a property of the sort, it is a property of <em>how many noisy
+    /// numbers a sort had to choose from</em>, and that is the same for every ordering of the
+    /// same cells. Leaving it to the client would put P27's arithmetic in a second place, and
+    /// only one of the two would be gated against the book.
+    /// </para>
+    /// <para>
+    /// THE EXTREME IS THE LOWEST RATE, because the view ranks by how badly the book is doing
+    /// and reads the worst end. <c>E[min]</c> is <c>-E[max]</c> by symmetry, so the magnitude
+    /// is <see cref="Normal.ExpectedMaxOfStandardNormals"/> either way and the sign is carried
+    /// by the sentence on the screen rather than by the number.
+    /// </para>
+    /// </summary>
+    private static SelectionMargin? MarginOver(IReadOnlyList<CellRate> cells)
+    {
+        // No cells is no list. An absent margin rather than a zero one, for the reason
+        // Rate.Of refuses a total of zero: a zero renders, and it would say there is a
+        // ranking whose extreme is trustworthy.
+        if (cells.Count == 0) return null;
+
+        /*
+         * THE MAGNITUDE, and Math.Abs here is not a clamp papering over a bad quadrature.
+         *
+         * E[min] = -E[max] by symmetry, so what this wants is the size of the margin and the
+         * direction is carried by the sentence on the screen. Taking it explicitly also
+         * removes a latent 500: at m = 1 the integrand is odd and the true answer is zero, so
+         * what Simpson returns is a floating-point residual — measured at 2.4e-17 here, and
+         * its SIGN is a property of the summation order and of the machine. A negative one
+         * would reach SelectionMargin.Of, which refuses negatives for a good reason, and a
+         * unit with exactly one cell would answer 500 on some machines and 200 on others.
+         *
+         * Normal itself is deliberately NOT clamped: NormalGatesTests asserts |E[max of 1]|
+         * is under the book's own 1e-9, and a routine that clamped would pass that gate while
+         * returning -0.5. The magnitude is taken here, where the caller knows it wants one.
+         */
+        var standardErrors = Math.Abs(Normal.ExpectedMaxOfStandardNormals(cells.Count));
+
+        // The cell the ranking would put at its extreme, and its own standard error — which
+        // is the half-width divided by the z the interval was built with, so the margin and
+        // the intervals beside it are in one another's units by construction rather than by
+        // a second constant that would have to be kept equal.
+        var extreme = cells.MinBy(c => c.Rate.Percent)!;
+        var standardError = extreme.Rate.HalfWidth / Proportion.Z;
+
+        return SelectionMargin.Of(cells.Count, standardErrors, standardErrors * standardError);
     }
 }

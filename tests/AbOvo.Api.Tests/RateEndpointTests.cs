@@ -252,6 +252,212 @@ public sealed class RateEndpointTests
 
     // ── What the persistence layer refuses underneath ───────────────────────────────────
 
+    // ── What ranking costs: the selection margin ────────────────────────────────────────
+
+    /// <summary>
+    /// A unit nobody has run carries NO margin, rather than a margin of zero.
+    ///
+    /// <para>
+    /// The same decision <c>Rate.Of</c> takes one field over, and for the same reason: there
+    /// is no list, so a zero would be a sentence about a ranking that does not exist — and it
+    /// would render, beside an empty table, as <em>this ranking is trustworthy</em>.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_unit_with_no_cells_carries_no_selection_margin()
+    {
+        using var factory = new SignedInApiFactory();
+        var author = factory.ClientFor(Author, "Admin");
+
+        var rates = await Rates(author, Url(), TestContext.Current.CancellationToken);
+
+        Assert.Empty(CellsOf(rates));
+        Assert.Equal(JsonValueKind.Null, rates.GetProperty("selection").ValueKind);
+    }
+
+    /// <summary>
+    /// ONE cell carries a margin, and it is zero to every digit anybody reads.
+    ///
+    /// <para>
+    /// The distinction the absence above depends on. Selecting the extreme of one thing
+    /// selects for nothing, so the margin is zero — a closed form Program P27 asserts rather
+    /// than a placeholder, which is why it is reported where an empty list's is withheld. A
+    /// view that treated the two alike would have nothing to say about the difference between
+    /// "no evidence" and "one cell, no ranking".
+    /// </para>
+    /// <para>
+    /// <b>ASSERTED AS A BOUND, NOT AS A FIGURE</b>, and the first draft of this test asserted
+    /// the figure and failed: the quadrature returns 2.4e-17 rather than 0, because at m = 1
+    /// the integrand is odd and what survives is a floating-point residual whose size and sign
+    /// belong to the summation order and the machine. That is the class this project keeps
+    /// meeting — an OBSERVATION committed where an INVARIANT was meant — so the bound below is
+    /// the book's own 1e-9, the same one <c>NormalGatesTests</c> uses, and it is a bound this
+    /// residual clears by eight orders on any machine.
+    /// </para>
+    /// <para>
+    /// The failure was worth more than the fix. A NEGATIVE residual would have reached
+    /// <c>SelectionMargin.Of</c>, which refuses negatives, and a unit with exactly one cell
+    /// would have answered 500 on some machines and 200 on others — see <c>RateEndpoints</c>.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task One_cell_carries_a_margin_of_zero()
+    {
+        using var factory = new SignedInApiFactory();
+        var writer = factory.CreateClient();
+        var author = factory.ClientFor(Author, "Admin");
+        var token = TestContext.Current.CancellationToken;
+
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(7, "test_a", 1, passed: false), token);
+
+        var selection = (await Rates(author, Url(), token)).GetProperty("selection");
+
+        Assert.Equal(1, selection.GetProperty("ranked").GetInt64());
+        Assert.InRange(selection.GetProperty("standardErrors").GetDouble(), 0.0, 1e-9);
+        Assert.InRange(selection.GetProperty("points").GetDouble(), 0.0, 1e-9);
+    }
+
+    /// <summary>
+    /// The margin grows with how many cells the ranking sorts through.
+    ///
+    /// <para>
+    /// The property the author's view rests on, asserted end to end rather than only on
+    /// <c>Normal</c>: a view over three cells overstates its worst less than one over thirty.
+    /// <c>NormalGatesTests</c> gates the arithmetic against the book; this gates that the
+    /// endpoint passes it the right <c>m</c> — a handler that sent <c>1</c>, or the number of
+    /// frames rather than of cells, would fail here and nowhere else.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task The_margin_grows_with_the_number_of_cells_ranked()
+    {
+        using var factory = new SignedInApiFactory();
+        var writer = factory.CreateClient();
+        var author = factory.ClientFor(Author, "Admin");
+        var token = TestContext.Current.CancellationToken;
+
+        var previous = 0.0;
+
+        for (var check = 1; check <= 6; check++)
+        {
+            await writer.PostAsJsonAsync(
+                "/api/v1/outcomes", Report(7, $"test_{check}", 1, passed: false), token);
+
+            var selection = (await Rates(author, Url(), token)).GetProperty("selection");
+
+            Assert.Equal(check, selection.GetProperty("ranked").GetInt64());
+
+            var standardErrors = selection.GetProperty("standardErrors").GetDouble();
+            // Bounded at one cell rather than compared, for the reason
+            // One_cell_carries_a_margin_of_zero gives at length: the value there is a
+            // floating-point residual and not a figure.
+            Assert.True(
+                check == 1 ? standardErrors <= 1e-9 : standardErrors > previous,
+                $"{check} cells gave a margin of {standardErrors}, not above {previous}");
+            previous = standardErrors;
+        }
+    }
+
+    /// <summary>
+    /// The margin in points is taken at the WORST cell's own standard error.
+    ///
+    /// <para>
+    /// The cell the claim is about, and the one the ranking puts at its top. The two cells
+    /// below differ in evidence by a factor of five, so a handler that used the other cell's
+    /// standard error, or a pooled one, gives a visibly different answer rather than one
+    /// within rounding.
+    /// </para>
+    /// <para>
+    /// <b>THE FIRST VERSION OF THIS TEST COULD NOT FAIL, AND MUTATION TESTING IS WHAT SAID
+    /// SO.</b> It made the worst cell one observation that failed — a rate of 0% — whose
+    /// half-width is <em>exactly zero</em> under this formula, which is the weakness ADR-0024
+    /// names. Every quantity in the assertion was then zero, so deleting <c>/ Proportion.Z</c>
+    /// from <c>RateEndpoints</c> left all ninety-three tests green while the margin in points
+    /// came out 1.96 times too large. The cells below are chosen so that neither the rate nor
+    /// the half-width is degenerate, and the two guards under the arrangement are there so
+    /// that it cannot quietly become vacuous again.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task The_margin_in_points_is_taken_at_the_worst_cell_s_standard_error()
+    {
+        using var factory = new SignedInApiFactory();
+        var writer = factory.CreateClient();
+        var author = factory.ClientFor(Author, "Admin");
+        var token = TestContext.Current.CancellationToken;
+
+        // The worst cell: 2 of 20, so 10% — badly enough to rank first, and with enough
+        // evidence that its interval is narrow.
+        for (var i = 0; i < 20; i++)
+        {
+            await writer.PostAsJsonAsync(
+                "/api/v1/outcomes", Report(7, "test_worst", 1, passed: i < 2), token);
+        }
+
+        // A middling cell on almost no evidence, so it carries the WIDER interval of the two.
+        // A handler taking the widest rather than the worst would report this one's.
+        for (var i = 0; i < 4; i++)
+        {
+            await writer.PostAsJsonAsync(
+                "/api/v1/outcomes", Report(7, "test_middling", 1, passed: i < 2), token);
+        }
+
+        var rates = await Rates(author, Url(), token);
+        var cells = CellsOf(rates);
+        var selection = rates.GetProperty("selection");
+
+        var worst = cells.MinBy(c => Number(c, "percent"));
+        var widest = cells.MaxBy(c => Number(c, "halfWidth"));
+
+        // The arrangement, asserted before the thing it is an arrangement for. Without these
+        // the test still runs and still passes against a handler that is wrong.
+        Assert.NotEqual(
+            worst.GetProperty("check").GetString(),
+            widest.GetProperty("check").GetString());
+        Assert.True(
+            Number(worst, "halfWidth") > 0.0,
+            "the worst cell's interval is zero wide, so every quantity below is zero and this "
+            + "test asserts 0 == 0 — which is how it passed a handler with no z in it.");
+
+        var standardErrors = selection.GetProperty("standardErrors").GetDouble();
+        Assert.True(standardErrors > 0.0, "two cells must carry a margin above zero");
+
+        Assert.Equal(
+            standardErrors * Number(worst, "halfWidth") / Proportion.Z,
+            selection.GetProperty("points").GetDouble(),
+            10);
+    }
+
+    /// <summary>
+    /// The margin is about ONE bundle tag's cells, like everything else on this endpoint.
+    ///
+    /// <para>
+    /// A margin computed over every tag's cells at once would overstate — more cells means a
+    /// larger correction — and it would do so while the table beside it showed one tag's. The
+    /// tag pin is asserted on the cells elsewhere; this asserts it reaches the envelope too.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task The_margin_counts_only_the_asked_for_tag_s_cells()
+    {
+        using var factory = new SignedInApiFactory();
+        var writer = factory.CreateClient();
+        var author = factory.ClientFor(Author, "Admin");
+        var token = TestContext.Current.CancellationToken;
+
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(7, "test_a", 1, passed: false), token);
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(7, "test_b", 1, passed: false), token);
+
+        var other = Report(7, "test_c", 1, passed: false) with { BundleTag = "fixture-1" };
+        await writer.PostAsJsonAsync("/api/v1/outcomes", other, token);
+
+        var mine = (await Rates(author, Url(), token)).GetProperty("selection");
+        var theirs = (await Rates(author, Url("fixture-1"), token)).GetProperty("selection");
+
+        Assert.Equal(2, mine.GetProperty("ranked").GetInt64());
+        Assert.Equal(1, theirs.GetProperty("ranked").GetInt64());
+    }
+
     private static async Task<Exception?> Ask(Func<AbOvoDbContext, Task> query)
     {
         using var factory = new SignedInApiFactory();

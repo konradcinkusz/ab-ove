@@ -52,12 +52,44 @@ export interface CellRate {
   readonly rate: Rate;
 }
 
+/**
+ * How much the extreme of a RANKED list overstates, by selection alone.
+ *
+ * Sort noisy estimates and read the end of it, and the end sits beyond the truth even when
+ * every item is equally good — because sorting selects for whichever estimate the noise
+ * pushed furthest. It is a property of the LIST, never of a cell: a row in the middle of a
+ * ranking was not selected for, so this number beside every row would be a wrong number that
+ * renders.
+ *
+ * COMPUTED BY THE API, never here. Program P27's arithmetic has one implementation and it is
+ * the one `NormalGatesTests` gates against the book's own committed figures; a second copy on
+ * this side would be a routine that has to agree with it and that nothing checks.
+ */
+export interface SelectionMargin {
+  /** How many cells the ranking sorts through. At least one. */
+  readonly ranked: number;
+  /** `E[max of ranked standard normals]` — the margin in standard errors. */
+  readonly standardErrors: number;
+  /** The same margin in percentage points, at the extreme cell's own standard error. */
+  readonly points: number;
+}
+
 export interface UnitRates {
   readonly bundleTag: string;
   readonly track: string;
   readonly unit: string;
   /** Only cells with at least one observation. A unit nobody has run is an empty array. */
   readonly cells: readonly CellRate[];
+  /**
+   * Absent when there are no cells, and present — as zero — when there is exactly one.
+   *
+   * Not `| undefined` by oversight: there is no list to select from, so "this ranking
+   * overstates by nothing" is a sentence about something that does not exist, and it would
+   * render beside an empty table as *this ranking is trustworthy*. One cell is different and
+   * is reported, because selecting the extreme of one thing selects for nothing and that is a
+   * fact rather than a placeholder.
+   */
+  readonly selection: SelectionMargin | null;
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -97,6 +129,21 @@ function readCell(value: unknown): CellRate | null {
   return rate === null ? null : { step, check, attempt, rate };
 }
 
+function readSelection(value: unknown): SelectionMargin | null {
+  if (!isObject(value)) return null;
+
+  const { ranked, standardErrors, points } = value;
+  if (!num(ranked) || !num(standardErrors) || !num(points)) return null;
+
+  // The properties the number means, refused rather than rendered. `ranked` under one is a
+  // ranking of nothing; a negative margin would say that sorting a list makes its extreme
+  // look BETTER than the truth, which is the opposite of what selection does and would render
+  // as a correction pointing the wrong way.
+  if (ranked < 1 || standardErrors < 0 || points < 0) return null;
+
+  return { ranked, standardErrors, points };
+}
+
 /**
  * Parse an API response into rates, or `null`.
  *
@@ -119,5 +166,24 @@ export function readRates(value: unknown): UnitRates | null {
     read.push(parsed);
   }
 
-  return { bundleTag, track, unit, cells: read };
+  /*
+   * THE MARGIN IS REQUIRED EXACTLY WHEN THERE IS A LIST, and both halves are refusals.
+   *
+   * Cells and no margin is a ranking whose cost of being ranked went missing in transit, and
+   * it would render as a table with no caveat beside it — which is the one outcome issue #17
+   * is written against. No cells and a margin is a number about a list that does not exist.
+   */
+  const raw = value['selection'];
+
+  if (read.length === 0) {
+    // Absent and an explicit `null` both say the same thing here and there is nothing to be
+    // wrong about, so both are accepted. A margin that is PRESENT is refused: it would be a
+    // correction for a ranking of no rows.
+    return raw === null || raw === undefined
+      ? { bundleTag, track, unit, cells: read, selection: null }
+      : null;
+  }
+
+  const selection = readSelection(raw);
+  return selection === null ? null : { bundleTag, track, unit, cells: read, selection };
 }

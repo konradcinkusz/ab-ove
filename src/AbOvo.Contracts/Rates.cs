@@ -138,6 +138,91 @@ public sealed record CellRate
 }
 
 /// <summary>
+/// How much the extreme of a RANKED list overstates, by selection alone.
+///
+/// <para>
+/// <b>THE EFFECT THIS EXISTS FOR.</b> Sort a list of noisy estimates and read the end of it,
+/// and the end sits beyond the truth even when every item is equally good — because sorting
+/// selects for whichever estimate the noise happened to push furthest. Program P27 §5 prices
+/// it for a leaderboard of forty models; the author's view ranks cells and reads the worst,
+/// which is the same arithmetic with the sign turned over. Issue #17 states the consequence
+/// in the reader's own terms: <em>"the frames at the top of an early list are the ones with
+/// three attempts rather than the ones that are worst."</em>
+/// </para>
+/// <para>
+/// It is a property of the LIST and never of a cell, which is why it is on the envelope. A
+/// cell in the middle of a ranking was not selected for and carries no such margin; putting
+/// this number beside every row would be a wrong number that renders, which is the shape
+/// <see cref="Rate"/>'s own note refuses one field over.
+/// </para>
+/// <para>
+/// ABSENT when there are no cells, rather than zero. Identical reasoning to <see cref="Of"/>
+/// refusing a total of zero: there is no list, so "this list overstates by nothing" is a
+/// sentence about something that does not exist. A list of ONE is different and is reported —
+/// its margin is exactly zero, because selecting the extreme of one thing selects for nothing,
+/// and that is a fact rather than a placeholder.
+/// </para>
+/// </summary>
+public sealed record SelectionMargin
+{
+    private SelectionMargin(long ranked, double standardErrors, double points)
+    {
+        Ranked = ranked;
+        StandardErrors = standardErrors;
+        Points = points;
+    }
+
+    /// <summary>How many cells the ranking sorts through. At least one.</summary>
+    public long Ranked { get; }
+
+    /// <summary>
+    /// <c>E[max of <see cref="Ranked"/> standard normals]</c> — the margin in standard errors,
+    /// which is the unit it is a property of the list in.
+    /// </summary>
+    public double StandardErrors { get; }
+
+    /// <summary>
+    /// The same margin in percentage points, at the standard error of the cell the ranking
+    /// puts at its extreme.
+    ///
+    /// <para>
+    /// The extreme cell's own standard error rather than a pooled one, because that is the
+    /// cell the claim is about: <em>this row, at the top of this list, is expected to sit this
+    /// many points below the truth.</em> A pooled standard error would be a fourth quantity
+    /// nobody asked for, and cells here differ in how many observations they carry — which is
+    /// the very thing that makes an early ranking mislead.
+    /// </para>
+    /// </summary>
+    public double Points { get; }
+
+    /// <summary>
+    /// The only way to obtain one. Both quantities are computed by the caller, because the
+    /// arithmetic lives in the service beside <c>Proportion</c> and this assembly holds no
+    /// arithmetic (P10).
+    /// </summary>
+    public static SelectionMargin Of(long ranked, double standardErrors, double points)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(ranked, 1);
+
+        // Not merely "finite": a negative margin would mean sorting a list makes its extreme
+        // look BETTER than the truth, which is the opposite of what selection does, and it
+        // would render as a correction pointing the wrong way.
+        ArgumentOutOfRangeException.ThrowIfNegative(standardErrors);
+        ArgumentOutOfRangeException.ThrowIfNegative(points);
+
+        if (!double.IsFinite(standardErrors) || !double.IsFinite(points))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(standardErrors),
+                "A margin must be a number. NaN and Infinity both survive serialisation and "
+                + "both render, which is the failure mode readRates refuses at the other edge.");
+        }
+
+        return new SelectionMargin(ranked, standardErrors, points);
+    }
+}
+
+/// <summary>
 /// Every measured cell of one unit, at one bundle tag.
 ///
 /// <para>
@@ -168,4 +253,16 @@ public sealed record UnitRates
     /// </para>
     /// </summary>
     public IReadOnlyList<CellRate> Cells { get; init; } = [];
+
+    /// <summary>
+    /// What ranking these cells costs in honesty — absent when there is nothing to rank.
+    ///
+    /// <para>
+    /// Computed here rather than on the screen so that there is one implementation of it.
+    /// The screen's job is to sort and to say the sentence; the moment a client worked the
+    /// margin out for itself there would be two routines that must agree about Program P27's
+    /// arithmetic, and only one of them would be gated against the book.
+    /// </para>
+    /// </summary>
+    public SelectionMargin? Selection { get; init; }
 }

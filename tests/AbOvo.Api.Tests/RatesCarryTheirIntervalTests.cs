@@ -374,6 +374,14 @@ public sealed class RatesCarryTheirIntervalTests
                     Rate = Rate.Of(143, 200, Proportion.HalfWidthOf(143, 200)),
                 },
             ],
+            // One cell, so the ranking chooses from one thing and selects for nothing.
+            //
+            // The zero here is TYPED, because this sample is a shape and not an output: it is
+            // built by hand to pin the wire format, and the endpoint's own value at m = 1 is a
+            // quadrature residual of about 2.4e-17 rather than a literal zero. Asserting the
+            // two are the same number would be asserting something false — see
+            // RateEndpointTests.One_cell_carries_a_margin_of_zero, which bounds it instead.
+            Selection = SelectionMargin.Of(1, 0.0, 0.0),
         };
 
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true };
