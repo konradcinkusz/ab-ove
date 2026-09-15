@@ -44,12 +44,92 @@ interface Plural {
   readonly other: string;
 }
 
+/**
+ * The account-deletion screen.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THIS IS THE ONE SCREEN IN THE PRODUCT WHOSE WORDING IS THE FEATURE.
+ *
+ * Issue #13 — "It removes both, AND it says plainly that it cannot retract an anonymous
+ * outcome already folded into a rate... A deletion screen that implies otherwise is
+ * claiming a capability the schema was designed not to have."
+ *
+ * So there are four blocks and each answers a different question, because a deletion
+ * screen that answers only the first is the one that misleads:
+ *
+ *   `removes*`      what goes.
+ *   `stays`         what does not, and why that is not an oversight.
+ *   `cannotReach`   what no deletion can reach, and why that is the privacy property
+ *                   working rather than failing.
+ *   `notImmediate`  that the account is marked and scheduled rather than erased.
+ *
+ * The last two are the ones a reader would otherwise have to discover afterwards, which
+ * is the worst moment to discover either.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+interface DeleteAccountStrings {
+  readonly title: string;
+  readonly lead: string;
+  readonly removesProgress: string;
+  readonly removesAccount: string;
+  readonly staysTitle: string;
+  readonly stays: string;
+  readonly cannotReachTitle: string;
+  readonly cannotReach: string;
+  /**
+   * GATED, AND THE ONLY STRING HERE THAT IS TRUE ONLY TODAY.
+   *
+   * The instrument is phase 4 and is not built; `AbOvoDbContext` declares one entity and it
+   * is the progress store. So the sentence above describes a property of a thing that does
+   * not yet record anything, and saying so is the difference between describing a design
+   * and implying a collection.
+   *
+   * It stops being true the day the instrument ships, and a sentence that has to change
+   * when something else lands is a sentence that goes stale silently. `The_instrument_is_
+   * not_built_and_the_deletion_screen_says_so` in `ProgressIsNotEvidenceTests` fails the
+   * build when a second entity appears, and its message names this field.
+   */
+  readonly nothingRecordedYet: string;
+  readonly notImmediateTitle: string;
+  readonly notImmediate: string;
+  /**
+   * The word the reader types to confirm, IN THEIR OWN LANGUAGE.
+   *
+   * authservice demands the literal `DELETE`; that literal is sent by the server and never
+   * asked of the reader. Making a Polish reader type an English word to prove they meant
+   * it would be this application's vocabulary leaking out of another repository.
+   *
+   * Compared with diacritics folded away, so `USUN` passes for `USUŃ`: the point of the
+   * word is deliberateness, not orthography, and a reader on a keyboard without Ń is still
+   * being every bit as deliberate.
+   */
+  readonly confirmWord: string;
+  readonly confirmLabel: (word: string) => string;
+  readonly passwordLabel: string;
+  readonly passwordHint: string;
+  readonly submit: string;
+  readonly cancel: string;
+  /** Shown after the deletion, on a page the reader is no longer signed in to. */
+  readonly doneTitle: string;
+  readonly done: string;
+  readonly keepReading: string;
+  readonly problemConfirm: string;
+  readonly problemPasswordRequired: string;
+  readonly problemPasswordRejected: string;
+  readonly problemSignedOut: string;
+  readonly problemProgress: string;
+  readonly problemAccount: string;
+  readonly problemUnconfigured: string;
+}
+
 interface Strings {
   readonly answer: string;
   readonly keys: string;
   readonly forget: string;
   readonly signIn: string;
   readonly signOut: string;
+  readonly account: string;
+  readonly deleteAccount: DeleteAccountStrings;
   /** The conflict rule, said where the conflict happened. See `raised-notice.tsx`. */
   readonly raised: (unit: string, step: number) => string;
   readonly dismiss: string;
@@ -89,6 +169,44 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     forget: 'Forget where I am',
     signIn: 'Sign in',
     signOut: 'Sign out',
+    account: 'Account',
+    deleteAccount: {
+      title: 'Delete your account',
+      lead: 'This removes two things.',
+      removesProgress:
+        'The reading position stored on your account — every program, on every device that syncs.',
+      removesAccount: 'The account itself, at the identity service.',
+      staysTitle: 'What stays',
+      stays:
+        'This browser keeps its own copy of where you are in the book, and you can carry on reading with no account at all. If you want that cleared too, use \u2018Forget where I am\u2019 on the reading page \u2014 a separate control, because it is a separate thing.',
+      cannotReachTitle: 'What this cannot reach',
+      cannotReach:
+        'The instrument measures how a frame does, never how a reader does: an outcome carries no reader on it, so no row of it knows it was yours and no deletion can find one. That is deliberate \u2014 it is what makes a rate safe to publish \u2014 and the price is that a contribution already folded into a rate cannot be taken back out.',
+      nothingRecordedYet: 'Nothing of that kind is recorded yet: the instrument is not built.',
+      notImmediateTitle: 'The account is not erased on the spot',
+      notImmediate:
+        'The identity service marks it deleted, revokes the tokens that would refresh your session, and schedules the permanent erasure for the end of its retention period. You will not be able to sign in during that time. ab-ovo is not told how long the period is \u2014 that is the identity service\u2019s to state, and copying a number out of it would be a figure nothing here could check.',
+      confirmWord: 'DELETE',
+      confirmLabel: (word) => `Type ${word} to confirm`,
+      passwordLabel: 'Your password',
+      passwordHint:
+        'Leave this empty if you sign in with Google or GitHub and have never set a password.',
+      submit: 'Delete my account',
+      cancel: 'Keep my account',
+      doneTitle: 'Your account is gone',
+      done: 'The reading position stored on it has been removed, and the identity service has marked the account deleted and scheduled its erasure.',
+      keepReading: 'Carry on reading',
+      problemConfirm: 'That is not the confirmation word. Nothing has been deleted.',
+      problemPasswordRequired: 'This account has a password, and the field was empty.',
+      problemPasswordRejected: 'That password was not accepted.',
+      problemSignedOut: 'Your session ended before this could finish. Sign in and try again.',
+      problemProgress:
+        'Your reading position could not be removed, so nothing else was attempted. Your account is untouched. Try again.',
+      problemAccount:
+        'The reading position stored on your account has been removed, but the account itself could not be. It is still yours, and this device still knows where you are in the book. Try again.',
+      problemUnconfigured:
+        'This deployment has no identity service, so there is no account to delete.',
+    },
     raised: (unit, step) =>
       `${unit} moved to frame ${step}, read on another device. The furthest frame wins.`,
     dismiss: 'Got it',
@@ -113,6 +231,45 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     forget: 'Zapomnij, gdzie jestem',
     signIn: 'Zaloguj się',
     signOut: 'Wyloguj się',
+    account: 'Konto',
+    deleteAccount: {
+      title: 'Usu\u0144 konto',
+      lead: 'To usuwa dwie rzeczy.',
+      removesProgress:
+        'Pozycj\u0119 w lekturze zapisan\u0105 na koncie \u2014 ka\u017cdy program, na ka\u017cdym urz\u0105dzeniu, kt\u00f3re si\u0119 synchronizuje.',
+      removesAccount: 'Samo konto, w serwisie to\u017csamo\u015bci.',
+      staysTitle: 'Co zostaje',
+      stays:
+        'Ta przegl\u0105darka zachowuje w\u0142asn\u0105 kopi\u0119 tego, gdzie jeste\u015b w ksi\u0105\u017cce, i mo\u017cesz czyta\u0107 dalej bez konta. Je\u015bli chcesz wyczy\u015bci\u0107 tak\u017ce j\u0105, u\u017cyj \u201eZapomnij, gdzie jestem\u201d na stronie lektury \u2014 to osobny przycisk, bo to osobna rzecz.',
+      cannotReachTitle: 'Czego to nie dosi\u0119gnie',
+      cannotReach:
+        'Instrument mierzy, jak radzi sobie ramka, nigdy jak radzi sobie czytelnik: wynik nie niesie ze sob\u0105 \u017cadnego czytelnika, wi\u0119c \u017caden jego wiersz nie wie, \u017ce by\u0142 tw\u00f3j, i \u017cadne usuni\u0119cie go nie znajdzie. Tak to zaprojektowano \u2014 dzi\u0119ki temu wska\u017anik mo\u017cna bezpiecznie publikowa\u0107 \u2014 a cen\u0105 jest to, \u017ce wk\u0142adu wliczonego ju\u017c do wska\u017anika nie da si\u0119 z niego wycofa\u0107.',
+      nothingRecordedYet: 'Nic takiego nie jest jeszcze zapisywane: instrument nie powsta\u0142.',
+      notImmediateTitle: 'Konto nie znika od razu',
+      notImmediate:
+        'Serwis to\u017csamo\u015bci oznacza je jako usuni\u0119te, uniewa\u017cnia tokeny, kt\u00f3re odnawia\u0142yby sesj\u0119, i planuje trwa\u0142e usuni\u0119cie na koniec swojego okresu przechowywania. Przez ten czas si\u0119 nie zalogujesz. ab-ovo nie wie, jak d\u0142ugo trwa ten okres \u2014 to informacja po stronie serwisu to\u017csamo\u015bci, a przepisanie st\u0105d liczby by\u0142oby podaniem warto\u015bci, kt\u00f3rej nic tutaj nie mo\u017ce sprawdzi\u0107.',
+      confirmWord: 'USU\u0143',
+      confirmLabel: (word) => `Wpisz ${word}, aby potwierdzi\u0107`,
+      passwordLabel: 'Twoje has\u0142o',
+      passwordHint:
+        'Zostaw puste, je\u015bli logujesz si\u0119 przez Google albo GitHub i nigdy nie ustawia\u0142e\u015b has\u0142a.',
+      submit: 'Usu\u0144 moje konto',
+      cancel: 'Zostaw moje konto',
+      doneTitle: 'Twojego konta ju\u017c nie ma',
+      done: 'Zapisana na nim pozycja w lekturze zosta\u0142a usuni\u0119ta, a serwis to\u017csamo\u015bci oznaczy\u0142 konto jako usuni\u0119te i zaplanowa\u0142 jego wymazanie.',
+      keepReading: 'Czytaj dalej',
+      problemConfirm: 'To nie jest s\u0142owo potwierdzenia. Nic nie zosta\u0142o usuni\u0119te.',
+      problemPasswordRequired: 'To konto ma has\u0142o, a pole by\u0142o puste.',
+      problemPasswordRejected: 'To has\u0142o nie zosta\u0142o przyj\u0119te.',
+      problemSignedOut:
+        'Twoja sesja zako\u0144czy\u0142a si\u0119, zanim to si\u0119 uda\u0142o doko\u0144czy\u0107. Zaloguj si\u0119 i spr\u00f3buj ponownie.',
+      problemProgress:
+        'Nie uda\u0142o si\u0119 usun\u0105\u0107 twojej pozycji w lekturze, wi\u0119c nic wi\u0119cej nie by\u0142o pr\u00f3bowane. Konto pozosta\u0142o nietkni\u0119te. Spr\u00f3buj ponownie.',
+      problemAccount:
+        'Pozycja w lekturze zapisana na koncie zosta\u0142a usuni\u0119ta, ale samego konta nie uda\u0142o si\u0119 usun\u0105\u0107. Nadal nale\u017cy do ciebie, a to urz\u0105dzenie nadal wie, gdzie jeste\u015b w ksi\u0105\u017cce. Spr\u00f3buj ponownie.',
+      problemUnconfigured:
+        'To wdro\u017cenie nie ma serwisu to\u017csamo\u015bci, wi\u0119c nie ma konta do usuni\u0119cia.',
+    },
     raised: (unit, step) =>
       `${unit} przesunięto do ramki ${step}, czytanej na innym urządzeniu. Wygrywa najdalsza ramka.`,
     dismiss: 'Rozumiem',
@@ -139,6 +296,45 @@ export const FALLBACK_LANGUAGE = 'en';
 /** Every language this application's controls exist in. Not the languages content exists in. */
 export const CHROME_LANGUAGES: readonly string[] = Object.keys(TABLE);
 
+/**
+ * Fold a typed confirmation down to what is being compared: case and diacritics are not
+ * the point, deliberateness is. `usun` passes for `USUŃ`.
+ *
+ * NFD splits a letter into its base and its combining mark; the property escape then
+ * removes the marks. Written this way rather than as a table of substitutions because a
+ * table only knows the languages somebody thought of, and this file is explicitly a set
+ * that can grow.
+ */
+const fold = (value: string): string =>
+  value
+    .trim()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toUpperCase();
+
+/**
+ * Whether what the reader typed confirms a deletion.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * IT ACCEPTS ANY LANGUAGE'S WORD, AND TAKES NO LANGUAGE PARAMETER.
+ *
+ * The obvious design passes the language the reader was shown and compares against that
+ * one entry. It is worse in both directions: a caller that got the parameter wrong would
+ * refuse a reader who typed exactly what was on their screen, and a caller that took the
+ * language from the request body would be letting the caller choose which word to check
+ * against — which is not a check.
+ *
+ * The question this is actually asking is "did somebody deliberately type a word meaning
+ * delete", and every entry in the table is an equally good answer to it. There is nothing
+ * to get wrong.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+export function isConfirmationWord(typed: string): boolean {
+  const folded = fold(typed);
+  if (folded.length === 0) return false;
+  return Object.values(TABLE).some((strings) => fold(strings.deleteAccount.confirmWord) === folded);
+}
+
 const pluralise = (language: string, n: number, forms: Plural): string => {
   const category = new Intl.PluralRules(language).select(n);
   return `${n} ${forms[category] ?? forms.other}`;
@@ -155,6 +351,8 @@ export interface Chrome {
   readonly forget: string;
   readonly signIn: string;
   readonly signOut: string;
+  readonly account: string;
+  readonly deleteAccount: DeleteAccountStrings;
   readonly raised: (unit: string, step: number) => string;
   readonly dismiss: string;
   readonly cue: string;

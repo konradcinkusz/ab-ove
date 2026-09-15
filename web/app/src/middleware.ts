@@ -72,6 +72,18 @@ const PUBLIC_PATHS = new Set<string>([
   // while every page behind it is public.
   '/lab',
   '/read',
+
+  // The page a reader lands on once their account is gone, and it HAS to be public for a
+  // reason that is only visible by following the redirect: the deletion route's last act
+  // is to clear the session cookies, so by the time the browser follows the 303 there is
+  // no cookie left. Private, this page would bounce the reader to
+  // `/login?redirect=/account/deleted` — a sign-in form for the account they have just
+  // deleted. Nothing warns: the route answers 303 and succeeds, and the page renders
+  // perfectly well for anybody who still has a session.
+  //
+  // `/account` itself is deliberately NOT here. It is the only page under this prefix that
+  // is public, which is why there is no `/account/` entry in PUBLIC_PREFIXES.
+  '/account/deleted',
 ]);
 
 const PUBLIC_PREFIXES: readonly string[] = [

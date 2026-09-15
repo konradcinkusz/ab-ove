@@ -159,7 +159,8 @@ carry none of those and is readable by every workflow in the repo.
 ### tuning
 
 `OTEL_EXPORTER_OTLP_ENDPOINT` · `Logging__LogLevel__Default` · `AB_OVO_ENVIRONMENT` ·
-`AB_OVO_PROXY_TIMEOUT_MS` · `AB_OVO_AUTH_TIMEOUT_MS` · `NODE_ENV` · `NEXT_TELEMETRY_DISABLED`
+`AB_OVO_PROXY_TIMEOUT_MS` · `AB_OVO_AUTH_TIMEOUT_MS` · `AB_OVO_API_TIMEOUT_MS` ·
+`NODE_ENV` · `NEXT_TELEMETRY_DISABLED`
 
 ### One authoritative source per variable
 

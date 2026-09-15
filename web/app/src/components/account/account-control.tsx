@@ -34,7 +34,11 @@ import styles from './account-control.module.css';
  * offered SIGN OUT: it is the more likely of the two, and it is the one that still works,
  * because signing out is this origin deleting its own cookies and needs no identity service.
  */
-export function AccountControl({ language }: { readonly language: string }): React.JSX.Element | null {
+export function AccountControl({
+  language,
+}: {
+  readonly language: string;
+}): React.JSX.Element | null {
   const status = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   const chrome = chromeFor(language);
 
@@ -77,9 +81,35 @@ export function AccountControl({ language }: { readonly language: string }): Rea
     );
   }
 
+  /*
+    Signed in, or unverifiable. Both get the account link as well as sign-out, and for the
+    same reason sign-out is offered on `unavailable`: the deletion screen is a page on this
+    origin, so it renders whatever the identity service is doing, and a reader who has
+    decided to close their account should not be told to come back when a machine is warm.
+    The route behind it reports honestly if authservice cannot be reached.
+
+    The language rides the href. It is the edition the reading chrome is already in — the
+    same signal that decided the word on this link — and it is what makes the deletion
+    screen's four paragraphs readable by the reader they are for. See `app/account/page.tsx`
+    for why that page follows an edition where `/login` declines to.
+  */
   return (
-    <button className={styles.account} lang={chrome.language} onClick={() => void signOut()} type="button">
-      {chrome.signOut}
-    </button>
+    <span className={styles.group}>
+      <Link
+        className={styles.account}
+        href={`/account?lang=${encodeURIComponent(chrome.language)}`}
+        lang={chrome.language}
+      >
+        {chrome.account}
+      </Link>
+      <button
+        className={styles.account}
+        lang={chrome.language}
+        onClick={() => void signOut()}
+        type="button"
+      >
+        {chrome.signOut}
+      </button>
+    </span>
   );
 }
