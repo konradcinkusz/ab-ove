@@ -81,6 +81,26 @@ export interface LabDescriptor {
   readonly title: string;
   /** The exercise file's stem — `load("p01_floating_point")` in the checks. */
   readonly stem: string;
+  /**
+   * The content track this lab's program belongs to, which is how the instrument finds the
+   * tag to record against (issue #15).
+   *
+   * Here rather than derived, because there is nothing to derive it from: a lab id is
+   * `p01` and so is a unit id, and the two agreeing today is a coincidence of there being
+   * one book. Book issue #239 §6 gives each track its own content repository, so a second
+   * track's Program P1 would collide with this one under any rule that guessed.
+   */
+  readonly track: string;
+  /**
+   * The unit this lab's exercises belong to, as the content bundle spells it.
+   *
+   * Stated rather than derived from `id` for the same reason as `track`. The bundle says
+   * `P01` and the lab says `p01`, and `id.toUpperCase()` is a rule nobody wrote down that
+   * happens to hold for one entry — the first unit whose id is not simply the lab's in
+   * capitals would file every tally under a unit that does not exist, and nothing would
+   * say so, because the service holds no bundle and cannot tell a real unit from a typo.
+   */
+  readonly unit: string;
 }
 
 export const P01: LabDescriptor = {
@@ -88,6 +108,8 @@ export const P01: LabDescriptor = {
   program: 'Program P1',
   title: 'Floating point: what the machine actually computes',
   stem: 'p01_floating_point',
+  track: 'math-for-ai-engineers',
+  unit: 'P01',
 };
 
 export const LABS: readonly LabDescriptor[] = [P01];

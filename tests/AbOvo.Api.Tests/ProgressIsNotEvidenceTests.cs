@@ -178,55 +178,21 @@ public sealed class ProgressIsNotEvidenceTests
             + string.Join(", ", columns));
     }
 
-    /// <summary>
-    /// The instrument is not built, and the deletion screen says so.
-    ///
-    /// <para>
-    /// This is not a rule about the architecture. It is a gate on ONE SENTENCE that is true
-    /// today and will stop being true without anybody editing it.
-    /// </para>
-    /// <para>
-    /// The account-deletion screen (issue #13) has to tell a reader that a contribution
-    /// already folded into a rate cannot be taken back out, because the instrument records
-    /// an outcome with no reader on it (ADR-0009 §1). That sentence describes a DESIGN and
-    /// is true whether the instrument holds a million rows or none. Beside it the screen
-    /// says <c>nothingRecordedYet</c> — "nothing of that kind is recorded yet: the
-    /// instrument is not built" — which describes a STATE, is true only while phase 4 is
-    /// unbuilt, and is the difference between describing a design and implying a
-    /// collection.
-    /// </para>
-    /// <para>
-    /// Nothing else would catch it. The phase-4 pull request adds an entity, a migration
-    /// and an endpoint; it has no reason to open a string table in the web app, and a
-    /// sentence on a deletion screen saying nothing is recorded — while something is — is
-    /// exactly the class of claim this product refuses to make.
-    /// </para>
-    /// </summary>
-    [Fact]
-    public void The_instrument_is_not_built_and_the_deletion_screen_says_so()
-    {
-        using var factory = new SignedInApiFactory();
-        using var scope = factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AbOvoDbContext>();
-
-        var entities = db.Model.GetEntityTypes()
-            .Select(e => e.ClrType.Name)
-            .OrderBy(name => name, StringComparer.Ordinal)
-            .ToArray();
-
-        Assert.True(
-            entities.SequenceEqual([nameof(ReaderProgress)]),
-            "This service now stores something besides the reader's place in the book. If "
-            + "that is the instrument, TWO screens are now lying, in both editions. In "
-            + "web/app/src/lib/i18n/chrome.ts: `deleteAccount.nothingRecordedYet`, rendered "
-            + "on /account and /account/deleted, and `consent.invitationNothingYet`, "
-            + "rendered by ConsentControl on /read — both say nothing of that kind is "
-            + "recorded yet. Remove BOTH clauses, from both language entries and from the "
-            + "three places they render, then delete this test. What stays is the sentence "
-            + "each sits beside: an outcome carries no reader, so nothing can find the ones "
-            + "that were yours, which ADR-0009 §1 keeps true however many rows there are. "
-            + "Found: " + string.Join(", ", entities));
-    }
+    /*
+     * `The_instrument_is_not_built_and_the_deletion_screen_says_so` STOOD HERE AND HAS DONE
+     * ITS JOB.
+     *
+     * It asserted that this model held one entity, and its failure message named two
+     * sentences — on the deletion screens and on the consent invitation — that said nothing
+     * of that kind was recorded yet. Issue #15 added `FrameOutcome`; the test went red on
+     * the first build of that change and printed the list. Both sentences are gone from
+     * both editions and from all three places they rendered, and the test with them.
+     *
+     * Recorded rather than silently deleted because the shape is worth copying: a claim
+     * that is true only until some OTHER ticket lands is a claim nothing normally catches,
+     * and a failing build naming the strings is cheaper than a reader finding the product
+     * saying it records nothing while it records.
+     */
 
     /// <summary>
     /// Every way into the table leads with the reader.

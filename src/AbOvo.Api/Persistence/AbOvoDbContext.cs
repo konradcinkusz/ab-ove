@@ -19,6 +19,11 @@ public sealed class AbOvoDbContext(DbContextOptions<AbOvoDbContext> options) : D
 
     public DbSet<ReaderProgress> ReaderProgress => Set<ReaderProgress>();
 
+    /// <summary>
+    /// The instrument's store (issue #15). Counts, never events — see <see cref="FrameOutcome"/>.
+    /// </summary>
+    public DbSet<FrameOutcome> FrameOutcomes => Set<FrameOutcome>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -46,6 +51,47 @@ public sealed class AbOvoDbContext(DbContextOptions<AbOvoDbContext> options) : D
             entity.Property(p => p.Unit).HasMaxLength(64).IsRequired();
             entity.Property(p => p.Language).HasMaxLength(16).IsRequired();
             entity.Property(p => p.UpdatedAt).IsRequired();
+        });
+
+        modelBuilder.Entity<FrameOutcome>(entity =>
+        {
+            /*
+             * EVERY COLUMN BUT ONE IS IN THE KEY, AND THE ONE THAT IS NOT IS THE TALLY.
+             *
+             * That is not a normalisation choice, it is the anti-goal made structural. A
+             * surrogate id would make each row an EVENT — one thing that happened once,
+             * which somebody could count, order and correlate with the events either side
+             * of it. There is no such row here: the key IS the question and the count is
+             * the answer, so two readers who run the same check on the same frame at the
+             * same attempt increment the same row and are afterwards indistinguishable
+             * from one reader who ran it twice.
+             *
+             * ADR-0009 §1 prefers "a schema that cannot express the thing" over a rule
+             * somebody could relax, and this is as near as this product gets to it: a
+             * per-reader view is not forbidden here, it is arithmetically unavailable.
+             */
+            entity.HasKey(o => new { o.BundleTag, o.Track, o.Unit, o.Step, o.Check, o.Attempt, o.Passed });
+
+            entity.Property(o => o.BundleTag).HasMaxLength(64).IsRequired();
+            entity.Property(o => o.Track).HasMaxLength(64).IsRequired();
+            entity.Property(o => o.Unit).HasMaxLength(64).IsRequired();
+            entity.Property(o => o.Check).HasMaxLength(128).IsRequired();
+            entity.Property(o => o.Count).IsRequired();
+
+            /*
+             * THE ONE INDEX, AND IT LEADS WITH THE BOOK.
+             *
+             * `ReaderProgress`'s rule is that every key and index leads with the READER, so
+             * the table is not prepared to answer a question about readers. The mirror of
+             * that rule here is that this one leads with the FRAME: the question the
+             * instrument exists to answer is "how is this frame doing", and there is
+             * nothing else a reader could be grouped by even if somebody wanted to.
+             *
+             * It is a prefix of the key, so it buys no new access path — it exists because
+             * issues #16 and #17 read a whole frame's tallies at once and the key's tail
+             * (check, attempt, passed) is exactly what they aggregate over.
+             */
+            entity.HasIndex(o => new { o.BundleTag, o.Track, o.Unit, o.Step });
         });
     }
 }

@@ -104,10 +104,7 @@ export default async function AccountPage({
             <p>{strings.cannotReach}</p>
             {/*
               True only today, and gated so it cannot quietly stop being true. See
-              `DeleteAccountStrings.nothingRecordedYet` and the test that fails the build
               when a second entity appears in the model.
-            */}
-            <p>{strings.nothingRecordedYet}</p>
           </section>
 
           <section className="section">

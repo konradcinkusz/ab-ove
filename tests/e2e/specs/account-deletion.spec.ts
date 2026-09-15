@@ -68,9 +68,6 @@ test.describe('what a deletion cannot reach is on the page, in the reader’s la
     const main = page.locator('main');
     await expect(main).toContainText('no row of it knows it was yours');
     await expect(main).toContainText('cannot be taken back out');
-    // True only while phase 4 is unbuilt, and gated by a .NET test that fails the build
-    // when a second entity appears in the model.
-    await expect(main).toContainText('the instrument is not built');
     // What survives, which a reader is as entitled to know as what does not.
     await expect(main).toContainText('This browser keeps its own copy');
   });
@@ -81,7 +78,6 @@ test.describe('what a deletion cannot reach is on the page, in the reader’s la
     const main = page.locator('main');
     await expect(main).toHaveAttribute('lang', 'pl');
     await expect(main).toContainText('żaden jego wiersz nie wie');
-    await expect(main).toContainText('instrument nie powstał');
   });
 
   test('an unknown language falls back rather than failing @core', async ({ page }) => {
