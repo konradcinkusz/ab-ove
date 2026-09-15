@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
-import { EARLY_NOT_WRONG, rankFrames, type RankedFrame } from '@/lib/instrument/ranking';
-import { readRates, type CellRate, type UnitRates } from '@/lib/instrument/rates';
+import { EARLY_NOT_WRONG, rankFrames, type Ranking } from '@/lib/instrument/ranking';
+import { readRates, type UnitRates } from '@/lib/instrument/rates';
 
 import styles from './rate-ranking.module.css';
 
@@ -39,7 +39,7 @@ import styles from './rate-ranking.module.css';
 
 type ViewState =
   | { kind: 'loading' }
-  | { kind: 'ranked'; rates: UnitRates; frames: readonly RankedFrame[] }
+  | { kind: 'ranked'; rates: UnitRates; ranking: Ranking }
   | { kind: 'empty'; rates: UnitRates }
   | { kind: 'forbidden' }
   | { kind: 'unreachable'; detail: string };
@@ -50,9 +50,16 @@ export interface RateRankingProps {
   readonly bundleTag: string;
 }
 
-/** A rate and its interval, in one string, because they are one value. */
-const withInterval = (cell: CellRate): string =>
-  `${cell.rate.percent.toFixed(1)}% (${cell.rate.low.toFixed(1)}–${cell.rate.high.toFixed(1)})`;
+/**
+ * A number and its interval, in one string, because they are one value.
+ *
+ * Takes the shape rather than the wrapper so that a rate and a blended score print the same
+ * way: METRIC-ETHICS.md §3 — no number leaves without its confidence — applies to the score as
+ * much as to the cells it is computed from, and a score set differently would read as the one
+ * quantity on the page that is certain.
+ */
+const withInterval = (value: { percent: number; low: number; high: number }): string =>
+  `${value.percent.toFixed(1)}% (${value.low.toFixed(1)}–${value.high.toFixed(1)})`;
 
 export function RateRanking({ track, unit, bundleTag }: RateRankingProps): React.JSX.Element {
   const [state, setState] = useState<ViewState>({ kind: 'loading' });
@@ -99,7 +106,7 @@ export function RateRanking({ track, unit, bundleTag }: RateRankingProps): React
         setState(
           rates.cells.length === 0
             ? { kind: 'empty', rates }
-            : { kind: 'ranked', rates, frames: rankFrames(rates) },
+            : { kind: 'ranked', rates, ranking: rankFrames(rates) },
         );
       } catch {
         if (live) {
@@ -139,7 +146,7 @@ export function RateRanking({ track, unit, bundleTag }: RateRankingProps): React
     );
   }
 
-  const { rates, frames } = state;
+  const { rates, ranking } = state;
   const selection = rates.selection;
 
   return (
@@ -180,17 +187,38 @@ export function RateRanking({ track, unit, bundleTag }: RateRankingProps): React
       ) : null}
 
       <ol className={styles.frames} aria-label={`Frames of ${unit}, worst first`}>
-        {frames.map((frame) => (
+        {ranking.ranked.map((frame) => (
           <li key={frame.step} className={styles.frame}>
             <h3 className={styles.heading}>
               Frame {frame.step}
-              <span className={styles.rate}>{withInterval(frame.worst)}</span>
+              <span className={styles.rate}>{withInterval(frame.score.teaching)}</span>
             </h3>
 
             {/*
-              THE WORDS THE ISSUE SPECIFIES, beside the number and on every row whose position
-              the data does not establish. `separated` is null on the last row, which asserts
-              no comparison below it and so cannot be early or late about one.
+              THE COMPONENTS, INSIDE THE ROW RATHER THAN ON A PANEL OF THEIR OWN.
+
+              Issue #18 §4.5: "there is no panel a reviewer can decline to look at". The score
+              above is their weighted sum and is the only thing the order is decided by, so the
+              pressurable number cannot move the ranking without the counter-metric moving too.
+              These two are here to say WHICH way it moved — a frame whose first-attempt is high
+              and whose downstream is low is a frame that gives its answer away, and that is the
+              diagnosis the blend alone cannot give.
+            */}
+            <dl className={styles.measures}>
+              <div className={styles.measure}>
+                <dt>right first time</dt>
+                <dd>{withInterval(frame.score.firstAttempt)}</dd>
+              </div>
+              <div className={styles.measure}>
+                <dt>still right when used later</dt>
+                <dd>{withInterval(frame.score.downstream)}</dd>
+              </div>
+            </dl>
+
+            {/*
+              THE WORDS ISSUE #17 SPECIFIES, beside the number and on every row whose position
+              the data does not establish. `separated` is null on the last row, which asserts no
+              comparison below it and so cannot be early or late about one.
             */}
             {frame.separated === false ? (
               <p className={styles.early}>
@@ -206,11 +234,11 @@ export function RateRanking({ track, unit, bundleTag }: RateRankingProps): React
                   <span className={styles.attempt}>attempt {cell.attempt}</span>
                   {/*
                     Every number carries its interval, which is issue #17's first requirement
-                    and is enforced one layer down as well: `Rate` cannot be constructed
-                    without one and cannot be deserialised at all, so there is no way for a
-                    bare rate to reach this line.
+                    and is enforced one layer down as well: `Rate` cannot be constructed without
+                    one and cannot be deserialised at all, so there is no way for a bare rate to
+                    reach this line.
                   */}
-                  <span className={styles.cellRate}>{withInterval(cell)}</span>
+                  <span className={styles.cellRate}>{withInterval(cell.rate)}</span>
                   <span className={styles.counts}>
                     {cell.rate.passed} of {cell.rate.total}
                   </span>
@@ -220,6 +248,37 @@ export function RateRanking({ track, unit, bundleTag }: RateRankingProps): React
           </li>
         ))}
       </ol>
+
+      {/*
+        NOT A SECOND PANEL OF SCORES. These frames have no teaching score at all, because no
+        check that rests on them is used at a later frame — so there is nothing to say about
+        whether they survived to where they are needed. Blending in a zero would read as
+        "readers could not use this frame later", which is the opposite of "nobody has asked",
+        and would sort them to the top of the list above.
+      */}
+      {ranking.unscored.length > 0 ? (
+        <section className={styles.unscored} aria-label="Frames with no teaching score">
+          <h3 className={styles.unscoredHeading}>No teaching score</h3>
+          <p className={styles.unscoredBody}>
+            No check resting on {ranking.unscored.length === 1 ? 'this frame' : 'these frames'} is
+            used at a later frame, so there is nothing to say about whether the frame survived to
+            where it is needed — and half a score is not a score. The evidence is here; the ranking
+            above is not about {ranking.unscored.length === 1 ? 'it' : 'them'}.
+          </p>
+          <ul className={styles.cells} aria-label="Cells of frames with no teaching score">
+            {ranking.unscored.flatMap((frame) =>
+              frame.cells.map((cell) => (
+                <li key={`${frame.step}/${cell.check}#${cell.attempt}`} className={styles.cell}>
+                  <span className={styles.attempt}>frame {frame.step}</span>
+                  <code className={styles.check}>{cell.check}</code>
+                  <span className={styles.attempt}>attempt {cell.attempt}</span>
+                  <span className={styles.cellRate}>{withInterval(cell.rate)}</span>
+                </li>
+              )),
+            )}
+          </ul>
+        </section>
+      ) : null}
     </>
   );
 }

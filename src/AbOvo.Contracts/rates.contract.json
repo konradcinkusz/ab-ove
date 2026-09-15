@@ -15,11 +15,64 @@
         "low": 65.24371500009791,
         "high": 77.75628499990209
       }
+    },
+    {
+      "step": 7,
+      "check": "test_1_gap_is_the_ulp_everywhere",
+      "attempt": 1,
+      "rate": {
+        "passed": 60,
+        "total": 100,
+        "percent": 60,
+        "halfWidth": 9.601999791710057,
+        "low": 50.39800020828994,
+        "high": 69.60199979171006
+      }
+    },
+    {
+      "step": 8,
+      "check": "test_1_gap_matches_the_table",
+      "attempt": 1,
+      "rate": {
+        "passed": 143,
+        "total": 200,
+        "percent": 71.5,
+        "halfWidth": 6.256284999902099,
+        "low": 65.24371500009791,
+        "high": 77.75628499990209
+      }
     }
   ],
   "selection": {
-    "ranked": 1,
-    "standardErrors": 0,
-    "points": 0
-  }
+    "ranked": 3,
+    "standardErrors": 0.8462843753216057,
+    "points": 4.145929793655884
+  },
+  "frames": [
+    {
+      "step": 7,
+      "teaching": {
+        "percent": 70.15833333333333,
+        "halfWidth": 5.919161617732985,
+        "low": 64.23917171560035,
+        "high": 76.07749495106631
+      },
+      "firstAttempt": {
+        "passed": 203,
+        "total": 300,
+        "percent": 67.66666666666667,
+        "halfWidth": 5.293075336561772,
+        "low": 62.3735913301049,
+        "high": 72.95974200322844
+      },
+      "downstream": {
+        "passed": 143,
+        "total": 200,
+        "percent": 71.5,
+        "halfWidth": 6.256284999902099,
+        "low": 65.24371500009791,
+        "high": 77.75628499990209
+      }
+    }
+  ]
 }

@@ -74,6 +74,44 @@ export interface SelectionMargin {
   readonly points: number;
 }
 
+/**
+ * A blended score and the interval around it — one value, like `Rate`.
+ *
+ * No `passed`/`total`: a blend is a weighted sum of two rates and the honest answer to "out of
+ * how many" is that the question does not apply. The interval is a BOUND and deliberately
+ * wider than the truth, because the two measures share observations and the exact variance
+ * needs a covariance the API has no reader identifier to compute.
+ */
+export interface Score {
+  readonly percent: number;
+  readonly halfWidth: number;
+  readonly low: number;
+  readonly high: number;
+}
+
+/**
+ * One frame's teaching score, with the two measures that make it up.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE COMPONENTS ARE INSIDE THE SCORE, NOT BESIDE IT.
+ *
+ * Issue #18 §4.5 asks that there be "no panel a reviewer can decline to look at". `teaching`
+ * is the only number anything ranks by, and it cannot move without both components moving,
+ * because it is their weighted sum — computed by the API, where the weights are one table and
+ * a committed document. The components are here so an author can see WHICH way a score moved;
+ * that is diagnosis, not a second score, and it is on the same record so there is nothing to
+ * close.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+export interface FrameScore {
+  readonly step: number;
+  readonly teaching: Score;
+  /** The pressurable measure: did the reader get it right first time. */
+  readonly firstAttempt: Rate;
+  /** The counter-metric: did the checks that need this frame later still pass. */
+  readonly downstream: Rate;
+}
+
 export interface UnitRates {
   readonly bundleTag: string;
   readonly track: string;
@@ -90,6 +128,14 @@ export interface UnitRates {
    * fact rather than a placeholder.
    */
   readonly selection: SelectionMargin | null;
+  /**
+   * A teaching score per frame, for the frames that have one.
+   *
+   * Shorter than the set of frames in `cells`, and the difference is meaningful: a frame whose
+   * checks are used nowhere later has no downstream measure, so it has no blended score rather
+   * than one computed from half its definition.
+   */
+  readonly frames: readonly FrameScore[];
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -127,6 +173,36 @@ function readCell(value: unknown): CellRate | null {
   // The whole point, in one line: a cell whose rate did not parse is not a cell with a
   // missing interval, it is not a cell.
   return rate === null ? null : { step, check, attempt, rate };
+}
+
+function readScore(value: unknown): Score | null {
+  if (!isObject(value)) return null;
+
+  const { percent, halfWidth, low, high } = value;
+  if (!num(percent) || !num(halfWidth) || !num(low) || !num(high)) return null;
+  // A negative half-width would draw an interval inside out; a percent outside the scale is
+  // not a percent. Both parse and both render, which is why they are refused here.
+  if (halfWidth < 0 || percent < 0 || percent > 100) return null;
+
+  return { percent, halfWidth, low, high };
+}
+
+function readFrameScore(value: unknown): FrameScore | null {
+  if (!isObject(value)) return null;
+
+  const { step } = value;
+  if (!num(step)) return null;
+
+  const teaching = readScore(value['teaching']);
+  const firstAttempt = readRate(value['firstAttempt']);
+  const downstream = readRate(value['downstream']);
+
+  // ALL THREE OR NONE. A score whose components did not arrive is a number an author cannot
+  // interrogate, and a pair of components with no score is the counter-metric on its own panel
+  // — which is the one arrangement issue #18 exists to forbid.
+  if (teaching === null || firstAttempt === null || downstream === null) return null;
+
+  return { step, teaching, firstAttempt, downstream };
 }
 
 function readSelection(value: unknown): SelectionMargin | null {
@@ -179,11 +255,29 @@ export function readRates(value: unknown): UnitRates | null {
     // Absent and an explicit `null` both say the same thing here and there is nothing to be
     // wrong about, so both are accepted. A margin that is PRESENT is refused: it would be a
     // correction for a ranking of no rows.
-    return raw === null || raw === undefined
-      ? { bundleTag, track, unit, cells: read, selection: null }
-      : null;
+    if (raw !== null && raw !== undefined) return null;
+    // No cells is no frames either, and an absent array is accepted for the same reason an
+    // absent margin is: there is nothing to be wrong about.
+    const none = value['frames'];
+    if (none !== undefined && !(Array.isArray(none) && none.length === 0)) return null;
+
+    return { bundleTag, track, unit, cells: read, selection: null, frames: [] };
   }
 
   const selection = readSelection(raw);
-  return selection === null ? null : { bundleTag, track, unit, cells: read, selection };
+  if (selection === null) return null;
+
+  const rawFrames = value['frames'];
+  if (!Array.isArray(rawFrames)) return null;
+
+  const frames: FrameScore[] = [];
+  for (const frame of rawFrames) {
+    const parsed = readFrameScore(frame);
+    // The whole document, as everywhere else here: a ranking with rows silently missing reads
+    // as a shorter list rather than as a broken one.
+    if (parsed === null) return null;
+    frames.push(parsed);
+  }
+
+  return { bundleTag, track, unit, cells: read, selection, frames };
 }

@@ -102,3 +102,56 @@
   font-family: var(--font-mono);
   margin-left: auto;
 }
+
+/*
+ * The two measures, set as a definition list under the score they make up.
+ *
+ * Smaller than the score and directly beneath it, because that is the relationship: the score
+ * is what to act on and these say which way it moved. Set as a list rather than a table so a
+ * screen reader reads "right first time, 90.0%" as the pair it is — and so that adding a third
+ * measure would be a visible change to this block rather than a silent extra column.
+ */
+.measures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  margin: 0.5rem 0 0;
+}
+
+.measure {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.measure dt {
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+}
+
+.measure dd {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  margin: 0;
+}
+
+.unscored {
+  border-top: 1px solid var(--rule);
+  margin: 2rem 0 0;
+  max-width: var(--measure);
+  padding: 1.125rem 0 0;
+}
+
+.unscoredHeading {
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.unscoredBody {
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  margin: 0.5rem 0 0;
+}

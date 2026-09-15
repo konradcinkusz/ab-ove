@@ -123,6 +123,7 @@ public static class RateEndpoints
                     Unit = unit,
                     Cells = cells,
                     Selection = MarginOver(cells),
+                    Frames = ScoresOver(cells),
                 });
             })
             .WithName(EndpointNames.GetRates)
@@ -189,5 +190,87 @@ public static class RateEndpoints
         var standardError = extreme.Rate.HalfWidth / Proportion.Z;
 
         return SelectionMargin.Of(cells.Count, standardErrors, standardErrors * standardError);
+    }
+
+    /// <summary>
+    /// A teaching score per frame, blended from the two measures issue #18 §4.5 names.
+    ///
+    /// <para>
+    /// <b>THE DOWNSTREAM MEASURE IS THE BOOK'S OWN STRUCTURE, READ OUT OF THE ROWS.</b> A
+    /// check's docstring names the frames it rests on, and <c>report.ts</c> fans one run's
+    /// outcome to every one of them — so a check appearing under several steps is a check that
+    /// needs all of those frames at once. A check whose highest step is beyond THIS frame is
+    /// therefore a check that carries this frame forward, and whether it passes is evidence
+    /// about whether the frame survived to where it is used.
+    /// </para>
+    /// <para>
+    /// Measured before it was designed: eight of Lab P1's thirteen checks rest on more than one
+    /// frame, and <c>test_6_store_rounds_to_the_format</c> rests on frames 20 to 24 <em>and
+    /// 32</em>. A counter-metric with no data behind it is a weight that would sit wherever it
+    /// was set for ever.
+    /// </para>
+    /// <para>
+    /// ATTEMPT 1 ONLY, for both measures. "Did the reader get it right first time" is the
+    /// pressurable question, and the counter has to be asked at the same attempt or the two are
+    /// not comparable and their blend means nothing.
+    /// </para>
+    /// </summary>
+    private static List<FrameScore> ScoresOver(IReadOnlyList<CellRate> cells)
+    {
+        // The frames each check reaches. A check is "carrying" at a frame when it is also used
+        // at a later one — which is the whole of the downstream definition.
+        var lastFrameOf = cells
+            .GroupBy(c => c.Check, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.Max(c => c.Step), StringComparer.Ordinal);
+
+        var scores = new List<FrameScore>();
+
+        foreach (var frame in cells.Where(c => c.Attempt == 1).GroupBy(c => c.Step).OrderBy(g => g.Key))
+        {
+            var carrying = frame.Where(c => lastFrameOf[c.Check] > frame.Key).ToList();
+
+            /*
+             * NO DOWNSTREAM IS NO SCORE, never a score computed from half its definition.
+             *
+             * A frame whose checks are used nowhere later has nothing to say about whether it
+             * survived — the last frame of a unit always, and any frame whose checks are local
+             * to it. Blending in a zero would read as "readers could not use this frame later",
+             * which is the opposite of "nobody has asked". Its cells are still reported; the
+             * view says which frames are here and why, and ADR-0026 records the decision.
+             */
+            if (carrying.Count == 0) continue;
+
+            scores.Add(new FrameScore
+            {
+                Step = frame.Key,
+                FirstAttempt = Pooled(frame),
+                Downstream = Pooled(carrying),
+                Teaching = Instrument.Teaching.Of(Pooled(frame), Pooled(carrying)),
+            });
+        }
+
+        return scores;
+    }
+
+    /// <summary>
+    /// One rate over several cells of the same frame and attempt.
+    ///
+    /// <para>
+    /// <b>THIS POOLS, AND ADR-0024 §2 FORBIDS POOLING — so the difference has to be stated.</b>
+    /// What that rule refuses is pooling across CHECKS OR ATTEMPTS for a rate this service
+    /// reports as a rate, because those observations share a reader and the interval's
+    /// arithmetic assumes they do not. The attempt is held fixed here, which is half of it. The
+    /// checks are not, and the consequence is carried rather than hidden: the interval on a
+    /// pooled rate is narrower than the truth, so <c>Teaching.Of</c> takes a BOUND rather than
+    /// a variance and the result is reported as a score to rank by rather than as a rate to
+    /// quote. A frame's rate, as a rate, still does not exist anywhere in this product.
+    /// </para>
+    /// </summary>
+    private static Rate Pooled(IEnumerable<CellRate> cells)
+    {
+        var passed = cells.Sum(c => c.Rate.Passed);
+        var total = cells.Sum(c => c.Rate.Total);
+
+        return Rate.Of(passed, total, Proportion.HalfWidthOf(passed, total));
     }
 }

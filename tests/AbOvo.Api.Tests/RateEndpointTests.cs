@@ -458,6 +458,165 @@ public sealed class RateEndpointTests
         Assert.Equal(1, theirs.GetProperty("ranked").GetInt64());
     }
 
+    // ── The teaching score: the counter-metric, blended (#18) ───────────────────────────
+
+    private static IReadOnlyList<JsonElement> FramesOf(JsonElement rates) =>
+        rates.GetProperty("frames").EnumerateArray().ToList();
+
+    private static double Percent(JsonElement frame, string measure) =>
+        frame.GetProperty(measure).GetProperty("percent").GetDouble();
+
+    /// <summary>
+    /// A check used at a LATER frame gives the earlier frame a downstream measure, and the
+    /// later one none.
+    ///
+    /// <para>
+    /// The whole derivation, end to end and on the book's own shape: a docstring naming frames
+    /// 7 and 8 reaches this service as two rows for one check, and "used later" is exactly
+    /// "this check also has a row at a higher step". Frame 8 is where that check ends, so
+    /// nothing carries it forward and it has no score — see the next test for why that is an
+    /// absence rather than a zero.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_check_used_at_a_later_frame_scores_the_earlier_one()
+    {
+        using var factory = new SignedInApiFactory();
+        var writer = factory.CreateClient();
+        var author = factory.ClientFor(Author, "Admin");
+        var token = TestContext.Current.CancellationToken;
+
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(7, "test_spans", 1, passed: true), token);
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(8, "test_spans", 1, passed: true), token);
+
+        var frames = FramesOf(await Rates(author, Url(), token));
+
+        var scored = Assert.Single(frames);
+        Assert.Equal(7, scored.GetProperty("step").GetInt32());
+    }
+
+    /// <summary>
+    /// A frame whose checks are used nowhere later has NO score, rather than a score of zero.
+    ///
+    /// <para>
+    /// The same decision <c>Rate.Of</c> and <c>SelectionMargin</c> each take one field over.
+    /// Blending a zero downstream would read as <em>readers could not use this frame later</em>,
+    /// which is the opposite of <em>nobody has asked</em> — and it would sort that frame to the
+    /// top of a list an author acts on.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_frame_whose_checks_go_nowhere_has_no_score_rather_than_a_zero()
+    {
+        using var factory = new SignedInApiFactory();
+        var writer = factory.CreateClient();
+        var author = factory.ClientFor(Author, "Admin");
+        var token = TestContext.Current.CancellationToken;
+
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(7, "test_local", 1, passed: false), token);
+
+        var rates = await Rates(author, Url(), token);
+
+        // The cell is reported — the evidence is not hidden — and the score is absent.
+        Assert.Single(CellsOf(rates));
+        Assert.Empty(FramesOf(rates));
+    }
+
+    /// <summary>
+    /// The downstream measure counts only the carrying checks; first-attempt counts them all.
+    ///
+    /// <para>
+    /// The test that says the two measures are different quantities rather than one computed
+    /// twice. Frame 7 gets a check that carries to frame 9 and passes, and a check local to
+    /// frame 7 that fails: first-attempt sees both and is dragged down, downstream sees only
+    /// the carrying one and is not.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task Downstream_counts_only_the_checks_that_carry_forward()
+    {
+        using var factory = new SignedInApiFactory();
+        var writer = factory.CreateClient();
+        var author = factory.ClientFor(Author, "Admin");
+        var token = TestContext.Current.CancellationToken;
+
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(7, "test_spans", 1, passed: true), token);
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(9, "test_spans", 1, passed: true), token);
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(7, "test_local", 1, passed: false), token);
+
+        var frame = FramesOf(await Rates(author, Url(), token))
+            .Single(f => f.GetProperty("step").GetInt32() == 7);
+
+        Assert.Equal(50.0, Percent(frame, "firstAttempt"));   // one of two
+        Assert.Equal(100.0, Percent(frame, "downstream"));    // the carrying one alone
+    }
+
+    /// <summary>
+    /// The score on the wire is the blend of the two measures on the wire.
+    ///
+    /// <para>
+    /// Issue #18 §4.5 asserted end to end rather than only against <c>Teaching.Of</c>: a
+    /// handler that reported a blend computed from different operands than the ones it printed
+    /// would pass every unit test and put three numbers on a screen that do not add up.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task The_score_on_the_wire_is_the_blend_of_the_measures_on_the_wire()
+    {
+        using var factory = new SignedInApiFactory();
+        var writer = factory.CreateClient();
+        var author = factory.ClientFor(Author, "Admin");
+        var token = TestContext.Current.CancellationToken;
+
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(7, "test_spans", 1, passed: true), token);
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(9, "test_spans", 1, passed: true), token);
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(7, "test_local", 1, passed: false), token);
+
+        var frame = FramesOf(await Rates(author, Url(), token))
+            .Single(f => f.GetProperty("step").GetInt32() == 7);
+
+        // Different, or every weighting agrees and this asserts nothing.
+        Assert.NotEqual(Percent(frame, "firstAttempt"), Percent(frame, "downstream"), 6);
+
+        Assert.Equal(
+            Weights.Of(Measure.FirstAttempt) * Percent(frame, "firstAttempt")
+            + Weights.Of(Measure.Downstream) * Percent(frame, "downstream"),
+            Percent(frame, "teaching"),
+            10);
+    }
+
+    /// <summary>
+    /// Both measures are asked at attempt 1, and a retry enters neither.
+    ///
+    /// <para>
+    /// "Did the reader get it right first time" is the pressurable question; asking the counter
+    /// at a different attempt would make the two incomparable and their blend meaningless. A
+    /// second attempt that passes must not rescue a frame's score.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_second_attempt_enters_neither_measure()
+    {
+        using var factory = new SignedInApiFactory();
+        var writer = factory.CreateClient();
+        var author = factory.ClientFor(Author, "Admin");
+        var token = TestContext.Current.CancellationToken;
+
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(7, "test_spans", 1, passed: false), token);
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(9, "test_spans", 1, passed: false), token);
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(7, "test_spans", 2, passed: true), token);
+        await writer.PostAsJsonAsync("/api/v1/outcomes", Report(9, "test_spans", 2, passed: true), token);
+
+        var frame = Assert.Single(FramesOf(await Rates(author, Url(), token)));
+
+        Assert.Equal(0.0, Percent(frame, "firstAttempt"));
+        Assert.Equal(0.0, Percent(frame, "downstream"));
+        Assert.Equal(0.0, Percent(frame, "teaching"));
+
+        // The attempt-2 cells are still reported; it is the SCORE they stay out of.
+        Assert.Equal(2, CellsOf(await Rates(author, Url(), token)).Count(c => c.GetProperty("attempt").GetInt32() == 2));
+    }
+
     private static async Task<Exception?> Ask(Func<AbOvoDbContext, Task> query)
     {
         using var factory = new SignedInApiFactory();
