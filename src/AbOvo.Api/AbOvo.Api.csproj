@@ -11,6 +11,19 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      The `dotnet ef` tools refuse to run without this on the STARTUP project, and the
+      error names the package: "Your startup project doesn't reference
+      Microsoft.EntityFrameworkCore.Design."
+
+      PrivateAssets="all" is the half that matters at run time: it keeps the package out of
+      the published output and off every consumer of this project, so a design-time tool
+      does not become a runtime dependency of the deployed image.
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="AbOvo.Api.Tests" />
   </ItemGroup>
 

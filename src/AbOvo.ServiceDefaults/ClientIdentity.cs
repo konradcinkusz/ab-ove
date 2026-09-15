@@ -25,10 +25,25 @@ public sealed class ClientIdentityResolver(IConfiguration configuration)
 
     private readonly string _clientIpHeader = configuration["Network:ClientIpHeader"] ?? "Fly-Client-IP";
 
+    /// <summary>
+    /// The authenticated subject, or <c>null</c>. SERVICE-API-PATTERNS.md §1's "one shared
+    /// resolver" applies to STORAGE as much as to metering: a row keyed on one reading of
+    /// the claims and a rate limit keyed on another are two components disagreeing about
+    /// who the caller is, and the disagreement only shows up for the readers whose token
+    /// carries one of the two claims and not the other.
+    /// <para>
+    /// Both spellings are read because authservice writes <c>sub</c> and the JWT handler's
+    /// default claim mapping rewrites it to <see cref="ClaimTypes.NameIdentifier"/> — which
+    /// spelling arrives depends on whether that mapping is switched off.
+    /// </para>
+    /// </summary>
+    public static string? Subject(ClaimsPrincipal user)
+        => user.FindFirstValue(ClaimTypes.NameIdentifier)
+           ?? user.FindFirstValue("sub");
+
     public string Resolve(HttpContext context)
     {
-        var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
-                     ?? context.User.FindFirstValue("sub");
+        var userId = Subject(context.User);
 
         if (!string.IsNullOrWhiteSpace(userId))
         {
