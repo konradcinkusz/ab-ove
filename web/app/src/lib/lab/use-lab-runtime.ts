@@ -8,6 +8,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { reportRun } from '@/lib/instrument/report';
+
 import {
   bootConfig,
   exercisePath,
@@ -59,7 +61,12 @@ function summaryOf(output: string): string | null {
   return null;
 }
 
-export function useLabRuntime(lab: LabDescriptor): LabRuntime {
+/**
+ * @param bundleTag The content tag the reader's frames are pinned at, or `undefined` for a
+ *   track this build does not pin — in which case the run is not reported at all. See
+ *   `tagFor` in lib/content/bundle.ts: an unversioned tally is worse than no tally.
+ */
+export function useLabRuntime(lab: LabDescriptor, bundleTag?: string): LabRuntime {
   const [status, setStatus] = useState<RuntimeStatus>('loading');
   const [checks, setChecks] = useState<readonly LabCheck[]>([]);
   const [python, setPython] = useState<string | null>(null);
@@ -69,6 +76,16 @@ export function useLabRuntime(lab: LabDescriptor): LabRuntime {
 
   const workerRef = useRef<Worker | null>(null);
   const nextId = useRef(0);
+
+  /*
+   * The checks, again, in a ref.
+   *
+   * The `message` listener is registered once and closes over the render that registered
+   * it, where `checks` is still `[]` — so reading the state variable there would hand the
+   * instrument an empty list and every run would report nothing, silently and for ever.
+   * The ref is written in the same handler that sets the state, one message earlier.
+   */
+  const checksRef = useRef<readonly LabCheck[]>([]);
 
   useEffect(() => {
     // The stub, straight from the origin. The reader can read and type during the seconds
@@ -107,6 +124,7 @@ export function useLabRuntime(lab: LabDescriptor): LabRuntime {
     worker.addEventListener('message', (event: MessageEvent<LabResponse>) => {
       const message = event.data;
       if (message.kind === 'ready') {
+        checksRef.current = message.checks;
         setChecks(message.checks);
         setPython(message.python);
         setStatus('ready');
@@ -124,6 +142,35 @@ export function useLabRuntime(lab: LabDescriptor): LabRuntime {
         status: message.status,
       });
       setStatus('ready');
+
+      /*
+       * THE INSTRUMENT, AND IT IS HERE BECAUSE OF CARDINALITY.
+       *
+       * A tally is a count, so the one thing that must be exactly right is how often this
+       * runs: once per run, never twice, never zero times for a run that happened. A worker
+       * message arrives once, so this is once. The obvious alternative — a `useEffect` on
+       * `result` in the pane — fires on a render rather than on an event, so React's strict
+       * mode double-invokes it in development and any later change to `result`'s identity
+       * would double-count in production. Two tallies for one run is not a small error in a
+       * number whose whole purpose is to be counted.
+       *
+       * It is NOT awaited and its rejection is not handled, because it has none:
+       * `reportRun` returns void and swallows everything, deliberately (see its module
+       * note). The reader is in the middle of an exercise and the instrument is not their
+       * business.
+       *
+       * `bundleTag` undefined means this build does not pin the lab's track, so there is no
+       * version to record against and nothing is sent.
+       */
+      if (bundleTag !== undefined) {
+        void reportRun({
+          bundleTag,
+          track: lab.track,
+          unit: lab.unit,
+          output: message.output,
+          checks: checksRef.current,
+        });
+      }
     });
 
     worker.addEventListener('error', (event: ErrorEvent) => {
@@ -143,7 +190,7 @@ export function useLabRuntime(lab: LabDescriptor): LabRuntime {
       worker.terminate();
       workerRef.current = null;
     };
-  }, [lab]);
+  }, [lab, bundleTag]);
 
   const run = useCallback((source: string) => {
     const worker = workerRef.current;

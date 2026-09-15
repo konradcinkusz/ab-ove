@@ -76,20 +76,6 @@ interface DeleteAccountStrings {
   readonly stays: string;
   readonly cannotReachTitle: string;
   readonly cannotReach: string;
-  /**
-   * GATED, AND THE ONLY STRING HERE THAT IS TRUE ONLY TODAY.
-   *
-   * The instrument is phase 4 and is not built; `AbOvoDbContext` declares one entity and it
-   * is the progress store. So the sentence above describes a property of a thing that does
-   * not yet record anything, and saying so is the difference between describing a design
-   * and implying a collection.
-   *
-   * It stops being true the day the instrument ships, and a sentence that has to change
-   * when something else lands is a sentence that goes stale silently. `The_instrument_is_
-   * not_built_and_the_deletion_screen_says_so` in `ProgressIsNotEvidenceTests` fails the
-   * build when a second entity appears, and its message names this field.
-   */
-  readonly nothingRecordedYet: string;
   readonly notImmediateTitle: string;
   readonly notImmediate: string;
   /**
@@ -128,13 +114,15 @@ interface DeleteAccountStrings {
  * ──────────────────────────────────────────────────────────────────────────────────────
  * THE WORDING HAS TO CARRY THE WHOLE OF WHAT IS BEING AGREED TO, IN ONE READING.
  *
- * "Opt-in" means nothing if the thing being opted into is not stated. What the instrument
- * records is fully decided (ADR-0009 §1) even though it is not built, so the invitation
- * describes it concretely rather than as "usage data": which frame, in which version of the
- * book, which attempt, what a check run said — and no identifier for the reader anywhere.
+ * "Opt-in" means nothing if the thing being opted into is not stated (ADR-0009 §1), so the
+ * invitation describes it concretely rather than as "usage data": which frame, in which
+ * version of the book, which attempt, what a check run said — and no identifier for the
+ * reader anywhere.
  *
- * `invitationNothingYet` is the same class of sentence as the deletion screen's, true only
- * while phase 4 is unbuilt, and gated by the same test.
+ * There used to be an `invitationNothingYet` beside those, saying nothing was recorded yet
+ * because the instrument was unbuilt. Issue #15 built it, and the .NET test that had been
+ * holding that sentence to account failed the build and named this field. It is gone; what
+ * it sat beside is what survives, and ADR-0009 §1 keeps that true however many rows exist.
  *
  * `invitationEitherWay` is the sentence that makes declining safe to do. Issue #14:
  * "Declining changes nothing a reader can perceive except the contribution itself. No
@@ -146,8 +134,6 @@ interface ConsentStrings {
   readonly invitationTitle: string;
   readonly invitationWhat: string;
   readonly invitationNoReader: string;
-  /** GATED — see `DeleteAccountStrings.nothingRecordedYet` and the test that names both. */
-  readonly invitationNothingYet: string;
   readonly invitationEitherWay: string;
   readonly grant: string;
   readonly decline: string;
@@ -219,8 +205,6 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         'The book has never been read by anybody, and its author cannot know which frames are wrong. ab-ovo can find out \u2014 by recording, for each frame, which version of the book it was in, which attempt this was, and what a check run said.',
       invitationNoReader:
         'No identifier for you goes on any of it: not a column, not a hash, not a join away. That is what makes the result safe to publish, and it is why nothing recorded here can be turned into a score about you.',
-      invitationNothingYet:
-        'Nothing is recorded yet \u2014 the instrument is not built. Answering now settles what happens when it is.',
       invitationEitherWay:
         'Either answer leaves the book, the lab and your place in it exactly as they are. You will not be asked again.',
       grant: 'Yes, use my outcomes',
@@ -244,7 +228,6 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       cannotReachTitle: 'What this cannot reach',
       cannotReach:
         'The instrument measures how a frame does, never how a reader does: an outcome carries no reader on it, so no row of it knows it was yours and no deletion can find one. That is deliberate \u2014 it is what makes a rate safe to publish \u2014 and the price is that a contribution already folded into a rate cannot be taken back out.',
-      nothingRecordedYet: 'Nothing of that kind is recorded yet: the instrument is not built.',
       notImmediateTitle: 'The account is not erased on the spot',
       notImmediate:
         'The identity service marks it deleted, revokes the tokens that would refresh your session, and schedules the permanent erasure for the end of its retention period. You will not be able to sign in during that time. ab-ovo is not told how long the period is \u2014 that is the identity service\u2019s to state, and copying a number out of it would be a figure nothing here could check.',
@@ -300,8 +283,6 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         'Tej ksi\u0105\u017cki nikt jeszcze nie przeczyta\u0142, a jej autor nie wie, kt\u00f3re ramki s\u0105 z\u0142e. ab-ovo mo\u017ce si\u0119 tego dowiedzie\u0107 \u2014 zapisuj\u0105c dla ka\u017cdej ramki, w kt\u00f3rej wersji ksi\u0105\u017cki si\u0119 znajdowa\u0142a, kt\u00f3re to by\u0142o podej\u015bcie i co powiedzia\u0142o sprawdzenie.',
       invitationNoReader:
         '\u017baden identyfikator ciebie tam nie trafia: ani kolumna, ani skr\u00f3t, ani z\u0142\u0105czenie. W\u0142a\u015bnie dlatego wynik mo\u017cna bezpiecznie publikowa\u0107 i dlatego nic z tego, co si\u0119 tu zapisuje, nie zamieni si\u0119 w ocen\u0119 ciebie.',
-      invitationNothingYet:
-        'Nic nie jest jeszcze zapisywane \u2014 instrument nie powsta\u0142. Odpowied\u017a teraz rozstrzyga, co si\u0119 stanie, gdy powstanie.',
       invitationEitherWay:
         'Ka\u017cda z odpowiedzi zostawia ksi\u0105\u017ck\u0119, laboratorium i twoje miejsce w nich dok\u0142adnie takimi, jakie s\u0105. Nie zapytamy ponownie.',
       grant: 'Tak, korzystajcie z moich wynik\u00f3w',
@@ -325,7 +306,6 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       cannotReachTitle: 'Czego to nie dosi\u0119gnie',
       cannotReach:
         'Instrument mierzy, jak radzi sobie ramka, nigdy jak radzi sobie czytelnik: wynik nie niesie ze sob\u0105 \u017cadnego czytelnika, wi\u0119c \u017caden jego wiersz nie wie, \u017ce by\u0142 tw\u00f3j, i \u017cadne usuni\u0119cie go nie znajdzie. Tak to zaprojektowano \u2014 dzi\u0119ki temu wska\u017anik mo\u017cna bezpiecznie publikowa\u0107 \u2014 a cen\u0105 jest to, \u017ce wk\u0142adu wliczonego ju\u017c do wska\u017anika nie da si\u0119 z niego wycofa\u0107.',
-      nothingRecordedYet: 'Nic takiego nie jest jeszcze zapisywane: instrument nie powsta\u0142.',
       notImmediateTitle: 'Konto nie znika od razu',
       notImmediate:
         'Serwis to\u017csamo\u015bci oznacza je jako usuni\u0119te, uniewa\u017cnia tokeny, kt\u00f3re odnawia\u0142yby sesj\u0119, i planuje trwa\u0142e usuni\u0119cie na koniec swojego okresu przechowywania. Przez ten czas si\u0119 nie zalogujesz. ab-ovo nie wie, jak d\u0142ugo trwa ten okres \u2014 to informacja po stronie serwisu to\u017csamo\u015bci, a przepisanie st\u0105d liczby by\u0142oby podaniem warto\u015bci, kt\u00f3rej nic tutaj nie mo\u017ce sprawdzi\u0107.',

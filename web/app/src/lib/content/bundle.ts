@@ -34,6 +34,23 @@ export const PINS: readonly ContentPin[] = [
   { track: 'math-for-ai-engineers', tag: 'fixture-0' },
 ];
 
+/**
+ * The tag this application serves a track at, or `undefined` for a track it does not pin.
+ *
+ * Separate from `bundleFor` because the INSTRUMENT needs the tag and nothing else: issue
+ * #15 keys every tally on it, so that a frame which was reworded is a different frame for
+ * the instrument's purposes rather than the same frame with a suspicious history. Parsing
+ * and validating a whole bundle to read one string would be a page of work for a lab route
+ * that renders no frame.
+ *
+ * `undefined` rather than a throw, and the caller is expected to report nothing when it
+ * gets one: a run whose bundle tag is unknown cannot say which version of the frame the
+ * reader saw, and an unversioned tally is worse than no tally.
+ */
+export function tagFor(track: string): string | undefined {
+  return PINS.find((candidate) => candidate.track === track)?.tag;
+}
+
 /** Parsed and validated once per process. */
 const loaded = new Map<string, Bundle>();
 

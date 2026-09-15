@@ -53,8 +53,6 @@ test.describe('the ask', () => {
     const panel = page.locator('section', { has: invitation(page) });
     await expect(panel).toContainText('what a check run said');
     await expect(panel).toContainText('not a column, not a hash, not a join away');
-    // True only while phase 4 is unbuilt, and gated by a .NET test that names this string.
-    await expect(panel).toContainText('the instrument is not built');
     // The sentence that makes declining safe to do.
     await expect(panel).toContainText('You will not be asked again');
   });

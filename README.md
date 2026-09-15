@@ -131,6 +131,16 @@ policy. **The absence used to be total and no longer is**: `ReaderProgress` arri
 synchronisation (#11), and it carries the reader's identity in its key, because an account
 that keeps your place has to know whose place it is.
 
+**The outcomes table arrived too (#15), and it is the one the sentence above was always
+about.** `FrameOutcome` is keyed on a frame in a bundle version, a check, an attempt and a
+verdict, and carries exactly one other column: `Count`. There is no identifier, and there is
+also **no timestamp** — because a few dozen rows whose times run consecutively over one
+program's frames reconstruct a session without naming anybody, which is the thing
+METRIC-ETHICS.md §1 asks a store to make impossible rather than merely unattempted. The
+endpoint that writes it takes no token, so a reader with no account contributes on the same
+terms as one who has signed in and the service could not tell them apart if it wanted to
+([ADR-0023](docs/adr/0023-a-tally-is-a-count-against-a-frame-not-a-record-of-a-run.md)).
+
 The rule survives the table, and it is the rule rather than the emptiness that was ever the
 claim: a reader identifier may not be a column on a **score** row, a foreign key from one,
 or a group-by key over one. `ReaderProgress` is not a score row — it says where a reader is
@@ -146,6 +156,13 @@ and never how they did — and three things now hold that, none of them a promis
 Each was watched refusing something before it was believed, and
 [ADR-0020](docs/adr/0020-no-aggregate-touches-the-progress-store.md) records what each one
 does and does not see.
+
+**`FrameOutcome` is held to the mirror image of those three**, and each of those was watched
+refusing something too: its column list is closed, `Count` must be the only column outside
+the key — so no row can belong to one run — and every key and index must lead with the
+**bundle tag** rather than the frame, so the cheapest aggregate in the schema is not *this
+frame, across every version*, which is the query that would make the ledger lie about a
+frame somebody has already fixed.
 
 **And the reader is told what that costs them**, which is the half an architectural absence
 cannot deliver on its own. Because an outcome carries no reader, nothing can find the rows

@@ -62,7 +62,6 @@ export default async function AccountDeletedPage({
       <section className="section">
         <h2>{strings.cannotReachTitle}</h2>
         <p>{strings.cannotReach}</p>
-        <p>{strings.nothingRecordedYet}</p>
       </section>
 
       <section className="section">

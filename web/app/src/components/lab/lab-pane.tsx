@@ -24,8 +24,15 @@ import { useLabRuntime } from '@/lib/lab/use-lab-runtime';
  * requires — at the moment the component was first built rather than retrofitted when a
  * test needed one.
  */
-export function LabPane({ lab }: { readonly lab: LabDescriptor }): React.JSX.Element {
-  const { status, statusText, checks, stub, result, run } = useLabRuntime(lab);
+export function LabPane({
+  lab,
+  bundleTag,
+}: {
+  readonly lab: LabDescriptor;
+  /** The content tag to record outcomes against, resolved on the server. See the route. */
+  readonly bundleTag?: string;
+}): React.JSX.Element {
+  const { status, statusText, checks, stub, result, run } = useLabRuntime(lab, bundleTag);
   const [source, setSource] = useState('');
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
 

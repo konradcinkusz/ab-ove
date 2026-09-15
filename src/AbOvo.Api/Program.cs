@@ -44,8 +44,28 @@ var adminApi = app.MapGroup("/api/v1/admin").WithTags("admin")
     .RequireAuthorization(policy => policy.RequireRole("Admin", "SuperAdmin"))
     .RequireRateLimiting(RateLimitPolicies.Api);
 
+/*
+ * A FOURTH GROUP, AND IT IS NOT A FOURTH MEMBER OF THE TRIAD.
+ *
+ * SERVICE-API-PATTERNS.md §2's triad is about AUTHORIZATION, and this group's authorization
+ * is `publicApi`'s: none, deliberately. Consent is not an account (issue #14) and the reader
+ * loop works without one (ADR-0004), so an instrument that required a token would measure
+ * the book as experienced by account-holders and call it the book.
+ *
+ * What it does not share with `publicApi` is the RATE LIMIT. That group carries none because
+ * its endpoints are health and service-info — reads, and ones a probe makes. This group
+ * WRITES, anonymously, so it takes the same explicit policy the authenticated group does
+ * rather than falling through to the global limiter. It is a separate `MapGroup` because
+ * adding `.RequireRateLimiting` to `publicApi` would put it on the probes too, and a probe
+ * that gets 429'd takes the machine out of rotation — which the kernel already goes out of
+ * its way to prevent.
+ */
+var openWriteApi = app.MapGroup("/api/v1").WithTags("v1")
+    .RequireRateLimiting(RateLimitPolicies.Api);
+
 publicApi.MapSystemEndpoints();
 authApi.MapProgressEndpoints();
+openWriteApi.MapOutcomeEndpoints();
 
 // adminApi carries no endpoint yet. It is declared here rather than when the first one
 // arrives, because the triad is what a reviewer greps for: a group that does not exist

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { LabPane } from '@/components/lab/lab-pane';
+import { tagFor } from '@/lib/content/bundle';
 import { P01 } from '@/lib/lab/protocol';
 
 /**
@@ -20,5 +21,17 @@ export const metadata: Metadata = {
 };
 
 export default function LabP01Page(): React.JSX.Element {
-  return <LabPane lab={P01} />;
+  /*
+   * Resolved HERE, on the server, and handed down as a string.
+   *
+   * `tagFor` lives beside `bundleFor`, whose module imports and validates the whole bundle
+   * — so reading it from the client would put the fixture in the lab route's JavaScript for
+   * the sake of one string. A Server Component reads it for free and sends six characters.
+   *
+   * `undefined` for a track this build does not pin, and the pane reports nothing when it
+   * gets one: a tally that cannot say which version of the frame the reader saw is worse
+   * than no tally. The lab itself is unaffected, which is the point — the reader loop does
+   * not depend on the instrument working (ADR-0004).
+   */
+  return <LabPane lab={P01} bundleTag={tagFor(P01.track)} />;
 }
