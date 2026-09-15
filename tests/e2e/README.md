@@ -335,12 +335,18 @@ pnpm --dir ../../web install
 pnpm --dir ../../web build   # required — Playwright starts the server, it does not build it
 
 cd tests/e2e
-pnpm run test:smoke          # 12 tests, the critical path
-pnpm run test:full           # 27 tests, smoke + core regression
-pnpm test                    # both projects
+pnpm run test:smoke          # the critical path
+pnpm run test:full           # smoke + core regression
+pnpm run test:identity       # the signed-in path, against the fixture
+pnpm test                    # every project
 pnpm run test:ui             # the Playwright UI, for writing tests
 pnpm run report              # open the last HTML report
 ```
+
+The counts that used to be in those comments are gone rather than corrected. They said
+twelve and twenty-seven against a suite that now runs forty-one and a hundred and ten, and a
+number in a README is a claim nothing checks — `--list` answers it in a second and is never
+stale.
 
 The book fetch is first because two things need it: the web build copies `web/content/book` into
 `public/book` so the lab pane has a file system to mount, and `specs/lab-p01.spec.ts` reads the
@@ -430,6 +436,13 @@ runs `test:smoke` on `pull_request` and `test:full` on `push`, and skips the who
 draft PR. There is no nightly or release-candidate context in this repository yet, so the
 bottom row has no implementation and this suite has no config for it.
 
+`test:identity` runs on **both** events and sits in none of those rows, because it is not a
+layer — it is the same protected flows against a second deployment. See ADR-0028 and
+`playwright.config.ts`: the suite starts a fixture identity service and a second web app
+pointed at it, so the signed-in half of the product is gated rather than measured by hand.
+A gate that only ran after merge would report on a commit you can no longer decline, which
+is why it is on the pull request too.
+
 **Every script in `package.json` is executed by a CI context.** An unreferenced test entry
 point is not a latent capability, it is documentation that lies.
 
@@ -437,7 +450,7 @@ point is not a latent capability, it is documentation that lies.
 
 ## Deliberate deviations
 
-Two, both recorded here and again at the point in `playwright.config.ts` where they are made.
+Three, each recorded here and again at the point in `playwright.config.ts` where it is made.
 
 **One browser, not three.** `TESTING-STRATEGY.md §5`'s harness defaults list three browser
 projects, and §2 puts cross-browser in the extended layer that runs nightly. This repository
@@ -450,6 +463,20 @@ nightly workflow that runs them.
 **`webServer` only when the target is local.** §5 prescribes a `webServer` array with
 `reuseExistingServer: !CI`, and that is exactly what is configured for a localhost target.
 Against a deployed target there is no entry at all, for the reason given above.
+
+**A project that does not always exist.** `identity` is present only for a local target,
+because the servers it drives are ones this config starts. Against a deployed
+`E2E_BASE_URL` there is nothing to point it at, and a project that existed there would fail
+every run for a reason that is not a defect — which is §9's rule about aspirational config
+applied one level down, to a project rather than to a layer. It is also why `test:identity`
+is its own script: `--project=identity` appended to `test:smoke` would fail with *project
+not found* on exactly the deployed run the other deviations exist to keep working.
+
+**And `reuseExistingServer: false` on both of the identity entries, even locally**, against
+`!CI` on the entry beside them. The fixture holds a signing key generated on boot, so a
+stale one from an earlier run publishes a JWKS that does not match the tokens the second web
+app is minting — and the failure presents as *the session did not rehydrate*, which is the
+defect the whole project exists to catch.
 
 ---
 

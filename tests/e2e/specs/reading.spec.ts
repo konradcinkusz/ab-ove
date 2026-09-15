@@ -242,8 +242,14 @@ test.describe('reading ergonomics', () => {
     // it: without that this test would be measuring a fresh document and reporting a
     // reassuring zero for the wrong reason.
     // ──────────────────────────────────────────────────────────────────────────────────
-    const answering = steps.findIndex((step, index) => index > 0 && steps[index]);
-    expect(answering, 'the fixture needs at least two frames').toBeGreaterThan(0);
+    // FIXED IN PASSING, because `pnpm typecheck` in this package did not pass and an entry
+    // point that fails is the "documentation that lies" this package's own README objects to.
+    // The line here was `steps.findIndex((step, index) => index > 0 && steps[index])` — and
+    // `steps[index]` IS `step`, so the predicate reduced to `index > 0` and the search always
+    // answered 1. It was a guard on the fixture's length wearing a search's clothes, and its
+    // result was never read. Written as the guard it is — and against THREE, because the
+    // assertion at the foot of this test reads `steps[2]`, which two frames do not have.
+    expect(steps.length, 'this test reads steps[2], so the fixture needs three frames').toBeGreaterThan(2);
 
     await page.goto(at('en', 2));
     await page.evaluate(() => {

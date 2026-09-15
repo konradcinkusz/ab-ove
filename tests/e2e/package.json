@@ -20,7 +20,14 @@
     "test entry point is not a latent capability, it is documentation that lies. `test:smoke`",
     "runs on pull_request and `test:full` on push to main, both in ci.yml's e2e job; the",
     "remaining scripts are developer ergonomics over the same two projects, not a third",
-    "layer. There is deliberately no `test:extended` — see README.md."
+    "layer. There is deliberately no `test:extended` — see README.md.",
+    "",
+    "`test:identity` is the third CI-executed entry point and it runs on BOTH events, which",
+    "is what issue #29 asks for. It is a SEPARATE script rather than `--project=identity`",
+    "appended to the other two, because the identity project exists only when the suite is",
+    "driving servers it started itself: against a deployed E2E_BASE_URL the project is",
+    "absent by design and `--project=identity` would fail with 'project not found' on a run",
+    "that is otherwise correct. See playwright.config.ts."
   ],
   "name": "@ab-ovo/e2e",
   "version": "0.1.0",
@@ -35,6 +42,7 @@
     "test": "playwright test",
     "test:smoke": "playwright test --project=smoke",
     "test:full": "playwright test --project=core",
+    "test:identity": "playwright test --project=identity",
     "test:headed": "playwright test --project=smoke --headed",
     "test:ui": "playwright test --ui",
     "report": "playwright show-report",

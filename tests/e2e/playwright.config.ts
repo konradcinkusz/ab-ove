@@ -43,6 +43,47 @@ const baseURL = process.env.E2E_BASE_URL?.trim() || DEFAULT_BASE_URL;
 const target = new URL(baseURL);
 const targetIsLocal = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(target.hostname);
 
+/**
+ * THE SECOND DEPLOYMENT, AND WHY THERE HAS TO BE ONE (issue #29).
+ *
+ * Until now every spec ran against a web app with NO identity service, because that is what
+ * this job can start. The signed-in half of the product — a form post, two cookies, session
+ * rehydration, the middleware letting a gated page through — was measured by hand once and
+ * recorded in docs/adr/0018. Evidence about one afternoon is not a gate.
+ *
+ * So the suite starts a SECOND web app, configured against the fixture in
+ * `fixtures/authservice-stub.mts`, and the specs that need an account run against that one.
+ * The first app stays exactly as it was, and that is not tidiness: `sign-in.spec.ts`'s
+ * opening block asserts that the PAGE and the ROUTE agree about which deployment this is,
+ * and it has two branches. Configure the only server and the unconfigured branch stops being
+ * exercised anywhere — which is the real cost issue #29 names, and running both deployments
+ * side by side is what pays it.
+ *
+ * Both ports are DERIVED from the one number this file already treats as the single source
+ * of truth, so a developer who moves the base URL moves all three together and a second
+ * constant cannot drift from the first.
+ */
+const webPort = Number(target.port || '3000');
+const identityPort = webPort + 100;
+const stubPort = webPort + 200;
+const identityBaseUrl = `http://127.0.0.1:${identityPort}`;
+const stubBaseUrl = `http://127.0.0.1:${stubPort}`;
+
+/**
+ * The fixture's address, published to the specs through the environment.
+ *
+ * A SIDE EFFECT IN A CONFIG FILE, deliberately and with the alternatives rejected. One spec
+ * has to talk to the fixture DIRECTLY — see `sign-in-identity.spec.ts`'s test that the
+ * fixture still emits a single role as a bare string, which nothing else can see — and a
+ * spec cannot import this file without importing its `webServer` commands too.
+ *
+ * The alternative was to have the spec derive the port from its own `baseURL`, which works
+ * and encodes the `+100`/`+200` relationship in a second place. This keeps the arithmetic
+ * here, where the comment above it explains why the numbers are what they are, and hands
+ * the spec an address rather than a rule for computing one.
+ */
+process.env.AB_OVO_STUB_BASE_URL = stubBaseUrl;
+
 export default defineConfig({
   testDir: './specs',
 
@@ -142,6 +183,30 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       grep: /@smoke|@core/,
     },
+    /**
+     * Identity — the specs that need an account, against the second deployment above.
+     *
+     * PRESENT ONLY FOR A LOCAL TARGET, and absent rather than present-and-failing for any
+     * other. Its server is one this config starts; against a deployed target there is
+     * nothing for it to point at, and a project that existed there would fail on every run
+     * for a reason that is not a defect. TESTING-STRATEGY.md §9's rule about aspirational
+     * config, applied to a project rather than to a layer.
+     *
+     * The grep is `@identity` and not `@smoke|@identity`: every other smoke spec is about
+     * the reading surface, which does not change when an identity service exists, and
+     * running the whole layer twice would double the budget to assert the same things. The
+     * one spec that IS about the difference carries both tags, so it runs in both projects
+     * and each run exercises the branch that environment is in.
+     */
+    ...(targetIsLocal
+      ? [
+          {
+            name: 'identity',
+            use: { ...devices['Desktop Chrome'], baseURL: identityBaseUrl },
+            grep: /@identity/,
+          },
+        ]
+      : []),
   ],
 
   /**
@@ -184,6 +249,55 @@ export default defineConfig({
             stdout: 'pipe' as const,
             stderr: 'pipe' as const,
             env: { PORT: target.port || '3000' },
+          },
+          /**
+           * The identity fixture, and the second web app pointed at it (issue #29).
+           *
+           * ORDER IS NOT A DEPENDENCY. Playwright starts every entry and waits for each
+           * `url` to answer, so the fixture being first is legibility rather than
+           * sequencing — and it does not need to be a dependency, because the web app
+           * reaches authservice lazily, per request, rather than at boot.
+           *
+           * The fixture answers `/health` because Playwright needs SOMETHING to poll, and
+           * that is the path authservice itself serves for liveness. Polling
+           * `/.well-known/jwks.json` would have worked too and would have been a worse
+           * choice: it is the endpoint under test.
+           *
+           * NO `reuseExistingServer` ON THE FIXTURE, even locally. A stale fixture from an
+           * earlier run holds a DIFFERENT signing key, so every token the second web app
+           * minted against the old one would fail verification against the new JWKS — and
+           * the failure would read as "the session did not rehydrate", which is the exact
+           * defect this project exists to catch. The web app beside it may be reused
+           * locally, on the existing reasoning, because it holds no key.
+           */
+          {
+            command: 'node --experimental-strip-types fixtures/authservice-stub.mts',
+            url: `${stubBaseUrl}/health`,
+            reuseExistingServer: false,
+            timeout: 30_000,
+            stdout: 'pipe' as const,
+            stderr: 'pipe' as const,
+            env: { AB_OVO_STUB_PORT: String(stubPort) },
+          },
+          {
+            command: 'pnpm --dir ../../web start',
+            url: `${identityBaseUrl}/healthz`,
+            reuseExistingServer: false,
+            timeout: 120_000,
+            stdout: 'pipe' as const,
+            stderr: 'pipe' as const,
+            /**
+             * `AB_OVO_AUTH_URL` is the only variable this needs: it is rung one of the
+             * candidate ladder, it is what `backendConfigured('authservice')` answers on,
+             * and `token.ts` builds the JWKS address from the same rung. The issuer and
+             * the audience are left unset, because the code's own defaults — `AbOvo` for
+             * both — are what the fixture mints, and restating them here would be two
+             * places for one string.
+             */
+            env: {
+              PORT: String(identityPort),
+              AB_OVO_AUTH_URL: stubBaseUrl,
+            },
           },
         ],
       }

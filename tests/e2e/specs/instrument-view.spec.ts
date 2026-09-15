@@ -23,6 +23,17 @@ import { expect, test } from '@playwright/test';
  * assert Playwright's own fixture. **Issue #29 is the identity fixture that would close
  * this**, and until it exists the gap is reported rather than papered over.
  *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * **AND IT IS NOW CLOSED.** Issue #29's fixture exists, so the missing test is at the foot
+ * of this file, tagged `@identity` and run by the project that has a session to offer. The
+ * paragraphs above are left standing rather than deleted: they say why the gap was reported
+ * instead of papered over, and the two rejected shortcuts are still the wrong answers.
+ *
+ * What did NOT change is the rest of this file. Every test above still runs without an
+ * account, against the deployment that has none, because *the view is gated* is a claim
+ * about the anonymous case and proving it with a session would prove nothing.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
  * What DOES cover the view in the meantime, at the layer with the logic (P13):
  *   - `src/lib/instrument/ranking.test.ts` — the order, and `separated`, which is what
  *     decides where the words go; and `EARLY_NOT_WRONG`, pinned character for character.
@@ -101,4 +112,72 @@ test.describe('the reader’s surface offers no way into a ranking', () => {
       await expect(page.locator('a[href^="/instrument"]')).toHaveCount(0);
     });
   }
+});
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * THE TEST THIS FILE'S HEADER REPORTED AS MISSING, now that issue #29's fixture can sign a
+ * reader in.
+ *
+ * Issue #17 asks for `landing.spec.ts` › *offers no leaderboard, ranking or score
+ * affordance anywhere on the page*, done again against the author's view. It is the harder
+ * half of the promise, because the author's view IS a ranking — of frames — and the whole
+ * question is whether anything on it ranks a READER.
+ *
+ * METRIC-ETHICS.md §1 asks for the anti-goal to be enforced by architecture rather than by
+ * policy, and it is: `OutcomeIsNotAReaderTests` and `ProgressIsNotEvidenceTests` assert that
+ * no row behind these numbers has a column that could name a reader. This is the surface
+ * saying the same thing, and it is the half a person can see.
+ *
+ * TAGGED `@identity` AND NOT `@core`. It needs a session, so it runs only under the project
+ * that has one. Nothing above it moved.
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ */
+test.describe('the author’s view ranks frames and names no reader', () => {
+  test('offers no leaderboard, per-reader ranking or score affordance @identity', async ({
+    page,
+  }) => {
+    await page.goto('/login');
+    await page.fill('input[name="email"]', 'reader@example.test');
+    await page.fill('input[name="password"]', 'fixture-password-not-a-secret');
+    await Promise.all([page.waitForURL(/\/$|\/[a-z]/), page.click('button[type="submit"]')]);
+
+    const response = await page.goto('/instrument');
+
+    // The gate opened. Asserted before anything on the page, because every absence below
+    // would also hold on `/login` — which is exactly what this file's header says the test
+    // would have been asserting before the fixture existed.
+    expect(response?.status(), 'the author’s view must answer 200 to a signed-in reader').toBe(200);
+    expect(new URL(page.url()).pathname, 'and must not have redirected to sign in').toBe(
+      '/instrument',
+    );
+
+    // The page proper. `toHaveCount(0)` agrees with a blank body.
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('The instrument');
+
+    // The promise, in the author's own chrome, where a reader-facing metric would be most
+    // tempting and least visible.
+    const antiGoal = page.getByRole('region', { name: 'What this instrument is for' });
+    await expect(antiGoal).toBeVisible();
+    await expect(antiGoal).toContainText('It measures');
+    await expect(antiGoal).toContainText('There is no reader on any row here');
+
+    // And the affordances, the same ones `landing.spec.ts` rules out. "ranking" is NOT in
+    // this list and that is deliberate: a ranking of frames is what this page is for, and a
+    // test forbidding the word here would be forbidding the product.
+    await expect(
+      page.getByRole('link', { name: /leaderboard|your score|top readers|reader ranking/i }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: /leaderboard|your score|top readers|reader ranking/i }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('heading', { name: /leaderboard|top readers|reader ranking/i }),
+    ).toHaveCount(0);
+
+    // The signed-in reader's own identity must not appear on it either. The session knows
+    // the email — `/api/auth/session` returns it — so a view that greeted them by name would
+    // be one query away from a view that ranked them.
+    await expect(page.getByRole('main')).not.toContainText('reader@example.test');
+  });
 });

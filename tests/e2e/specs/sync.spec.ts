@@ -23,9 +23,19 @@ import { expect, test, type Page, type Route } from '@playwright/test';
  *     way those tests prove the real service answers.
  *
  * What neither covers is the hop between them: this app's BFF proxy carrying a real bearer
- * to a real service. That needs a token, which needs an issuer, and issue #29 is open for
- * the CI identity fixture that would supply one. **It is not covered here and is not
- * implied to be.**
+ * to a real service. **It is not covered here and is not implied to be** — and the reason
+ * has CHANGED, which is worth writing down rather than leaving a pointer that now names a
+ * closed issue.
+ *
+ * It used to be that there was no token, because there was no issuer. Issue #29's fixture
+ * supplies one: `sign-in-identity.spec.ts` signs in and the cookie it gets back holds a
+ * token this app verifies against a published JWKS. What is missing now is the OTHER end —
+ * the acceptance job runs no `AbOvo.Api` and no database, so the proxy has nothing to carry
+ * the bearer to. Closing it means a Postgres service container and a running API, which is
+ * a larger change than the identity fixture was and is not what #29 asked for — so it is
+ * **issue #43**, which also names what that hop would catch that nothing else can: the
+ * issuer and audience agreeing across three fly configs, whose failure is every token
+ * rejected after a working deploy.
  *
  * E2E-ACCEPTANCE-TESTING.md §2 — nothing below is skipped and nothing is conditional.
  * Every test runs on every push, in every environment, and asserts against real

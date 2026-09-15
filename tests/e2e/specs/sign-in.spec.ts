@@ -6,11 +6,15 @@ import { expect, test } from '@playwright/test';
  * ──────────────────────────────────────────────────────────────────────────────────────
  * WHAT THIS SUITE CANNOT SAY, STATED BEFORE WHAT IT CAN.
  *
- * CI runs no identity service, so no test here signs anybody in. The signed-in path — form
- * post, HttpOnly cookie, session rehydration, the middleware letting a gated page through —
- * was measured by hand against a fixture speaking authservice's documented shapes, and the
- * measurements are recorded in docs/adr/0018. They are NOT re-run on every push, and issue
- * #29 is open for the CI fixture that would make them so.
+ * NOTHING HERE SIGNS ANYBODY IN, and that is still true — but it is no longer a gap. The
+ * signed-in path (form post, HttpOnly cookie, session rehydration, the middleware letting a
+ * gated page through) now lives in `sign-in-identity.spec.ts`, which runs against the
+ * fixture `playwright.config.ts` starts. Issue #29 and ADR-0028.
+ *
+ * The split is deliberate rather than historical. This file is about the sign-in surface a
+ * reader meets BEFORE they have an account, and every assertion in it must hold on a
+ * deployment that has no identity service at all — which is a supported state (P8), and the
+ * one CI ran exclusively until the fixture existed.
  *
  * E2E-ACCEPTANCE-TESTING.md §2 bans "skip if the feature isn't there" inside a test, because
  * it is indistinguishable from "skip if the feature broke". Nothing below is skipped. The
@@ -33,9 +37,23 @@ import { expect, test } from '@playwright/test';
  * against a service nobody configured asks for a password it has nowhere to send; a page
  * hiding one from a reader who has an account is a feature switched off by accident. Both
  * are caught here, in either environment, with nothing skipped.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * TWO TAGS, AND THAT IS THE POINT OF THEM (issue #29).
+ *
+ * The block below is the only one in the suite that carries `@identity` as well as
+ * `@smoke`, so it runs TWICE: once under the smoke project, against the web app with no
+ * identity service, and once under the identity project, against the second one
+ * `playwright.config.ts` starts with a fixture behind it. The `else` branch is exercised by
+ * the first run and the `offersForm` branch by the second.
+ *
+ * Before the fixture existed, only the `else` branch could ever run. Adding identity to the
+ * one deployment would have inverted that rather than fixed it — which is the cost issue
+ * #29 names, and which is why there are two deployments instead of a configured one.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  */
 test.describe('the page and the route agree about whether identity exists', () => {
-  test('a form is offered exactly when the route can use one @smoke', async ({
+  test('a form is offered exactly when the route can use one @smoke @identity', async ({
     page,
     request,
     baseURL,
