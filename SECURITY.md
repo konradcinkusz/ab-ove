@@ -82,15 +82,27 @@ toml" is not a mitigation.
 
 ### Scanning, in both places
 
-| | Runs | Catches |
-|---|---|---|
-| `scripts/hooks/pre-commit` | before each commit, on the staged index | the mistake **before it becomes history** |
-| `.github/workflows/secret-scan.yml` | every pull request, every push to `main` | contributors **who have no hooks installed** |
-| `scripts/scan-secrets.sh` | on demand | the same scan as CI, locally, in seconds rather than a push cycle |
+| | Runs | Scans | Catches |
+|---|---|---|---|
+| `scripts/hooks/pre-commit` | before each commit | the staged index | the mistake **before it becomes history** |
+| `secret-scan.yml`, per event | every PR, every push to `main` | **one commit** — the tip | contributors **who have no hooks installed** |
+| `secret-scan.yml`, `complete` | weekly, and on demand | **every commit fetchable from the remote** | anything the three above cannot see |
+| `scripts/scan-secrets.sh` | on demand | every commit in your clone; `--complete` adds `refs/pull/*` | the same, locally, in seconds rather than a push cycle |
 
-Neither of the first two substitutes for the other, and that is the reason both exist. The
-hook is the only one that can prevent the leak; CI is the only one that covers a machine
-you do not control.
+None of them substitutes for another, and that is the reason all four exist. The hook is
+the only one that can *prevent* the leak; the per-event runs are the only ones that cover
+a machine you do not control; the complete scan is the only one that covers **what a
+stranger can actually fetch**.
+
+**The third column was measured, not assumed, and it used to say something else.** This
+table previously credited the push run with scanning "history" and the script with running
+"the same scan as CI". Measured from the runs' own logs, a push run executes
+`git log -p -U0 -1` and scans one commit, while the script's default scans every commit in
+the clone — so the local scan was *wider* than CI rather than equal to it, and 34 commits
+reachable only from `refs/pull/*` were covered by nothing at all.
+[`docs/architecture/SECRET-HISTORY-AUDIT.md`](docs/architecture/SECRET-HISTORY-AUDIT.md)
+has the logs, the numbers, and the planted key the scanner was watched finding before its
+clean answer was believed.
 
 All three read the same `/.gitleaks.toml`. A hook tuned differently from CI is two
 scanners, and the looser of the two defines the repository's real posture.

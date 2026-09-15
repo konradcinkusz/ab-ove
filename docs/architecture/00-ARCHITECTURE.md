@@ -461,6 +461,33 @@ imports the AppHost.
 
 ---
 
+### 2026-09-15 — The secret-scan mirror script is not 1:1 with its CI job
+
+**What.** REPO-BASELINE.md §4 asks that a CI job which is hard to debug gets a local mirror
+script "that reproduces it 1:1". `scripts/scan-secrets.sh` does not reproduce the
+`secret-scan` job's per-event runs, and the header that claimed it did was false.
+
+**Reason.** It is not achievable for this job. `gitleaks/gitleaks-action@v2` derives its
+own `--log-opts` from the GitHub event payload — `-1` on a push, `<head>^..<head>` on a
+pull request — so a faithful mirror would need to reconstruct an event payload locally,
+and would then reproduce a scan of **one commit**, which is of no use to somebody debugging
+a history finding. Measured in
+[`SECRET-HISTORY-AUDIT.md`](SECRET-HISTORY-AUDIT.md) §4.
+
+The property that was actually wanted is preserved and is now stated instead: both read
+the same `/.gitleaks.toml`, so the *rules* cannot diverge — which is the half that decides
+this repository's real posture. The script is deliberately **wider** than the per-event
+CI runs, and `--complete` is byte-for-byte the command CI's weekly `complete` job runs, so
+that job *is* mirrored 1:1.
+
+**Exit.** gitleaks-action gains a way to pin the scan range explicitly, or the per-event
+jobs are replaced by the script as the `complete` job already is. Then the mirror claim
+becomes true for every run rather than for one, and this row is discharged.
+
+**Recorded in.** `scripts/scan-secrets.sh`, under USAGE; `SECURITY.md`; `scripts/README.md`.
+
+---
+
 ## Known gaps
 
 Not deviations. These are things that are simply not built, listed so that a reader does not
