@@ -217,13 +217,14 @@ public sealed class ProgressIsNotEvidenceTests
         Assert.True(
             entities.SequenceEqual([nameof(ReaderProgress)]),
             "This service now stores something besides the reader's place in the book. If "
-            + "that is the instrument, the account-deletion screen is now lying: "
-            + "`deleteAccount.nothingRecordedYet` in web/app/src/lib/i18n/chrome.ts says "
-            + "\"nothing of that kind is recorded yet: the instrument is not built\", in "
-            + "both editions, and is rendered on /account and /account/deleted. Remove the "
-            + "clause from both language entries and from both pages, then delete this "
-            + "test. The sentence ABOVE it — that an outcome carries no reader, so no "
-            + "deletion can find one — stays, and ADR-0009 §1 is what keeps it true. "
+            + "that is the instrument, TWO screens are now lying, in both editions. In "
+            + "web/app/src/lib/i18n/chrome.ts: `deleteAccount.nothingRecordedYet`, rendered "
+            + "on /account and /account/deleted, and `consent.invitationNothingYet`, "
+            + "rendered by ConsentControl on /read — both say nothing of that kind is "
+            + "recorded yet. Remove BOTH clauses, from both language entries and from the "
+            + "three places they render, then delete this test. What stays is the sentence "
+            + "each sits beside: an outcome carries no reader, so nothing can find the ones "
+            + "that were yours, which ADR-0009 §1 keeps true however many rows there are. "
             + "Found: " + string.Join(", ", entities));
     }
 

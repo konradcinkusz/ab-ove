@@ -202,7 +202,7 @@ review.*
 
 | # | Item | Done when |
 | --- | --- | --- |
-| 4.1 | **Consent**, opt-in, versioned, default off. The loop is unchanged by the answer. | Declining changes nothing a reader can perceive except the contribution itself. |
+| 4.1 | **Consent**, opt-in, versioned, default off. Local rather than account-bound, so an anonymous reader can answer; three-valued, because `undecided` and `declined` contribute alike and differ in whether the reader may be invited ([ADR-0022](../adr/0022-consent-is-local-versioned-and-three-valued.md)). The version sits inside the record and is compared first, so a stale answer reads as unanswered. | Declining changes nothing a reader can perceive except the contribution itself. |
 | 4.2 | **Outcome recording** against *frame (in a bundle version)*, *attempt*, *check run*. | No reader identifier exists on any row, and `grep -rn "ReaderId\|UserId\|AuthorId" src/AbOvo.Api/Persistence` returns nothing. |
 | 4.3 | **Rates with intervals**, the arithmetic being the book's own Program P27 standard error of a proportion. | The rate and its interval are one non-nullable value, on the C# record and on the generated TypeScript type. |
 | 4.4 | **The author's view: frames ranked by how badly the book is doing.** Not readers ranked by anything. | Every number on it carries its interval, and a wide interval reads as *early, not wrong* — in those words, on the screen. |

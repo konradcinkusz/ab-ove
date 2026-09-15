@@ -122,6 +122,48 @@ interface DeleteAccountStrings {
   readonly problemUnconfigured: string;
 }
 
+/**
+ * Consent to contribute to the instrument (issue #14).
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE WORDING HAS TO CARRY THE WHOLE OF WHAT IS BEING AGREED TO, IN ONE READING.
+ *
+ * "Opt-in" means nothing if the thing being opted into is not stated. What the instrument
+ * records is fully decided (ADR-0009 §1) even though it is not built, so the invitation
+ * describes it concretely rather than as "usage data": which frame, in which version of the
+ * book, which attempt, what a check run said — and no identifier for the reader anywhere.
+ *
+ * `invitationNothingYet` is the same class of sentence as the deletion screen's, true only
+ * while phase 4 is unbuilt, and gated by the same test.
+ *
+ * `invitationEitherWay` is the sentence that makes declining safe to do. Issue #14:
+ * "Declining changes nothing a reader can perceive except the contribution itself. No
+ * degraded feature, no nag, no second ask on the next page, no 'are you sure'." A reader
+ * who is not told that will hesitate, and a hesitant yes is not consent.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+interface ConsentStrings {
+  readonly invitationTitle: string;
+  readonly invitationWhat: string;
+  readonly invitationNoReader: string;
+  /** GATED — see `DeleteAccountStrings.nothingRecordedYet` and the test that names both. */
+  readonly invitationNothingYet: string;
+  readonly invitationEitherWay: string;
+  readonly grant: string;
+  readonly decline: string;
+  /** The durable control, once an answer exists. */
+  readonly statusGranted: string;
+  readonly statusDeclined: string;
+  readonly withdraw: string;
+  readonly join: string;
+  /**
+   * What withdrawing cannot do — the deletion screen's sentence, arriving at the other end
+   * of the same property. An outcome carries no reader, so nothing can find the ones that
+   * were yours, so stopping stops the next one and retracts none.
+   */
+  readonly withdrawCannotRetract: string;
+}
+
 interface Strings {
   readonly answer: string;
   readonly keys: string;
@@ -130,6 +172,7 @@ interface Strings {
   readonly signOut: string;
   readonly account: string;
   readonly deleteAccount: DeleteAccountStrings;
+  readonly consent: ConsentStrings;
   /** The conflict rule, said where the conflict happened. See `raised-notice.tsx`. */
   readonly raised: (unit: string, step: number) => string;
   readonly dismiss: string;
@@ -170,6 +213,25 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     signIn: 'Sign in',
     signOut: 'Sign out',
     account: 'Account',
+    consent: {
+      invitationTitle: 'Help fix the book?',
+      invitationWhat:
+        'The book has never been read by anybody, and its author cannot know which frames are wrong. ab-ovo can find out \u2014 by recording, for each frame, which version of the book it was in, which attempt this was, and what a check run said.',
+      invitationNoReader:
+        'No identifier for you goes on any of it: not a column, not a hash, not a join away. That is what makes the result safe to publish, and it is why nothing recorded here can be turned into a score about you.',
+      invitationNothingYet:
+        'Nothing is recorded yet \u2014 the instrument is not built. Answering now settles what happens when it is.',
+      invitationEitherWay:
+        'Either answer leaves the book, the lab and your place in it exactly as they are. You will not be asked again.',
+      grant: 'Yes, use my outcomes',
+      decline: 'No thanks',
+      statusGranted: 'You are helping measure the book.',
+      statusDeclined: 'You are not contributing to the book\u2019s measurements.',
+      withdraw: 'Stop contributing',
+      join: 'Start contributing',
+      withdrawCannotRetract:
+        'Stopping stops the next one. It cannot take back an outcome already counted, because nothing knows which of them were yours.',
+    },
     deleteAccount: {
       title: 'Delete your account',
       lead: 'This removes two things.',
@@ -232,6 +294,25 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     signIn: 'Zaloguj się',
     signOut: 'Wyloguj się',
     account: 'Konto',
+    consent: {
+      invitationTitle: 'Pomo\u017cesz poprawi\u0107 ksi\u0105\u017ck\u0119?',
+      invitationWhat:
+        'Tej ksi\u0105\u017cki nikt jeszcze nie przeczyta\u0142, a jej autor nie wie, kt\u00f3re ramki s\u0105 z\u0142e. ab-ovo mo\u017ce si\u0119 tego dowiedzie\u0107 \u2014 zapisuj\u0105c dla ka\u017cdej ramki, w kt\u00f3rej wersji ksi\u0105\u017cki si\u0119 znajdowa\u0142a, kt\u00f3re to by\u0142o podej\u015bcie i co powiedzia\u0142o sprawdzenie.',
+      invitationNoReader:
+        '\u017baden identyfikator ciebie tam nie trafia: ani kolumna, ani skr\u00f3t, ani z\u0142\u0105czenie. W\u0142a\u015bnie dlatego wynik mo\u017cna bezpiecznie publikowa\u0107 i dlatego nic z tego, co si\u0119 tu zapisuje, nie zamieni si\u0119 w ocen\u0119 ciebie.',
+      invitationNothingYet:
+        'Nic nie jest jeszcze zapisywane \u2014 instrument nie powsta\u0142. Odpowied\u017a teraz rozstrzyga, co si\u0119 stanie, gdy powstanie.',
+      invitationEitherWay:
+        'Ka\u017cda z odpowiedzi zostawia ksi\u0105\u017ck\u0119, laboratorium i twoje miejsce w nich dok\u0142adnie takimi, jakie s\u0105. Nie zapytamy ponownie.',
+      grant: 'Tak, korzystajcie z moich wynik\u00f3w',
+      decline: 'Nie, dzi\u0119kuj\u0119',
+      statusGranted: 'Pomagasz mierzy\u0107 ksi\u0105\u017ck\u0119.',
+      statusDeclined: 'Nie uczestniczysz w pomiarach ksi\u0105\u017cki.',
+      withdraw: 'Przesta\u0144 uczestniczy\u0107',
+      join: 'Zacznij uczestniczy\u0107',
+      withdrawCannotRetract:
+        'Rezygnacja zatrzymuje kolejny wynik. Nie cofnie tych ju\u017c policzonych, bo nic nie wie, kt\u00f3re by\u0142y twoje.',
+    },
     deleteAccount: {
       title: 'Usu\u0144 konto',
       lead: 'To usuwa dwie rzeczy.',
@@ -353,6 +434,7 @@ export interface Chrome {
   readonly signOut: string;
   readonly account: string;
   readonly deleteAccount: DeleteAccountStrings;
+  readonly consent: ConsentStrings;
   readonly raised: (unit: string, step: number) => string;
   readonly dismiss: string;
   readonly cue: string;
