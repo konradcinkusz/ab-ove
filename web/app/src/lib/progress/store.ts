@@ -164,12 +164,58 @@ export function remember(
     positions: { ...current.positions, [keyOf(program)]: position },
   };
 
+  write(slot, next);
+  return next;
+}
+
+/**
+ * Put a whole record back, and say whether anything actually changed.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE RETURN VALUE IS WHAT STOPS THE SYNC LOOPING, AND IT IS NOT AN OPTIMISATION.
+ *
+ * `remember` edits one program because a reader is in one program. Synchronisation
+ * (`sync.ts`) arrives with the whole record merged and has to write all of it at once —
+ * and writing announces, and an announcement wakes the sync, which writes again. A cycle
+ * that is idempotent only in VALUE still spins for ever if every pass writes.
+ *
+ * So the write is compared first and skipped when the serialised form is identical, and
+ * the caller announces only when this returned `true`. It is the same trick `client.ts`
+ * uses to keep a stable snapshot reference, applied at the other end of the same loop.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+export function replace(slot: Slot | undefined, next: Progress): boolean {
+  let current: string | null = null;
   try {
-    slot?.setItem(PROGRESS_KEY, JSON.stringify({ ...next, version: PROGRESS_VERSION }));
+    current = slot?.getItem(PROGRESS_KEY) ?? null;
+  } catch {
+    // Unreadable is indistinguishable from absent here, and both mean "write it".
+  }
+
+  const serialised = serialise(next);
+  if (current === serialised) return false;
+
+  return write(slot, next);
+}
+
+const serialise = (progress: Progress): string =>
+  JSON.stringify({ ...progress, version: PROGRESS_VERSION });
+
+/**
+ * The only place this module hands anything to storage.
+ *
+ * A storage failure is not an error to the caller — the reader loses their place and keeps
+ * the loop — but it IS a false answer to "did anything change", so it returns `false`
+ * rather than swallowing silently: a sync that believed it had written would stop trying.
+ */
+function write(slot: Slot | undefined, next: Progress): boolean {
+  try {
+    slot?.setItem(PROGRESS_KEY, serialise(next));
+    return slot !== undefined;
   } catch {
     // Quota, a private window, storage switched off. The reader reads on.
+    return false;
   }
-  return next;
 }
 
 /**

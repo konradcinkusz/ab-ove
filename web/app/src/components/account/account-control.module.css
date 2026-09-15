@@ -1,0 +1,28 @@
+/*
+ * The account control, at the right-hand end of the crumb row.
+ *
+ * It appears after a round trip to /api/auth/session — the session cookie is HttpOnly and
+ * cannot be read any other way — so it extends a line that already exists rather than
+ * occupying a block of its own. Adding a block would move the page under a reader the
+ * moment the answer arrived; extending a line moves nothing. Same reasoning, and the same
+ * row, as resume.module.css.
+ *
+ * A link and a button share one class on purpose: which one is rendered depends on whether
+ * the reader is signed in, and the control must not move or change weight when it flips.
+ */
+.account {
+  background: none;
+  border: 0;
+  color: var(--ink-faint);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.account:hover,
+.account:focus-visible {
+  color: var(--ink);
+  text-decoration-style: solid;
+}

@@ -26,6 +26,7 @@ import {
   forget,
   remember,
   read,
+  replace,
   type ProgramRef,
   type Position,
   type Progress,
@@ -103,8 +104,29 @@ export function rememberHere(program: ProgramRef, position: Position): void {
   announce();
 }
 
-/** Forget everything and tell every watcher, including the ones in other tabs. */
+/**
+ * Forget everything and tell every watcher, including the ones in other tabs.
+ *
+ * LOCAL ONLY. A reader who is signed in has an account copy as well, and forgetting one of
+ * the two is a forget the next sync undoes — so the control calls
+ * `sync.ts`'s `forgetEverywhere`, which reaches both and refuses to pull again until the
+ * account has actually been told. This stays as it is because it is also the SIGNED-OUT
+ * path, where there is no second copy and nothing to wait for.
+ */
 export function forgetAll(): void {
   forget(window.localStorage);
   announce();
+}
+
+/**
+ * Put a merged record back, and wake the watchers only if it actually changed.
+ *
+ * This is synchronisation's way in, and the condition is what keeps it from spinning: a
+ * local change schedules a cycle, a cycle writes, and a write announces. `replace`
+ * compares the serialised record and returns `false` when the write was a no-op, so the
+ * chain stops at the first cycle that agrees with the account instead of running for ever.
+ * See `store.ts`'s note on the return value, and `sync.ts`'s on the loop.
+ */
+export function adoptRecord(next: Progress): void {
+  if (replace(window.localStorage, next)) announce();
 }
