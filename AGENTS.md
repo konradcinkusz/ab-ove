@@ -129,7 +129,7 @@ dotnet test AbOvo.sln                 # unit, in-memory integration, architectur
 pnpm --dir web lint
 pnpm --dir web typecheck               # tsc over every workspace member, not just what a route reaches
 pnpm --dir web build
-bash scripts/scan-secrets.sh --staged  # the local mirror of the CI secret-scan job
+bash scripts/scan-secrets.sh --staged  # what the pre-commit hook runs
 ```
 
 For the acceptance suite (it drives a production build, not `next dev`):

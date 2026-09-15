@@ -10,7 +10,7 @@ by tier, plus worked recipes for the common partial operations." That is what §
 |---|---|---|
 | `setup.sh` | one-command onboarding, four numbered steps | bash |
 | `setup.ps1` | the same four steps on PowerShell | pwsh 7, or Windows PowerShell 5.1 + the .NET SDK |
-| `scan-secrets.sh` | the local mirror of the CI secret-scan job | bash, gitleaks |
+| `scan-secrets.sh` | the local secret scan; `--complete` is the widest one there is | bash, gitleaks |
 | `hooks/pre-commit` | blocks a commit whose staged content looks like a secret | bash, gitleaks |
 
 **Both setup scripts exist on purpose.** A generation instruction that only works on one
@@ -192,19 +192,27 @@ composition root and missing from the publish branch.
 | | Runs | Catches |
 |---|---|---|
 | `hooks/pre-commit` | before each commit, on the staged index | the mistake **before it becomes history** |
-| `.github/workflows/secret-scan.yml` | every PR, every push to `main` | contributors **with no hooks installed** |
-| `scan-secrets.sh` | on demand | the same scan as CI, in seconds rather than a push cycle |
+| `.github/workflows/secret-scan.yml` | every PR, every push to `main` | contributors **with no hooks installed** — one commit per run |
+| the same file's `complete` job | weekly and on demand | every commit fetchable from the remote, `refs/pull/*` included |
+| `scan-secrets.sh` | on demand | the same, locally, in seconds rather than a push cycle |
 
-Neither of the first two substitutes for the other, and that is why both exist. The hook is
-the only one that can *prevent* the leak; CI is the only one that covers a machine you do
-not control.
+None substitutes for another, and that is why all of them exist. The hook is the only one
+that can *prevent* the leak; the per-event CI runs are the only ones that cover a machine
+you do not control; the complete scan is the only one that covers what a stranger can
+fetch.
+
+**`scan-secrets.sh` is NOT 1:1 with CI, and this file used to say it was.** Measured from
+the runs' own logs, a per-event CI run scans one commit; the default mode here scans every
+commit in your clone. See
+[`docs/architecture/SECRET-HISTORY-AUDIT.md`](../docs/architecture/SECRET-HISTORY-AUDIT.md).
 
 All three read `/.gitleaks.toml`. **A hook tuned differently from CI is two scanners, and
 the looser of the two defines the repository's real posture.**
 
 ```bash
-bash scripts/scan-secrets.sh                  # all history reachable from HEAD  (CI on push)
-bash scripts/scan-secrets.sh --since main     # only this branch's commits       (CI on a PR)
+bash scripts/scan-secrets.sh --complete        # EVERY commit on the remote, refs/pull/* too
+bash scripts/scan-secrets.sh                  # every commit already in this clone
+bash scripts/scan-secrets.sh --since main     # only this branch's commits
 bash scripts/scan-secrets.sh --staged         # the index                        (the hook)
 bash scripts/scan-secrets.sh --working-tree   # files on disk, tracked or not
 bash scripts/scan-secrets.sh --report out.json
@@ -332,6 +340,6 @@ rules go with them and are cheap to forget:
 |---|---|
 | `secrets.env.example` | every variable, its tier, and what degrades without it |
 | `SECURITY.md` | reporting, and the rotate-then-scrub order |
-| `.gitleaks.toml` | the rules all three scanners read |
+| `.gitleaks.toml` | the rules every scanner reads — hook, both CI jobs, and this script |
 | `flyio/SECRETS.md` | the five root secrets and the one-time human setup |
 | `flyio/README.md` | the deployed topology |
