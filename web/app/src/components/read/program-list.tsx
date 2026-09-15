@@ -7,6 +7,8 @@ import type { Bundle } from '@/lib/content/schema';
 import { FALLBACK_LANGUAGE, chromeFor } from '@/lib/i18n/chrome';
 
 import styles from './contents.module.css';
+import { ConsentControl } from '@/components/consent/consent-control';
+
 import { ForgetProgress, ResumeLast, type Limits } from './resume';
 
 export interface ProgramListProps {
@@ -122,6 +124,21 @@ export function ProgramList({ bundles }: ProgramListProps): React.JSX.Element {
           </ol>
         </section>
       ))}
+
+      {/*
+        LAST ON THE PAGE, AND THAT IS WHERE IT BELONGS RATHER THAN WHERE IT FITS.
+
+        It is absent from the first paint — it cannot render on the server, because the
+        server has no reader and the invitation must not reach somebody who has already
+        declined (see the component). So it has to appear somewhere that appearing shifts
+        nothing already on the page, which is the same constraint issue #7 put on the resume
+        controls.
+
+        And it is an invitation rather than a gate: a reader who came to read should reach
+        the programs first and the question afterwards. Putting it above the list would make
+        the first thing in the reading surface a request for permission.
+      */}
+      <ConsentControl language={chrome.language} />
     </main>
   );
 }

@@ -176,7 +176,14 @@ test.describe('local progress', () => {
     await page.goto('/read');
     await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
 
-    await page.getByRole('button').click();
+    /*
+      NAMED, because `getByRole('button')` meant "the only button on this page" and that
+      was never the property under test. It held until the consent invitation arrived on
+      `/read` (issue #14) and then failed with a strict-mode violation naming three
+      buttons — which is the good outcome: an unnamed locator that had silently started
+      clicking the wrong control would have left this test green and meaningless.
+    */
+    await page.getByRole('button', { name: 'Forget where I am' }).click();
     await expect(resumeOn(page, 'en', STOPPED_AT!), 'the control survived being forgotten').toHaveCount(0);
 
     // And it was the STORE that was cleared, not the screen: a reload is the only assertion
