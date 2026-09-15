@@ -211,7 +211,10 @@ expected to be.** The first implementation was the standard seven-term rational,
 because the page prints two decimals and it is good to seven. It reproduced *both* of the
 book's committed figures at printed precision and failed *both* of the book's own closed-form
 self-checks — so the figures the screen shows would have accepted a routine the book would
-not. What replaced it is exact to the last bit over the range anything here asks for, and
+not. What replaced it is within about four ulp of a correctly rounded
+error function over the whole range anything here asks for — measured against one, because the
+first draft of its own comment claimed "exact to the last bit" and that was not true either —
+and
 [ADR-0025](docs/adr/0025-a-frames-place-is-its-worst-cell-and-the-sort-says-what-it-cost.md)
 records the measurement rather than the conclusion.
 

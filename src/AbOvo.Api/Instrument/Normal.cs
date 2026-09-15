@@ -37,9 +37,22 @@ namespace AbOvo.Api.Instrument;
 /// WHAT IS HERE INSTEAD is the series <c>erf(x) = (2/sqrt(pi)) e^-x^2 SUM 2^n x^(2n+1) /
 /// (1.3.5...(2n+1))</c>, whose terms are all positive — so it has no cancellation to lose
 /// accuracy to — truncated at <c>|x| &gt;= 6</c>, where <c>erfc(6)</c> is 2.2e-17 and 1.0 is
-/// therefore the correctly rounded answer in binary64. It is odd by construction, it costs a
-/// few hundred multiplications at the widest argument anyone here passes, and it clears every
-/// gate below at the strength the book states them.
+/// therefore the correctly rounded answer in binary64. It is odd by construction and it clears
+/// every gate below at the strength the book states them.
+/// </para>
+/// <para>
+/// <b>MEASURED, because the first draft of this paragraph asserted both figures and both were
+/// wrong.</b> It said "a few hundred multiplications" and "exact to the last bit". Counted and
+/// compared against Python's <c>math.erf</c>, which is correctly rounded: the series takes
+/// <b>98 terms</b> at the widest argument that reaches it, and its worst relative error over
+/// 0.1 to 5.9 is <b>8.9e-16</b> — about four ulp, not zero. Four ulp is far inside anything
+/// this has a caller for, and that is a different sentence from the one that was there.
+/// </para>
+/// <para>
+/// The same sweep turned up one value worth knowing: near the saturation point the sum can
+/// come back one ulp ABOVE 1 — <c>Erf(5.9)</c> is <c>1.0000000000000002</c>. That is left as
+/// it is, because it is what the series computes and <see cref="Erf"/> promises the series;
+/// it is <see cref="Cdf"/> that promises a probability, so the clamp is there.
 /// </para>
 /// </summary>
 public static class Normal
@@ -89,8 +102,22 @@ public static class Normal
     /// <summary>
     /// The cumulative distribution — <c>0.5 (1 + erf(x / sqrt 2))</c>, which is the form every
     /// one of P27's own uses is written in.
+    ///
+    /// <para>
+    /// CLAMPED TO [0, 1], which <see cref="Erf"/> deliberately is not. Measured: the series
+    /// returns one ulp above 1 near its saturation point, so this would otherwise hand back a
+    /// probability of <c>1.0000000000000002</c> — and <see cref="ExpectedMaxOfStandardNormals"/>
+    /// raises it to the power of however many things are being ranked, which turns one ulp into
+    /// a quantity that grows with <c>m</c>. Nothing here is close to being harmed by it; the
+    /// clamp is because a function that returns a probability should return a probability.
+    /// </para>
+    /// <para>
+    /// It cannot hide a broken <see cref="Erf"/>, which is why the split is here rather than
+    /// one level down: every gate in <c>NormalGatesTests</c> exercises the middle of the range,
+    /// and a routine that saturated early fails two of them — watched doing so.
+    /// </para>
     /// </summary>
-    public static double Cdf(double x) => 0.5 * (1.0 + Erf(x / Math.Sqrt(2.0)));
+    public static double Cdf(double x) => Math.Clamp(0.5 * (1.0 + Erf(x / Math.Sqrt(2.0))), 0.0, 1.0);
 
     /// <summary>The density.</summary>
     public static double Pdf(double x) => Math.Exp(-0.5 * x * x) / Math.Sqrt(2.0 * Math.PI);

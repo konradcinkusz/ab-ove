@@ -73,9 +73,12 @@ One prediction made while replacing it was also wrong, and it is the more useful
 The errors of an oscillating approximation largely cancel under an integral — which is exactly
 the shape that lets an inadequate routine look adequate, and is why **the gate is the book's
 own assertions at the book's own strength** rather than a tolerance chosen to suit whatever
-this service happens to carry. What is in the tree instead is the positive-term series, exact
-to the last bit within `|x| < 6` and saturating beyond it, where `erfc(6)` is `2.2e-17` and
-`1.0` is the correctly rounded answer in binary64.
+this service happens to carry. What is in the tree instead is the positive-term series,
+saturating at `|x| >= 6` where `erfc(6)` is `2.152e-17` and `1.0` is the correctly rounded
+answer in binary64. Its cost and its accuracy were then measured rather than asserted, because
+the first draft of its own comment asserted both and got both wrong: **98 terms** at the widest
+argument that reaches it, and a worst relative error of **8.9e-16** against Python's correctly
+rounded `math.erf` — about four ulp, not zero.
 
 ### 3. The selection margin is a property of the LIST, and it rides the envelope
 
