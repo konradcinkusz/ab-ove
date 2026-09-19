@@ -82,6 +82,45 @@
   text-transform: uppercase;
 }
 
+/*
+ * A SOURCE LISTING, INSIDE THE ANSWER BOX.
+ *
+ * It sits within `.answer` because `code` is part of the answer the step opens with, and it
+ * inherits that box's background rather than drawing a second one: two nested panels for one
+ * thought is furniture the reader has to parse before reading.
+ *
+ * `overflow-x: auto` on the `pre` is the load-bearing line, with `min-width: 0` on the
+ * figure as the half that makes it work: source does not reflow — a line of C# is as wide as
+ * it was written — and without both, a long line sizes its container to itself and widens
+ * everything above it. What this claims is only that the LISTING scrolls inside the column
+ * rather than widening it; the reading column's own behaviour at 360px is issue #54's, and
+ * it is the same on a frame that carries no listing.
+ */
+.listing {
+  margin: 0.875rem 0 0;
+  min-width: 0;
+}
+
+.listing pre {
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  margin: 0;
+  overflow-x: auto;
+  padding-top: 0.625rem;
+  tab-size: 4;
+}
+
+/* The language the bundle declared. An identifier, so it is not translated. */
+.listingLanguage {
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
 .body {
   font-size: 1.0625rem;
   line-height: 1.7;

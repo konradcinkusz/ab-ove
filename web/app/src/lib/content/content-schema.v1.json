@@ -145,6 +145,39 @@
           "type": "boolean"
         },
 
+        "code": {
+          "$comment": [
+            "THE LISTING THAT BELONGS WITH `answer`, AND IT IS NOT PROSE AND NOT PER LANGUAGE.",
+            "",
+            "It sits on the step for the same reason `answer` does: this step opens by answering",
+            "the previous one, and a listing that is part of that answer has to arrive with it",
+            "or it reaches the reader before they have committed to the reveal. validate.ts",
+            "therefore refuses `code` on a step with no `answer` — the field would have nothing",
+            "to belong to, and rendering it under this step's question would attach it to the",
+            "wrong question. A track that wants a listing under a QUESTION needs a second field",
+            "and a second decision; this one is not it.",
+            "",
+            "One string rather than a text: source is the same in every edition. Translating an",
+            "identifier is how an example stops compiling.",
+            "",
+            "`language` is an enum rather than a free string because a label the application",
+            "cannot act on is a label a reader cannot trust. It names what a bundle may declare",
+            "TODAY, which is the one language a pinned track emits; widening it is a line in",
+            "this file and a sentence in an ADR (ADR-0037), not a default.",
+            "",
+            "Added for the second track and measured before it was added: the deck's compiler",
+            "produced a bundle that failed this schema in exactly one way, 196 times, and in no",
+            "other way at all. That is the design input ADR-0014 asked for."
+          ],
+          "type": "object",
+          "required": ["language", "source"],
+          "additionalProperties": false,
+          "properties": {
+            "language": { "enum": ["csharp"] },
+            "source": { "type": "string", "minLength": 1 }
+          }
+        },
+
         "check": {
           "$comment": "The optional check of #239 §6's minimum unit. A reference into labs[], never an exercise body.",
           "type": "object",

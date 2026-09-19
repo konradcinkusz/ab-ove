@@ -17,6 +17,16 @@ It exercises every shape the validator checks: both declared languages throughou
 section anchors, a cue paired with the answer that opens the next step, a step with
 neither, a check into `labs[]`, and all three route kinds.
 
+**With one deliberate exception, and it is the same rule that put this commentary here.** A
+step may carry a `code` — a source listing belonging to the answer it opens with
+([ADR-0037](../../../../../../docs/adr/0037-a-second-track-costs-one-field-and-the-field-is-a-listing.md))
+— and this fixture carries none, because the book's frames carry none. A fixture holding a
+listing no producer of *this* content emits would be testing a shape nothing produces, which
+is the same objection that moved the `$comment` block out of the bundle. `code` is exercised
+in `validate.test.ts` instead: accepted on a step with an answer, refused on one without,
+refused empty, refused with a language the application cannot act on, and refused carrying a
+field the schema does not declare.
+
 ### Why the explanation is in this file and not in the bundle
 
 The bundle carries no `$comment`, and `validate.test.ts` asserts that it does not.

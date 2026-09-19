@@ -369,14 +369,17 @@ written.
 | 320 | manual | #78 | Rename the repository to `ab-ovo` | 5.6 |
 | 330 | blocked | #79 | The real content bundle: 47 programs | 2b.1 |
 | 340 | blocked | #80 | A second lab | — |
-| 350 | blocked | #81 | A second track | — |
+| 350 | feature | #81 | A second track — unblocked; the field it needed is in, the pin is not | — |
 
 **Three things this ordering asserts**, each of which is a claim and not a preference:
 
 1. **010–030 come first because they are the documents that everything else is read against.**
    A numbering source that is wrong about what exists generates numbers for the wrong things.
-2. **070–090 are the only large unblocked work.** They need no content bundle, no deployment,
-   no decision and nobody's permission. Everything they compose already exists and is tested.
+2. **070–090 and 350 are the unblocked large work.** 070–090 need no content bundle, no
+   deployment, no decision and nobody's permission; everything they compose already exists
+   and is tested. 350 joined them when a second content repository appeared, which is the
+   one blocker it had: `ADR-0037` records what compiling that track cost, and what is left
+   of the item is the pin and its fetch.
 3. **100 and 110 precede 120 deliberately.** An ADR written before its measurement is a
    decision without its evidence, and a refusal at 120 is a valid outcome that closes
    130–160 with it.

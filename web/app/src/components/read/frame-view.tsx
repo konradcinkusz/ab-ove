@@ -204,6 +204,32 @@ export function FrameView({
             {chrome.answer}
           </span>
           <p>{say(step.answer, language)}</p>
+
+          {/*
+            THE LISTING IS INSIDE THE ANSWER BOX, AND THAT IS THE SCHEMA'S OWN CLAIM RATHER
+            THAN A LAYOUT CHOICE.
+
+            `code` is defined as part of the answer this step opens with, and `validate.ts`
+            refuses it on a step that has no answer — so there is no branch where a listing
+            renders outside this block, and none is written here. What that buys is the
+            property the whole component exists for: the answer is ABSENT before the reveal,
+            and an example that sat below the body would have shown the reader the answer to
+            a question they had not yet committed to.
+
+            `code.language` is RENDERED rather than kept for a highlighter that does not
+            exist. A bundle carrying a field the application ignores is a compiler and an
+            application that disagree about the contract, and the disagreement surfaces as a
+            field that quietly does nothing. It is an identifier, so it is not translated and
+            it does not take `lang`.
+          */}
+          {step.code ? (
+            <figure className={styles.listing}>
+              <figcaption className={styles.listingLanguage}>{step.code.language}</figcaption>
+              <pre>
+                <code>{step.code.source}</code>
+              </pre>
+            </figure>
+          ) : null}
         </div>
       ) : null}
 

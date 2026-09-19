@@ -70,6 +70,18 @@ export interface CheckRef {
   readonly exercise: string;
 }
 
+/**
+ * A source listing that belongs with a step's `answer`.
+ *
+ * ONE STRING RATHER THAN A TEXT, and that is the whole reason it is not modelled as prose:
+ * source is the same in every edition, and translating an identifier is how an example
+ * stops compiling. The natural language around it is in `answer`, where it is translated.
+ */
+export interface Code {
+  readonly language: 'csharp';
+  readonly source: string;
+}
+
 export interface Step {
   readonly n: number;
   readonly kind: 'frame' | 'prose';
@@ -87,6 +99,11 @@ export interface Step {
   readonly answer?: Text;
   /** True if and only if step `n + 1` carries an answer. Checked both ways. */
   readonly cue?: boolean;
+  /**
+   * The listing the answer above comes with. Refused by the validator on a step with no
+   * `answer`, because it would then render under this step's question.
+   */
+  readonly code?: Code;
   readonly check?: CheckRef;
 }
 

@@ -256,12 +256,16 @@ the model was taken from the book's mechanics rather than invented beside them, 
 recording where a shape came from is what stops the next author redesigning it back. The
 dialect is in the prose that explains the code and in none of the code.
 
-It is **not yet evidence that nothing downstream knows there was more than one dialect**,
-because there is one dialect and one producer. That becomes checkable when a second track
-exists; §6 of the book's issue #239 sets exactly that test, and
-[ADR-0014](../adr/0014-the-content-schema-is-json-schema-and-knows-nothing-about-frames.md)
-records that the claim is untested until then. What is already true and was not before: the
-minimum unit is a title and a body, so a track without frames is renderable rather than
+It **is now evidence, and it is nearly the evidence that was hoped for.** A second dialect
+exists — `konradcinkusz/csharp-flashcards`, a Beamer deck with its own macros, its own
+compiler and its own licence — and compiling it was the test §6 of the book's issue #239
+set. The result is in
+[ADR-0037](../adr/0037-a-second-track-costs-one-field-and-the-field-is-a-listing.md): the
+second dialect is normalised in its own repository, this one still parses no LaTeX, and the
+bundle it produced failed this schema in exactly one way — a step had nowhere to put a
+source listing, which most of that deck's answers carry. Everything else downstream took the
+second dialect without knowing there was one. What was already true and was not before that:
+the minimum unit is a title and a body, so a track without frames is renderable rather than
 forced to fake a question nobody asked.
 
 ### P12 — build once, deploy many
@@ -541,11 +545,15 @@ book's 47 programs as a versioned bundle published on the book's own releases
 **phase 2b, real content, cannot start until the book publishes one.** It is the only
 external dependency in the plan, and it is owned by a different repository.
 
-**P11 has a boundary now, and one dialect to normalise at it.** The content schema is the
-single internal model and the application never parses LaTeX; what is still missing is the
-*second* dialect, which is the only thing that can demonstrate "nothing downstream knows
-there was more than one". The gap stays listed, narrower than it was: it is now waiting on
-a second track rather than on somebody reading the principle.
+**P11 has a boundary and two dialects to normalise at it, and the gap is closed as far as
+this repository can close it.** The content schema is the single internal model and this
+application parses neither dialect: the book's compiler is one producer and
+`csharp-flashcards`' is the second, each in the repository that knows its own macros.
+Compiling the second one is what "nothing downstream knows there was more than one" finally
+means here, and the answer was one optional field —
+[ADR-0037](../adr/0037-a-second-track-costs-one-field-and-the-field-is-a-listing.md) carries
+the measurement and what it cost. What remains is the pin rather than the principle, and the
+pin is [ADR-0008](../adr/0008-content-is-a-versioned-bundle.md)'s fetch, not a normalisation.
 
 **No ADR covers the frontend framework, the ORM or the test runner.** Next.js, EF Core and
 xUnit v3 are in the tree with their reasoning in file comments rather than in a decision

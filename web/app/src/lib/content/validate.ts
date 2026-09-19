@@ -309,6 +309,19 @@ function checkStructure(bundle: Bundle): Problem[] {
         }
       }
 
+      // A LISTING BELONGS TO AN ANSWER, SO A STEP WITH NO ANSWER MAY NOT CARRY ONE.
+      //
+      // `code` is defined as part of the answer this step opens with, which is what lets
+      // the reader see it at the moment of the reveal and not before. A step with `code`
+      // and no `answer` would render it under this step's QUESTION, attaching an example
+      // to the wrong question — visible to a reader, invisible to every other rule here.
+      if (step.code && !step.answer) {
+        problems.push({
+          path: `${stepAt}/code`,
+          message: 'carries a listing and no answer for it to belong to; `code` is part of the answer this step opens with',
+        });
+      }
+
       // THE CUE INVARIANT, IN BOTH DIRECTIONS.
       //
       // The book's C16, and the reason it exists there is the reason it is here: a cue

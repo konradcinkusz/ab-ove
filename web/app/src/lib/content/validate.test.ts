@@ -278,6 +278,65 @@ test('a check naming an exercise that lab does not have is refused', () => {
   refusedAt(settingAt('/units/0/steps/3/check/exercise', 'nope'), '/units/0/steps/3/check/exercise');
 });
 
+// ── `code`: the field the second track needed, and the rules that came with it ──────────
+
+test('a listing on a step that has an answer is accepted', () => {
+  // The fixture is the BOOK, and the book's frames carry no source listings, so this field
+  // is exercised here rather than by adding one to the fixture. A fixture holding a listing
+  // no producer of that content emits would be testing a shape nothing produces — the same
+  // reason fixtures/README.md gives for keeping the commentary out of the bundle.
+  const result = validateBundle(
+    addingAt('/units/0/steps/2/code', { language: 'csharp', source: 'var x = 1;' }),
+  );
+  assert.equal(
+    result.ok,
+    true,
+    result.ok ? '' : result.problems.map((p) => `${p.path}: ${p.message}`).join('\n'),
+  );
+});
+
+test('and a listing on a step with no answer is refused, because it would attach to the question', () => {
+  // Step 0 of the fixture is prose with no answer. A listing there renders under THIS step's
+  // body, which is the question — so the example would be read as belonging to a question it
+  // does not answer. Invisible to every other rule in this file and obvious to a reader.
+  const problem = refusedAt(
+    addingAt('/units/0/steps/0/code', { language: 'csharp', source: 'var x = 1;' }),
+    '/units/0/steps/0/code',
+  );
+  assert.match(problem.message, /no answer for it to belong to/);
+});
+
+test('a listing with no language is refused, naming the field rather than the listing', () => {
+  refusedAt(
+    addingAt('/units/0/steps/2/code', { source: 'var x = 1;' }),
+    '/units/0/steps/2/code/language',
+  );
+});
+
+test('and a language the application cannot act on is refused rather than passed through', () => {
+  // The enum names what a bundle may declare today. A free string here would let a compiler
+  // ship a label nothing renders meaningfully, which is the "field that quietly does
+  // nothing" the schema's additionalProperties rule exists to prevent, one level down.
+  refusedAt(
+    addingAt('/units/0/steps/2/code', { language: 'fortran', source: 'PRINT *' }),
+    '/units/0/steps/2/code/language',
+  );
+});
+
+test('and an empty listing is refused, because an empty box is not an example', () => {
+  refusedAt(
+    addingAt('/units/0/steps/2/code', { language: 'csharp', source: '' }),
+    '/units/0/steps/2/code/source',
+  );
+});
+
+test('and a listing carrying a field the schema does not declare is refused', () => {
+  refusedAt(
+    addingAt('/units/0/steps/2/code', { language: 'csharp', source: 'var x = 1;', highlight: [1] }),
+    '/units/0/steps/2/code/highlight',
+  );
+});
+
 test('a declared language missing from one text is refused, naming the language', () => {
   const problem = refusedAt(
     removingAt('/units/0/steps/0/body/pl'),
