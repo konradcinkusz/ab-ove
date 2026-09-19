@@ -251,7 +251,7 @@ written.
 | 090 | feature | #55 | Open the lab from a frame that carries a `check` | 2b.2 |
 | 100 | probe | #56 | Does a canonical form give a stable digest | — |
 | 110 | blocked | #57 | How many of the book's answers are checkable at all | — |
-| 120 | decision | #58 | ADR-0032: does a frame accept the reader's answer | — |
+| 120 | decision | #58 | ADR-0033: does a frame accept the reader's answer | — |
 | 130 | feature | #59 | Schema v2: the answer model | — |
 | 140 | feature | #60 | The answer field, and a verdict computed in the browser | — |
 | 150 | feature | #61 | The answer verdict reaches the existing tally | — |
