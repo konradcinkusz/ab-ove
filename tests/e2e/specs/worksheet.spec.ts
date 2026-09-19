@@ -521,6 +521,81 @@ test.describe('the worksheet', () => {
     ).toHaveAttribute('aria-pressed', 'true');
   });
 
+  test('a sketch belongs to its frame and follows nobody @smoke', async ({ page }) => {
+    /*
+      ──────────────────────────────────────────────────────────────────────────────────
+      THE WORST THING THIS PANE COULD DO, SO IT IS SMOKE.
+
+      The strokes live in a ref, keyed by nothing: the component reads and writes them by
+      frame, and what stops frame 2's drawing appearing on frame 3 is that Next remounts
+      the page on a route change. That is a property of the framework rather than of this
+      code, it is true today, and if it ever stops being true the symptom is a reader's
+      working from one question drawn over the next one.
+
+      Navigated by clicking, not by `goto`: a full reload remounts everything and would
+      assert nothing at all.
+      ──────────────────────────────────────────────────────────────────────────────────
+    */
+    const ink = async (): Promise<number> =>
+      page.getByLabel(/draw your answer/i).evaluate((node) => {
+        const canvas = node as HTMLCanvasElement;
+        const data = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
+        let lit = 0;
+        for (let i = 3; i < data.length; i += 4) if (data[i]! > 0) lit += 1;
+        return lit;
+      });
+    const openSketch = (): Promise<void> =>
+      page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+
+    await page.goto(at('en', NUMERIC.asks));
+    await openSketch();
+    const box = (await page.getByLabel(/draw your answer/i).boundingBox())!;
+    await page.mouse.move(box.x + 60, box.y + 40);
+    await page.mouse.down();
+    for (let i = 1; i <= 12; i += 1) await page.mouse.move(box.x + 60, box.y + 40 + i * 12);
+    await page.mouse.up();
+
+    expect(await ink(), 'nothing was drawn, so nothing below proves anything').toBeGreaterThan(0);
+
+    await page.getByRole('link', { name: /reveal the answer|next frame/i }).click();
+    await page.waitForURL(new RegExp(`/${NUMERIC.answers}$`));
+    await openSketch();
+    await expect
+      .poll(ink, { message: 'the previous frame’s sketch is drawn on this one' })
+      .toBe(0);
+  });
+
+  test('closing the pane does not throw away what was drawn @core', async ({ page }) => {
+    /*
+      `loaded` is reset whenever the record changes and a write resets it, so reopening the
+      pane re-reads the database — which is right when the write landed and destroys the
+      drawing when it did not. The guard in `sketch.tsx` says the database is consulted
+      only when the component has nothing; this is that guard from the reader's side.
+    */
+    const openSketch = (): Promise<void> =>
+      page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+
+    await page.goto(at('en', NUMERIC.asks));
+    await openSketch();
+    const box = (await page.getByLabel(/draw your answer/i).boundingBox())!;
+    await page.mouse.move(box.x + 80, box.y + 50);
+    await page.mouse.down();
+    for (let i = 1; i <= 10; i += 1) await page.mouse.move(box.x + 80 + i * 16, box.y + 50 + i * 9);
+    await page.mouse.up();
+
+    await openSketch(); // close
+    await openSketch(); // and open again
+
+    const lit = await page.getByLabel(/draw your answer/i).evaluate((node) => {
+      const canvas = node as HTMLCanvasElement;
+      const data = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
+      let n = 0;
+      for (let i = 3; i < data.length; i += 4) if (data[i]! > 0) n += 1;
+      return n;
+    });
+    expect(lit, 'the drawing was lost by collapsing the pane').toBeGreaterThan(0);
+  });
+
   test('a frame that asks nothing offers no pad @core', async ({ page }) => {
     // Same rule as the answer line: a teaching frame elicits nothing, so a place to work
     // something out beside it is a control with no question.

@@ -247,6 +247,30 @@ export function Sketch({
     if (loaded) return;
     setLoaded(true);
     void loadStrokes(frame).then((found) => {
+      /*
+        ────────────────────────────────────────────────────────────────────────────────
+        THE DATABASE IS CONSULTED ONLY WHEN THIS COMPONENT HAS NOTHING, AND THE GUARD IS
+        WHAT MAKES THE CAP'S OWN PROMISE KEEPABLE.
+
+        `loaded` is reset whenever the record underneath changes, and a write resets it —
+        so closing and reopening the pane re-reads. That is harmless when the write landed
+        and destroys the reader's work when it did not: a sketch past the 64 kB cap, or a
+        browser that refused a database, leaves the strokes in memory and an OLDER set on
+        disk, and an unguarded read would replace the first with the second. The line the
+        reader is shown in that case says what is on screen stays until they leave the
+        frame, and without this it would be false the moment they collapsed the pane.
+
+        What is in memory is the reader's; what is on disk is a copy of it.
+        ────────────────────────────────────────────────────────────────────────────────
+
+        One case is deliberately not handled: `Clear my worksheets` in ANOTHER tab while
+        this pane is open leaves the strokes on screen until the reader leaves the frame.
+        The obvious fix — wipe memory when the record disappears — has a worse failure than
+        the one it fixes, because a `localStorage` quota error also makes the record
+        disappear, and it would take a reader's drawing away for running out of room to
+        store a flag about it.
+      */
+      if (strokes.current.length > 0) return;
       strokes.current = found;
       paint();
     });
