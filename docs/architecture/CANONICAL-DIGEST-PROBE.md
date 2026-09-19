@@ -77,7 +77,7 @@ equal forms cannot differ by insertion order.
 > `expr.canonical.expand is not a function` — which is true of the *method* and false of the
 > engine. `ce.box(['Expand', expr]).evaluate()` exists and does the job. AGENTS.md names this
 > mistake in as many words: *before writing a sentence about another file, open that file.*
-> The correction matters, because `expand` is the only pipeline that recovers the first
+> The correction matters, because expansion is the only thing that recovers the first
 > equivalence #56 asks about.
 
 The cases are the book's. `web/content/book/figures/values/p01.tex` and `p27.tex` were
@@ -314,10 +314,20 @@ three numeric, all three scoring a wrong answer right.
 "2 +"        ->  ["Sequence",2,["Error",'unexpected-operator'…      isValid=false
 ```
 
-An empty answer is valid. `x^10` — the brace a reader omits — is **zero**, so every
-brace-omitted answer of that shape collides with every other. `hello` is the product of
-Euler's number with four letters. Only malformed LaTeX sets `isValid=false`, so the flag
-cannot be the guard that stops a misread answer being scored.
+An empty answer is valid. `hello` is the product of Euler's number with four letters. And
+the brace a reader omits is worse than it looks, because LaTeX binds the exponent to one
+character: `x^ab` is read as `b` times `x^a`, so
+
+```
+x^10  ->  ["Multiply",0,"x"]              x^1 times 0, which is zero
+x^25  ->  ["Multiply",5,["Power","x",2]]  x^2 times 5
+x^99  ->  ["Multiply",9,["Power","x",9]]  x^9 times 9
+```
+
+Each is a different wrong answer rather than one shared collision — the earlier draft of
+this paragraph claimed they all collapse to zero, which is true only when the second digit
+is a zero. Only malformed LaTeX sets `isValid=false`, so the flag cannot be the guard that
+stops any of them being scored.
 
 ### 4g. What went right, and it is a real subset
 
@@ -402,8 +412,9 @@ The payload is. [ADR-0007](../adr/0007-exercise-checks-are-python-in-the-browser
 the whole Python runtime measured over the wire at 6,443,505 bytes of `public/pyodide/`, and
 that is loaded **only in the lab pane**. This would sit on the reading surface, which is the
 first requirement in AGENTS.md: *the reader loop must work with no account and no backend.*
-Adding most of a megabyte to every frame page, to check answers #57 has not yet counted, is a
-large bet on an unmeasured number.
+Adding most of a megabyte to any frame page that carries an answer field, to check answers
+#57 has not yet counted, is a large bet on an unmeasured number — and code-splitting moves
+when the reader pays it rather than whether.
 
 ---
 
@@ -650,6 +661,10 @@ the canonical forms. The bundle figures in §6 are `esbuild entry.mjs --bundle -
 - **Anything about a browser.** Every figure here is Node 22 in this container. The bundle
   size is a build-time measurement and the latency is not a reader's.
 - **Whether the case list is representative.** It is fifty-four pairs chosen against the
-  book's committed values and its prose. A case that is not in it was not measured, and the
-  probe's own wrong expectation at E5, and its wrong claim about `Expand`, are both in the
-  record above because that is the only way a reader can judge how far to trust the rest.
+  book's committed values and its prose. A case that is not in it was not measured.
+
+Where this probe was caught being wrong, the wrong version is left in the record beside the
+right one rather than tidied away — its expectation at E5, its claim in §2 that the engine
+has no expansion, and its claim in §4f that every brace-omitted exponent collapses to zero.
+That is the only way a reader can judge how far to trust the rest of it, and each of the
+three was found by running something rather than by reading the draft again.
