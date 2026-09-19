@@ -4,6 +4,16 @@ import type { LabDescriptor } from '@/lib/lab/protocol';
 
 import styles from './frame-beside-lab.module.css';
 
+/**
+ * The reading column's anchor, so the foot of the pane can send a reader back up to it.
+ *
+ * One constant rather than the string written twice, because the two halves of an anchor
+ * that disagree fail silently: the browser scrolls nowhere and there is no error anywhere
+ * to notice. It is deliberately not one of `LabPane`'s ids (`lab-editor`,
+ * `lab-checks-heading`) and cannot collide with a frame's own markup, which carries none.
+ */
+const FRAME_ANCHOR = 'the-frame';
+
 export interface FrameBesideLabProps {
   readonly lab: LabDescriptor;
   /** The content tag to record outcomes against, resolved on the server. See the route. */
@@ -53,6 +63,23 @@ export interface FrameBesideLabProps {
  * The honest reading of that is that the pane keeps `<main>` because it brought it, not
  * because the lab is the more important half. Giving `LabPane` an optional element to render
  * as would settle it properly and is a change to a component this route only composes.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * NARROW SCREENS STACK RATHER THAN TAB, AND THE ONE CONTROL BELOW IS WHAT PAYS FOR THAT.
+ *
+ * #54 settled the divergence UI-UX.md 1.5 had been carrying: an external proposal wanted
+ * tabs on a phone, the document says below, and below won — a tab that shows the pane
+ * hides the frame, which is the one thing 1.5's last clause forbids in as many words.
+ * The argument and the measurements are in UI-UX.md beside the requirement, because that
+ * is where a decision about this layout is looked for and a component is not.
+ *
+ * Stacking's whole defence is that both halves stay reachable, so the distance between
+ * them is this component's problem rather than a detail. Measured at 360x640 against the
+ * fixture: the page is about 2,800 px tall and the editor opens some 1,390 px down, so a
+ * reader at the foot of the checks is roughly four screens below the question. `backToFrame`
+ * is that distance in one tap. It is a plain same-document anchor — no router, no client
+ * boundary, nothing positioned — and the stylesheet withdraws it at exactly the width the
+ * columns divide, because a link to something already beside you is noise.
  */
 export function FrameBesideLab({
   lab,
@@ -75,12 +102,36 @@ export function FrameBesideLab({
         an edition this repository has no controls for. lib/i18n/chrome.ts keeps the two
         sets apart and this is what that distinction is for.
       */}
-      <section aria-label={chrome.frameRegion} className={styles.reading} lang={chrome.language}>
+      {/*
+        `tabIndex={-1}` makes the region a focus target without putting it in the tab order,
+        which is the skip-link pattern and is what stops the link below being a sighted
+        reader's control only: without it the browser scrolls the frame into view and leaves
+        focus at the foot of the pane, so the next Tab goes back to where the reader just
+        left rather than into the frame they asked for.
+      */}
+      <section
+        aria-label={chrome.frameRegion}
+        className={styles.reading}
+        id={FRAME_ANCHOR}
+        lang={chrome.language}
+        tabIndex={-1}
+      >
         {children}
       </section>
 
       <div className={styles.lab}>
         <LabPane lab={lab} bundleTag={bundleTag} />
+
+        {/*
+          OUTSIDE the pane's `<main>`, and that is the point rather than an accident of where
+          it was easy to put: this is navigation between the two halves of a composition, not
+          something the lab contains, and `LabPane` renders the same markup at `/lab/<id>`
+          where there is no frame to go back to. Keeping it here means the pane stays a
+          component this route composes rather than one this route has edited.
+        */}
+        <a className={styles.backToFrame} href={`#${FRAME_ANCHOR}`} lang={chrome.language}>
+          {chrome.backToFrame}
+        </a>
       </div>
     </div>
   );

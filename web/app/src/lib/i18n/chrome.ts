@@ -164,6 +164,17 @@ interface Strings {
    * through a screen reader.
    */
   readonly frameRegion: string;
+  /**
+   * The way back up, at the foot of the lab pane on a narrow screen — UI-UX.md 1.5, #54.
+   *
+   * It exists because the two halves are stacked rather than tabbed, and stacking's whole
+   * defence is that both stay reachable. Measured at 360x640 the composed route is about
+   * 2,800 px tall, so a reader who has read to the end of the checks is some four screens
+   * below the question they are answering. The link is that distance in one tap, and it
+   * has no job at all once the two halves sit side by side — which is why the stylesheet
+   * takes it away at the same width the columns divide.
+   */
+  readonly backToFrame: string;
   readonly forget: string;
   readonly signIn: string;
   readonly signOut: string;
@@ -207,6 +218,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     answer: 'Answer',
     keys: '→ next frame · ← back',
     frameRegion: 'The frame',
+    backToFrame: 'Back to the frame',
     forget: 'Forget where I am',
     signIn: 'Sign in',
     signOut: 'Sign out',
@@ -286,6 +298,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     answer: 'Odpowiedź',
     keys: '→ kolejna ramka · ← wstecz',
     frameRegion: 'Ramka',
+    backToFrame: 'Wróć do ramki',
     forget: 'Zapomnij, gdzie jestem',
     signIn: 'Zaloguj się',
     signOut: 'Wyloguj się',
@@ -423,6 +436,7 @@ export interface Chrome {
   readonly answer: string;
   readonly keys: string;
   readonly frameRegion: string;
+  readonly backToFrame: string;
   readonly forget: string;
   readonly signIn: string;
   readonly signOut: string;
