@@ -282,6 +282,16 @@ without renumbering thirty titles. Categories are `feature`, `bug`, `infra`, `de
 `probe`, `docs`, and the state markers `blocked` and `manual` — `manual` meaning a human act
 that no agent can perform, which in this repository is most of the first deploy.
 
+**This table names no ADR numbers, and that is a rule rather than an oversight.** It used to:
+row 120 read *ADR-0032* and then *ADR-0033*. A reservation here and an allocation in
+`docs/adr/` come out of one sequence that several people write to at once, so a reserved
+number is only correct until somebody ships. On 19 September that collided three times inside
+an hour — 0032 was taken by the runtime-assets ADR while row 120 held it, 0033 was reserved
+for #58 underneath an author who was writing that very file, and 0034 was taken minutes after
+being handed out as "the next free one". The rule that survives all three: **an ADR takes the
+next free number at the moment it is written**, read from `ls docs/adr/` against a fetched
+`main`, and nothing reserves one in advance.
+
 **Relationship to the phases below.** The phases say *what an item is* and group it by
 delivery; the order says *when it happens*. Where an item descends from a phase item, the
 `From` column names it. Items with no `From` are new and did not exist when the phases were
@@ -300,7 +310,7 @@ written.
 | 090 | feature | #55 | Open the lab from a frame that carries a `check` | 2b.2 |
 | 100 | probe | #56 | Does a canonical form give a stable digest | — |
 | 110 | blocked | #57 | How many of the book's answers are checkable at all | — |
-| 120 | decision | #58 | ADR-0033: does a frame accept the reader's answer | — |
+| 120 | decision | #58 | Does a frame accept the reader's answer (a new ADR) | — |
 | 130 | feature | #59 | Schema v2: the answer model | — |
 | 140 | feature | #60 | The answer field, and a verdict computed in the browser | — |
 | 150 | feature | #61 | The answer verdict reaches the existing tally | — |
@@ -320,6 +330,7 @@ written.
 | 290 | feature | #75 | The quick start runs from a genuinely fresh clone | 5.3 |
 | 300 | decision | #76 | The content is CC BY-NC-SA, and that is the tightest constraint | — |
 | 310 | manual | #77 | Set the repository description and topics | 5.5 |
+| 315 | feature | #93 | A one-page site on GitHub Pages, and the one click it cannot do | — |
 | 320 | manual | #78 | Rename the repository to `ab-ovo` | 5.6 |
 | 330 | blocked | #79 | The real content bundle: 47 programs | 2b.1 |
 | 340 | blocked | #80 | A second lab | — |
