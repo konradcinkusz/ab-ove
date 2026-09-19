@@ -70,6 +70,25 @@ const identityBaseUrl = `http://127.0.0.1:${identityPort}`;
 const stubBaseUrl = `http://127.0.0.1:${stubPort}`;
 
 /**
+ * THE API, AND WHY ONLY ONE OF THE TWO DEPLOYMENTS IS TOLD ABOUT IT (issue #170).
+ *
+ * `.github/workflows/ci.yml`'s e2e job now runs a Postgres service container and a real
+ * `AbOvo.Api` against it, and publishes that address as `E2E_API_BASE_URL`. It is read
+ * here rather than passed as `AB_OVO_API_URL` for a mechanical reason: Playwright merges
+ * `webServer.env` over `process.env`, so a variable the WEB APP reads would reach both
+ * deployments below, and the first one would stop being the backend-less deployment the
+ * product's first requirement is asserted against (ADR-0004, ADR-0035).
+ *
+ * So the first web app is unchanged and still finds nothing — the API deliberately does
+ * not listen on FRONTEND-BFF.md §5's localhost rung — and the signed-in one gets rung
+ * one, which is how every real deployment is configured.
+ *
+ * Absent when the variable is: a developer running the suite on a laptop with no API gets
+ * exactly the behaviour they had before this existed.
+ */
+const apiBaseUrl = process.env.E2E_API_BASE_URL?.trim();
+
+/**
  * The fixture's address, published to the specs through the environment.
  *
  * A SIDE EFFECT IN A CONFIG FILE, deliberately and with the alternatives rejected. One spec
@@ -287,16 +306,21 @@ export default defineConfig({
             stdout: 'pipe' as const,
             stderr: 'pipe' as const,
             /**
-             * `AB_OVO_AUTH_URL` is the only variable this needs: it is rung one of the
-             * candidate ladder, it is what `backendConfigured('authservice')` answers on,
-             * and `token.ts` builds the JWKS address from the same rung. The issuer and
-             * the audience are left unset, because the code's own defaults — `AbOvo` for
-             * both — are what the fixture mints, and restating them here would be two
-             * places for one string.
+             * `AB_OVO_AUTH_URL` is rung one of the candidate ladder, it is what
+             * `backendConfigured('authservice')` answers on, and `token.ts` builds the
+             * JWKS address from the same rung. The issuer and the audience are left
+             * unset, because the code's own defaults — `AbOvo` for both — are what the
+             * fixture mints, and restating them here would be two places for one string.
+             *
+             * `AB_OVO_API_URL` is the same rung for the other backend, and it is here
+             * rather than in the environment for the reason given at `apiBaseUrl` above:
+             * this is the deployment that is meant to have an API, and the one beside it
+             * is meant not to.
              */
             env: {
               PORT: String(identityPort),
               AB_OVO_AUTH_URL: stubBaseUrl,
+              ...(apiBaseUrl ? { AB_OVO_API_URL: apiBaseUrl } : {}),
             },
           },
         ],
