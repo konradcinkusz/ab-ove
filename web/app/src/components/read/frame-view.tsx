@@ -1,5 +1,16 @@
 import Link from 'next/link';
 
+/*
+ * The composed route's own module, imported into a component that both routes render.
+ *
+ * It is the only place the address `/read/<track>/<unit>/<lang>/lab/<lab>/<step>` is
+ * written down, and one copy of it is worth the reach: the alternative is this file
+ * spelling the same path a second time, and two spellings of one address drift the first
+ * time a segment moves — silently, because both would still be strings that compile.
+ * `baseFor` below makes the same argument from the other direction, which is why its
+ * DEFAULT is here rather than being a prop every caller has to remember to pass.
+ */
+import { checkOpensAt } from '@/app/read/[track]/[unit]/[lang]/lab/[lab]/resolve.ts';
 import { say } from '@/lib/content/bundle';
 import type { Bundle, Step, Unit } from '@/lib/content/schema';
 import { chromeFor } from '@/lib/i18n/chrome';
@@ -77,6 +88,46 @@ export function FrameView({
   const chrome = chromeFor(language);
   const forward = next ? at(step.n + 1) : undefined;
   const back = step.n > 1 ? at(step.n - 1) : undefined;
+
+  /*
+   * THE FRAME'S OWN EXERCISE — issue #55, UI-UX.md 2b.2.
+   *
+   * A step may carry a `check`, which `content-schema.v1.json` defines as "a reference into
+   * labs[], never an exercise body". Both halves of what is offered below come out of that
+   * one object, so nothing can send a reader to the right lab and the wrong exercise: there
+   * is no second source to disagree with.
+   *
+   * `undefined` in three distinct cases, and all three are the same answer — OFFER NOTHING
+   * AND SAY NOTHING, which is issue #55's own first clause:
+   *
+   *   - the step carries no check. Most steps do not, and such a frame must render exactly
+   *     as it did before this existed — no empty slot, no disabled control, no line saying
+   *     there is no exercise here, which is a thing a reader reads and then has to decide
+   *     about.
+   *   - the check names a lab this BUILD does not serve. `validate.ts` reconciles a bundle
+   *     with itself and cannot know what `LABS` holds, so this is reachable with a bundle
+   *     that is perfectly valid; see `labFor` in lib/lab/protocol.ts. A link there would
+   *     404, which is the dead control the issue refuses, arriving by the other door.
+   *   - `opensAt` is the address of the page being rendered, which happens on the composed
+   *     route when the lab already beside this frame is the one the check names. `href` is
+   *     dropped and the sentence stays: the reader is told WHICH exercise without being
+   *     offered a navigation to where they already are. That is not only tidiness — a
+   *     self-link is the one click this change could make that re-enters the composed
+   *     route, and #86 put the lab segment above the step segment precisely so that moving
+   *     within it never discards the file the reader is typing into.
+   *
+   * A check naming an exercise the lab does not have never reaches here at all: the bundle
+   * does not load, `bundleFor` throws, and the route is a 500 with the validator's own
+   * sentence in it. That is the gate the issue asks to see reached.
+   */
+  const check = step.check;
+  const opensAt = check
+    ? checkOpensAt(check, { track, unit: unit.id, language, step: step.n })
+    : undefined;
+  const offer =
+    check && opensAt
+      ? { exercise: check.exercise, href: opensAt === at(step.n) ? undefined : opensAt }
+      : undefined;
 
   return (
     /*
@@ -192,6 +243,45 @@ export function FrameView({
           {chrome.lastFrame}
         </p>
       )}
+
+      {/*
+        AFTER the reveal, never before it, and never between the question and the dots.
+        The dotted row is where a reader writes before turning over, so anything inserted
+        above it is something between the frame and the hand covering it. This is an aside
+        about the frame rather than a step in the ask-and-reveal loop, and a reader takes it
+        once they have engaged with the frame — which on the fixture's worked case is the
+        last frame of the program, where there is no reveal and this is the only control.
+
+        `prefetch={false}`, for a different reason from the reveal's and worth keeping
+        apart from it. Nothing about this link leads to an answer — it addresses THIS step,
+        on a route that renders the same one — so the privacy argument above does not reach
+        it. What does is ADR-0007: the runtime is loaded only when a reader opens the pane,
+        and "a reader who never opens it never pays for it". That ADR's "What it costs,
+        measured in a browser" is what the sentence is worth — the figure is there, with the
+        machine that produced it, rather than restated here where nothing could check it.
+        Prefetching would pull the pane's own code onto every frame that carries a check,
+        for readers who never click.
+      */}
+      {offer ? (
+        /*
+          `data-testid`, as the DELIBERATE fallback of E2E-ACCEPTANCE-TESTING.md §3 rather
+          than as a shortcut past role-and-name. When the offer is a link it has both and a
+          spec could find it that way; when it is not — the composed route, where the lab is
+          already beside the frame — it is a <p> with no role and no name, which is the case
+          §3 names. And locating it by its TEXT is what a first draft of the spec did: the
+          assertion passed against a build rendering no offer at all, because the exercise is
+          called `gap` and the frame's own answer says "the gap grows with the magnitude".
+        */
+        <p className={styles.check} data-testid="frame-check" lang={chrome.language}>
+          {offer.href ? (
+            <Link className={styles.checkLink} href={offer.href} prefetch={false}>
+              {chrome.checkOffer(offer.exercise)}
+            </Link>
+          ) : (
+            chrome.checkOffer(offer.exercise)
+          )}
+        </p>
+      ) : null}
 
       <nav className={styles.foot} lang={chrome.language}>
         {back ? <Link href={back}>← {chrome.previous}</Link> : <span />}

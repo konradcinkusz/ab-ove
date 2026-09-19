@@ -95,10 +95,19 @@ as one step, so nothing above changes: the answer is still absent and the reveal
 navigation with prefetching off, asserted again on the composed route because two components
 meeting is where such a property is lost. What is left of it is the narrow screen.
 
+**And a frame that carries an exercise leads there.** A step may name one — the content
+schema calls it a `check`, "a reference into `labs[]`, never an exercise body" — and a frame
+that has one offers it by name, at the frame the reader is on and in the edition they are
+reading. A frame that has none offers nothing and says nothing. The lab and the exercise
+come out of that one reference, so nothing can send a reader to the right lab and the wrong
+exercise; a check naming a lab the bundle does not carry is refused by the validator, so the
+bundle does not load and no control is rendered to be dead.
+
 **Phase 2b is blocked and not by us.** The frame view is reading a **fixture** — four steps
 written for this repository and marked as such. The real content is the book's 47 programs
 as a versioned bundle on the book's own releases, and no such release exists yet. The
-schema, the loader and the view did not have to wait for it, and do not.
+schema, the loader, the view and the link from a frame to its exercise did not have to wait
+for it, and do not.
 
 The phase plan is in [docs/ux/UI-UX.md](docs/ux/UI-UX.md), ranked, so the first delivery
 session picks it up rather than re-deriving it.

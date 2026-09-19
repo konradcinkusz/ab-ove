@@ -101,6 +101,23 @@ export interface LabDescriptor {
    * say so, because the service holds no bundle and cannot tell a real unit from a typo.
    */
   readonly unit: string;
+  /**
+   * The entry in a bundle's `labs[]` that this lab is an implementation of.
+   *
+   * A step's `check` is a reference into that array (`content-schema.v1.json`: "A reference
+   * into labs[], never an exercise body"), so a frame naming `{ lab: 'P01' }` has to be
+   * turned into a route segment before anything can link to it — and the segment is `p01`.
+   * This is the field that says so.
+   *
+   * STATED, LIKE `track` AND `unit`, AND FOR THE REASON THEY ARE STATED. Every rule
+   * that would derive it holds for exactly one entry today: `id.toUpperCase()` is the one
+   * this file already refuses, and `unit` is worse because it is nearly right — a lab and
+   * the unit it belongs to are different things that happen to share a spelling in the one
+   * bundle that exists, and a bundle with two labs under one unit would send every check in
+   * both of them to whichever came first. Nothing would say so: the validator reconciles a
+   * bundle with ITSELF, and cannot know what this application serves.
+   */
+  readonly bundleLab: string;
 }
 
 export const P01: LabDescriptor = {
@@ -110,9 +127,40 @@ export const P01: LabDescriptor = {
   stem: 'p01_floating_point',
   track: 'math-for-ai-engineers',
   unit: 'P01',
+  bundleLab: 'P01',
 };
 
 export const LABS: readonly LabDescriptor[] = [P01];
+
+/**
+ * The lab this application serves for an entry in a bundle's `labs[]`, or `undefined`.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * TWO LISTS OF LABS, AND NOTHING RECONCILES THEM BUT THIS.
+ *
+ * A step's `check` is a reference into the bundle's `labs[]`, and `validate.ts` refuses a
+ * bundle whose check names a lab or an exercise THAT BUNDLE does not carry. It says nothing
+ * about the labs this repository serves, and it cannot: a bundle is compiled by the book and
+ * `LABS` is a property of this tree, so a perfectly valid bundle may name a lab no route
+ * here answers for and no assets here mount.
+ *
+ * `undefined` is the honest answer to that one, and the caller's job is then to offer
+ * nothing — a link to a lab this build does not have would 404, which is exactly the dead
+ * control issue #55 refuses, arriving by the door the validator does not watch.
+ *
+ * THE MATCH IS EXACT, in the bundle's own spelling. `labFor('p01')` is `undefined` although
+ * `labFor('P01')` is not, for the reason the composed route gives for its own segment: one
+ * spelling, one meaning. A case-insensitive match here would silently accept a bundle whose
+ * lab ids did not mean what they said.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * A STRING RATHER THAN A `CheckRef`, so that this module still imports nothing. It is read
+ * from both sides of a `postMessage` boundary — see the header — and a type pulled in from
+ * the content schema for one parameter would make the worker's half depend on the bundle's.
+ */
+export function labFor(bundleLab: string): LabDescriptor | undefined {
+  return LABS.find((candidate) => candidate.bundleLab === bundleLab);
+}
 
 /** Where the reader's own file lives, in the virtual FS and on the origin alike. */
 export function exercisePath(lab: LabDescriptor): string {
