@@ -110,6 +110,22 @@
 }
 
 /*
+ * Stop is the only control on this page that ENDS something, so it does not wear the
+ * accent every other control wears. It borrows --degraded, which is already this site's
+ * colour for a state that is not healthy (.statusFailed below, .traceback, and the
+ * degraded integration badge in globals.css) — no colour is declared here, so the button
+ * follows the light and dark schemes with everything else.
+ *
+ * Outlined rather than filled: a solid warning-coloured button beside Check would read as
+ * the thing to press, and it is offered only for the seconds a run is in flight.
+ */
+.danger {
+  background: transparent;
+  color: var(--degraded);
+  border-color: var(--degraded);
+}
+
+/*
  * Mobile first: one column. The two-column arrangement is opted into at 900px, which is
  * where two 40-character columns of monospace stop being cramped — below it the editor and
  * the transcript stack, in that order, so a phone reader types and then scrolls to what

@@ -48,6 +48,17 @@ interface LabRuntime {
   readonly result: LabResult | null;
   readonly error: string | null;
   readonly run: (source: string) => void;
+  /**
+   * End a run that is in flight, and boot a replacement interpreter.
+   *
+   * There is no way to interrupt Python without ending it. Pyodide runs CPython on the
+   * worker's own thread, so a reader's `while True:` — which this lab invites, asking for
+   * `threshold` by bisection and `flips_to_zero` by a multiply-until-zero loop — occupies
+   * that thread and no message reaches it. `Worker.terminate()` is the only thing that reaches
+   * a wedged interpreter at all, and it takes the interpreter with it, so stopping and
+   * rebooting are one operation rather than two. ADR-0034 records what that rules out.
+   */
+  readonly stop: () => void;
 }
 
 function summaryOf(output: string): string | null {
@@ -74,8 +85,46 @@ export function useLabRuntime(lab: LabDescriptor, bundleTag?: string): LabRuntim
   const [result, setResult] = useState<LabResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  /*
+   * WHICH INTERPRETER THIS IS, AND THE ONLY REASON THE NUMBER EXISTS.
+   *
+   * `stop()` has to run the same terminate and the same boot the effect below already
+   * runs — one implementation of each, or the reboot path drifts from the mount path and
+   * only one of them is exercised by the acceptance suite. Changing this number is what
+   * re-runs that effect: React tears the old worker down through the cleanup it already
+   * has and builds the new one through the body it already has, and there is no second
+   * copy of either. The number itself means nothing; what each effect run does with it is
+   * hand it to its own listeners, so they can tell whether the pane has moved on — see
+   * `generationRef` below.
+   */
+  const [generation, setGeneration] = useState(0);
+
+  /*
+   * Set while a stop is unfinished: from the reader pressing Stop until the replacement
+   * interpreter answers `ready`. It exists for the status line and for nothing else — the
+   * reader is owed a sentence saying why the pane went back to loading, because otherwise
+   * a deliberate stop is indistinguishable from the pane having fallen over.
+   */
+  const [stopped, setStopped] = useState(false);
+
   const workerRef = useRef<Worker | null>(null);
   const nextId = useRef(0);
+
+  /*
+   * The generation the pane has moved on to, written by `stop()` and read by the listeners
+   * the effect below registers. It is the state variable's twin because a listener needs
+   * the answer SYNCHRONOUSLY, and state reaches a closure only on the next render.
+   *
+   * `terminate()` stops a worker delivering anything further, but it happens in the effect
+   * CLEANUP — which React runs after the click that called `stop()` has already returned —
+   * so there is a window in which the abandoned interpreter can still answer. Without this
+   * the run the reader just stopped could land as a result: the status line would go back
+   * to `ready` while Python is still rebooting, the Check button would be offered against
+   * an interpreter that does not exist yet, and `reportRun` would tally a run the reader
+   * abandoned. A tally is a count (ADR-0023), so a phantom one is not a rounding error in
+   * it.
+   */
+  const generationRef = useRef(0);
 
   /*
    * The checks, again, in a ref.
@@ -122,8 +171,12 @@ export function useLabRuntime(lab: LabDescriptor, bundleTag?: string): LabRuntim
     workerRef.current = worker;
 
     worker.addEventListener('message', (event: MessageEvent<LabResponse>) => {
+      // Superseded: `stop()` has moved on and this is the abandoned interpreter answering.
+      // See generationRef above for what accepting it would do.
+      if (generationRef.current !== generation) return;
       const message = event.data;
       if (message.kind === 'ready') {
+        setStopped(false); // the replacement is up, so the status line stops saying so
         checksRef.current = message.checks;
         setChecks(message.checks);
         setPython(message.python);
@@ -174,6 +227,7 @@ export function useLabRuntime(lab: LabDescriptor, bundleTag?: string): LabRuntim
     });
 
     worker.addEventListener('error', (event: ErrorEvent) => {
+      if (generationRef.current !== generation) return; // superseded; see above
       setError(event.message || 'the Python worker failed to start');
       setStatus('failed');
     });
@@ -186,11 +240,13 @@ export function useLabRuntime(lab: LabDescriptor, bundleTag?: string): LabRuntim
     return () => {
       // React's strict mode mounts an effect twice in development, so this runs for real.
       // It is also the reason a worker is the right shape for this pane at all: a runaway
-      // interpreter can be ended from outside, which nothing on the main thread can be.
+      // interpreter can be ended from outside, which nothing on the main thread can be —
+      // and `stop()` reaches this same line by bumping `generation`, so the control a
+      // reader presses and the teardown React performs are one piece of code.
       worker.terminate();
       workerRef.current = null;
     };
-  }, [lab, bundleTag]);
+  }, [lab, bundleTag, generation]);
 
   const run = useCallback((source: string) => {
     const worker = workerRef.current;
@@ -222,14 +278,44 @@ export function useLabRuntime(lab: LabDescriptor, bundleTag?: string): LabRuntim
     worker.postMessage(request);
   }, []);
 
+  const stop = useCallback(() => {
+    /*
+     * Only from `running`, and that is not defensiveness about the button.
+     *
+     * The pane disables the control outside a run, so this guard is about the SECOND
+     * click: the first one leaves `status` at `loading` for as long as a Pyodide boot
+     * takes — seconds, and #52 is measuring how many — and without this an impatient
+     * reader's second press would terminate the interpreter that is still booting and
+     * start the wait again, a control that punishes being pressed twice. Reading the state
+     * rather than a ref is deliberate: `status` is the state machine, and a ref shadowing
+     * it would be a second copy of the same fact.
+     */
+    if (status !== 'running') return;
+
+    /*
+     * The status goes back to `loading` HERE rather than in the effect, because the effect
+     * runs after paint: a reader who presses Stop would otherwise get one painted frame
+     * still saying "running…", which is the pane telling them their press did nothing.
+     */
+    setStopped(true);
+    setStatus('loading');
+    generationRef.current += 1;
+    setGeneration(generationRef.current);
+  }, [status]);
+
   const statusText =
     status === 'loading'
-      ? 'loading Python…'
+      ? stopped
+        ? // What happened, in the reader's terms. They ended the run; the wait that
+          // follows is Python being rebuilt, which is worth saying because it is seconds
+          // and because silence here reads as the pane having crashed.
+          'stopped — restarting Python…'
+        : 'loading Python…'
       : status === 'running'
         ? 'running…'
         : status === 'failed'
           ? `Python could not start — ${error ?? 'no reason given'}`
           : `ready — CPython ${python ?? ''} in your browser`.trim();
 
-  return { status, statusText, checks, stub, result, error, run };
+  return { status, statusText, checks, stub, result, error, run, stop };
 }

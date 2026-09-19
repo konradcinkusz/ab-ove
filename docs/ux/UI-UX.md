@@ -129,7 +129,10 @@ argued.
 no backend, which is what lets `/lab` sit in the public-route list. Python is compiled to
 WebAssembly and served from this origin — `pyodide` is a pinned dependency rather than a script
 tag for exactly that reason — and runs in a module worker, so a runaway interpreter can be
-ended from outside.
+ended from outside. **Stop does that**, armed only while a run is in flight: it ends the
+interpreter and boots another, which costs a few seconds and keeps the reader's file, because
+there is no way to interrupt Python without ending it
+([ADR-0034](../adr/0034-stopping-a-run-ends-the-interpreter-and-boots-another.md)).
 
 The stub is fetched from this origin, the checks are read out of the book's own `test_<id>.py`
 at boot rather than copied here, and a failure names the frames to re-read and never the

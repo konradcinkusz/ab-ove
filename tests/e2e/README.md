@@ -33,7 +33,10 @@ The three banned shapes, for the grep that enforces them:
 
 ## What this suite covers
 
-Five journeys, twenty-seven tests, two layers. Each journey is one file in `specs/`.
+One file in `specs/` per journey, over two layers. How many tests that is, in total or per
+layer, is deliberately not written here: `playwright test --list` answers it in a second and
+is never stale. This file already took that decision for the counts in its *Running it*
+section, and the ones it left standing here had gone the same way.
 
 ### 1. The landing page renders and states the product's anti-goal — `specs/landing.spec.ts`
 
@@ -134,8 +137,9 @@ the symptom is a redirect to a page a deployment without an identity service can
 
 `notes/10 §6.1` fixes this phase's definition of done as one journey: **open Lab P1, paste the
 reference solution of one exercise, press Check, and see the `ok` line for that check and the
-`SUMMARY` line.** The first test is that journey and nothing else. The six around it are what
-make the first one worth believing.
+`SUMMARY` line.** The first test is that journey and nothing else. Every other test in the file
+is there to make the first one worth believing, and the table at the end of this section names
+the broken pane each of them kills.
 
 **Why one exercise, and what that does not buy.** One exercise is what `notes/10 §6.1`
 specifies, and it is the stronger assertion: the result has to be *partial* in exactly the way
@@ -156,7 +160,7 @@ a pair and both were watched failing — see the table at the end of this sectio
 `lab/tools/labcheck.py --tests` holds the engine to exactly this both-directions rule; these two
 tests are that rule applied one artefact over, to the pane.
 
-The other five:
+The others:
 
 - **a wrong answer** produces one `FAIL` line naming the check, and **hands back no solution**.
   The lab's three rules say a failed check "names the frames to re-read, never the solution";
@@ -171,6 +175,15 @@ The other five:
   is the one outcome that arrives as an uncaught Python traceback with no `FAIL` line and no
   `SUMMARY` line at all, and it is the outcome a reader reaches most often, because a half-typed
   function is a syntax error.
+- **a run that will not end can be stopped, and the reader keeps their code.** Every exercise
+  is a stub the reader completes, and Lab P1 asks for `threshold` by bisection and
+  `flips_to_zero` by a multiply-until-zero loop, so `while True:` is an expected input — and Pyodide runs CPython on the worker's own thread, so the only thing
+  that reaches a spinning interpreter is `terminate()`. The test submits a non-terminating
+  exercise, presses Stop, and asserts the status line says what happened, the pane comes back
+  to `ready`, the editor still holds the reader's file byte for byte, and **a Check runs
+  afterwards** — the last of those being the only one that can tell a rebooted interpreter from
+  a pane that merely says it is ready. ADR-0034 records why this ends the interpreter rather
+  than interrupting it.
 - **the whole journey fetches from this origin and from nowhere else** (`FRONTEND-BFF.md §1`,
   `notes/10 §6.1`). Pyodide's own documentation leads with a jsDelivr `indexURL`, and taking that
   advice would put a third-party host in the critical path of a reader loop whose first
@@ -242,19 +255,23 @@ the shipped route.** Expect a Next.js route with hydration in front of it to cos
 cold CI runner more again; whoever first sees a green lab run should replace the number. The
 ceilings are several times the floor for exactly that reason.
 
-**Every one of the seven was watched failing**, against panes built to be wrong in one specific
+**Every test in this file was watched failing**, against panes built to be wrong in one specific
 way each — which is `E2E-ACCEPTANCE-TESTING.md §2`'s mutation-testing argument done by hand,
-and the only thing that separates an assertion that can pass from one that can catch something:
+and the only thing that separates an assertion that can pass from one that can catch something.
+The tests are named by their position in the file:
 
 | a pane that… | fails |
 |---|---|
-| is faithful to the contract | *none — all seven pass* |
+| is faithful to the contract | *none — every test passes* |
 | ignores the editor and always runs the stub | 1, 3, 4, 5 |
 | rewrites every result line to `ok` | 2, 3, 4, 5 |
 | writes the editor to the virtual FS only on the first Check | 4, 5 |
-| serves `lab/solutions/` | 7 |
-| makes one third-party fetch | 6 |
-| lets the middleware bounce `/book/**` to sign-in | 7 |
+| renders Stop and wires it to nothing | 6 |
+| stops the run and puts the stub back in the editor | 6 |
+| reboots on Stop, reports `ready`, and cannot run again | 6 |
+| serves `lab/solutions/` | 8 |
+| makes one third-party fetch | 7 |
+| lets the middleware bounce `/book/**` to sign-in | 8 |
 
 Read rows two and three against each other. The headline journey (1) is absent from row three:
 a pane that reports success unconditionally passes it. The stub test (2) is absent from row two:
@@ -268,14 +285,18 @@ the whole argument for writing them as a pair.
 Stated explicitly, because a suite whose scope is implicit gets cited as coverage nobody is
 checking.
 
-- **The lab pane's Reset control**, and the run button being disabled *while a run is in
-  flight*. Both are in the pane's contract and neither is asserted. `lab-reset` is asserted
-  present and enabled after a failure — a pane that wedges its own controls fails there — but
-  nothing presses it and asserts the stub comes back. The in-flight disable is deliberately
-  **not** asserted: a run that finishes before the assertion polls would fail a test about a
-  correct pane, and a test that is flaky by construction is worse than the gap it fills. The
-  first is a test somebody should write; the second needs a slow run to observe and has no
-  honest form today.
+- **The lab pane's Reset control.** It is in the pane's contract and is not asserted.
+  `lab-reset` is asserted present and enabled after a failure — a pane that wedges its own
+  controls fails there — but nothing presses it and asserts the stub comes back. A test
+  somebody should write.
+
+  **The in-flight control states are now asserted, and the objection that kept them out is
+  worth keeping.** They were refused because a run that finishes before the assertion polls
+  fails a test about a *correct* pane, and a Check on a booted runtime is about 100 ms — a
+  test flaky by construction is worse than the gap it fills. The Stop test escapes that by
+  construction rather than by a longer timeout: its run **cannot** finish, so the window is
+  unbounded. That is the only place in this suite where the in-flight contract can be
+  asserted honestly, and a test that drives a terminating run still must not assert it.
 - **A second lab.** `specs/lab-p01.spec.ts` drives P1 because P1 is the only lab the book
   has. The suite's fixtures read `web/content/book/lab/{exercises,solutions}/p01_floating_point.py`
   by name; a second lab is a second spec and a parameter, not a rewrite.
@@ -302,7 +323,7 @@ checking.
 - **Mutation testing, as a tool.** `E2E-ACCEPTANCE-TESTING.md §2` asks for Stryker to be run
   at least once after an assertion-discipline pass, as the actual proof the assertions catch
   broken code. **Stryker has not been run against this suite** and is outstanding. What has
-  been done is the same argument by hand, for journey 5 only: every one of its seven tests was
+  been done is the same argument by hand, for journey 5 only: every test in that file was
   watched failing against a pane deliberately broken in one specific way, and the table is in
   that journey's section above. Journeys 1 to 4 have had no such pass.
 
@@ -410,8 +431,8 @@ script are themselves the sign that nobody has run the suite in a while.
 
 | Layer | Project | Budget | Trigger | Contents |
 |---|---|---|---|---|
-| Smoke | `smoke` | 5–10 min | every ready PR | 12 tests, single browser — the critical path |
-| Core regression | `core` | 20–30 min | push to `main` | 27 tests — the full protected-flow set, smoke included |
+| Smoke | `smoke` | 5–10 min | every ready PR | single browser — the critical path |
+| Core regression | `core` | 20–30 min | push to `main` | the full protected-flow set, smoke included |
 | Extended / edge | — | 30–60 min | nightly | **not present**, see below |
 
 The budget is part of the definition. A layer that grows past its budget is pruned, not
