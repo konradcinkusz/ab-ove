@@ -227,4 +227,71 @@ test.describe('the reading surface at 360 px', () => {
       'the frame jumper is pushed off the right edge at 360 px',
     ).toBeLessThanOrEqual(PHONE.width);
   });
+
+  test('the canvas takes a finger without taking the page @core', async ({ page }) => {
+    /*
+     * ────────────────────────────────────────────────────────────────────────────────────
+     * THE ONE PLACE THIS PRODUCT DELIBERATELY STOPS A PHONE FROM SCROLLING, AND ITS EDGES.
+     *
+     * A finger drawing a downward line on a canvas scrolls the page instead, and the
+     * pointer events stop arriving mid-stroke — so the canvas sets `touch-action: none`.
+     * Put that on any ancestor and the pane becomes a hole in the page: a reader on a phone
+     * could not scroll past the sketch at all, which is worse than the defect it fixes.
+     *
+     * So both halves are asserted, because either alone passes for the wrong reason. The
+     * canvas must refuse the gesture; everything around it must still take it. What is
+     * checked is the computed style rather than a simulated drag: a drag that failed to
+     * scroll would be indistinguishable from a drag that missed the element.
+     * ────────────────────────────────────────────────────────────────────────────────────
+     */
+    await page.goto(at('en', asking.n));
+    await page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+
+    const canvas = page.getByLabel(/draw your answer/i);
+    await expect(canvas, 'no canvas at 360 px, so nothing below measured anything').toBeVisible();
+
+    const touch = await canvas.evaluate((node) => {
+      const own = getComputedStyle(node).touchAction;
+      // Walk up looking for an ancestor that also refuses the gesture. `touch-action` does
+      // not inherit, so this is a real search rather than a reading of one computed value.
+      const blocking: string[] = [];
+      for (let up = node.parentElement; up; up = up.parentElement) {
+        const value = getComputedStyle(up).touchAction;
+        if (value === 'none') blocking.push(up.tagName.toLowerCase() + '.' + up.className);
+      }
+      return { own, blocking };
+    });
+
+    expect(touch.own, 'the canvas lets a drawing gesture scroll the page instead').toBe('none');
+    expect(
+      touch.blocking,
+      'an ancestor of the canvas also refuses touch, so a reader cannot scroll past the sketch',
+    ).toEqual([]);
+  });
+
+  test('the sketch pane is one column and pushes nothing sideways @core', async ({ page }) => {
+    /*
+     * #54's guarantee, inherited. Its ruling was that nothing positioned, floated or given a
+     * `z-index` can overlap by construction — which is a guarantee rather than a promise
+     * somebody keeps — and the worksheet is built on it. The pane is new markup on the
+     * narrowest screen the product supports, with five 44 px buttons in a row, so it is the
+     * likeliest thing in the product to break it.
+     */
+    await page.goto(at('en', asking.n));
+    await page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+    await expect(page.getByLabel(/draw your answer/i)).toBeVisible();
+
+    expect(await overflowing(page), 'the open sketch pane reaches past 360 px').toEqual([]);
+
+    const positioned = await page.evaluate(() => {
+      const bad: string[] = [];
+      for (const node of Array.from(document.querySelectorAll('canvas, canvas ~ *, details *'))) {
+        const style = getComputedStyle(node);
+        if (style.position === 'fixed' || style.position === 'sticky' || style.float !== 'none')
+          bad.push(`${node.tagName.toLowerCase()} is ${style.position}/${style.float}`);
+      }
+      return bad;
+    });
+    expect(positioned, 'something in the worksheet is positioned or floated').toEqual([]);
+  });
 });

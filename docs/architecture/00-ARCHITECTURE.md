@@ -486,6 +486,33 @@ becomes true for every run rather than for one, and this row is discharged.
 
 **Recorded in.** `scripts/scan-secrets.sh`, under USAGE; `SECURITY.md`; `scripts/README.md`.
 
+### 2026-09-19 — The content bundle is compiled here, and pinned by revision rather than digest
+
+**What.** Every other file `scripts/fetch-book-content.sh` fetches is pinned by a sha256 in
+`web/content/book.lock.json`. The content bundle — the book's whole `programs/{en,pl}` tree,
+compiled — is pinned by REVISION instead: the script downloads the book's tarball at a
+commit and runs the book's own `lab/tools/content_compile.py` over it.
+
+**Reason.** Two things, and only the first is about this repository. A compiled artefact is
+not byte-stable across machines — the book's own `CLAUDE.md` is emphatic that a computed
+value can print a different bit pattern on a different interpreter — so a digest would be
+the wrong invariant and would fail for reasons that are not drift. The structural
+equivalent is used instead: `--cross-check` re-derives programs, sections, frames, answers
+and cues from the book's separate `content_probe.py` and refuses if the compiled bundle
+disagrees.
+
+The second is simply that nothing durable publishes the artefact. No `v*` tag has been
+pushed since the book's content workflow landed, and the CI artefact is token-gated with a
+14-day retention, which is not a pin.
+
+**Exit.** The book publishes a compiled bundle as a release asset. Then `book.lock.json`
+carries `release: {tag, asset, sha256}`, the script untars instead of compiling, the bundle
+joins every other file in being digest-pinned, and this row is discharged.
+
+**Recorded in.** [ADR-0038](../adr/0038-the-bundle-is-compiled-at-a-pinned-revision.md);
+`web/content/book.lock.json`'s own `contentBundle` comment;
+`scripts/fetch-book-content.sh`, under "the content bundle".
+
 ---
 
 ## Known gaps
