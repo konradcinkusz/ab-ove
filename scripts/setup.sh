@@ -625,13 +625,28 @@ step3_generate_secret
 step4_optional
 
 head1 "Done"
-say "  Run the whole system (needs a container engine):"
+# THE NEXT COMMAND IS NOT IN THIS SCRIPT, and this is the screen that has to say so.
+# web/content/book/ is not tracked here — ADR-0008 makes the book's lab engine a versioned
+# artefact fetched at a pinned revision — so on a fresh clone the AppHost's web resource
+# stops in its predev, and `dotnet test` throws on the missing figures file. Both name
+# scripts/fetch-book-content.sh. Measured from a clone into an empty directory (#75): until
+# then this block handed the reader two commands that could not work yet.
+#
+# NAMED here rather than RUN here, and that is the recorded trade. REPO-BASELINE.md §3 puts
+# one setup script per repository and requires it to work on both platforms, so performing
+# the fetch would mean writing it twice — in this file and in scripts/setup.ps1 — for a step
+# ADR-0008 expects a released bundle to replace. A line of text costs neither, and
+# scripts/setup.ps1 carries the same one.
+say "  Fetch the book's lab engine (once per clone, pinned and digest-verified):"
+say "      bash scripts/fetch-book-content.sh"
+say ""
+say "  Run the whole system (needs a container engine, and the fetch above):"
 say "      dotnet run --project $APPHOST_PROJECT"
 say ""
 say "  Run only the API (no containers, in-memory database, /health reports it):"
 say "      dotnet run --project $API_PROJECT"
 say ""
-say "  Tests:                dotnet test"
-say "  Scan history:         bash scripts/scan-secrets.sh"
+say "  Tests (need the fetch):  dotnet test"
+say "  Scan history:            bash scripts/scan-secrets.sh"
 say "  What every variable is, and what degrades without it:   secrets.env.example"
 say "  Variables by tier, and the operational recipes:          scripts/README.md"

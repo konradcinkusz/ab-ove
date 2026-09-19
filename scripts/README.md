@@ -1,6 +1,8 @@
 # `scripts/`
 
-Onboarding and secret scanning. Three scripts and a hook, and each one runs alone.
+Onboarding, the book's lab engine, and secret scanning. Every script here runs alone, and
+the table below is the list — a count in this sentence would be one more thing to keep
+true, and the one that used to be here stopped being true when the fetch arrived.
 
 REPO-BASELINE.md §4: "Put a README BESIDE the scripts listing every environment variable
 by tier, plus worked recipes for the common partial operations." That is what §2 below and
@@ -10,6 +12,7 @@ by tier, plus worked recipes for the common partial operations." That is what §
 |---|---|---|
 | `setup.sh` | one-command onboarding, four numbered steps | bash |
 | `setup.ps1` | the same four steps on PowerShell | pwsh 7, or Windows PowerShell 5.1 + the .NET SDK |
+| `fetch-book-content.sh` | the book's lab engine at the pinned revision, a digest checked per file | bash, curl, python3 |
 | `scan-secrets.sh` | the local secret scan; `--complete` is the widest one there is | bash, gitleaks |
 | `hooks/pre-commit` | blocks a commit whose staged content looks like a secret | bash, gitleaks |
 
@@ -21,6 +24,16 @@ same four things and are kept in step deliberately; changing one means changing 
 **Every script is self-sufficient** (§4): each runs from any working directory, resolves
 the repository root itself, and depends on no other script having run first. A script that
 only works as step three of a sequence cannot be used in an incident.
+
+**`fetch-book-content.sh` is onboarding even though it is not in `setup.sh`**, and it is
+listed here for the reason it was missing from the quick start until somebody ran that
+from an empty directory (#75): `web/content/book/` is not committed, so on a fresh clone
+the AppHost's web resource stops in its `predev` and `dotnet test` throws on the missing
+figures file, both naming this script. It stays a separate line rather than a fifth step
+because REPO-BASELINE.md §3 puts one setup script per repository and requires it on both
+platforms, so folding it in would mean a second implementation in `setup.ps1` of a step
+[ADR-0008](../docs/adr/0008-content-is-a-versioned-bundle.md) expects a released bundle to
+replace. Both setup scripts name it in their closing screen instead.
 
 ---
 
