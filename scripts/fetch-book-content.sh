@@ -36,7 +36,13 @@ for tool in curl python3 tar; do
   command -v "$tool" >/dev/null 2>&1 || { echo "error: $tool is required and was not found on PATH." >&2; exit 1; }
 done
 
-read -r BUNDLE_REPO BUNDLE_REV BUNDLE_DEST <<<"$(python3 - "$LOCK" <<'PY'
+# Every python3 reader here is piped through `tr -d`: on Windows, Python opens stdout in
+# text mode and writes CRLF, while bash's $( ) and `mapfile -t` strip only the LF. The
+# surviving carriage return then sits INSIDE a value -- a destination path that no longer
+# exists, or a digest whose comparison fails while both sides render as the same 64
+# characters. That last one is the single failure mode a digest check must not have, so the
+# return is removed at every reader rather than at the one where it was first noticed.
+read -r BUNDLE_REPO BUNDLE_REV BUNDLE_DEST <<<"$(python3 - "$LOCK" <<'PY' | tr -d '\r'
 import json, sys
 lock = json.load(open(sys.argv[1]))
 b = lock.get("contentBundle")
@@ -47,7 +53,7 @@ else:
 PY
 )"
 
-read -r REPO REV BASE DEST <<<"$(python3 - "$LOCK" <<'PY'
+read -r REPO REV BASE DEST <<<"$(python3 - "$LOCK" <<'PY' | tr -d '\r'
 import json, sys
 lock = json.load(open(sys.argv[1]))
 s = lock["source"]
@@ -62,7 +68,7 @@ if [[ ! "$REV" =~ ^[0-9a-f]{40}$ ]]; then
   exit 1
 fi
 
-mapfile -t ENTRIES < <(python3 - "$LOCK" <<'PY'
+mapfile -t ENTRIES < <(python3 - "$LOCK" <<'PY' | tr -d '\r'
 import json, sys
 for path, digest in json.load(open(sys.argv[1]))["files"].items():
     print(f"{path}\t{digest}")
@@ -114,7 +120,7 @@ for entry in "${ENTRIES[@]}"; do
 
   actual="$(python3 -c '
 import hashlib, sys
-print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest())' "$target")"
+print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest())' "$target" | tr -d '\r')"
 
   if [[ "$actual" != "$expected" ]]; then
     printf '  DIGEST MISMATCH  %s\n            expected sha256:%s\n            actual   sha256:%s\n' \

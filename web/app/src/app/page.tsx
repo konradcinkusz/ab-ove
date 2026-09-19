@@ -1,27 +1,50 @@
-import type { Metadata } from 'next';
-
-import { ReadingIndex } from '@/components/read/reading-index';
+import { ProgramGrid } from '@/components/programs/program-grid';
 import { allBundles } from '@/lib/content/bundle';
+import { chosenEdition } from '@/lib/content/chosen-edition';
 
 /**
- * The landing page, which is the index — see `components/read/reading-index.tsx`.
+ * The landing page, which is the index (ADR-0036).
  *
- * It renders from content compiled into the app and nothing else: no fetch, no cookie, no
- * backend. That is not an optimisation, it is the product's first requirement (ADR-0004 —
- * the reader loop works with no account), and a landing page that could not render without
- * an API would have broken it on the first screen.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * IT STILL MAKES NO FETCH, READS NO COOKIE AND NEEDS NO BACKEND.
  *
- * WHAT USED TO BE HERE IS AT `/about`, in full: the loop, what the product needs from a
- * reader, the four phases, the integration panel and the colophon. None of it was cut. It
- * was in front of the book, and a reader who arrives wanting to read a program should not
- * have to read an argument about reading first.
+ * That was the old landing page's first property and it is this one's, for the same reason:
+ * the reader loop is required to work with no account and no backend (ADR-0004), and a
+ * first screen that could not render without an API would break the requirement before the
+ * reader reached anything. `allBundles()` reads content compiled into the app. What changed
+ * is what the page is made of, not what it depends on.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * IT IS RENDERED PER REQUEST RATHER THAN PRERENDERED, AND THAT COST IS NAMED HERE.
+ *
+ * `searchParams` is a request-time API in Next 16, so reading the chosen edition opts this
+ * page into dynamic rendering. What that gives up is the old `/read`'s incidental guarantee
+ * that a bundle which fails to validate FAILS THE BUILD rather than reaching a reader.
+ *
+ * The guarantee is not lost, it has moved somewhere better: `lib/content/bundle.test.ts`
+ * asserts that the pinned bundle validates and that `allBundles()` returns one per pin, and
+ * `pnpm --dir web test` runs in CI on every pull request. A unit test holds that property
+ * whatever this page's rendering mode is, where the prerender held it only for as long as
+ * nobody added a query parameter — which is exactly what happened.
+ *
+ * `allBundles()` still throws on an invalid bundle, and an index that quietly omitted a
+ * program would tell the reader it does not exist. Loud either way (ADR-0014).
  */
-export const metadata: Metadata = {
-  title: 'ab-ovo',
-  description:
-    'A book you work, not a book you read — the 47 programs of Mathematics from Zero for the AI Engineer, in English and Polish.',
-};
+export default async function HomePage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<React.JSX.Element> {
+  const bundles = allBundles();
 
-export default function LandingPage(): React.JSX.Element {
-  return <ReadingIndex bundles={allBundles()} />;
+  /*
+    `lang` is read here and validated in one place. Everything that is not an edition the
+    content actually has — absent, repeated, unknown, empty — comes back `undefined`, which
+    is the index that picks neither rather than an error: a typo in a query string is a
+    reader's slip, and ADR-0015's whole point is that the tidy response to it would be a
+    default nobody chose.
+  */
+  const chosen = chosenEdition(bundles, (await searchParams)['lang']);
+
+  return <ProgramGrid bundles={bundles} chosen={chosen} />;
 }

@@ -1,30 +1,43 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * JOURNEY 1b — `/about`, which is what the landing page used to be.
+ * JOURNEY 1 — the about page renders, and states the product's anti-goal.
+ *
+ * Why an anti-goal is worth a test at all: every system that measures learning drifts
+ * towards measuring the learner, because that is the easier number to produce and the one
+ * that looks like progress. ab-ovo's instrument points the other way, and the product says
+ * so in public precisely so that a later feature has to argue with it. A promise made in
+ * prose and asserted nowhere is a promise that survives exactly as long as nobody is in a
+ * hurry, so the assertions below are the mechanism that keeps it — including the two
+ * negative ones, which fail the day a leaderboard appears.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * THESE TESTS MOVED RATHER THAN BEING WRITTEN. Every assertion below was in
- * `landing.spec.ts` and is unchanged except for the path it visits and, in one case, for a
- * clause about Python that the product no longer makes.
+ * THE PAGE MOVED AND THE PROMISE DID NOT WEAKEN — ADR-0036.
  *
- * `/` is the index now — `reading-index.tsx` records why — and the argument the product
- * makes for itself is one click away instead of in front of the book. Moving the tests
- * with the prose is the point: a claim made publicly is one a later feature has to argue
- * with, and that is true of a claim on `/about` as much as of one on `/`. What stayed on
- * `/` is the anti-goal, because a promise not to measure the reader is worth least on the
- * page a reader visits deliberately.
+ * Every assertion in this file used to run against `/`. The landing page is now the index
+ * of programs, so the argument lives at `/about` and this suite follows it there. That is
+ * the whole of the change: the same sentences, the same two negative assertions, one URL.
+ *
+ * It is worth being explicit about why moving them was not the same as dropping them.
+ * `/about` is one link from the first screen, it is public in the middleware's own list, and
+ * `specs/landing.spec.ts` asserts that the link to it is there — so the path from a reader
+ * arriving to the commitment being readable is itself under test, rather than being a page
+ * that exists and that nothing reaches.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * LOCATORS. Role plus accessible name throughout, then text — preferences 1 and 2 of
  * E2E-ACCEPTANCE-TESTING.md §3's ranked table. This page carries no `data-testid`
- * attributes and needs none.
+ * attributes and needs none: every element these specs drive has a role and an accessible
+ * name already. See README.md §"Locator convention" for why that is the ranking rather than
+ * a shortfall.
  */
 
 test.describe('about page', () => {
-  test('is the page the landing page used to be @smoke', async ({ page }) => {
+  test('states that the instrument measures the book, never the reader @smoke', async ({
+    page,
+  }) => {
     const response = await page.goto('/about');
-    expect(response?.status(), '/about must answer 200').toBe(200);
+    expect(response?.status(), 'the about page must answer 200').toBe(200);
 
     // The page is the real page and not an error document or an empty shell. A suite whose
     // first test passes against a blank body is the failure mode this whole discipline is
@@ -34,10 +47,46 @@ test.describe('about page', () => {
       'A book you work, not a book you read.',
     );
 
-    // And it leads back into the book, which is the one thing a page of argument owes a
-    // reader who has finished reading it.
-    const enter = page.getByRole('link', { name: /open the programs/i });
-    await expect(enter).toHaveAttribute('href', '/read');
+    // `<section aria-label="What this instrument is for">` — a section with an accessible
+    // name is a `region`, so the anti-goal is reachable by role and by the name its author
+    // gave it, with no class chain and no DOM traversal.
+    const antiGoal = page.getByRole('region', { name: 'What this instrument is for' });
+    await expect(antiGoal).toBeVisible();
+
+    // Asserted against the region rather than against a `getByText` of the sentence itself.
+    // The sentence is a <strong> alone inside a <p>, so both elements have exactly that text
+    // and a bare text locator is one markup change away from a strict-mode violation — which
+    // would fail loudly, but for a reason that has nothing to do with the product.
+    await expect(antiGoal).toContainText('The instrument measures the book, never the reader.');
+
+    // The claim, and then the two commitments that give it teeth. A page that kept the
+    // headline and dropped these would read the same and mean less.
+    await expect(antiGoal).toContainText(
+      'ab-ovo does not score you, rank you, or build a profile of what you are bad at.',
+    );
+    await expect(antiGoal).toContainText('There is no leaderboard and there will not be one.');
+  });
+
+  test('offers no leaderboard, ranking or score affordance anywhere on the page @smoke', async ({
+    page,
+  }) => {
+    await page.goto('/about');
+
+    // Wait for the page proper before asserting an absence. An absence assertion against a
+    // document that has not rendered yet is the one shape of assertion that passes for the
+    // wrong reason, and `toHaveCount(0)` would happily agree with a blank body.
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+    // The anti-goal as something a machine can check. These are the affordances the promise
+    // rules out; the day one of them ships, this fails and somebody has to either delete it
+    // or delete the promise this page makes. That argument is the point of the test.
+    await expect(page.getByRole('link', { name: /leaderboard|ranking|your score/i })).toHaveCount(
+      0,
+    );
+    await expect(
+      page.getByRole('button', { name: /leaderboard|ranking|your score/i }),
+    ).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /leaderboard|ranking/i })).toHaveCount(0);
   });
 
   test('describes the reader loop as four steps, in order @core', async ({ page }) => {
@@ -61,6 +110,17 @@ test.describe('about page', () => {
     await expect(steps.nth(1)).toContainText('Commit an answer before you turn over.');
     await expect(steps.nth(2)).toContainText('Reveal the next frame, which opens with the answer.');
     await expect(steps.nth(3)).toContainText('nothing in the loop asks you to write code');
+
+    /*
+      THIS ASSERTION USED TO READ `'work them in the lab pane'`, and it changed because the
+      product did: the Python lab is no longer a step in the reader loop. What a frame asks
+      for is a number, a word or a line of working, and a first screen that tells a reader
+      otherwise loses the readers who do not write code — which is most of them, since the
+      book's own front matter assumes no more than school arithmetic.
+
+      Asserted on the CLAUSE rather than on the whole sentence: the sentence around it is
+      editorial and will be reworded, and the promise is not.
+    */
   });
 
   test('promises the reader loop needs no account and no backend @core', async ({ page }) => {

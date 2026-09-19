@@ -7,6 +7,13 @@ import {
 } from './support/service-info.js';
 
 /**
+ * The panel is on `/about` since ADR-0036, which moved the product's argument off the
+ * landing page and took the one live thing on it along. Nothing else about this journey
+ * changed: it is the same component, asking this app's own origin the same question, and
+ * P8 is still the property under test.
+ */
+
+/**
  * JOURNEY 3 — the integration report, which is P8 seen from a browser.
  *
  * P8 asks that a degraded deployment be LEGIBLE, not merely correct: a service can degrade

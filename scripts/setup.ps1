@@ -109,12 +109,33 @@
         local store, and Aspire is refusing to invent one.
         -> pwsh -File scripts/setup.ps1
 
+    ValueMissing   (in the dashboard, on auth-signing-key and auth-db-password)
+        The store HAS the values - `dotnet user-secrets list` prints them - and the AppHost
+        still cannot see them, because .NET loads user secrets only in the DEVELOPMENT
+        environment and `dotnet run` defaults to Production. The AppHost's committed
+        Properties\launchSettings.json is what sets DOTNET_ENVIRONMENT, so this means the
+        profile was bypassed. The symptom is quiet: the dashboard comes up, no error is
+        logged, and postgres, pgadmin and authservice are simply never created.
+        -> drop --no-launch-profile / --launch-profile, or set DOTNET_ENVIRONMENT=Development
+
     -- Containers and database -------------------------------------------------------
     error during connect ... The system cannot find the file specified
     Cannot connect to the Docker daemon
         The engine is installed and not RUNNING. This is the single most common "setup is
         broken" report, and nothing in it mentions containers.
         -> start Docker Desktop.
+
+    password authentication failed for user "postgres"
+        In the POSTGRES container log, repeating every few seconds while the dashboard shows
+        postgres "Running" and api, authservice and web stuck on "Waiting" for ever. The
+        superuser password is written ONCE, when initdb first creates an empty data
+        directory. AppHost.cs calls WithDataVolume("ab-ovo-pgdata"), so that directory
+        OUTLIVES the run that made it - and step 3 above generating a fresh
+        Parameters:auth-db-password leaves the volume holding the OLD one. Nothing
+        reconciles the two, and the containers that WaitFor a database never get their turn.
+        -> docker volume rm ab-ovo-pgdata    (local development data only: the API migrates
+           its schema on startup and authservice uses EnsureCreated, so both databases
+           rebuild themselves. Accounts registered against the old volume do not.)
 
     Npgsql.NpgsqlException ... Connection refused
         Postgres is not up, or the AppHost started without a container engine.

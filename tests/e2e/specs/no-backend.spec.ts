@@ -9,8 +9,14 @@ import { serveNetworkFailure, serveProxyFailure } from './support/service-info.j
  * This is not an error-handling nicety. ab-ovo's first product requirement is that the
  * reader loop works with NO account and NO backend: frames are served with the site and the
  * lab pane runs Python in the browser under Pyodide, so "no API answered" is a SUPPORTED
- * CONFIGURATION of this product rather than an outage. The landing page says so in prose,
- * and a claim asserted nowhere lasts until the first component that fetches during render.
+ * CONFIGURATION of this product rather than an outage. `/about` says so in prose, and a
+ * claim asserted nowhere lasts until the first component that fetches during render.
+ *
+ * SINCE ADR-0036 THE PREMISE IS ASSERTED WHERE IT IS ACTUALLY SPENT. The landing page is now
+ * the index of programs, so the first test below drives the GRID with the API unreachable —
+ * a reader with no backend reaching the list of programs and a link into one is the
+ * requirement itself, where the old version of this test asserted the page that described
+ * it. The prose and the integration panel moved to `/about` and are asserted there.
  *
  * The failure is injected in the BROWSER, with route interception, for two reasons. It is
  * deterministic — no waiting on a real backend to be down, and no 45-second ladder walk —
@@ -23,42 +29,55 @@ import { serveNetworkFailure, serveProxyFailure } from './support/service-info.j
  */
 
 test.describe('no backend', () => {
-  test('renders the whole landing page when the API cannot be reached at all @smoke', async ({
+  test('reaches the programs when the API cannot be reached at all @smoke', async ({ page }) => {
+    const pageErrors = collectPageErrors(page);
+    await serveNetworkFailure(page);
+
+    const response = await page.goto('/');
+    expect(response?.status(), 'the page itself must still answer 200').toBe(200);
+
+    /*
+      THE REQUIREMENT, NOT A DESCRIPTION OF IT. With no backend at all, the index renders and
+      a program is one click away — asserted as the href into the reading route, because a
+      grid that rendered tiles linking nowhere would pass every weaker form of this test.
+
+      Both editions, because the index that picks neither is the one a reader arrives at, and
+      neither of those two links may depend on a service that is not there (ADR-0015).
+    */
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
+    await expect(
+      page.getByRole('link', { name: 'How a computer stores a number' }),
+    ).toHaveAttribute('href', '/read/math-for-ai-engineers/P01/en');
+    await expect(
+      page.getByRole('link', { name: 'Jak komputer przechowuje liczbę' }),
+    ).toHaveAttribute('href', '/read/math-for-ai-engineers/P01/pl');
+
+    // And the way to the product's argument is still there, so a reader who wants to know
+    // what this is before working a frame is not stranded by a missing service either.
+    await expect(page.getByRole('link', { name: 'About ab-ovo' })).toBeVisible();
+
+    // It did not throw on the way. A client component that throws during render leaves the
+    // server-rendered HTML on screen, so every assertion above can pass on a crashed page.
+    expect(pageErrors, describePageErrors(pageErrors)).toEqual([]);
+  });
+
+  test('renders the whole of the argument when the API cannot be reached at all @smoke', async ({
     page,
   }) => {
     const pageErrors = collectPageErrors(page);
     await serveNetworkFailure(page);
 
-    /*
-      TWO PAGES, BECAUSE THE PRODUCT'S FIRST SCREEN AND ITS ARGUMENT ARE NO LONGER ONE.
-
-      `/` is the index: the anti-goal and 47 programs, served from content compiled into
-      the app. `/about` carries the loop, the phases and the panel. Both have to survive a
-      dead API and the failure would look different on each — the index would lose its
-      list, the argument page would lose its panel — so both are asserted here rather than
-      one standing in for the other.
-    */
-    const index = await page.goto('/');
-    expect(index?.status(), 'the index must still answer 200').toBe(200);
-
-    // 1a. The index is intact: the anti-goal, and the book itself.
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
-    await expect(
-      page.getByRole('region', { name: 'What this instrument is for' }),
-    ).toContainText('The instrument measures the book, never the reader.');
-    await expect(
-      page.getByRole('link', { name: 'Numbers, powers and roots' }),
-      'the index lost the programs, which are compiled in and need no API at all',
-    ).toBeVisible();
-
     const response = await page.goto('/about');
     expect(response?.status(), 'the page itself must still answer 200').toBe(200);
 
-    // 1b. The argument is intact. Not "the body is non-empty" — element by element,
-    //     exactly as journey 1 asserts it with a backend present.
+    // 1. The product is intact. Not "the body is non-empty" — the argument the page is for,
+    //    element by element, exactly as journey 1 asserts it with a backend present.
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(
       'A book you work, not a book you read.',
     );
+    await expect(
+      page.getByRole('region', { name: 'What this instrument is for' }),
+    ).toContainText('The instrument measures the book, never the reader.');
     await expect(
       page.getByRole('list').filter({ hasText: 'Read a frame.' }).getByRole('listitem'),
     ).toHaveCount(4);
@@ -148,26 +167,40 @@ test.describe('no backend', () => {
     expect(pageErrors, describePageErrors(pageErrors)).toEqual([]);
   });
 
-  test('keeps the public pages public with no session and no identity service @core', async ({
+  test('keeps the landing page public when there is no session and no identity service @core', async ({
     page,
   }) => {
-    // The middleware is private-by-default and opts routes out one at a time, so each of
-    // these being public is a list entry somebody wrote rather than an absent gate. A
-    // reader with no cookie must reach all three — if one falls out of that list the
-    // symptom is a redirect to a sign-in page that a deployment without an identity
-    // service cannot even serve, and the product's first requirement is gone.
-    //
-    // THREE PATHS RATHER THAN ONE, because `/about` is a new entry in that list and a new
-    // entry is exactly the kind that gets forgotten. `/read` was already there; it is
-    // asserted here too so this test names the whole public surface a reader meets before
-    // opening a frame.
+    // The middleware is private-by-default and opts routes out one at a time, so the landing
+    // page being public is a list entry somebody wrote rather than an absent gate. A reader
+    // with no cookie must reach it — if '/' ever falls out of that list the symptom is a
+    // redirect to a sign-in page that a deployment without an identity service cannot even
+    // serve, and the product's first requirement is gone.
     await serveNetworkFailure(page);
 
-    for (const path of ['/', '/about', '/read']) {
-      const response = await page.goto(path);
-      expect(response?.status(), `${path} did not answer 200`).toBe(200);
-      expect(new URL(page.url()).pathname, `${path} redirected to sign-in`).toBe(path);
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    }
+    const response = await page.goto('/');
+    expect(response?.status()).toBe(200);
+    expect(new URL(page.url()).pathname, 'the landing page must not redirect to sign-in').toBe('/');
+
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
+    await expect(
+      page.getByRole('link', { name: 'Numbers, powers and roots' }),
+      'the index rendered its heading and lost the programs — the list is compiled in and needs no API',
+    ).toBeVisible();
+  });
+
+  test('keeps the about page public on the same terms @core', async ({ page }) => {
+    // Same gate, second entry. ADR-0036 moved the anti-goal to a page of its own, and a
+    // commitment about what this system measures that a reader must sign in to read would be
+    // worth very little — so `/about` is in the middleware's public list beside `/`, and this
+    // is the assertion that says so rather than the list saying it to itself.
+    await serveNetworkFailure(page);
+
+    const response = await page.goto('/about');
+    expect(response?.status()).toBe(200);
+    expect(new URL(page.url()).pathname, 'the about page must not redirect to sign-in').toBe(
+      '/about',
+    );
+
+    await expect(page.getByRole('region', { name: 'What this instrument is for' })).toBeVisible();
   });
 });

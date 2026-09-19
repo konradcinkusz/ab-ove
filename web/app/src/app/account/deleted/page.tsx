@@ -71,7 +71,7 @@ export default async function AccountDeletedPage({
 
       <footer className="colophon">
         <p>
-          <Link href="/read">{strings.keepReading}</Link>
+          <Link href="/">{strings.keepReading}</Link>
         </p>
       </footer>
     </main>

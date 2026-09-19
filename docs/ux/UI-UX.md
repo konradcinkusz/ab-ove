@@ -25,7 +25,8 @@ something is in the reader loop at all.
 
 | Route | What it is | Needs |
 | --- | --- | --- |
-| `/` | the landing page, the anti-goal, the loop, the integration panel | nothing |
+| `/` | the landing page: every program as a tile, and the edition switch | nothing |
+| `/about` | what the product is, the anti-goal, the loop, the integration panel | nothing |
 | `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a navigation | nothing |
 | `/read/<track>/<unit>/<lang>/lab/<id>/<step>` | the same frame with the lab pane beside it | nothing |
 | `/lab/<id>` | the book's exercises under Pyodide, in this tab | nothing |
@@ -35,17 +36,45 @@ something is in the reader loop at all.
 | `/healthz` | the app's own liveness | nothing |
 | `/api/*` | the BFF: config, auth, session, and the one proxy to any backend | — |
 
-**The first four are the whole product for a reader who never signs in**, and that is a
+**The first five are the whole product for a reader who never signs in**, and that is a
 requirement rather than an accident.
 
-### `/` — the landing page
+### `/` — the landing page, which is the index
 
-`web/app/src/app/page.tsx`. A Server Component that renders from content compiled into the
-app: it makes no fetch, reads no cookie and needs no backend. That is not an optimisation —
-the reader loop is required to work with no account and no backend, and a landing page that
-could not render without an API would have broken the requirement on the first screen.
+`web/app/src/app/page.tsx` over `components/programs/program-grid.tsx`. A Server Component
+that renders from content compiled into the app: it makes no fetch, reads no cookie and
+needs no backend. That is not an optimisation — the reader loop is required to work with no
+account and no backend, and a first screen that could not render without an API would have
+broken the requirement before the reader reached anything.
 
-Its sections, in order, and the order is the argument:
+**It used to be the product's argument and is now the programs**
+([ADR-0036](../adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). The
+argument moved whole to `/about`; what a reader arrives at is the thing they came for, one
+navigation from a frame instead of two.
+
+Its parts, in order:
+
+1. **The top row** — the wordmark, a link to `/about`, the resume and forget controls, and
+   the account control. Everything but the first two is read from the browser and arrives
+   after the first paint, so the row extends rather than the page moving
+   (the constraint issue #7 put on the resume controls).
+2. **The heading and the edition switch**, sharing a line. The switch has three positions —
+   each edition, and *both* — and *both* is what a reader who has chosen nothing is looking
+   at. A choice is `/?lang=<edition>`: visible, linkable, leaveable, and never inferred.
+3. **The grid** — one tile per program, per track, carrying the program's id, its title, and
+   how many frames and sections it has. With no edition chosen a tile carries a title per
+   edition, each its own link; with one chosen it carries that edition's title and the whole
+   tile is the target.
+4. **The consent invitation**, last, absent from the first paint, and an invitation rather
+   than a gate — a reader who came to read reaches the programs first and the question
+   afterwards.
+
+`/read` is a 308 to this page and the deep links under it do not move.
+
+### `/about` — the product's argument
+
+`web/app/src/app/about/page.tsx`. What `/` was, moved whole and in the same order, because
+the order IS the argument:
 
 1. **Masthead** — the wordmark, one line saying what the product is (*a book you work, not a
    book you read*), and a standfirst naming the book, the 47 programs, both languages, and
@@ -53,12 +82,18 @@ Its sections, in order, and the order is the argument:
 2. **The anti-goal**, immediately after, before any feature: *the instrument measures the
    book, never the reader.* It is above the fold of the argument because the pressure to
    misuse a number arrives from somebody who did not read to the end
-   (METRIC-ETHICS.md §1). A claim made publicly is one a later feature has to argue with.
+   (METRIC-ETHICS.md §1). A claim made publicly is one a later feature has to argue with,
+   and moving the page it is made on did not soften it: `specs/about.spec.ts` asserts the
+   promise here, and `specs/landing.spec.ts` keeps the two negative assertions on `/`,
+   which is the page a leaderboard would actually appear on.
 3. **The loop** — the four steps, numbered.
 4. **What it needs from you** — *nothing*, and what an account does buy.
-5. **Where the work is** — the four phases, named.
-6. **The integration report** — the one live thing on the page, deliberately last.
-7. **Colophon** — that the page is served entirely from its own origin, and the repository
+5. **Which edition you read** — that the choice is the reader's and that nothing is guessed.
+6. **Where the work is** — the four phases, named.
+7. **The integration report** — the one live thing on the page, deliberately last. It is the
+   only component in this app that reads `/api/config`, which is why the runtime-config
+   acceptance spec drives this page rather than `/`.
+8. **Colophon** — that the page is served entirely from its own origin, and the repository
    link.
 
 ### `/login` — a form, and no token in the document
@@ -354,7 +389,9 @@ commits, 4.61 MB, zero findings, audit committed under `docs/architecture/`.
 ## The ranked backlog
 
 Ranked, not estimated. The order is the delivery order and the phases are the ones named on
-the landing page, so the page and this document cannot drift.
+`/about`, so the page and this document cannot drift. (They were named on the landing page
+until ADR-0036 moved the argument there; `specs/about.spec.ts` followed, and is still what
+makes the drift fail a build rather than go unnoticed.)
 
 Each item says what it is, what it must not do, and what "done" looks like. Where an item is
 blocked, the blocker is named — not left to be discovered by the person who picks it up.

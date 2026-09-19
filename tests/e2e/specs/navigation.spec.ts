@@ -40,13 +40,25 @@ const frameAt = (language: string, n: number): string => `${contentsAt(language)
 test.describe('navigation', () => {
   test('the index lists every program, in every edition it has @smoke', async ({ page }) => {
     // maxRedirects: 0, because a followed 307 returns the login page as 200 and the test
-    // would pass for the wrong reason. `/read` is in the middleware's PUBLIC_PATHS rather
-    // than under the `/read/` prefix — every prefix entry ends in a slash, so an index path
-    // needs its own line — and this is the assertion that says so from outside.
-    const response = await page.request.get('/read', { maxRedirects: 0 });
-    expect(response.status(), '/read must answer 200 to a reader with no session').toBe(200);
+    // would pass for the wrong reason. `/` is in the middleware's PUBLIC_PATHS, and this is
+    // the assertion that says so from outside rather than the list saying it to itself.
+    const response = await page.request.get('/', { maxRedirects: 0 });
+    expect(response.status(), '/ must answer 200 to a reader with no session').toBe(200);
 
-    await page.goto('/read');
+    /*
+      AND THE OLD INDEX PATH IS A REDIRECT RATHER THAN A BOUNCE (ADR-0036).
+
+      `/read` stays in PUBLIC_PATHS for a reason that only an unfollowed request can show:
+      a private `/read` would answer 307 to `/login` and the 308 below would never run, so a
+      reader following an old link would be asked to sign in on the way to a page that needs
+      no account. Asserting the STATUS is what tells those two redirects apart — followed,
+      both of them end on a page that answers 200, and one of them is the product broken.
+    */
+    const moved = await page.request.get('/read', { maxRedirects: 0 });
+    expect(moved.status(), '/read must be a permanent redirect, not a sign-in bounce').toBe(308);
+    expect(moved.headers()['location'], '/read must point at the index').toBe('/');
+
+    await page.goto('/');
 
     // BOTH editions, each under its own title, each its own link. The index is where a
     // reader who has not chosen a language arrives, so it is the one page that could
@@ -67,7 +79,7 @@ test.describe('navigation', () => {
     const response = await page.request.get(contentsAt('en'), { maxRedirects: 0 });
     expect(response.status(), 'a contents page must answer 200 with no session').toBe(200);
 
-    await page.goto('/read');
+    await page.goto('/');
     await page.getByRole('link', { name: unitTitles.en! }).click();
     await expect(page).toHaveURL(new RegExp(`${contentsAt('en')}$`));
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(unitTitles.en!);
@@ -253,26 +265,21 @@ test.describe('navigation', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(unitTitles.en!);
   });
 
-  test('/read and / are the same page @smoke', async ({ page }) => {
-    // Until recently `/read` was reachable only by typing it or by finding one link at the
-    // foot of an argument. It is now what `/` renders — one component at two routes, see
-    // `reading-index.tsx` — and this asserts the two really are one page rather than two
-    // lists that will disagree: the same heading, and the same program under it.
-    //
-    // NOT A REDIRECT, which is the other way to make them agree and is asserted against
-    // here: `maxRedirects: 0` would start failing the day somebody replaces this page with
-    // a 308, and five other specs address `/read` expecting a page.
-    const direct = await page.request.get('/read', { maxRedirects: 0 });
-    expect(direct.status(), '/read must answer 200 rather than redirect').toBe(200);
+  test('the landing page is the way in @smoke', async ({ page }) => {
+    /*
+      This test used to click "Open the programs" on the landing page and assert it arrived
+      at `/read`. ADR-0036 removed the hop: the first screen IS the index, so what is
+      asserted now is that a program is reachable from the landing page in ONE navigation.
 
-    for (const path of ['/', '/read']) {
-      await page.goto(path);
-      await expect(page.getByRole('heading', { level: 1, name: 'Programs' })).toBeVisible();
-      await expect(
-        page.getByRole('link', { name: unitTitles.en! }),
-        `${path} does not list ${unit}`,
-      ).toHaveAttribute('href', contentsAt('en'));
-    }
+      The link is clicked rather than the URL typed, which is the point — `specs/landing.spec.ts`
+      asserts the href, and this asserts that following it lands on the frame the reader
+      expected. A product whose first screen does not reach the thing it is for is a product
+      nobody reaches, and that was as true of one hop as of two.
+    */
+    await page.goto('/');
+    await page.getByRole('link', { name: unitTitles.en! }).click();
+    await expect(page).toHaveURL(new RegExp(`${contentsAt('en')}$`));
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(unitTitles.en!);
   });
 
   test('the reading surface says which language it is in @core', async ({ page }) => {

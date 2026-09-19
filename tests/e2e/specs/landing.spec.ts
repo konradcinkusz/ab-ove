@@ -1,38 +1,42 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * JOURNEY 1 — the landing page renders, states the product's anti-goal, and IS the book.
+ * JOURNEY 1b — the landing page is the programs, and one click reaches one of them.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * `/` IS THE INDEX NOW, and three tests left this file because of it. The loop, "what it
- * needs from you" and the phases are asserted in `about.spec.ts`, against the page that
- * carries them. What is here is what a reader must meet on the page they cannot avoid:
- * the anti-goal, the two refusals that give it teeth, and a way into a program.
+ * ADR-0036 — THE FIRST SCREEN IS THE INDEX.
  *
- * The `<h1>` assertion changed with the page and the change is deliberate rather than a
- * concession: a heading should say what is on the page, and what is on this page is the
- * programs. The wordmark is above it as a name.
+ * What used to be here was the product's argument, and it is now at `/about` under
+ * `specs/about.spec.ts`. This file asserts what replaced it: a grid of programs, an edition
+ * switch that offers and never applies, and the account control at the top of the page.
+ *
+ * The distinction this suite exists to protect is between a page that LISTS programs and a
+ * page that REACHES them. The old landing page had one link, to an index, which then had the
+ * links; the requirement behind this change was that a reader arriving is one move from
+ * working a program. So the assertions below are about hrefs into the reading route rather
+ * than about tiles being present — a grid of tiles that linked nowhere would satisfy every
+ * assertion a "renders" test makes.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * Why an anti-goal is worth a test at all: every system that measures learning drifts
- * towards measuring the learner, because that is the easier number to produce and the one
- * that looks like progress. ab-ovo's instrument points the other way, and the landing page
- * says so in public precisely so that a later feature has to argue with it. A promise made
- * in prose and asserted nowhere is a promise that survives exactly as long as nobody is in
- * a hurry, so the assertions below are the mechanism that keeps it — including the two
- * negative ones, which fail the day a leaderboard appears.
+ * IT MUST HOLD WITH NO ACCOUNT AND NO BACKEND, which is why almost everything here is
+ * `@smoke`. The page reads content compiled into the app; `specs/no-backend.spec.ts` is
+ * where the same grid is asserted with the API unreachable.
  *
- * LOCATORS. Role plus accessible name throughout, then text — preferences 1 and 2 of
- * E2E-ACCEPTANCE-TESTING.md §3's ranked table. The landing page carries no `data-testid`
- * attributes and needs none: every element these specs drive has a role and an accessible
- * name already. See README.md §"Locator convention" for why that is the ranking rather than
- * a shortfall.
+ * LOCATORS. Role plus accessible name, then text — preferences 1 and 2 of
+ * E2E-ACCEPTANCE-TESTING.md §3. The fixture this suite runs against publishes one track and
+ * one program, P01, in two editions; a second program changes counts and not one locator
+ * below, because every one of them names what it is looking for.
  */
 
+/** The fixture's one program, in both editions. Named once so a re-titled fixture is one edit. */
+const P01 = {
+  en: 'How a computer stores a number',
+  pl: 'Jak komputer przechowuje liczbę',
+  href: { en: '/read/math-for-ai-engineers/P01/en', pl: '/read/math-for-ai-engineers/P01/pl' },
+};
+
 test.describe('landing page', () => {
-  test('states that the instrument measures the book, never the reader @smoke', async ({
-    page,
-  }) => {
+  test('is the index of programs, and each program is a link into it @smoke', async ({ page }) => {
     const response = await page.goto('/');
     expect(response?.status(), 'the landing page must answer 200').toBe(200);
 
@@ -42,29 +46,112 @@ test.describe('landing page', () => {
     await expect(page).toHaveTitle(/ab-ovo/);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
 
-    // `<section aria-label="What this instrument is for">` — a section with an accessible
-    // name is a `region`, so the anti-goal is reachable by role and by the name its author
-    // gave it, with no class chain and no DOM traversal.
-    const antiGoal = page.getByRole('region', { name: 'What this instrument is for' });
-    await expect(antiGoal).toBeVisible();
-
-    // Asserted against the region rather than against a `getByText` of the sentence itself.
-    // The sentence is a <strong> alone inside a <p>, so both elements have exactly that text
-    // and a bare text locator is one markup change away from a strict-mode violation — which
-    // would fail loudly, but for a reason that has nothing to do with the product.
-    await expect(antiGoal).toContainText('The instrument measures the book, never the reader.');
-
-    // The claim, and then the two commitments that give it teeth. A page that kept the
-    // headline and dropped these would read the same and mean less.
-    await expect(antiGoal).toContainText(
-      'ab-ovo does not score you, rank you, or build a profile of what you are bad at.',
-    );
-    await expect(antiGoal).toContainText('There is no leaderboard and there will not be one.');
+    /*
+      The requirement, as an href. Not "a tile exists" and not "a link exists" — THE LINK
+      GOES INTO THE READING ROUTE, which is the whole of what "directly to the program"
+      means and the only part of it a tile cannot fake.
+    */
+    const english = page.getByRole('link', { name: P01.en });
+    await expect(english).toBeVisible();
+    await expect(english).toHaveAttribute('href', P01.href.en);
   });
 
-  test('offers no leaderboard, ranking or score affordance anywhere on the page @smoke', async ({
+  test('offers both editions and chooses neither until the reader does @smoke', async ({
     page,
   }) => {
+    await page.goto('/');
+
+    /*
+      ADR-0015, still true on a page that now has a switch. A reader who has not chosen sees
+      a title per edition, each the link into that edition — so this asserts BOTH hrefs,
+      which is the assertion a default would break. The day somebody adds `?? 'en'` to the
+      resolution, this is the test that fails, and it fails on the page rather than in a
+      unit — `web/app/src/lib/content/chosen-edition.test.ts` covers the same rule at the
+      layer with the logic (P13).
+    */
+    await expect(page.getByRole('link', { name: P01.en })).toHaveAttribute('href', P01.href.en);
+    await expect(page.getByRole('link', { name: P01.pl })).toHaveAttribute('href', P01.href.pl);
+  });
+
+  test('narrows the grid to the edition a reader asks for @core', async ({ page }) => {
+    await page.goto('/?lang=pl');
+
+    // The chosen edition is there and the other one is gone. Both halves matter: a switch
+    // that added a title without removing the other would look like it worked.
+    await expect(page.getByRole('link', { name: P01.pl })).toHaveAttribute('href', P01.href.pl);
+    await expect(page.getByRole('link', { name: P01.en })).toHaveCount(0);
+
+    // And the switch says which position is live, with the attribute a screen reader reads
+    // rather than with a class only a stylesheet can see.
+    await expect(page.getByRole('link', { name: 'polski' })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+  });
+
+  test('treats an edition the book does not have as no choice at all @core', async ({ page }) => {
+    // A typo in a query string is a reader's slip, not a deployment fault. The honest
+    // response is the page that picks neither — NOT a 404, and above all not a quiet
+    // fallback to English, which is the one outcome that would look correct to whoever
+    // wrote the typo and be wrong for the reader ADR-0015 is about.
+    const response = await page.goto('/?lang=de');
+    expect(response?.status(), 'an unknown edition is not an error').toBe(200);
+
+    await expect(page.getByRole('link', { name: P01.en })).toHaveAttribute('href', P01.href.en);
+    await expect(page.getByRole('link', { name: P01.pl })).toHaveAttribute('href', P01.href.pl);
+  });
+
+  test('lets a reader who chose an edition get back to the page that picks neither @core', async ({
+    page,
+  }) => {
+    await page.goto('/?lang=en');
+    await expect(page.getByRole('link', { name: P01.pl })).toHaveCount(0);
+
+    // The third position. Without it the switch is a trap door — two ways in and no way back
+    // — and "no edition chosen" becomes a state a reader can only reach by editing the URL.
+    await page.getByRole('link', { name: 'Both editions' }).click();
+
+    await expect(page.getByRole('link', { name: P01.en })).toBeVisible();
+    await expect(page.getByRole('link', { name: P01.pl })).toBeVisible();
+  });
+
+  test('carries the account control and the way to the product’s argument @core', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    // The argument moved to /about (ADR-0036), so the link to it is the path from a reader
+    // arriving at this page to the anti-goal being readable at all. `specs/about.spec.ts`
+    // asserts what is on the other end; this asserts that the other end is reachable.
+    const about = page.getByRole('link', { name: 'About ab-ovo' });
+    await expect(about).toBeVisible();
+    await expect(about).toHaveAttribute('href', '/about');
+
+    /*
+      Sign-in at the top of the first screen — the position this page was asked for.
+
+      It is absent from the first paint by design: the session cookie is HttpOnly, so the
+      control renders nothing until the BFF answers, and offering "Sign in" during that gap
+      would tell a signed-in reader they are signed out. `toBeVisible` waits, which is the
+      right assertion for a control that is correctly missing for a moment.
+    */
+    const signIn = page.getByRole('link', { name: 'Sign in' });
+    await expect(signIn).toBeVisible();
+
+    // Signing in returns the reader to where they were, and the redirect target is a
+    // property worth asserting rather than assuming: this is the one page in the product
+    // whose location includes a query string, and the plain `usePathname()` answer would
+    // silently drop the reader's chosen edition on the way back from the form.
+    await expect(signIn).toHaveAttribute('href', '/login?redirect=%2F');
+
+    await page.goto('/?lang=pl');
+    await expect(page.getByRole('link', { name: 'Zaloguj się' })).toHaveAttribute(
+      'href',
+      '/login?redirect=%2F%3Flang%3Dpl',
+    );
+  });
+
+  test('offers no leaderboard, ranking or score affordance @smoke', async ({ page }) => {
     await page.goto('/');
 
     // Wait for the page proper before asserting an absence. An absence assertion against a
@@ -72,41 +159,36 @@ test.describe('landing page', () => {
     // wrong reason, and `toHaveCount(0)` would happily agree with a blank body.
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
-    // The anti-goal as something a machine can check. These are the affordances the promise
-    // rules out; the day one of them ships, this fails and somebody has to either delete it
-    // or delete the promise on the landing page. That argument is the point of the test.
+    /*
+      The anti-goal is STATED at /about and it is enforced here, which is the right way
+      round: this is the page a leaderboard would actually appear on, because it is the page
+      that lists programs and would be the natural home for a column of scores beside them.
+
+      Keeping these assertions on both pages after ADR-0036 was deliberate. The version of
+      this change that moved them wholesale to /about would have left the product's most
+      visible surface with nothing holding the promise, and the promise would have gone on
+      reading perfectly well on a page nobody had to open.
+    */
     await expect(page.getByRole('link', { name: /leaderboard|ranking|your score/i })).toHaveCount(
       0,
     );
-    await expect(
-      page.getByRole('button', { name: /leaderboard|ranking|your score/i }),
-    ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /leaderboard|ranking|your score/i })).toHaveCount(
+      0,
+    );
     await expect(page.getByRole('heading', { name: /leaderboard|ranking/i })).toHaveCount(0);
   });
 
-  test('is the way into the book, not a page in front of it @smoke', async ({ page }) => {
-    // The landing page used to be seven sections of argument with one link into the book
-    // below them. A product whose first screen does not lead to the thing it is for is a
-    // product nobody reaches — so the programs are ON it now, and this is the assertion
-    // that says so from outside: a title on the index opens that program's contents.
-    await page.goto('/');
+  test('keeps every link to the old index working @core', async ({ page }) => {
+    /*
+      `/read` was the way into the programs for the whole life of this application, so it is
+      in readers' history and in this repository's own screens. ADR-0036 made it a 308 rather
+      than deleting it, and a redirect that nobody asserts is one somebody removes as dead
+      code — this is the test that says it is load-bearing.
+    */
+    const response = await page.goto('/read');
+    expect(response?.status(), 'the redirect must land on a page that answers 200').toBe(200);
+    expect(new URL(page.url()).pathname, '/read must land on the index').toBe('/');
 
-    const first = page.getByRole('link', { name: 'Numbers, powers and roots' });
-    await expect(first).toBeVisible();
-    await first.click();
-    await expect(page).toHaveURL(/\/read\/[^/]+\/F01\/en$/);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Numbers, powers and roots');
-  });
-
-  test('links to the canonical repository @core', async ({ page }) => {
-    await page.goto('/');
-
-    // The repository was created as `ab-ove`, a typo, and every derived name in this system
-    // is `ab-ovo`. GitHub redirects the old spelling, which is exactly why a wrong link here
-    // would work and would still be wrong. Asserting the canonical URL is how the typo stays
-    // corrected once rather than being re-corrected whenever somebody copies a link.
-    const repository = page.getByRole('link', { name: 'github.com/konradcinkusz/ab-ovo' });
-    await expect(repository).toBeVisible();
-    await expect(repository).toHaveAttribute('href', 'https://github.com/konradcinkusz/ab-ovo');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
   });
 });

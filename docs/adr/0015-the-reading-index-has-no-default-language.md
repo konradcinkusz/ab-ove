@@ -66,3 +66,12 @@ reader language on this page to follow.
 — a reader who has chosen twice may reasonably be offered a shortcut — but the default for
 a reader with no history is settled here, and phase 3's progress work is where a *chosen*
 language could legitimately be remembered per account.
+
+**Something has since argued with it, and the decision above survived the argument.**
+[ADR-0036](0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md) made the index
+the landing page and gave it an edition switch — the toggle this file refused. What makes
+the two compatible is that the switch has a third position and the page a reader ARRIVES at
+is that one: both editions, each title its own link, nothing chosen. The refusal here is of
+a *default*, not of a control, and the test that tells them apart is whether a reader who
+has touched nothing is being shown somebody's pick. Drop the third position and this file is
+being contradicted rather than extended.

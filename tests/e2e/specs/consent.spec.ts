@@ -44,7 +44,7 @@ const invitation = (page: import('@playwright/test').Page) =>
 
 test.describe('the ask', () => {
   test('a reader who has never answered is invited, once, at the end @smoke', async ({ page }) => {
-    await page.goto('/read');
+    await page.goto('/');
 
     await expect(invitation(page)).toBeVisible();
 
@@ -73,7 +73,7 @@ test.describe('the ask', () => {
      * resolved rather than what the stylesheet says, so a rule reaching these from anywhere
      * is caught.
      */
-    await page.goto('/read');
+    await page.goto('/');
 
     const grant = page.getByRole('button', { name: /Yes, use my outcomes/i });
     const decline = page.getByRole('button', { name: /No thanks/i });
@@ -110,7 +110,7 @@ test.describe('the ask', () => {
 
 test.describe('declining, and being left alone', () => {
   test('declining takes one click and asks nothing further @smoke', async ({ page }) => {
-    await page.goto('/read');
+    await page.goto('/');
     await page.getByRole('button', { name: /No thanks/i }).click();
 
     // No "are you sure". The panel is gone the moment it is answered.
@@ -119,7 +119,7 @@ test.describe('declining, and being left alone', () => {
   });
 
   test('it does not come back on the next page, or on a reload @smoke', async ({ page }) => {
-    await page.goto('/read');
+    await page.goto('/');
     await page.getByRole('button', { name: /No thanks/i }).click();
     await expect(invitation(page)).toHaveCount(0);
 
@@ -128,7 +128,7 @@ test.describe('declining, and being left alone', () => {
     await expect(invitation(page)).toHaveCount(0);
 
     // And back, which is the one that catches a component remounting into `undecided`.
-    await page.goto('/read');
+    await page.goto('/');
     await expect(invitation(page)).toHaveCount(0);
 
     await page.reload();
@@ -141,7 +141,7 @@ test.describe('declining, and being left alone', () => {
      * state rather than against a list of features somebody remembered to check — a list
      * would go stale the first time a control is added, and would go stale silently.
      */
-    await page.goto('/read');
+    await page.goto('/');
     await page.getByRole('button', { name: /Yes, use my outcomes/i }).click();
     const granted = await page
       .locator('main')
@@ -164,7 +164,7 @@ test.describe('declining, and being left alone', () => {
 
 test.describe('the durable control', () => {
   test('an answer can be changed in both directions @core', async ({ page }) => {
-    await page.goto('/read');
+    await page.goto('/');
     await page.getByRole('button', { name: /No thanks/i }).click();
 
     await expect(page.getByText('You are not contributing')).toBeVisible();
@@ -181,7 +181,7 @@ test.describe('the durable control', () => {
   });
 
   test('the answer persists across a reload @core', async ({ page }) => {
-    await page.goto('/read');
+    await page.goto('/');
     await page.getByRole('button', { name: /Yes, use my outcomes/i }).click();
     await expect(page.getByText('You are helping measure the book')).toBeVisible();
 
@@ -199,7 +199,7 @@ test('nothing is asked or stored before the reader answers @smoke', async ({ pag
    * proves the different thing a reader would check: that merely looking at the page has
    * not recorded an answer on their behalf.
    */
-  await page.goto('/read');
+  await page.goto('/');
   await expect(invitation(page)).toBeVisible();
 
   const stored = await page.evaluate((key) => window.localStorage.getItem(key as string), KEY);
