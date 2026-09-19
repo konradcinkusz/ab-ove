@@ -16,6 +16,23 @@ export interface FrameViewProps {
   readonly language: string;
   /** Present unless this is the last step of the unit. */
   readonly next?: Step;
+  /**
+   * The path a frame number is appended to, in a given language. Defaults to the reading
+   * route, `/read/<track>/<unit>/<lang>`.
+   *
+   * IT IS A PREFIX AND NOT A LIST OF URLS, and that is the shape `FrameKeys` already needs:
+   * the shortcut reads the number off `location.pathname` and appends a new one, so a
+   * component handed whole URLs would be a component holding the next frame's address in
+   * hydrated props. One string covers the reveal, the back link and the keyboard path; one
+   * call per language covers the edition switch, because switching editions keeps the
+   * position and the position is the last segment either way.
+   *
+   * What it exists for is the composed route of UI-UX.md 1.5 — a frame with the lab pane
+   * beside it — where every one of those has to stay inside the composition or the reveal
+   * throws the reader's exercise away. The default is the plain reading route, so a caller
+   * that does not pass it gets exactly what this component did before.
+   */
+  readonly baseFor?: (language: string) => string;
 }
 
 /**
@@ -50,9 +67,12 @@ export function FrameView({
   step,
   language,
   next,
+  baseFor,
 }: FrameViewProps): React.JSX.Element {
   const track = bundle.track.id;
-  const at = (n: number): string => `/read/${track}/${unit.id}/${language}/${n}`;
+  const reading = (edition: string): string => `/read/${track}/${unit.id}/${edition}`;
+  const base = baseFor ?? reading;
+  const at = (n: number): string => `${base(language)}/${n}`;
   const section = unit.sections?.find((candidate) => candidate.id === step.section);
   const chrome = chromeFor(language);
   const forward = next ? at(step.n + 1) : undefined;
@@ -80,7 +100,7 @@ export function FrameView({
         reader moves through the program and neither of which is content; see
         frame-keys.tsx for why both halves of that are load-bearing rather than tidy.
       */}
-      <FrameKeys base={`/read/${track}/${unit.id}/${language}`} last={unit.steps.length} />
+      <FrameKeys base={base(language)} last={unit.steps.length} />
 
       {/*
         The reader's place, in the reader's browser. It renders nothing — no badge, no
@@ -99,12 +119,19 @@ export function FrameView({
         must not be fetched early.
       */}
       <p className={styles.crumb}>
-        <Link href={`/read/${track}/${unit.id}/${language}`}>{say(unit.titles, language)}</Link>
+        {/*
+          `reading(...)`, NOT `base(...)`, and the difference is the whole of what "up"
+          means. The contents is the program, so a reader leaving a frame for it is leaving
+          whatever is sharing the page with that frame as well — which is what makes the
+          crumb the way OUT of the composed route rather than a link that keeps a pane the
+          reader has finished with.
+        */}
+        <Link href={reading(language)}>{say(unit.titles, language)}</Link>
       </p>
 
       <LanguageSwitch
         current={language}
-        hrefFor={(other) => `/read/${track}/${unit.id}/${other}/${step.n}`}
+        hrefFor={(other) => `${base(other)}/${step.n}`}
         label={chrome.languageLabel}
         labelLanguage={chrome.language}
         languages={bundle.track.languages}

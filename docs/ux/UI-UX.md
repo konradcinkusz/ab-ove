@@ -18,15 +18,16 @@ each item is rather than when it happens.
 
 ## What exists today
 
-Seven route directories under `web/app/src/app/`, and the reader loop runs through two of
-them. This list is the surface; each entry says what it is and what it needs, because *needs
-an account* and *needs a backend* are the two properties that decide whether something is in
-the reader loop at all.
+The route directories under `web/app/src/app/`, and the reader loop runs through the first
+three rows below. This list is the surface; each entry says what it is and what it needs,
+because *needs an account* and *needs a backend* are the two properties that decide whether
+something is in the reader loop at all.
 
 | Route | What it is | Needs |
 | --- | --- | --- |
 | `/` | the landing page, the anti-goal, the loop, the integration panel | nothing |
 | `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a navigation | nothing |
+| `/read/<track>/<unit>/<lang>/lab/<id>/<step>` | the same frame with the lab pane beside it | nothing |
 | `/lab/<id>` | the book's exercises under Pyodide, in this tab | nothing |
 | `/login` | a form that posts credentials to this app's own BFF | an identity service |
 | `/account` | the reader's own progress, export and deletion | an account |
@@ -34,7 +35,7 @@ the reader loop at all.
 | `/healthz` | the app's own liveness | nothing |
 | `/api/*` | the BFF: config, auth, session, and the one proxy to any backend | — |
 
-**The first three are the whole product for a reader who never signs in**, and that is a
+**The first four are the whole product for a reader who never signs in**, and that is a
 requirement rather than an accident.
 
 ### `/` — the landing page
@@ -108,6 +109,16 @@ property and is the half that is easy to lose.
 The URL is the position, so it survives a reload with no session. `/read/` is in the
 middleware's public-prefix list.
 
+`.../lab/<id>/<step>` is the same page with the lab pane beside it — requirement 1.5, and
+the same `FrameView` with one extra prop: the prefix its reveal, its back link, its keyboard
+shortcut and its edition switch are built from. The lab sits ABOVE the step in the path so
+that turning a frame changes a segment under the layout, which is what keeps the pane
+mounted and the reader's exercise file with it; below the step both URLs render the same two
+components and every reveal discards the editor. The frame arrives at the layout as
+`children`, already rendered and still one step, so the absence above is a property of this
+route too rather than a claim carried over — `specs/frame-and-lab.spec.ts` asserts it again
+over the markup, because two components meeting is where it would be lost.
+
 The dotted row under the question carries **no input**, and that is a decision rather than an
 omission — see #48, which records what that costs the instrument, and #58, which is where it is
 argued.
@@ -124,7 +135,10 @@ The stub is fetched from this origin, the checks are read out of the book's own 
 at boot rather than copied here, and a failure names the frames to re-read and never the
 solution.
 
-**It does not yet sit beside the frame.** That is requirement 1.5 and it is #53 and #54.
+**Beside the frame it is `/read/<track>/<unit>/<lang>/lab/<id>/<step>`**, which is
+requirement 1.5's wide screen (#53). It renders `<LabPane>` unchanged, from a layout that
+also renders the frame; #54 is the narrow screen and #55 is the control on a frame that
+carries a `check`, which is what will send a reader there without typing a URL.
 
 ### `/account` — the reader's own record
 
@@ -296,7 +310,7 @@ the largest thing that needs no backend and no content bundle.*
 | 1.2 | **Editor and run control.** Plain text editing, monospace, tab handling, a visible Run. No autocomplete, no language server, no AI assistance ([ADR-0010](../adr/0010-no-language-model-in-the-loop.md)). | A reader can type a solution, run it, and see stdout and the traceback unedited. |
 | 1.3 | **Check results.** Per check: pass, fail, or `todo` for a stub. A failure names **the frames to re-read**, never the solution. | The message is the covered answer box. A check that passes on an empty stub is a defect, and the engine is watched failing on stubs before it is believed. |
 | 1.4 | **Exercise state is local.** The reader's code is theirs; it is kept in the browser and sent nowhere. | Nothing leaves the origin. The colophon's promise stays true with the pane open. |
-| 1.5 | **The pane's relationship to the frame.** It sits beside the reading column on a wide screen and below it on a narrow one; it never covers the frame a reader is working from. | Usable at 360 px without the frame becoming unreachable. |
+| 1.5 | **The pane's relationship to the frame.** It sits beside the reading column on a wide screen and below it on a narrow one; it never covers the frame a reader is working from. The wide screen is built (#53): `/read/<track>/<unit>/<lang>/lab/<id>/<step>`, two grid tracks that divide at 80 rem, with the frame first in source order at every width. #54 is the rest. | Usable at 360 px without the frame becoming unreachable. |
 
 ### Phase 2 — content schema and the frame view
 
