@@ -538,6 +538,28 @@ a document here tells you what to type and not why, it is incomplete.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+**Two licences, and the badge at the top answers for only one of them.** The badge is not
+wrong — this repository *is* MIT — but ab-ovo is built from two things with different terms,
+and the tighter of the two governs what may be done with the product.
+
+| What | Licence | Stated where |
+| --- | --- | --- |
+| **This repository** — the application, the tooling, the tests, the documentation | **MIT** | [LICENSE](LICENSE) |
+| **The book's content** — everything under `web/content/book/`, fetched at a pinned revision and never committed here | **CC BY-NC-SA 4.0** | the book's own [`LICENSE-CONTENT`](https://github.com/konradcinkusz/math-for-ai-engineers/blob/main/LICENSE-CONTENT) |
+| **Pyodide** — the CPython runtime served from this origin | **MPL-2.0** | vendored unmodified from the `pyodide` package; file-level, so it reaches its own files and not this code |
+
+**The content is not this repository's to relicense.** `web/content/book.lock.json` is the
+pin, and it names the revision, the licence and a sha256 for every file. Where the book's own
+licences do not name a path — `lab/` and `figures/values/` are both unnamed by either of them
+— this repository takes the tighter reading and treats it as CC BY-NC-SA.
+
+**What `NonCommercial` means here, concretely.** An instance of ab-ovo serving this content
+may not charge for access to it, put it behind a paid tier, or carry advertising against it.
+A third party is welcome to run their own instance — but the published images are MIT code
+carrying content that is not, so an image you pull comes with the same terms attached.
+
+[ADR-0033](docs/adr/0033-the-content-is-the-books-to-licence-and-noncommercial-is-the-binding-term.md)
+records what this permits, what it forbids, and exactly what would change if the book
+relicensed. It is a record of which licence covers what; it is not legal advice.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

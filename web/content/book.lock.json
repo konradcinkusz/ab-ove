@@ -19,7 +19,7 @@
     "repository": "konradcinkusz/math-for-ai-engineers",
     "revision": "0698dca3c9282e60f584d3ce3d9256bac5496bf9",
     "revisionNote": "the merge commit of the book's PR #238 — the tree the lab engine was verified on",
-    "license": "the book is CC BY-NC-SA; its lab/ code is MIT. See the book's own LICENSE files.",
+    "license": "CC BY-NC-SA, taken as covering every file below. ADR-0033: the book has two licence files and neither names lab/ or figures/values/, which is every path fetched here. The tighter term governs until the book names them.",
     "baseUrl": "https://raw.githubusercontent.com"
   },
   "destination": "web/content/book",
