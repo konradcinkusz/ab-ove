@@ -87,6 +87,14 @@ reader who opens the inspector finds the answer nowhere, and prefetching is off 
 on the wire either. Both halves are asserted, and both were watched failing before they were
 believed.
 
+**And the two halves of the loop now share a page.**
+`/read/<track>/<program>/<language>/lab/<lab>/<frame>` renders the frame and the lab pane
+side by side on a wide screen, in two grid tracks rather than an overlay, so the pane cannot
+cover the frame the exercise is about. The frame reaches the composition already rendered,
+as one step, so nothing above changes: the answer is still absent and the reveal is still a
+navigation with prefetching off, asserted again on the composed route because two components
+meeting is where such a property is lost. What is left of it is the narrow screen.
+
 **Phase 2b is blocked and not by us.** The frame view is reading a **fixture** — four steps
 written for this repository and marked as such. The real content is the book's 47 programs
 as a versioned bundle on the book's own releases, and no such release exists yet. The

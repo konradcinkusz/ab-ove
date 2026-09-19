@@ -153,6 +153,17 @@ interface ConsentStrings {
 interface Strings {
   readonly answer: string;
   readonly keys: string;
+  /**
+   * The accessible name of the region the frame sits in when something else shares the
+   * page with it — today the lab pane, on the composed route of UI-UX.md 1.5.
+   *
+   * It exists because that route has two landmarks and the frame is not the one carrying
+   * `<main>`: the pane brings its own, and giving the reading column a second `<main>`
+   * would be invalid rather than helpful. A named region is what lets a reader navigating
+   * by landmark reach the frame at all, which is the requirement's own last clause read
+   * through a screen reader.
+   */
+  readonly frameRegion: string;
   readonly forget: string;
   readonly signIn: string;
   readonly signOut: string;
@@ -195,6 +206,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   en: {
     answer: 'Answer',
     keys: '→ next frame · ← back',
+    frameRegion: 'The frame',
     forget: 'Forget where I am',
     signIn: 'Sign in',
     signOut: 'Sign out',
@@ -273,6 +285,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   pl: {
     answer: 'Odpowiedź',
     keys: '→ kolejna ramka · ← wstecz',
+    frameRegion: 'Ramka',
     forget: 'Zapomnij, gdzie jestem',
     signIn: 'Zaloguj się',
     signOut: 'Wyloguj się',
@@ -409,6 +422,7 @@ export interface Chrome {
   readonly language: string;
   readonly answer: string;
   readonly keys: string;
+  readonly frameRegion: string;
   readonly forget: string;
   readonly signIn: string;
   readonly signOut: string;

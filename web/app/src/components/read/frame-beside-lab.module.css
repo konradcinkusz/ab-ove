@@ -1,0 +1,76 @@
+/*
+ * The frame and the lab pane, on one page — UI-UX.md phase 1, item 1.5.
+ *
+ * "It sits beside the reading column on a wide screen and below it on a narrow one; it
+ * never covers the frame a reader is working from."
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * A GRID, AND THE LAST CLAUSE IS WHY.
+ *
+ * Nothing here is positioned, floated, fixed or given a z-index, because "never covers the
+ * frame" is a property that a drawer, an overlay or a sheet has to be careful about and a
+ * grid cannot break: two tracks of one row have no way to overlap. specs/frame-and-lab.spec.ts
+ * asserts the two bounding boxes are disjoint rather than trusting that sentence, on the
+ * estate's own rule that a claim nobody measured is a claim.
+ *
+ * The single-column form is the DEFAULT rather than a narrow-screen branch, so the frame
+ * comes first in source order and stays first when the columns collapse. Making the pane
+ * usable at 360 px is #54 and is not claimed here; what is claimed is that the frame is
+ * above it rather than under it.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
+.spread {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.reading {
+  min-width: 0;
+}
+
+/*
+ * Each column brings its own page chrome — FrameView's .page caps itself at --measure and
+ * LabPane's at 76rem, and both carry their own padding — so this file adds neither. A
+ * second inset here would show up as a reading column indented differently from every
+ * other frame in the book.
+ */
+.lab {
+  min-width: 0;
+  border-top: 1px solid var(--rule);
+}
+
+/*
+ * THE BREAKPOINT IS ARITHMETIC AND NOT A ROUND NUMBER SOMEBODY LIKED.
+ *
+ * The reading column is fixed at --measure (34rem): the book's own reason for that figure
+ * is that a wider block is a line whose start the eye has to find, and a frame sharing a
+ * page is still a frame. So the only question is how much is left for the pane, and the
+ * pane is the half with a floor: its workbench is two code panels, and a panel narrower
+ * than about 19rem shows fewer than forty columns of Python.
+ *
+ *   80rem viewport − 34rem reading − ~2.4rem gap − 5rem of the pane's own padding
+ *     ≈ 38rem of workbench ≈ 19rem a panel.
+ *
+ * That is the floor, so 80rem is where the two columns start, and everything above it is
+ * spent on the pane. Below it the frame sits above the pane, which is 1.5's own other half.
+ *
+ * ONE THING THIS FILE CANNOT DO, and it is worth knowing before trying: the pane splits
+ * its own workbench into two panels at `@media (min-width: 900px)`, which is a VIEWPORT
+ * query in lab-pane.module.css. A composed route cannot narrow it, because the viewport is
+ * wide even when the column is not — so at 80rem the panels are as tight as the sum above
+ * says and they get better with every pixel after it. A container query in that file would
+ * fix it properly, and that is a change to a component this route only composes.
+ */
+@media (min-width: 80rem) {
+  .spread {
+    grid-template-columns: minmax(0, var(--measure)) minmax(0, 1fr);
+    /* `start`, so a short frame does not stretch to the pane's height and lose its top. */
+    align-items: start;
+    column-gap: clamp(1.5rem, 2.5vw, 3rem);
+  }
+
+  .lab {
+    border-top: 0;
+    border-left: 1px solid var(--rule);
+  }
+}
