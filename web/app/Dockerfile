@@ -132,6 +132,20 @@ COPY --from=builder --chown=nextjs:nodejs /workspace/app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /workspace/app/.next/static ./app/.next/static
 COPY --from=builder --chown=nextjs:nodejs /workspace/app/public ./app/public
 
+# The THIRD thing tracing cannot know about, and for a sharper reason than the two above:
+# `lib/content/bundle.ts` reads the compiled content bundle with `fs.readFileSync` at
+# request time, which is not an `import` or a `require` — nothing in Next's dependency
+# graph ever points at this file, so `output: 'standalone'`'s tracer has no way to know it
+# is needed and never copies it. Without this line every `/read/**` route 500s in this
+# image alone, because bundle.ts's own candidate paths do resolve to something under
+# `WORKDIR /app` — they just find nothing there.
+#
+# Deliberately NOT under public/: `web/content/bundle/bundle.json` carries the answer to
+# every frame in the book (ADR-0014), and public/ is served to any browser that asks. The
+# builder stage already has the whole `content/` tree (line 86 above, needed to stage the
+# lab engine); this copies the SAME bytes a second time, onto the image that actually runs.
+COPY --from=builder --chown=nextjs:nodejs /workspace/content ./content
+
 USER nextjs
 
 EXPOSE 3000

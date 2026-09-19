@@ -117,3 +117,8 @@ docs/papers/*.pdf
 /web/content/book/
 __pycache__/
 *.pyc
+
+## The compiled content bundle — book.lock.json's `contentBundle`. Same rule, one file
+## instead of eight: it is compiled by scripts/fetch-book-content.sh from the book's own
+## programs/{en,pl} at the pinned revision, and nothing under it is authored here either.
+/web/content/bundle/

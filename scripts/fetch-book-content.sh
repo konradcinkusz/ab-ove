@@ -32,9 +32,20 @@ if [[ ! -f "$LOCK" ]]; then
   exit 1
 fi
 
-for tool in curl python3; do
+for tool in curl python3 tar; do
   command -v "$tool" >/dev/null 2>&1 || { echo "error: $tool is required and was not found on PATH." >&2; exit 1; }
 done
+
+read -r BUNDLE_REPO BUNDLE_REV BUNDLE_DEST <<<"$(python3 - "$LOCK" <<'PY'
+import json, sys
+lock = json.load(open(sys.argv[1]))
+b = lock.get("contentBundle")
+if b:
+    print(b["repository"], b["revision"], b["destination"])
+else:
+    print("", "", "")
+PY
+)"
 
 read -r REPO REV BASE DEST <<<"$(python3 - "$LOCK" <<'PY'
 import json, sys
@@ -159,4 +170,73 @@ else
   echo "Fetched $fetched file(s); $verified matched their digest."
   echo
   echo "Reminder: web/content/ is derived. Edit the book, move the pin, re-run this script."
+fi
+
+# ── the content bundle ──────────────────────────────────────────────────────────────────
+#
+# The per-file loop above pins a handful of files by digest, which works because they are
+# few and byte-stable. The bundle is the book's whole programs/{en,pl} tree compiled by the
+# book's own lab/tools/content_compile.py, so it is pinned by REVISION and re-derived here
+# rather than fetched file by file — book.lock.json's `contentBundle` comment explains why a
+# digest would be the wrong invariant for it (a computed value can print a different bit
+# pattern on a different machine; the book's own CLAUDE.md is emphatic about this).
+#
+# Absent BUNDLE_DEST (an older lock file, or one that has not adopted this yet), this step
+# is a no-op — the per-file fetch above is still the whole of what this script does.
+if [[ -n "$BUNDLE_DEST" ]]; then
+  BUNDLE_TAG="dev-${BUNDLE_REV:0:12}"
+  BUNDLE_FILE="$ROOT/web/$BUNDLE_DEST/bundle.json"
+
+  if [[ "$MODE" == "--check" ]]; then
+    # Cheap and offline: CI's build step needs to know the bundle is THERE and is tagged at
+    # the pinned revision, not to recompile it — recompiling is scripts/fetch-book-content.sh
+    # with no arguments, which the same job already ran before `--check` is ever reached.
+    if [[ ! -f "$BUNDLE_FILE" ]]; then
+      echo "MISSING content bundle: $BUNDLE_FILE" >&2
+      exit 1
+    fi
+    ACTUAL_TAG="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["tag"])' "$BUNDLE_FILE")"
+    if [[ "$ACTUAL_TAG" != "$BUNDLE_TAG" ]]; then
+      echo "STALE content bundle: tagged '$ACTUAL_TAG', pin wants '$BUNDLE_TAG'." >&2
+      echo "Re-run without --check to recompile at the pinned revision." >&2
+      exit 1
+    fi
+    echo "Content bundle present, tagged '$ACTUAL_TAG'."
+  else
+    echo
+    echo "content bundle  $BUNDLE_REPO @ ${BUNDLE_REV:0:12}, tag '$BUNDLE_TAG'"
+
+    WORKDIR="$(mktemp -d)"
+    trap 'rm -rf "$WORKDIR"' EXIT
+
+    TARBALL="$WORKDIR/source.tar.gz"
+    # codeload, not the API's "download a tarball" redirect: it serves the archive
+    # directly, at a URL keyed on the exact revision, with no redirect hop to fail on.
+    TARBALL_URL="https://codeload.github.com/$BUNDLE_REPO/tar.gz/$BUNDLE_REV"
+    if ! curl -fsSL --max-time 300 --retry 3 --retry-delay 2 --retry-all-errors \
+         -o "$TARBALL" "$TARBALL_URL"; then
+      echo "error: could not download $TARBALL_URL" >&2
+      exit 1
+    fi
+
+    SRC="$WORKDIR/src"
+    mkdir -p "$SRC"
+    # --strip-components=1: GitHub's tarball wraps everything in one top-level
+    # "<repo>-<sha>/" directory, and the compiler's own path arithmetic (ROOT, in
+    # content_compile.py) assumes it is run from the repository root.
+    tar -xzf "$TARBALL" -C "$SRC" --strip-components=1
+
+    mkdir -p "$ROOT/web/$BUNDLE_DEST"
+    # --cross-check is the gate, not a courtesy: it re-derives programs/sections/frames/
+    # answers/cues from the book's own content_probe.py and REFUSES if the compiled bundle
+    # disagrees — the same shape as the digest check above, moved from bytes to structure
+    # because structure is what a compiled artefact can actually promise across a rebuild.
+    if ! (cd "$SRC" && python3 lab/tools/content_compile.py \
+           --tag "$BUNDLE_TAG" --cross-check -o "$BUNDLE_FILE"); then
+      echo "error: the book's compiler refused this revision. See its own output above." >&2
+      exit 1
+    fi
+
+    echo "Compiled content bundle -> web/$BUNDLE_DEST/bundle.json"
+  fi
 fi
