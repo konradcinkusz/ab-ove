@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { pickPair, track, unitNamed } from './support/bundle.ts';
+import { pickPair, served, track, unitNamed } from './support/bundle.ts';
 
 /**
  * The frame view, and the one property the whole product rests on.
@@ -42,6 +42,40 @@ const revealTo = (page: import('@playwright/test').Page, language: string, n: nu
 /** The pair this suite is about, searched for and verified rather than assumed. */
 const pair = pickPair(program);
 const { asking, answering } = pair;
+
+/**
+ * A frame ANYWHERE IN THE BOOK whose next frame's answer is a bare number.
+ *
+ * SEARCHED ACROSS EVERY PROGRAM, not inside the F01 the rest of this file uses, and that is
+ * a measurement rather than a precaution: F01 has no frame answered by a bare number at
+ * all. The first draft of the test below looked only in F01, so its own
+ * `expect(numeric).toBeTruthy()` would have failed — and the repair that suggests itself,
+ * a `test.skip` when the program has none, would have turned the one assertion standing
+ * between a reader and a leaked answer into a green no-op. `worksheet.spec.ts` met the
+ * identical problem for decimals and resolved it the same way.
+ *
+ * The rule is the server's own, restated at its simplest: the WHOLE answer is `$n$`. A
+ * sentence carrying one number is not one — see `lib/sheet/number.ts`, which measured what
+ * "exactly one numeric token" says to a reader who types `5` at `$x \ge 5$`.
+ */
+function numericPairAnywhere(): { unit: string; asks: number; answers: number; number: string } {
+  for (const candidate of served.units) {
+    for (let index = 0; index < candidate.steps.length - 1; index += 1) {
+      const asks = candidate.steps[index]!;
+      const answers = candidate.steps[index + 1]!;
+      if (!asks.cue || !answers.answer) continue;
+      const bare = /^\$\s*(-?\d+(?:\.\d+)?)\s*\$$/.exec(answers.answer.en ?? '');
+      if (bare?.[1]) {
+        return { unit: candidate.id, asks: asks.n, answers: answers.n, number: bare[1] };
+      }
+    }
+  }
+  throw new Error('no frame in the book is answered by a bare number, so this suite cannot run');
+}
+
+const NUMERIC = numericPairAnywhere();
+const numericAt = (language: string, n: number): string =>
+  `/read/${track}/${NUMERIC.unit}/${language}/${n}`;
 
 test.describe('the frame view', () => {
   test('is served with no account at all @smoke', async ({ page }) => {
@@ -133,6 +167,43 @@ test.describe('the frame view', () => {
     await revealTo(page, 'pl', answering.n).click();
     await expect(page).toHaveURL(new RegExp(`${at('pl', answering.n)}$`));
     await expect(page.locator('body')).toContainText(answer);
+  });
+
+  test('the answer’s NUMBER travels with the answer and not before it @core', async ({ page }) => {
+    /*
+     * ──────────────────────────────────────────────────────────────────────────────────
+     * `data-book-number` IS THE ONLY NEW THING THE PAGE CARRIES ABOUT AN ANSWER, and the
+     * absence property has to hold for it exactly as it holds for the prose.
+     *
+     * It is the whole answer normalised to one printed number (empty for the 92% that are
+     * not one), rendered by the server so that `you-wrote.tsx` can compare the reader's own
+     * line against it — on the page that is already showing that answer. A build that
+     * rendered it a frame early would leak the answer in the smallest possible form, and
+     * `.not.toContain(prose)` would not catch a bare `50`.
+     * ──────────────────────────────────────────────────────────────────────────────────
+     */
+    /*
+     * ON A FRAME WHOSE ANSWER IS A NUMBER, found rather than named — and on the ATTRIBUTE
+     * with that value rather than on the attribute's existence. The asking frame carries
+     * its OWN answer box (the answer to the frame before it), so `data-book-number` is
+     * legitimately present there; what must not be present is the next one's value.
+     */
+    const { number } = NUMERIC;
+
+    await page.goto(numericAt('en', NUMERIC.asks));
+    expect(
+      await page.content(),
+      'the next frame’s answer arrived as a number before the reveal',
+    ).not.toContain(`data-book-number="${number}"`);
+
+    // The control, and it is the half that makes the negative mean anything: a page that
+    // never renders the attribute at all satisfies the line above.
+    await page.locator(`a[href="${numericAt('en', NUMERIC.answers)}"]`).click();
+    await expect(page).toHaveURL(new RegExp(`${numericAt('en', NUMERIC.answers)}$`));
+    expect(
+      await page.content(),
+      'the answer box carries no book number, so the comparison can never fire',
+    ).toContain(`data-book-number="${number}"`);
   });
 
   test('a frame that does not exist is absent, not broken @core', async ({ page }) => {

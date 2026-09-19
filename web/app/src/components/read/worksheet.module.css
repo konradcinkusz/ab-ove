@@ -1,0 +1,155 @@
+/*
+ * The worksheet: where a reader writes, and what the reveal says about it.
+ *
+ * Everything here is quiet on purpose. The reveal is the only filled control on a frame,
+ * and a second bordered, tinted or coloured block beside the question would make a reader
+ * choose between two equal-looking things at the moment the frame is asking them to commit.
+ */
+
+/*
+ * THE DOTTED ROW IS THE FIELD. `\dotline` on paper is somewhere to write, and this is the
+ * same mark doing the same job — a dashed bottom border and nothing else, so the control
+ * reads as a line on a page rather than as a form.
+ */
+.answerLine {
+  margin: 0 0 1.25rem;
+}
+
+.field {
+  background: none;
+  border: 0;
+  border-bottom: 1px dashed var(--rule);
+  color: var(--ink);
+  display: block;
+  font-family: var(--font-text);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  overflow: hidden; /* the height is set from scrollHeight, so a scrollbar would fight it */
+  padding: 0.25rem 0 0.375rem;
+  resize: none;
+  width: 100%;
+}
+
+.field::placeholder {
+  color: var(--ink-faint);
+  font-style: italic;
+  opacity: 1; /* Firefox dims a placeholder by default, and --ink-faint is already dim */
+}
+
+.field:focus-visible {
+  border-bottom-color: var(--accent);
+  outline: none; /* the border IS the focus indicator here, and it moves colour to show it */
+}
+
+/*
+ * A locked line is still the reader's own words, so it keeps the serif and the size and
+ * loses only the affordance: no dashes to write on, and the ink a shade back.
+ */
+.field[readonly] {
+  border-bottom-style: solid;
+  color: var(--ink-soft);
+}
+
+.note {
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+  font-style: italic;
+  margin: 0.25rem 0 0;
+}
+
+/*
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * `You wrote:` — ONE RESERVED ROW INSIDE THE ANSWER BOX.
+ *
+ * It cannot exist in the first paint (the text is in the reader's browser), so it has to
+ * appear without moving anything: `visibility` rather than `display`, and a `min-height`
+ * so the row occupies its space before it has anything in it. The alternative is the frame
+ * body jumping down at the moment the reader starts reading the answer.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+.youWrote {
+  border-top: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  margin: 0.75rem 0 0;
+  min-height: 1.5rem;
+  padding-top: 0.5rem;
+  visibility: hidden;
+}
+
+.youWrote[data-written='yes'] {
+  visibility: visible;
+}
+
+.youWroteLabel {
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/*
+ * THE READER'S OWN TEXT IS SET IN THE MONOSPACE THE WORKING PAD USES, not in the book's
+ * serif. It reads as what they typed rather than as a rival to the typeset answer above
+ * it — which matters most when the two are nearly the same and the reader is comparing.
+ */
+.youWroteText {
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The one thing the machine ever says. In the live colour, without a tick, a badge or a
+ * background: it is a remark, not a score.
+ */
+.agrees {
+  color: var(--live);
+  font-size: 0.8125rem;
+  margin-left: 0.75rem;
+  white-space: nowrap;
+}
+
+/*
+ * Ctrl+P is the reader's export. The frame, their answer and their working print; the
+ * controls do not, because a printed button is ink spent on nothing.
+ */
+@media print {
+  .field {
+    border-bottom: 1px solid var(--rule);
+    color: var(--ink);
+  }
+
+  .youWrote {
+    visibility: visible;
+  }
+}
+
+/*
+ * A CONTROL THAT DESTROYS SOMETHING, SET LIKE THE TEXT AROUND IT.
+ *
+ * It sits in a foot among links and reads as one — no fill, no border, no red. The danger
+ * is in the SECOND press, whose label says what will happen; a permanently alarming button
+ * is one a reader stops reading, which is the state that gets things deleted.
+ */
+.clear {
+  background: none;
+  border: 0;
+  color: var(--ink-faint);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.clear:hover,
+.clear:focus-visible {
+  color: var(--degraded);
+}
+
+@media print {
+  .clear {
+    display: none;
+  }
+}

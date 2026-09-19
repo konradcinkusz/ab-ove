@@ -6,6 +6,7 @@ import { say, sectionSpans } from '@/lib/content/bundle';
 import type { Bundle, Unit } from '@/lib/content/schema';
 import { FALLBACK_LANGUAGE, chromeFor } from '@/lib/i18n/chrome';
 
+import { ClearWorksheets } from './clear-controls.tsx';
 import styles from './contents.module.css';
 import { ForgetProgress, ResumeLast, type Limits } from './resume.tsx';
 
@@ -194,6 +195,18 @@ export function ReadingIndex({ bundles }: ReadingIndexProps): React.JSX.Element 
         <ConsentControl language={chrome.language} />
         <p className={styles.indexControls}>
           <ForgetProgress language={chrome.language} />
+          {/*
+            BESIDE `Forget where I am` AND NOT FOLDED INTO IT — ADR-0017's own clause asks
+            for this. That ADR defends forgetting a reader's place in one click because
+            what it destroys is an integer per program, and names its limit: the argument
+            "stops holding the moment the record holds anything a reader cannot trivially
+            rebuild". A worksheet is that, so it gets its own control and two presses.
+          */}
+          <ClearWorksheets
+            confirmLabel={chrome.clearWorksheetsConfirm}
+            label={chrome.clearWorksheets}
+            language={chrome.language}
+          />
           <AccountControl language={chrome.language} />
         </p>
         <p className={styles.indexLinks}>

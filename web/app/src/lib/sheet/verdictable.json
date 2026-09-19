@@ -1,0 +1,1195 @@
+{
+  "tag": "dev-e24a4919026e",
+  "rows": [
+    {
+      "unit": "F01",
+      "step": 24,
+      "language": "en",
+      "printed": "$4.5\\times 10^{3}$",
+      "number": "4.5e3"
+    },
+    {
+      "unit": "F01",
+      "step": 24,
+      "language": "pl",
+      "printed": "$4,5\\times 10^{3}$",
+      "number": "4.5e3"
+    },
+    {
+      "unit": "F01",
+      "step": 25,
+      "language": "en",
+      "printed": "$3.1\\times 10^{-6}$",
+      "number": "3.1e-6"
+    },
+    {
+      "unit": "F01",
+      "step": 25,
+      "language": "pl",
+      "printed": "$3,1\\times 10^{-6}$",
+      "number": "3.1e-6"
+    },
+    {
+      "unit": "F01",
+      "step": 27,
+      "language": "en",
+      "printed": "$3.2\\times 10^{8}$",
+      "number": "3.2e8"
+    },
+    {
+      "unit": "F01",
+      "step": 27,
+      "language": "pl",
+      "printed": "$3,2\\times 10^{8}$",
+      "number": "3.2e8"
+    },
+    {
+      "unit": "F02",
+      "step": 2,
+      "language": "en",
+      "printed": "$y = 7$",
+      "number": "7"
+    },
+    {
+      "unit": "F02",
+      "step": 2,
+      "language": "pl",
+      "printed": "$y = 7$",
+      "number": "7"
+    },
+    {
+      "unit": "F02",
+      "step": 14,
+      "language": "en",
+      "printed": "$50$",
+      "number": "50"
+    },
+    {
+      "unit": "F02",
+      "step": 14,
+      "language": "pl",
+      "printed": "$50$",
+      "number": "50"
+    },
+    {
+      "unit": "F02",
+      "step": 39,
+      "language": "en",
+      "printed": "$x = 6$",
+      "number": "6"
+    },
+    {
+      "unit": "F02",
+      "step": 39,
+      "language": "pl",
+      "printed": "$x = 6$",
+      "number": "6"
+    },
+    {
+      "unit": "F03",
+      "step": 23,
+      "language": "en",
+      "printed": "$1001.3133$",
+      "number": "1001.3133"
+    },
+    {
+      "unit": "F03",
+      "step": 23,
+      "language": "pl",
+      "printed": "$1001,3133$",
+      "number": "1001.3133"
+    },
+    {
+      "unit": "F04",
+      "step": 2,
+      "language": "en",
+      "printed": "$15$",
+      "number": "15"
+    },
+    {
+      "unit": "F04",
+      "step": 2,
+      "language": "pl",
+      "printed": "$15$",
+      "number": "15"
+    },
+    {
+      "unit": "F04",
+      "step": 20,
+      "language": "en",
+      "printed": "$1.3509$",
+      "number": "1.3509"
+    },
+    {
+      "unit": "F04",
+      "step": 20,
+      "language": "pl",
+      "printed": "$1,3509$",
+      "number": "1.3509"
+    },
+    {
+      "unit": "F04",
+      "step": 24,
+      "language": "en",
+      "printed": "$2.0594$",
+      "number": "2.0594"
+    },
+    {
+      "unit": "F04",
+      "step": 24,
+      "language": "pl",
+      "printed": "$2,0594$",
+      "number": "2.0594"
+    },
+    {
+      "unit": "F04",
+      "step": 36,
+      "language": "en",
+      "printed": "$2.0$",
+      "number": "2.0"
+    },
+    {
+      "unit": "F04",
+      "step": 36,
+      "language": "pl",
+      "printed": "$2,0$",
+      "number": "2.0"
+    },
+    {
+      "unit": "F05",
+      "step": 2,
+      "language": "en",
+      "printed": "$9$",
+      "number": "9"
+    },
+    {
+      "unit": "F05",
+      "step": 2,
+      "language": "pl",
+      "printed": "$9$",
+      "number": "9"
+    },
+    {
+      "unit": "F05",
+      "step": 25,
+      "language": "en",
+      "printed": "$5$",
+      "number": "5"
+    },
+    {
+      "unit": "F05",
+      "step": 25,
+      "language": "pl",
+      "printed": "$5$",
+      "number": "5"
+    },
+    {
+      "unit": "F05",
+      "step": 32,
+      "language": "en",
+      "printed": "$3$",
+      "number": "3"
+    },
+    {
+      "unit": "F05",
+      "step": 32,
+      "language": "pl",
+      "printed": "$3$",
+      "number": "3"
+    },
+    {
+      "unit": "F06",
+      "step": 2,
+      "language": "en",
+      "printed": "$x = 2$",
+      "number": "2"
+    },
+    {
+      "unit": "F06",
+      "step": 2,
+      "language": "pl",
+      "printed": "$x = 2$",
+      "number": "2"
+    },
+    {
+      "unit": "F06",
+      "step": 3,
+      "language": "en",
+      "printed": "$x = 3$",
+      "number": "3"
+    },
+    {
+      "unit": "F06",
+      "step": 3,
+      "language": "pl",
+      "printed": "$x = 3$",
+      "number": "3"
+    },
+    {
+      "unit": "F06",
+      "step": 4,
+      "language": "en",
+      "printed": "$x = 12$",
+      "number": "12"
+    },
+    {
+      "unit": "F06",
+      "step": 4,
+      "language": "pl",
+      "printed": "$x = 12$",
+      "number": "12"
+    },
+    {
+      "unit": "F06",
+      "step": 11,
+      "language": "en",
+      "printed": "$x = 2.1931$",
+      "number": "2.1931"
+    },
+    {
+      "unit": "F06",
+      "step": 11,
+      "language": "pl",
+      "printed": "$x = 2,1931$",
+      "number": "2.1931"
+    },
+    {
+      "unit": "F06",
+      "step": 12,
+      "language": "en",
+      "printed": "$x = 3.7976$",
+      "number": "3.7976"
+    },
+    {
+      "unit": "F06",
+      "step": 12,
+      "language": "pl",
+      "printed": "$x = 3,7976$",
+      "number": "3.7976"
+    },
+    {
+      "unit": "F06",
+      "step": 16,
+      "language": "en",
+      "printed": "$m = 2$",
+      "number": "2"
+    },
+    {
+      "unit": "F06",
+      "step": 16,
+      "language": "pl",
+      "printed": "$m = 2$",
+      "number": "2"
+    },
+    {
+      "unit": "F07",
+      "step": 2,
+      "language": "en",
+      "printed": "$2.613035$",
+      "number": "2.613035"
+    },
+    {
+      "unit": "F07",
+      "step": 2,
+      "language": "pl",
+      "printed": "$2,613035$",
+      "number": "2.613035"
+    },
+    {
+      "unit": "F07",
+      "step": 11,
+      "language": "en",
+      "printed": "$0.0067$",
+      "number": "0.0067"
+    },
+    {
+      "unit": "F07",
+      "step": 11,
+      "language": "pl",
+      "printed": "$0,0067$",
+      "number": "0.0067"
+    },
+    {
+      "unit": "F08",
+      "step": 5,
+      "language": "en",
+      "printed": "$0.8940$",
+      "number": "0.8940"
+    },
+    {
+      "unit": "F08",
+      "step": 5,
+      "language": "pl",
+      "printed": "$0,8940$",
+      "number": "0.8940"
+    },
+    {
+      "unit": "F08",
+      "step": 17,
+      "language": "en",
+      "printed": "$1$",
+      "number": "1"
+    },
+    {
+      "unit": "F08",
+      "step": 17,
+      "language": "pl",
+      "printed": "$1$",
+      "number": "1"
+    },
+    {
+      "unit": "F08",
+      "step": 18,
+      "language": "en",
+      "printed": "$0$",
+      "number": "0"
+    },
+    {
+      "unit": "F08",
+      "step": 18,
+      "language": "pl",
+      "printed": "$0$",
+      "number": "0"
+    },
+    {
+      "unit": "F09",
+      "step": 8,
+      "language": "en",
+      "printed": "$5$",
+      "number": "5"
+    },
+    {
+      "unit": "F09",
+      "step": 8,
+      "language": "pl",
+      "printed": "$5$",
+      "number": "5"
+    },
+    {
+      "unit": "F09",
+      "step": 9,
+      "language": "en",
+      "printed": "$7$",
+      "number": "7"
+    },
+    {
+      "unit": "F09",
+      "step": 9,
+      "language": "pl",
+      "printed": "$7$",
+      "number": "7"
+    },
+    {
+      "unit": "F09",
+      "step": 11,
+      "language": "en",
+      "printed": "$27.71$",
+      "number": "27.71"
+    },
+    {
+      "unit": "F09",
+      "step": 11,
+      "language": "pl",
+      "printed": "$27,71$",
+      "number": "27.71"
+    },
+    {
+      "unit": "F09",
+      "step": 15,
+      "language": "en",
+      "printed": "$11$",
+      "number": "11"
+    },
+    {
+      "unit": "F09",
+      "step": 15,
+      "language": "pl",
+      "printed": "$11$",
+      "number": "11"
+    },
+    {
+      "unit": "F09",
+      "step": 20,
+      "language": "en",
+      "printed": "$7$",
+      "number": "7"
+    },
+    {
+      "unit": "F09",
+      "step": 20,
+      "language": "pl",
+      "printed": "$7$",
+      "number": "7"
+    },
+    {
+      "unit": "F10",
+      "step": 11,
+      "language": "en",
+      "printed": "$800$",
+      "number": "800"
+    },
+    {
+      "unit": "F10",
+      "step": 11,
+      "language": "pl",
+      "printed": "$800$",
+      "number": "800"
+    },
+    {
+      "unit": "F10",
+      "step": 24,
+      "language": "en",
+      "printed": "$60$",
+      "number": "60"
+    },
+    {
+      "unit": "F10",
+      "step": 24,
+      "language": "pl",
+      "printed": "$60$",
+      "number": "60"
+    },
+    {
+      "unit": "F10",
+      "step": 25,
+      "language": "en",
+      "printed": "$55$",
+      "number": "55"
+    },
+    {
+      "unit": "F10",
+      "step": 25,
+      "language": "pl",
+      "printed": "$55$",
+      "number": "55"
+    },
+    {
+      "unit": "F10",
+      "step": 26,
+      "language": "en",
+      "printed": "$8$",
+      "number": "8"
+    },
+    {
+      "unit": "F10",
+      "step": 26,
+      "language": "pl",
+      "printed": "$8$",
+      "number": "8"
+    },
+    {
+      "unit": "F10",
+      "step": 27,
+      "language": "en",
+      "printed": "$1\\,048\\,576$",
+      "number": "1048576"
+    },
+    {
+      "unit": "F10",
+      "step": 27,
+      "language": "pl",
+      "printed": "$1\\,048\\,576$",
+      "number": "1048576"
+    },
+    {
+      "unit": "F10",
+      "step": 28,
+      "language": "en",
+      "printed": "$2\\,097\\,152$",
+      "number": "2097152"
+    },
+    {
+      "unit": "F10",
+      "step": 28,
+      "language": "pl",
+      "printed": "$2\\,097\\,152$",
+      "number": "2097152"
+    },
+    {
+      "unit": "F10",
+      "step": 30,
+      "language": "en",
+      "printed": "$499\\,500$",
+      "number": "499500"
+    },
+    {
+      "unit": "F10",
+      "step": 30,
+      "language": "pl",
+      "printed": "$499\\,500$",
+      "number": "499500"
+    },
+    {
+      "unit": "F10",
+      "step": 32,
+      "language": "en",
+      "printed": "$1\\,999\\,000$",
+      "number": "1999000"
+    },
+    {
+      "unit": "F10",
+      "step": 32,
+      "language": "pl",
+      "printed": "$1\\,999\\,000$",
+      "number": "1999000"
+    },
+    {
+      "unit": "F11",
+      "step": 3,
+      "language": "en",
+      "printed": "$8$",
+      "number": "8"
+    },
+    {
+      "unit": "F11",
+      "step": 3,
+      "language": "pl",
+      "printed": "$8$",
+      "number": "8"
+    },
+    {
+      "unit": "F11",
+      "step": 8,
+      "language": "en",
+      "printed": "$7.000$",
+      "number": "7.000"
+    },
+    {
+      "unit": "F11",
+      "step": 8,
+      "language": "pl",
+      "printed": "$7,000$",
+      "number": "7.000"
+    },
+    {
+      "unit": "F11",
+      "step": 10,
+      "language": "en",
+      "printed": "$6$",
+      "number": "6"
+    },
+    {
+      "unit": "F11",
+      "step": 10,
+      "language": "pl",
+      "printed": "$6$",
+      "number": "6"
+    },
+    {
+      "unit": "F11",
+      "step": 14,
+      "language": "en",
+      "printed": "$0$",
+      "number": "0"
+    },
+    {
+      "unit": "F11",
+      "step": 14,
+      "language": "pl",
+      "printed": "$0$",
+      "number": "0"
+    },
+    {
+      "unit": "F11",
+      "step": 30,
+      "language": "en",
+      "printed": "$8.6$",
+      "number": "8.6"
+    },
+    {
+      "unit": "F11",
+      "step": 30,
+      "language": "pl",
+      "printed": "$8,6$",
+      "number": "8.6"
+    },
+    {
+      "unit": "F12",
+      "step": 27,
+      "language": "en",
+      "printed": "$8.3\\times 10^{-25}$",
+      "number": "8.3e-25"
+    },
+    {
+      "unit": "F12",
+      "step": 27,
+      "language": "pl",
+      "printed": "$8,3\\times 10^{-25}$",
+      "number": "8.3e-25"
+    },
+    {
+      "unit": "F13",
+      "step": 3,
+      "language": "en",
+      "printed": "$0.385000$",
+      "number": "0.385000"
+    },
+    {
+      "unit": "F13",
+      "step": 3,
+      "language": "pl",
+      "printed": "$0,385000$",
+      "number": "0.385000"
+    },
+    {
+      "unit": "F13",
+      "step": 8,
+      "language": "en",
+      "printed": "$6$",
+      "number": "6"
+    },
+    {
+      "unit": "F13",
+      "step": 8,
+      "language": "pl",
+      "printed": "$6$",
+      "number": "6"
+    },
+    {
+      "unit": "F13",
+      "step": 20,
+      "language": "en",
+      "printed": "$0.5000$",
+      "number": "0.5000"
+    },
+    {
+      "unit": "F13",
+      "step": 20,
+      "language": "pl",
+      "printed": "$0,5000$",
+      "number": "0.5000"
+    },
+    {
+      "unit": "F13",
+      "step": 21,
+      "language": "en",
+      "printed": "$0.6667$",
+      "number": "0.6667"
+    },
+    {
+      "unit": "F13",
+      "step": 21,
+      "language": "pl",
+      "printed": "$0,6667$",
+      "number": "0.6667"
+    },
+    {
+      "unit": "P01",
+      "step": 11,
+      "language": "en",
+      "printed": "$0.30000000000000004$",
+      "number": "0.30000000000000004"
+    },
+    {
+      "unit": "P01",
+      "step": 11,
+      "language": "pl",
+      "printed": "$0,30000000000000004$",
+      "number": "0.30000000000000004"
+    },
+    {
+      "unit": "P02",
+      "step": 2,
+      "language": "en",
+      "printed": "$2.0$",
+      "number": "2.0"
+    },
+    {
+      "unit": "P02",
+      "step": 2,
+      "language": "pl",
+      "printed": "$2,0$",
+      "number": "2.0"
+    },
+    {
+      "unit": "P02",
+      "step": 3,
+      "language": "en",
+      "printed": "$-64.0$",
+      "number": "-64.0"
+    },
+    {
+      "unit": "P02",
+      "step": 3,
+      "language": "pl",
+      "printed": "$-64,0$",
+      "number": "-64.0"
+    },
+    {
+      "unit": "P12",
+      "step": 3,
+      "language": "en",
+      "printed": "$1000$",
+      "number": "1000"
+    },
+    {
+      "unit": "P12",
+      "step": 3,
+      "language": "pl",
+      "printed": "$1000$",
+      "number": "1000"
+    },
+    {
+      "unit": "P12",
+      "step": 4,
+      "language": "en",
+      "printed": "$720$",
+      "number": "720"
+    },
+    {
+      "unit": "P12",
+      "step": 4,
+      "language": "pl",
+      "printed": "$720$",
+      "number": "720"
+    },
+    {
+      "unit": "P12",
+      "step": 10,
+      "language": "en",
+      "printed": "$3\\,628\\,800$",
+      "number": "3628800"
+    },
+    {
+      "unit": "P12",
+      "step": 10,
+      "language": "pl",
+      "printed": "$3\\,628\\,800$",
+      "number": "3628800"
+    },
+    {
+      "unit": "P12",
+      "step": 16,
+      "language": "en",
+      "printed": "$1351$",
+      "number": "1351"
+    },
+    {
+      "unit": "P12",
+      "step": 16,
+      "language": "pl",
+      "printed": "$1351$",
+      "number": "1351"
+    },
+    {
+      "unit": "P12",
+      "step": 20,
+      "language": "en",
+      "printed": "$1\\,048\\,576$",
+      "number": "1048576"
+    },
+    {
+      "unit": "P12",
+      "step": 20,
+      "language": "pl",
+      "printed": "$1\\,048\\,576$",
+      "number": "1048576"
+    },
+    {
+      "unit": "P12",
+      "step": 22,
+      "language": "en",
+      "printed": "$2500$",
+      "number": "2500"
+    },
+    {
+      "unit": "P12",
+      "step": 22,
+      "language": "pl",
+      "printed": "$2500$",
+      "number": "2500"
+    },
+    {
+      "unit": "P12",
+      "step": 37,
+      "language": "en",
+      "printed": "$1.27\\times 10^{90}$",
+      "number": "1.27e90"
+    },
+    {
+      "unit": "P12",
+      "step": 37,
+      "language": "pl",
+      "printed": "$1,27\\times 10^{90}$",
+      "number": "1.27e90"
+    },
+    {
+      "unit": "P12",
+      "step": 38,
+      "language": "en",
+      "printed": "$2.56\\times 10^{6}$",
+      "number": "2.56e6"
+    },
+    {
+      "unit": "P12",
+      "step": 38,
+      "language": "pl",
+      "printed": "$2,56\\times 10^{6}$",
+      "number": "2.56e6"
+    },
+    {
+      "unit": "P12",
+      "step": 40,
+      "language": "en",
+      "printed": "$2.43\\times 10^{18}$",
+      "number": "2.43e18"
+    },
+    {
+      "unit": "P12",
+      "step": 40,
+      "language": "pl",
+      "printed": "$2,43\\times 10^{18}$",
+      "number": "2.43e18"
+    },
+    {
+      "unit": "P12",
+      "step": 42,
+      "language": "en",
+      "printed": "$1.10\\times 10^{12}$",
+      "number": "1.10e12"
+    },
+    {
+      "unit": "P12",
+      "step": 42,
+      "language": "pl",
+      "printed": "$1,10\\times 10^{12}$",
+      "number": "1.10e12"
+    },
+    {
+      "unit": "P13",
+      "step": 7,
+      "language": "en",
+      "printed": "$499\\,500$",
+      "number": "499500"
+    },
+    {
+      "unit": "P13",
+      "step": 7,
+      "language": "pl",
+      "printed": "$499\\,500$",
+      "number": "499500"
+    },
+    {
+      "unit": "P13",
+      "step": 10,
+      "language": "en",
+      "printed": "$1.00\\times 10^{12}$",
+      "number": "1.00e12"
+    },
+    {
+      "unit": "P13",
+      "step": 10,
+      "language": "pl",
+      "printed": "$1,00\\times 10^{12}$",
+      "number": "1.00e12"
+    },
+    {
+      "unit": "P13",
+      "step": 17,
+      "language": "en",
+      "printed": "$2$",
+      "number": "2"
+    },
+    {
+      "unit": "P13",
+      "step": 17,
+      "language": "pl",
+      "printed": "$2$",
+      "number": "2"
+    },
+    {
+      "unit": "P13",
+      "step": 23,
+      "language": "en",
+      "printed": "$4$",
+      "number": "4"
+    },
+    {
+      "unit": "P13",
+      "step": 23,
+      "language": "pl",
+      "printed": "$4$",
+      "number": "4"
+    },
+    {
+      "unit": "P15",
+      "step": 9,
+      "language": "en",
+      "printed": "$21.1896$",
+      "number": "21.1896"
+    },
+    {
+      "unit": "P15",
+      "step": 9,
+      "language": "pl",
+      "printed": "$21,1896$",
+      "number": "21.1896"
+    },
+    {
+      "unit": "P17",
+      "step": 25,
+      "language": "en",
+      "printed": "$1$",
+      "number": "1"
+    },
+    {
+      "unit": "P17",
+      "step": 25,
+      "language": "pl",
+      "printed": "$1$",
+      "number": "1"
+    },
+    {
+      "unit": "P17",
+      "step": 33,
+      "language": "en",
+      "printed": "$100$",
+      "number": "100"
+    },
+    {
+      "unit": "P17",
+      "step": 33,
+      "language": "pl",
+      "printed": "$100$",
+      "number": "100"
+    },
+    {
+      "unit": "P21",
+      "step": 4,
+      "language": "en",
+      "printed": "$2.0$",
+      "number": "2.0"
+    },
+    {
+      "unit": "P21",
+      "step": 4,
+      "language": "pl",
+      "printed": "$2,0$",
+      "number": "2.0"
+    },
+    {
+      "unit": "P21",
+      "step": 11,
+      "language": "en",
+      "printed": "$3.9$",
+      "number": "3.9"
+    },
+    {
+      "unit": "P21",
+      "step": 11,
+      "language": "pl",
+      "printed": "$3,9$",
+      "number": "3.9"
+    },
+    {
+      "unit": "P21",
+      "step": 27,
+      "language": "en",
+      "printed": "$2.3709$",
+      "number": "2.3709"
+    },
+    {
+      "unit": "P21",
+      "step": 27,
+      "language": "pl",
+      "printed": "$2,3709$",
+      "number": "2.3709"
+    },
+    {
+      "unit": "P23",
+      "step": 34,
+      "language": "en",
+      "printed": "$0$",
+      "number": "0"
+    },
+    {
+      "unit": "P23",
+      "step": 34,
+      "language": "pl",
+      "printed": "$0$",
+      "number": "0"
+    },
+    {
+      "unit": "P24",
+      "step": 7,
+      "language": "en",
+      "printed": "$2.0$",
+      "number": "2.0"
+    },
+    {
+      "unit": "P24",
+      "step": 7,
+      "language": "pl",
+      "printed": "$2,0$",
+      "number": "2.0"
+    },
+    {
+      "unit": "P24",
+      "step": 14,
+      "language": "en",
+      "printed": "$28.2$",
+      "number": "28.2"
+    },
+    {
+      "unit": "P24",
+      "step": 14,
+      "language": "pl",
+      "printed": "$28,2$",
+      "number": "28.2"
+    },
+    {
+      "unit": "P24",
+      "step": 19,
+      "language": "en",
+      "printed": "$22.2$",
+      "number": "22.2"
+    },
+    {
+      "unit": "P24",
+      "step": 19,
+      "language": "pl",
+      "printed": "$22,2$",
+      "number": "22.2"
+    },
+    {
+      "unit": "P24",
+      "step": 29,
+      "language": "en",
+      "printed": "$0.49$",
+      "number": "0.49"
+    },
+    {
+      "unit": "P24",
+      "step": 29,
+      "language": "pl",
+      "printed": "$0,49$",
+      "number": "0.49"
+    },
+    {
+      "unit": "P25",
+      "step": 54,
+      "language": "en",
+      "printed": "$8.88\\times 10^{-16}$",
+      "number": "8.88e-16"
+    },
+    {
+      "unit": "P25",
+      "step": 54,
+      "language": "pl",
+      "printed": "$8,88\\times 10^{-16}$",
+      "number": "8.88e-16"
+    },
+    {
+      "unit": "P25",
+      "step": 56,
+      "language": "en",
+      "printed": "$1.27\\times 10^{30}$",
+      "number": "1.27e30"
+    },
+    {
+      "unit": "P25",
+      "step": 56,
+      "language": "pl",
+      "printed": "$1,27\\times 10^{30}$",
+      "number": "1.27e30"
+    },
+    {
+      "unit": "P26",
+      "step": 21,
+      "language": "en",
+      "printed": "$0.35$",
+      "number": "0.35"
+    },
+    {
+      "unit": "P26",
+      "step": 21,
+      "language": "pl",
+      "printed": "$0,35$",
+      "number": "0.35"
+    },
+    {
+      "unit": "P27",
+      "step": 4,
+      "language": "en",
+      "printed": "$1.0$",
+      "number": "1.0"
+    },
+    {
+      "unit": "P27",
+      "step": 4,
+      "language": "pl",
+      "printed": "$1,0$",
+      "number": "1.0"
+    },
+    {
+      "unit": "P28",
+      "step": 25,
+      "language": "en",
+      "printed": "$10$",
+      "number": "10"
+    },
+    {
+      "unit": "P28",
+      "step": 25,
+      "language": "pl",
+      "printed": "$10$",
+      "number": "10"
+    },
+    {
+      "unit": "P28",
+      "step": 34,
+      "language": "en",
+      "printed": "$854$",
+      "number": "854"
+    },
+    {
+      "unit": "P28",
+      "step": 34,
+      "language": "pl",
+      "printed": "$854$",
+      "number": "854"
+    },
+    {
+      "unit": "P33",
+      "step": 8,
+      "language": "en",
+      "printed": "$0.125$",
+      "number": "0.125"
+    },
+    {
+      "unit": "P33",
+      "step": 8,
+      "language": "pl",
+      "printed": "$0,125$",
+      "number": "0.125"
+    },
+    {
+      "unit": "P33",
+      "step": 41,
+      "language": "en",
+      "printed": "$0.0282$",
+      "number": "0.0282"
+    },
+    {
+      "unit": "P33",
+      "step": 41,
+      "language": "pl",
+      "printed": "$0,0282$",
+      "number": "0.0282"
+    },
+    {
+      "unit": "P33",
+      "step": 45,
+      "language": "en",
+      "printed": "$2.023$",
+      "number": "2.023"
+    },
+    {
+      "unit": "P33",
+      "step": 45,
+      "language": "pl",
+      "printed": "$2,023$",
+      "number": "2.023"
+    }
+  ]
+}

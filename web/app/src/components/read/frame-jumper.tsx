@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import styles from './place-row.module.css';
 
@@ -32,11 +32,10 @@ export interface FrameJumperProps {
  * measured against the first draft, which used `defaultValue={current}` and left frame 4's
  * digit on screen after a keyboard jump to frame 12 landed.
  *
- * `data-frame-jumper="on"` mirrors `frame-keys.tsx`'s own flag, and for the same reason: it
- * is set only once this component has hydrated, so `g` (frame-keys.tsx's own handler) can
- * check the flag exists before trying to focus an input that is not there yet server-side.
- * The input's `id` is the stable hook that focus call uses — a `ref` cannot cross the
- * boundary between two independently-mounted Client Components, and a DOM id can.
+ * `data-frame-jumper` on `<html>` mirrors `frame-keys.tsx`'s own flag, and for the same
+ * reason: the keys hint may name `g` only once this control exists to be focused. The
+ * input's `id` is the stable hook that focus call uses — a `ref` cannot cross the boundary
+ * between two independently-mounted Client Components, and a DOM id can.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export function FrameJumper({ base, current, last, label, language }: FrameJumperProps): React.JSX.Element {
@@ -60,6 +59,20 @@ export function FrameJumper({ base, current, last, label, language }: FrameJumpe
     setValue(String(current));
   }
 
+  /*
+    THE FLAG GOES ON `<html>`, not on the input — see `answer-line.tsx`, which met the same
+    defect. The keys hint is a sibling several elements up the tree and cannot see an
+    attribute on this field, so `g go to a frame number` would never have been offered.
+    The input's `id` stays: that is what `frame-keys.tsx` focuses, and it is a different
+    job from saying the control exists.
+  */
+  useEffect(() => {
+    document.documentElement.dataset.frameJumper = 'on';
+    return () => {
+      delete document.documentElement.dataset.frameJumper;
+    };
+  }, []);
+
   const commit = (): void => {
     const n = Math.trunc(Number(value));
     if (Number.isFinite(n) && n >= 1 && n <= last && n !== current) {
@@ -77,7 +90,6 @@ export function FrameJumper({ base, current, last, label, language }: FrameJumpe
       <input
         aria-label={label}
         className={styles.jumperInput}
-        data-frame-jumper="on"
         id="frame-jumper"
         inputMode="numeric"
         max={last}

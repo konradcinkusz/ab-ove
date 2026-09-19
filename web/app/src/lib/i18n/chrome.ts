@@ -48,6 +48,21 @@ interface Plural {
 interface KeyEntry {
   readonly key: string;
   readonly does: string;
+  /**
+   * The `data-` flag on `<html>` this entry's hint segment is gated on, when it is gated.
+   *
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * A PAGE MUST NOT PROMISE A KEY THAT IS NOT LIVE YET, AND NOT EVERY KEY IS LIVE ON EVERY
+   * FRAME. The arrows come from `frame-keys.tsx`, which is on every frame; `Ctrl+Enter`
+   * comes from the answer line, which is only on the frames that ask for something; and
+   * `g` needs the jumper. Each island sets its own flag when it binds and clears it when
+   * it unbinds, so the one-line hint says exactly what currently works.
+   *
+   * `undefined` means "always", which is nothing today and is the honest default for an
+   * entry in a list the foot's `<details>` also prints in full.
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  readonly needs?: string;
 }
 
 /**
@@ -187,6 +202,38 @@ interface Strings {
    * These sit apart from the block above because they are new rather than because they
    * differ in kind; the separation is only so a reviewer can see what one pass added.
    */
+  /**
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * THE WORKSHEET — the answer line, and what the reveal says about it.
+   *
+   * The book's own instruction is "write your answer down — on paper — and only then
+   * uncover", and the dotted row under a frame's question is where it says to write. These
+   * are the words for doing that on a screen. Every one of them is about the READER'S text
+   * and none is about whether it is right: the machine's only verdict is `matchesBook`, it
+   * is positive-only, and `lib/sheet/number.ts` records why a negative one would be wrong
+   * four times in five.
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  /** The answer line's accessible name — it has no visible label, only the dotted rule. */
+  readonly yourAnswer: string;
+  /** Its placeholder: the book's own instruction, in the edition's words. */
+  readonly writeItDown: string;
+  /** On the reveal, in front of what the reader committed. */
+  readonly youWrote: string;
+  /** The one thing the machine ever says about an answer, and only when it is certain. */
+  readonly matchesBook: string;
+  /** Under a locked line, saying why it cannot be edited. */
+  readonly writtenBefore: string;
+  /** Beside a sheet written against an earlier edition of the book. */
+  readonly earlierEdition: string;
+  /** The foot control, first press. */
+  readonly clearAnswer: string;
+  /** Its second press, which is the one that destroys anything. */
+  readonly clearAnswerConfirm: string;
+  /** The index's control for every worksheet in this browser, first press. */
+  readonly clearWorksheets: string;
+  /** Its second press — this one cannot be undone and says so. */
+  readonly clearWorksheetsConfirm: string;
   /** `← Programs`, the contents page's own way back up — a NEW key rather than reusing
    * `programs`, because that string is also this application's index heading and an arrow
    * belongs on the crumb's link and nowhere near an `<h1>`. */
@@ -314,13 +361,24 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     continueAtFrame: (n) => `Continue at frame ${n}`,
     frame: { one: 'frame', other: 'frames' },
     section: { one: 'section', other: 'sections' },
+    yourAnswer: 'Your answer',
+    writeItDown: 'Write it down before you read on',
+    youWrote: 'You wrote',
+    matchesBook: 'Matches the book',
+    writtenBefore: 'written before the reveal',
+    earlierEdition: 'written against an earlier edition',
+    clearAnswer: 'Clear my answer',
+    clearAnswerConfirm: 'Clear it',
+    clearWorksheets: 'Clear my worksheets',
+    clearWorksheetsConfirm: 'Clear them — this cannot be undone',
     programsCrumb: '← Programs',
     goToFrame: 'Go to frame',
     keysHeading: 'Keys',
     keysMap: [
-      { key: '→', does: 'next frame' },
-      { key: '←', does: 'previous frame' },
-      { key: 'g', does: 'go to a frame number' },
+      { key: '→', does: 'next frame', needs: 'frame-keys' },
+      { key: '←', does: 'previous frame', needs: 'frame-keys' },
+      { key: 'Ctrl+Enter', does: 'commit and reveal', needs: 'answer-line' },
+      { key: 'g', does: 'go to a frame number', needs: 'frame-jumper' },
     ],
     footNav: 'Where to next',
     nextSection: 'Next section →',
@@ -411,13 +469,24 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     continueAtFrame: (n) => `Wróć do ramki ${n}`,
     frame: { one: 'ramka', few: 'ramki', many: 'ramek', other: 'ramki' },
     section: { one: 'sekcja', few: 'sekcje', many: 'sekcji', other: 'sekcji' },
+    yourAnswer: 'Twoja odpowiedź',
+    writeItDown: 'Zapisz, zanim pójdziesz dalej',
+    youWrote: 'Zapisałeś',
+    matchesBook: 'Tak jak w książce',
+    writtenBefore: 'zapisane przed odsłonięciem',
+    earlierEdition: 'zapisane przy wcześniejszym wydaniu',
+    clearAnswer: 'Wyczyść moją odpowiedź',
+    clearAnswerConfirm: 'Wyczyść',
+    clearWorksheets: 'Wyczyść moje notatki',
+    clearWorksheetsConfirm: 'Wyczyść — nie da się cofnąć',
     programsCrumb: '← Programy',
     goToFrame: 'Przejdź do ramki',
     keysHeading: 'Klawisze',
     keysMap: [
-      { key: '→', does: 'kolejna ramka' },
-      { key: '←', does: 'poprzednia ramka' },
-      { key: 'g', does: 'przejdź do numeru ramki' },
+      { key: '→', does: 'kolejna ramka', needs: 'frame-keys' },
+      { key: '←', does: 'poprzednia ramka', needs: 'frame-keys' },
+      { key: 'Ctrl+Enter', does: 'zapisz i odsłoń', needs: 'answer-line' },
+      { key: 'g', does: 'przejdź do numeru ramki', needs: 'frame-jumper' },
     ],
     footNav: 'Dokąd dalej',
     nextSection: 'Następna sekcja →',
@@ -512,6 +581,16 @@ export interface Chrome {
   readonly continueAtFrame: (n: number) => string;
   readonly frames: (n: number) => string;
   readonly sections: (n: number) => string;
+  readonly yourAnswer: string;
+  readonly writeItDown: string;
+  readonly youWrote: string;
+  readonly matchesBook: string;
+  readonly writtenBefore: string;
+  readonly earlierEdition: string;
+  readonly clearAnswer: string;
+  readonly clearAnswerConfirm: string;
+  readonly clearWorksheets: string;
+  readonly clearWorksheetsConfirm: string;
   readonly programsCrumb: string;
   readonly goToFrame: string;
   readonly keysHeading: string;

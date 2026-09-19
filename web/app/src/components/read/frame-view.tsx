@@ -3,13 +3,17 @@ import Link from 'next/link';
 import { say, sectionSpans } from '@/lib/content/bundle';
 import type { Bundle, Step, Unit } from '@/lib/content/schema';
 import { chromeFor } from '@/lib/i18n/chrome';
+import { bookNumberOf } from '@/lib/sheet/number';
 
+import { AnswerLine } from './answer-line.tsx';
+import { ClearAnswer } from './clear-controls.tsx';
 import { FrameKeys } from './frame-keys.tsx';
 import styles from './frame-view.module.css';
 import { KeysDetails } from './keys-details.tsx';
 import { PlaceRow } from './place-row.tsx';
 import { RememberPosition } from './remember-position.tsx';
 import { RichText } from './rich-text.tsx';
+import { YouWrote } from './you-wrote.tsx';
 
 export interface FrameViewProps {
   readonly bundle: Bundle;
@@ -74,6 +78,13 @@ export function FrameView({
   const forward = next ? at(step.n + 1) : undefined;
   const back = step.n > 1 ? at(step.n - 1) : undefined;
   const summaryAt = `${reading(language)}/summary`;
+
+  /*
+    The number this frame's answer IS, for the reveal's own comparison — or `undefined`,
+    which is the ordinary case. Computed on the server because that is where the answer
+    already is; see the attribute below for why it never becomes a prop.
+  */
+  const bookNumber = step.answer ? bookNumberOf(say(step.answer, language), language) : undefined;
 
   const section = unit.sections?.find((candidate) => candidate.id === step.section);
 
@@ -164,11 +175,31 @@ export function FrameView({
         edge to cover — the book's reason for the shape of its own answer box.
       */}
       {step.answer ? (
-        <div className={styles.answer}>
+        /*
+          `data-book-number` IS THE COMPARISON, AND IT IS RENDERED BY THE SERVER.
+
+          It is the whole answer normalised to one printed number, or empty when the answer
+          is not one — which is 92% of them (`lib/sheet/number.ts` has the measurement and
+          the three real answers that a looser rule said "matches" to). `you-wrote.tsx`
+          reads it off this element rather than taking it as a prop, because a prop would
+          serialise it into the HTML of every frame that renders this component and the
+          answer is already on THIS page. The attribute puts it exactly where it already is.
+        */
+        <div className={styles.answer} data-book-number={bookNumber ?? ''}>
           <span className={styles.answerLabel} lang={chrome.language}>
             {chrome.answer}
           </span>
           <RichText language={language} text={say(step.answer, language)} />
+          <YouWrote
+            bookNumber={bookNumber}
+            chromeLanguage={chrome.language}
+            language={language}
+            matches={chrome.matchesBook}
+            n={step.n}
+            track={track}
+            unit={unit.id}
+            youWrote={chrome.youWrote}
+          />
         </div>
       ) : null}
 
@@ -179,12 +210,38 @@ export function FrameView({
       {forward ? (
         <>
           {/*
-            The dotted row is `\dotline`: somewhere to write before turning over. It carries
-            no input, and that is a decision rather than an omission — ADR-0009 puts the
-            instrument on the book and never on the reader, and a text box here would be the
-            first place a per-reader record could come from.
+            ──────────────────────────────────────────────────────────────────────────────
+            THE DOTTED ROW IS SOMEWHERE TO WRITE ON A FRAME THAT ASKS, AND A RULE ON ONE
+            THAT DOES NOT.
+
+            It used to carry no input on either, and three places in this repository called
+            that a decision rather than an omission. `answer-line.tsx` records the reversal
+            and why ADR-0009 is not what it was read as; the short form is that the method
+            this product encapsulates is *commit an answer before you turn over*, and a page
+            that asks for a commitment and gives the reader nowhere to make it is asking
+            them to take its word for the mechanism.
+
+            A teaching frame keeps the plain rule. `step.cue` is the book's own mark for
+            "the next frame opens with the answer", so it is exactly the set of frames that
+            ask for something — no guess, and no field on the eight hundred that do not.
+            ──────────────────────────────────────────────────────────────────────────────
           */}
-          <div className={styles.dots} aria-hidden="true" />
+          {step.cue ? (
+            <AnswerLine
+              earlierEdition={chrome.earlierEdition}
+              forward={forward}
+              label={chrome.yourAnswer}
+              language={chrome.language}
+              lockedNote={chrome.writtenBefore}
+              n={step.n}
+              placeholder={chrome.writeItDown}
+              tag={bundle.tag}
+              track={track}
+              unit={unit.id}
+            />
+          ) : (
+            <div className={styles.dots} aria-hidden="true" />
+          )}
           <Link className={styles.reveal} href={forward} lang={chrome.language} prefetch={false}>
             {step.cue ? chrome.reveal : chrome.next}
           </Link>
@@ -228,7 +285,18 @@ export function FrameView({
         data-testid="frame-keys-hint"
         lang={chrome.language}
       >
-        {chrome.keysMap.map((entry) => `${entry.key} ${entry.does}`).join(' · ')}
+        {/*
+          ONE SPAN PER KEY, each revealed by the flag its own island sets — so a teaching
+          frame, which has no answer line, does not offer `Ctrl+Enter`, and no frame offers
+          anything at all until the handlers have hydrated. The separators are inside the
+          spans because a `·` between two hidden segments is a stray dot.
+        */}
+        {chrome.keysMap.map((entry, index) => (
+          <span className={styles.key} data-needs={entry.needs} key={entry.key}>
+            {index > 0 ? ' · ' : null}
+            {entry.key} {entry.does}
+          </span>
+        ))}
       </p>
 
       <nav aria-label={chrome.footNav} className={styles.foot} lang={chrome.language}>
@@ -242,6 +310,22 @@ export function FrameView({
             <Link className={styles.nextSection} href={at(nextSpan.from)}>
               {chrome.nextSection}
             </Link>
+          ) : null}
+          {/*
+            IN THE FOOT, and not beside the answer line. The plan put it in the sketch row,
+            where it would have sat next to `Clear` for the strokes — two controls with the
+            same word and different consequences, side by side. It renders nothing when
+            there is nothing to clear.
+          */}
+          {step.cue ? (
+            <ClearAnswer
+              confirmLabel={chrome.clearAnswerConfirm}
+              label={chrome.clearAnswer}
+              language={chrome.language}
+              n={step.n}
+              track={track}
+              unit={unit.id}
+            />
           ) : null}
         </div>
 
