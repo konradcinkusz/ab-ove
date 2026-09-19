@@ -1,31 +1,29 @@
-import type { Metadata } from 'next';
-
-import { ProgramList } from '@/components/read/program-list';
-import { allBundles } from '@/lib/content/bundle';
+import { permanentRedirect } from 'next/navigation';
 
 /**
- * The reading index: every program this application serves.
+ * The reading index moved to `/` (ADR-0036), and this is what keeps every link to it
+ * working.
  *
- * A Server Component over content compiled into the app — no fetch, no cookie, no backend —
- * which is the reader-loop-needs-no-account requirement of ADR-0004 applied to the page a
- * reader arrives at first. `/read` is in the middleware's PUBLIC_PATHS rather than covered
- * by the `/read/` prefix, because every entry in the prefix list ends in a slash and an
- * index path therefore needs its own line.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * A 308 RATHER THAN A DELETED ROUTE, AND RATHER THAN A 307.
  *
- * `allBundles()` throws if a pinned bundle does not validate, and this page is prerendered,
- * so THAT THROW FAILS THE BUILD rather than reaching a reader at all. Measured, not
- * reasoned about — the first draft of this comment said "a 500", which is what the two
- * server-rendered routes under this one would do; breaking the fixture deliberately gave
- * `Export encountered an error on /read/page`, exit 1, with the validator's JSON pointer
- * in the output. Either way the failure is loud, which is the point: an index that quietly
- * omitted a program would tell the reader it does not exist (ADR-0014, and bundleFor's own
- * note on why a reader's typo and a deployment defect are not the same failure).
+ * `/read` has been the way into the programs for the whole life of this application. It is
+ * in readers' history and in this repository's own screens — `app/account/page.tsx` sends a
+ * cancelled deletion back to it, `app/account/deleted/page.tsx` offers it as "keep
+ * reading" — and a 404 for any of those would be this change reaching a reader as a fault.
+ *
+ * PERMANENT, because the move is. A 307 tells a browser and a crawler to keep asking, which
+ * is a promise to move it back; a 308 says the index is at `/` now and is the honest
+ * answer. The deep links BELOW this path do not move at all: `/read/<track>/<unit>/<lang>`
+ * and everything under it is untouched, which is why this is one redirect rather than a
+ * rewrite of a URL space.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * `/read` STAYS IN THE MIDDLEWARE'S PUBLIC LIST and must. A redirect is a response, so a
+ * private `/read` would answer an anonymous reader with a 307 to `/login` and never reach
+ * this file — the reader would be asked to sign in on the way to a page that needs no
+ * account, which is the opposite of what the redirect is for.
  */
-export const metadata: Metadata = {
-  title: 'Programs — ab-ovo',
-  description: 'Every program available to work, in each edition it has been written in.',
-};
-
-export default function ProgramsPage(): React.JSX.Element {
-  return <ProgramList bundles={allBundles()} />;
+export default function ReadIndexPage(): never {
+  permanentRedirect('/');
 }

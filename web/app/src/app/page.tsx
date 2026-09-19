@@ -1,135 +1,50 @@
-import Link from 'next/link';
-
-import { IntegrationReport } from '@/components/integration-report';
+import { ProgramGrid } from '@/components/programs/program-grid';
+import { allBundles } from '@/lib/content/bundle';
+import { chosenEdition } from '@/lib/content/chosen-edition';
 
 /**
- * The landing page.
+ * The landing page, which is the index (ADR-0036).
  *
- * A Server Component that renders from content compiled into the app and nothing else: it
- * makes no fetch, reads no cookie and needs no backend. That is not an optimisation, it is
- * the product's first requirement — the reader loop must work with no account and no
- * backend — and a landing page that cannot render without an API would have broken it on
- * the first screen.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * IT STILL MAKES NO FETCH, READS NO COOKIE AND NEEDS NO BACKEND.
  *
- * The one live thing on the page is <IntegrationReport />, a Client Component that asks
- * this app's own origin what the API has. It is below the fold of the argument on purpose:
- * everything above it is true whether or not that panel finds anything.
+ * That was the old landing page's first property and it is this one's, for the same reason:
+ * the reader loop is required to work with no account and no backend (ADR-0004), and a
+ * first screen that could not render without an API would break the requirement before the
+ * reader reached anything. `allBundles()` reads content compiled into the app. What changed
+ * is what the page is made of, not what it depends on.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * IT IS RENDERED PER REQUEST RATHER THAN PRERENDERED, AND THAT COST IS NAMED HERE.
+ *
+ * `searchParams` is a request-time API in Next 16, so reading the chosen edition opts this
+ * page into dynamic rendering. What that gives up is the old `/read`'s incidental guarantee
+ * that a bundle which fails to validate FAILS THE BUILD rather than reaching a reader.
+ *
+ * The guarantee is not lost, it has moved somewhere better: `lib/content/bundle.test.ts`
+ * asserts that the pinned bundle validates and that `allBundles()` returns one per pin, and
+ * `pnpm --dir web test` runs in CI on every pull request. A unit test holds that property
+ * whatever this page's rendering mode is, where the prerender held it only for as long as
+ * nobody added a query parameter — which is exactly what happened.
+ *
+ * `allBundles()` still throws on an invalid bundle, and an index that quietly omitted a
+ * program would tell the reader it does not exist. Loud either way (ADR-0014).
  */
-export default function LandingPage(): React.JSX.Element {
-  return (
-    <main className="shell">
-      <header className="masthead">
-        <p className="wordmark">
-          ab<span>-</span>ovo
-        </p>
-        <h1 className="lede">A book you work, not a book you read.</h1>
-        <p className="standfirst">
-          ab-ovo encapsulates <em>Mathematics from Zero for the AI Engineer</em> — 47 programs
-          of programmed-learning frames, in English and Polish, together with the book&rsquo;s
-          computer exercises. The frames are Stroud&rsquo;s: each one asks for something before
-          it tells you anything, and the next frame opens with the answer you should have
-          written.
-        </p>
-        {/*
-          The entry point. It leads to /read, which needs no account and no backend — so
-          the first thing on the page a reader can act on is also the thing that proves the
-          claim two sections below it (ADR-0004).
-        */}
-        <p className="enter">
-          <Link href="/read">Open the programs</Link>
-        </p>
-      </header>
+export default async function HomePage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<React.JSX.Element> {
+  const bundles = allBundles();
 
-      {/*
-        The anti-goal, first and in the reader's own interest.
+  /*
+    `lang` is read here and validated in one place. Everything that is not an edition the
+    content actually has — absent, repeated, unknown, empty — comes back `undefined`, which
+    is the index that picks neither rather than an error: a typo in a query string is a
+    reader's slip, and ADR-0015's whole point is that the tidy response to it would be a
+    default nobody chose.
+  */
+  const chosen = chosenEdition(bundles, (await searchParams)['lang']);
 
-        Every system that measures learning drifts towards measuring the learner, because
-        that is the easier number to produce and the one that looks like progress. This
-        product's instrument points the other way: a frame that most readers get wrong is
-        evidence about the frame. Saying so on the landing page is the cheapest way to keep
-        it true — a claim made publicly is one a later feature has to argue with.
-      */}
-      <section className="antigoal" aria-label="What this instrument is for">
-        <p>
-          <strong>The instrument measures the book, never the reader.</strong>
-        </p>
-        <p>
-          When a frame is answered wrongly by many readers, that is a finding about the
-          frame — its wording, its position, the frame before it — and it goes into
-          revising the book. ab-ovo does not score you, rank you, or build a profile of
-          what you are bad at. There is no leaderboard and there will not be one.
-        </p>
-      </section>
-
-      <section className="section">
-        <h2>The loop</h2>
-        <ol className="loop">
-          <li>Read a frame. It is short by construction — one idea, sometimes one line.</li>
-          <li>
-            Commit an answer before you turn over. The commitment is the mechanism; a frame
-            you skimmed teaches nothing, and the book is built on that assumption.
-          </li>
-          <li>
-            Reveal the next frame, which opens with the answer. Compare, and carry on or go
-            back one.
-          </li>
-          <li>
-            Where a program has computer exercises, work them in the lab pane. Python runs
-            in your browser under Pyodide — your code does not leave the machine.
-          </li>
-        </ol>
-      </section>
-
-      <section className="section">
-        <h2>What it needs from you</h2>
-        <p>
-          Nothing. The reader loop works with no account and no backend: frames are served
-          with the site and the lab runs client-side. An account buys exactly one thing —
-          progress that follows you between machines — and it is the last phase of the work
-          rather than the gate on the first.
-        </p>
-      </section>
-
-      <section className="section">
-        <h2>Where the work is</h2>
-        <ul className="phases">
-          <li>
-            <dfn>Phase 1</dfn>
-            <span>The lab pane: the book&rsquo;s computer exercises, running in the browser.</span>
-          </li>
-          <li>
-            <dfn>Phase 2</dfn>
-            <span>
-              The content schema and the frame view — 47 programs, two languages, one
-              structure.
-            </span>
-          </li>
-          <li>
-            <dfn>Phase 3</dfn>
-            <span>Progress and accounts, for readers who want their place kept.</span>
-          </li>
-          <li>
-            <dfn>Phase 4</dfn>
-            <span>
-              The instrument: which frames the book is getting wrong, and the evidence for
-              it.
-            </span>
-          </li>
-        </ul>
-      </section>
-
-      <IntegrationReport />
-
-      <footer className="colophon">
-        <p>
-          This page is served entirely from its own origin. No font, stylesheet, script or
-          icon is fetched from anywhere else, and the browser never talks to a backend
-          directly — everything goes through this site.
-        </p>
-        <p>
-          <a href="https://github.com/konradcinkusz/ab-ovo">github.com/konradcinkusz/ab-ovo</a>
-        </p>
-      </footer>
-    </main>
-  );
+  return <ProgramGrid bundles={bundles} chosen={chosen} />;
 }

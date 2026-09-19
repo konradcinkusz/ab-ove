@@ -171,7 +171,7 @@ export default async function AccountPage({
 
       <footer className="colophon">
         <p>
-          <Link href="/read">{strings.cancel}</Link>
+          <Link href="/">{strings.cancel}</Link>
         </p>
       </footer>
     </main>

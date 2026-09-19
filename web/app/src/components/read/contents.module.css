@@ -1,5 +1,11 @@
 /*
- * The two navigation pages: the program list and one program's contents.
+ * One program's contents.
+ *
+ * It served the program list too until ADR-0036 made the index a grid at `/` with its own
+ * stylesheet (`components/programs/program-grid.module.css`). The rules that only the list
+ * used went with it rather than staying here as a set nothing selects — a stylesheet that
+ * still describes a page this app no longer has is documentation that lies, and CSS is the
+ * kind that no compiler reports.
  *
  * Same measure as the frame view, from the same variable. A reader moving between a
  * contents page and a frame should not feel the column move — and the number is declared
@@ -13,13 +19,11 @@
 }
 
 /*
- * The crumb row carries the resume and forget controls at its right-hand end.
+ * The crumb row: the way back up, and nothing that arrives after hydration.
  *
- * Flex with `space-between`, so a control that arrives after hydration extends this line
- * instead of pushing the page down — which is what a block of its own would do, and what
- * specs/reading.spec.ts asserts against. It wraps rather than overflowing at phone width:
- * a second line here costs a shift the first time and nothing after, which is the better
- * trade than a truncated control.
+ * It kept `space-between` and `wrap` from when it also carried the resume, forget and
+ * account controls. Those live in the grid's top row at `/` now (ADR-0036); what the shape
+ * still buys here is a crumb that wraps rather than overflows at phone width.
  */
 .crumb {
   align-items: baseline;
@@ -31,11 +35,6 @@
   justify-content: space-between;
   letter-spacing: 0.02em;
   margin: 0 0 2rem;
-}
-
-.crumbEnd {
-  display: flex;
-  gap: 1rem;
 }
 
 .crumb a {
@@ -54,81 +53,10 @@
   text-transform: uppercase;
 }
 
-/*
- * A TITLE PER EDITION, EACH IN ITS OWN LANGUAGE, AND NEITHER OF THEM A BADGE ON THE OTHER.
- *
- * The book has two editions and no primary one — its own parity tooling gates them frame
- * for frame — so a list that offered the English title and then "also in Polish" would be
- * making an editorial claim this product has no standing to make. Each edition's title is
- * therefore rendered in its own language and is itself the link into that edition.
- *
- * They are stacked, so one of them is above the other, and THAT ORDER IS THE BUNDLE'S:
- * `track.languages` declares it and this component iterates it. Vertical order in a list is
- * unavoidable; inventing it here would not be.
- */
-.track {
-  margin: 0 0 2.25rem;
-}
-
-.trackTitle {
-  font-size: 1.25rem;
-  font-weight: 500;
-  line-height: 1.35;
-  margin: 0;
-}
-
-.trackTitle + .trackTitle {
-  color: var(--ink-soft);
-  margin-top: 0.25rem;
-}
-
 .list {
   list-style: none;
   margin: 0;
   padding: 0;
-}
-
-.entry {
-  border-top: 1px solid var(--rule);
-  display: grid;
-  gap: 0 0.875rem;
-  grid-template-columns: 3rem 1fr;
-  padding: 0.9375rem 0;
-}
-
-.entryId {
-  color: var(--ink-faint);
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  font-variant-numeric: tabular-nums;
-  padding-top: 0.15rem;
-}
-
-.editions {
-  display: grid;
-  gap: 0.1875rem;
-}
-
-.edition {
-  font-size: 1.0625rem;
-  line-height: 1.35;
-  text-decoration: none;
-}
-
-.edition:hover,
-.edition:focus-visible {
-  text-decoration: underline;
-}
-
-.edition + .edition {
-  font-size: 0.9375rem;
-}
-
-.meta {
-  color: var(--ink-faint);
-  font-size: 0.8125rem;
-  grid-column: 2;
-  margin: 0.4375rem 0 0;
 }
 
 /* One program's contents. */

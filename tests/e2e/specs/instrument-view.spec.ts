@@ -88,16 +88,20 @@ test.describe('the gate in front of the author’s view', () => {
 
 test.describe('the reader’s surface offers no way into a ranking', () => {
   /**
-   * The landing page already promises there is no leaderboard and `landing.spec.ts` asserts
-   * the affordances are absent. This is the promise's other half, and it is the one the
-   * author's view could break: the view ranks FRAMES, which is allowed, but a link to it
-   * from the reader's surface would put "ranked worst first" one click from a reader and
-   * make the promise a quibble about whose name is on the rows.
+   * `/about` promises there is no leaderboard and `about.spec.ts` asserts the promise;
+   * `landing.spec.ts` asserts the affordances are absent from the index. This is the
+   * promise's other half, and it is the one the author's view could break: the view ranks
+   * FRAMES, which is allowed, but a link to it from the reader's surface would put "ranked
+   * worst first" one click from a reader and make the promise a quibble about whose name is
+   * on the rows.
+   *
+   * `/read` is not in the list any more and its absence is not a gap: ADR-0036 made it a 308
+   * to `/`, so a row for it would drive the same page twice and report the coverage as two.
    */
   for (const [name, path] of [
     ['landing page', '/'],
+    ['about page', '/about'],
     ['lab index', '/lab'],
-    ['reading index', '/read'],
   ] as const) {
     test(`the ${name} links to no ranking @core`, async ({ page }) => {
       await page.goto(path);
