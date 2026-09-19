@@ -6,6 +6,7 @@
 # frontend tree follows from this file listing every app, so CI never grows a per-app rung.
 packages:
   - 'app'
+  - 'mcp'
 
 # pnpm 10 blocks dependency lifecycle scripts unless they are named here. Keep this list
 # EMPTY until a build actually needs an entry, and add the entry with a reason: an

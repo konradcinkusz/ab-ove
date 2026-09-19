@@ -470,6 +470,7 @@ script duplicated in two languages to serve an interim step is two things to del
 | `tests/AbOvo.Api.Tests` | xUnit v3. In-memory integration over the real pipeline, plus the NetArchTest rules that keep domain out of the kernel. No container required. |
 | `tests/e2e` | The Playwright acceptance suite. Its own pnpm package and its own lockfile. |
 | `web/` | The pnpm workspace. `web/app` is the Next.js frontend and its backend-for-frontend: `/api/config`, `/api/auth/login`, `/api/auth/session`, `/api/proxy/[...path]`. |
+| `web/mcp` | `@ab-ovo/mcp` — an MCP server serving the book one step at a time to a reader working inside an MCP host. Stdio against a checkout; nothing is deployed. |
 | `scripts/` | Onboarding (`setup.sh`, `setup.ps1`), the secret scan (`--complete` covers every commit on the remote), and the pre-commit hook. Each runs alone, from any working directory. |
 | `flyio/` | The deployed topology — four `fly.toml` files, `SECRETS.md`, `INFRASTRUCTURE-ANALYSIS.md`. Nothing here has been applied. |
 | `docs/` | Architecture, ADRs, UX and the overview paper. See below. |
@@ -524,6 +525,7 @@ a document here tells you what to type and not why, it is incomplete.
 | [docs/architecture/00-ARCHITECTURE.md](docs/architecture/00-ARCHITECTURE.md) | This repository measured against the constitution, P1 to P15 — plus the **deviation register**, every row with a date, a reason and an exit condition. |
 | [docs/adr/](docs/adr/) | The decisions, one file each, with the consequences that came with them. |
 | [docs/ux/UI-UX.md](docs/ux/UI-UX.md) | The screens as scaffolded, and the ranked backlog. |
+| [docs/architecture/MCP-SERVER-SKETCH.md](docs/architecture/MCP-SERVER-SKETCH.md) | The MCP server: the gate that makes an unreached answer unselectable, the tool surface, and what a deployed shape still needs. |
 | [docs/diagrams/](docs/diagrams/) | The system, and the reader loop. One Mermaid diagram per file. |
 | [docs/papers/ab-ovo-overview.tex](docs/papers/ab-ovo-overview.tex) | A project overview as a typeset paper. Rendered by a manual workflow; the PDF is never committed. |
 | [AGENTS.md](AGENTS.md) | What an AI agent working in this repository must know before it changes anything. |
