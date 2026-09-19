@@ -32,17 +32,9 @@ import { PINS, bundleFor, say } from '../content/bundle.ts';
 import type { Bundle } from '../content/schema.ts';
 
 import { bookNumberOf } from './number.ts';
+import { skipWithoutBundle } from '../content/have-bundle.ts';
 import fixture from './verdictable.json' with { type: 'json' };
 
-const HAVE_REAL_BUNDLE = (() => {
-  try {
-    return bundleFor(PINS[0]?.track ?? '') !== undefined;
-  } catch {
-    return false;
-  }
-})();
-
-const skip = !HAVE_REAL_BUNDLE && 'no compiled bundle on disk — run scripts/fetch-book-content.sh';
 
 test('the fixture is a hand-reviewed list and not an empty one', () => {
   // The positive control, and it runs with or without a bundle: an empty fixture would
@@ -51,7 +43,7 @@ test('the fixture is a hand-reviewed list and not an empty one', () => {
   assert.ok(fixture.tag.length > 0);
 });
 
-test('every row of the fixture is still what the classifier says it is', { skip }, () => {
+test('every row of the fixture is still what the classifier says it is', { skip: skipWithoutBundle() }, () => {
   for (const row of fixture.rows) {
     assert.equal(
       bookNumberOf(row.printed, row.language),
@@ -61,7 +53,7 @@ test('every row of the fixture is still what the classifier says it is', { skip 
   }
 });
 
-test('and the book has not grown or lost a verdict-able frame since it was reviewed', { skip }, () => {
+test('and the book has not grown or lost a verdict-able frame since it was reviewed', { skip: skipWithoutBundle() }, () => {
   const bundle = bundleFor(PINS[0]!.track) as Bundle;
   assert.equal(
     bundle.tag,

@@ -7,7 +7,8 @@
  * thing on this side of a version bump.
  *
  * Skips rather than fails when no bundle has been fetched yet, on `bundle.test.ts`'s own
- * precedent (`HAVE_REAL_BUNDLE`) — this file has the same reason: a machine that has not
+ * precedent (`skipWithoutBundle`, in `lib/content/have-bundle.ts`) — this file has the same
+ * reason: a machine that has not
  * run `scripts/fetch-book-content.sh` has nothing to render, and that is a setup step
  * missing, not a defect in this code.
  */
@@ -18,14 +19,7 @@ import { PINS, bundleFor, say } from './bundle.ts';
 import { KNOWN_BLOCK_KINDS, KNOWN_INLINE_KINDS, collectTokenKinds, parseBody, parseInline } from './markdown.ts';
 import { liftMaths, renderMathSpan, restoreRaw, splitPlaceholders } from './maths.ts';
 import type { Bundle } from './schema.ts';
-
-const HAVE_REAL_BUNDLE = PINS.length > 0 && (() => {
-  try {
-    return bundleFor(PINS[0]!.track) !== undefined;
-  } catch {
-    return false;
-  }
-})();
+import { skipWithoutBundle } from './have-bundle.ts';
 
 // ── liftMaths / splitPlaceholders / restoreRaw ─────────────────────────────────────────
 
@@ -87,7 +81,7 @@ test('renderMathSpan refuses rather than degrades on a construct it cannot repro
 
 test(
   'every maths span in the pinned bundle renders under KaTeX in both editions',
-  { skip: !HAVE_REAL_BUNDLE && 'no compiled bundle on disk — run scripts/fetch-book-content.sh' },
+  { skip: skipWithoutBundle() },
   () => {
     const bundle = bundleFor(PINS[0]!.track) as Bundle;
     let spanCount = 0;
@@ -127,7 +121,7 @@ test(
 
 test(
   'every body and answer in the pinned bundle parses to a token tree rich-text.tsx recognises',
-  { skip: !HAVE_REAL_BUNDLE && 'no compiled bundle on disk' },
+  { skip: skipWithoutBundle() },
   () => {
     const bundle = bundleFor(PINS[0]!.track) as Bundle;
     const failures: string[] = [];
@@ -165,7 +159,7 @@ test(
 
 test(
   'every title and route label in the pinned bundle is well-formed inline text, in both editions',
-  { skip: !HAVE_REAL_BUNDLE && 'no compiled bundle on disk' },
+  { skip: skipWithoutBundle() },
   () => {
     const bundle = bundleFor(PINS[0]!.track) as Bundle;
     const failures: string[] = [];

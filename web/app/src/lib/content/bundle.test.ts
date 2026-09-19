@@ -17,7 +17,8 @@
  * uses — proving the fixture is still a legitimate bundle without going anywhere near the
  * pin. The tests that exercise the LOADER's own mechanism (`PINS`, `tagFor`, `allBundles`,
  * caching) do go through `bundleFor()`, against whatever is actually pinned, and skip
- * rather than fail when nothing has been fetched yet — see `HAVE_REAL_BUNDLE` below.
+ * rather than fail when nothing has been fetched yet — see `skipWithoutBundle` in
+ * `lib/content/have-bundle.ts`, which also refuses to skip in CI.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 import assert from 'node:assert/strict';
@@ -28,6 +29,7 @@ import fixture from './fixtures/book-p01.bundle.json' with { type: 'json' };
 import { PINS, allBundles, bundleFor, languageIn, say, sectionSpans, stepIn, unitIn } from './bundle.ts';
 import type { Bundle, Unit } from './schema.ts';
 import { validateBundle } from './validate.ts';
+import { skipWithoutBundle } from './have-bundle.ts';
 
 const FIXTURE: Bundle = (() => {
   const result = validateBundle(fixture);
@@ -41,14 +43,6 @@ const FIXTURE_UNIT = unitIn(FIXTURE, 'P01')!;
 // runs before the test step; possibly absent on a machine that has not yet run
 // `bash scripts/fetch-book-content.sh` — see bundle.ts's own candidate-path comment for
 // why that is a deliberate refusal rather than a silent fixture substitution.
-const HAVE_REAL_BUNDLE = PINS.length > 0 && (() => {
-  try {
-    return bundleFor(PINS[0]!.track) !== undefined;
-  } catch {
-    return false;
-  }
-})();
-
 test('the fixture validates, which is what lets every fixture-shape test below index into it', () => {
   assert.equal(FIXTURE.track.id, fixture.track.id);
   assert.ok(FIXTURE_UNIT, 'the fixture has no P01');
@@ -56,7 +50,7 @@ test('the fixture validates, which is what lets every fixture-shape test below i
 
 test(
   'the pinned real bundle loads and is tagged as the lock file derives it',
-  { skip: !HAVE_REAL_BUNDLE && 'no compiled bundle on disk — run scripts/fetch-book-content.sh' },
+  { skip: skipWithoutBundle() },
   () => {
     const bundle = bundleFor(PINS[0]!.track);
     assert.ok(bundle, 'the pinned track did not load');
@@ -78,7 +72,7 @@ test('an unknown track is undefined, not a throw — a typo in a URL is a 404', 
 
 test(
   'the bundle is parsed once and handed back the same object',
-  { skip: !HAVE_REAL_BUNDLE && 'no compiled bundle on disk' },
+  { skip: skipWithoutBundle() },
   () => {
     // Not a performance claim — a correctness one. Two readers on two requests must be given
     // the same content, and a loader that re-read and re-validated per request would be a
@@ -140,7 +134,7 @@ test('the fixture has the question-and-answer pair the whole product rests on', 
 
 test(
   'allBundles() returns one bundle per pin, in the pins’ own order',
-  { skip: !HAVE_REAL_BUNDLE && 'no compiled bundle on disk' },
+  { skip: skipWithoutBundle() },
   () => {
     const bundles = allBundles();
     assert.equal(bundles.length, PINS.length);
