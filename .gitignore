@@ -93,6 +93,14 @@ docs/papers/*.pdf
 ## ── Local tool state ───────────────────────────────────────────────────────────
 .last-image-tag
 
+## A parallel agent run creates one git worktree per agent under this directory, and a
+## worktree is a FULL CHECKOUT of this repository — locked, on its own branch, pointing at
+## the same .git. Without this entry the first `git add -A` during such a run commits a copy
+## of the repository into itself, and `git status` is unreadable for as long as the agents
+## are working. Only the worktrees are ignored: .claude/settings.json is committed, because
+## it is the shared configuration rather than one machine's scratch.
+.claude/worktrees/
+
 ## ── Fetched book content. web/content/book.lock.json and web/content/README.md ARE
 ## committed; the tree they describe is not. ADR-0008 makes the book's lab engine a versioned
 ## artefact fetched at a pinned revision, and scripts/fetch-book-content.sh verifies a
