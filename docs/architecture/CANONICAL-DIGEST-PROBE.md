@@ -234,7 +234,8 @@ x+x                 vs 2x                isSame=false  isEqual=undefined
 
 ### 4d. No pipeline dominates, so there is no single digest to ship
 
-`numeric` and `expand` both score 45 of 54, and they fail on **disjoint** sets:
+`numeric` and `expand` both score 45 of 54, and beyond a shared core their failures are
+**disjoint** — neither is the other with more applied:
 
 ```
 both fail     A2 A4 A5 A9 A15 A16      all six are numeric-answer cases
@@ -441,8 +442,9 @@ printed form. That has three properties this library cannot offer:
 and the comma separator the engine reaches 46 of 54; the residue includes a reader who typed
 `\frac{x}{2}` for `0.5x` being marked wrong, and an integer pair being read as a product and
 marked right. The gap is not a tuning problem: the first spelling of a binomial square
-behaves differently from the second, the two best pipelines fail on disjoint sets, and
-`isEqual` answers `undefined` rather than `false`. An equality test needs an invariant, and
+behaves differently from the second, the two best pipelines fail on different cases rather
+than one being the other with more applied, and `isEqual` answers `undefined` rather than
+`false`. An equality test needs an invariant, and
 what is available is an approximation that is excellent on the cases somebody thought to try.
 
 So the recommendation to #58 is a shape rather than a yes or a no:
