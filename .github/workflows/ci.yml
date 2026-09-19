@@ -421,7 +421,7 @@ jobs:
       E2E_AUTH_BASE_URL: http://127.0.0.1:3200
 
       # No credential in it, for the reason given above the service container.
-      ABOVO_API_CONNECTION: Host=127.0.0.1;Port=5433;Database=apidb;Username=postgres
+      ABOVO_API_CONNECTION: Host=127.0.0.1;Port=5432;Database=apidb;Username=postgres
 
       # Under artifacts/, which .gitignore already reserves for build output, so the API's
       # log and pid cannot show up as untracked files. `runner.temp` would read better and
