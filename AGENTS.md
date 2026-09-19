@@ -124,6 +124,7 @@ Then run what CI runs, in this order. The whole set is fast enough that guessing
 worth it.
 
 ```bash
+bash scripts/fetch-book-content.sh     # FIRST, once per clone: `dotnet test` and `pnpm --dir web build` both fail without it
 dotnet build AbOvo.sln -warnaserror   # warnings are errors, here and in Directory.Build.props
 dotnet test AbOvo.sln                 # unit, in-memory integration, architecture rules
 pnpm --dir web lint
@@ -131,6 +132,12 @@ pnpm --dir web typecheck               # tsc over every workspace member, not ju
 pnpm --dir web build
 bash scripts/scan-secrets.sh --staged  # what the pre-commit hook runs
 ```
+
+`web/content/book/` is derived rather than committed (ADR-0008), and `ci.yml` fetches
+before Restore for this reason. The distinction that catches people: **the Api does not
+need the book, its tests do** — `Instrument/Proportion.cs` holds `public const double Z =
+1.96;` transcribed from the book, so the service runs on a bare clone while the tests that
+check that transcription throw on the missing `p27.tex`.
 
 For the acceptance suite (it drives a production build, not `next dev`):
 
