@@ -1,0 +1,457 @@
+<!doctype html>
+<!--
+  ab-ovo — the one-page site, published to GitHub Pages by .github/workflows/pages.yml.
+
+  WHY THIS IS ONE FILE WITH NOTHING TO FETCH.
+
+  docs/ux/UI-UX.md rule 4: "No external request. No CDN font, stylesheet, script, icon or
+  image. The colophon promises it to the reader's face." This page is the first thing a
+  stranger sees, and it makes that promise in its own footer — so a webfont, an analytics
+  beacon or a hosted icon here would falsify the product's first claim in the first
+  request a reader ever makes of it.
+
+  Holding that as a DISCIPLINE would mean trusting whoever edits this next. Holding it
+  STRUCTURALLY costs nothing: one document, styles in a <style> block, no <script> at all,
+  no src= attribute anywhere, so there is no second file for an external reference to hide
+  in and the whole property is one grep of one file. .github/workflows/pages.yml runs that
+  grep before it publishes, for the same reason the sibling book repository's Pages
+  workflow re-runs its own log gate rather than trusting another workflow's.
+
+  The consequence worth stating: it also means the page is legible with JavaScript
+  disabled, because there is no JavaScript to disable.
+
+  WHAT IT MAY SAY. Every claim below is measured in this repository or trivially checkable
+  from it, and the file that answers for each is NAMED in the prose rather than linked — a
+  path a reader with the repository can open is worth more than a hyperlink that 404s for
+  one without it. Three things are deliberately absent, because the repository cannot
+  support them: that anything is deployed (AGENTS.md §2 — nothing is), that the whole book
+  is in the app (the frame view reads a fixture; the real bundle is blocked upstream), and
+  anything about 80/80 validation, which the book records as NOT ESTABLISHED.
+
+  THE REPOSITORY URL SAYS `ab-ovo`, and the repository is `ab-ove` today. That is
+  ADR-0005's recorded convention for every document and every piece of metadata in this
+  estate, and web/app/src/app/page.tsx's own colophon already links it that way. Diverging
+  here would make two landing pages disagree about the project's address, which is worse
+  than a link that resolves on the same day the rename lands.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ab-ovo — a book you work, not a book you read</title>
+    <meta
+      name="description"
+      content="ab-ovo is a learning platform being built around the book Mathematics from Zero for the AI Engineer. Nothing is deployed yet; this page says what exists."
+    />
+    <style>
+      /*
+        The tokens are web/app/src/app/globals.css's, so the two landing surfaces read as
+        one product. Copied rather than imported, because importing would be a second
+        request from this origin and there is no build step here to inline it — this file
+        is served exactly as it is committed.
+
+        The type stack is the reader's own system fonts, which is what makes "no external
+        request" compatible with a serif reading surface at all.
+      */
+      :root {
+        --ink: #12151b;
+        --ink-soft: #464f5d;
+        --paper: #fbfaf8;
+        --paper-raised: #ffffff;
+        --rule: #e2ddd5;
+        --accent: #1f4f8b;
+        --measure: 34rem;
+
+        --font-text: ui-serif, Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino,
+          'Times New Roman', serif;
+        --font-ui: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, sans-serif;
+        --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+          'Liberation Mono', monospace;
+
+        color-scheme: light dark;
+      }
+
+      /*
+        A full token swap, not an afterthought: somebody reading this at night is the
+        normal case, and the application makes the same choice.
+      */
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ink: #e8e6e1;
+          --ink-soft: #b3b0a9;
+          --paper: #14161a;
+          --paper-raised: #1b1e24;
+          --rule: #2c3038;
+          --accent: #8fb6e8;
+        }
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--font-text);
+        font-size: 1.0625rem;
+        line-height: 1.65;
+        text-rendering: optimizeLegibility;
+      }
+
+      /*
+        --ink-soft, and not the application's --ink-faint, for anything a reader has to
+        read. Measured against #fbfaf8, ink-soft is about 7.9:1 and ink-faint about 4.5:1
+        — the second sits on the boundary of WCAG AA for body text, and a landing page is
+        not the place to sit on a boundary.
+      */
+      .quiet {
+        color: var(--ink-soft);
+      }
+
+      a {
+        color: var(--accent);
+        text-underline-offset: 0.18em;
+      }
+
+      code {
+        font-family: var(--font-mono);
+        font-size: 0.86em;
+        overflow-wrap: anywhere;
+      }
+
+      /*
+        The gutter is a clamp rather than a media query so that 360px — the width the
+        reading routes are held to in tests/e2e/specs/narrow-screen.spec.ts — is the
+        bottom of a continuum rather than a special case somebody has to remember.
+      */
+      .shell {
+        max-width: 48rem;
+        margin: 0 auto;
+        padding: clamp(2rem, 5vw, 4.5rem) clamp(1.15rem, 4vw, 2.5rem) 4rem;
+      }
+
+      .masthead {
+        border-bottom: 1px solid var(--rule);
+        padding-bottom: 1.75rem;
+      }
+
+      .wordmark {
+        font-family: var(--font-mono);
+        font-size: 1.05rem;
+        letter-spacing: 0.04em;
+        margin: 0 0 0.35rem;
+        color: var(--ink-soft);
+      }
+
+      h1 {
+        font-size: clamp(1.45rem, 3.4vw, 2rem);
+        line-height: 1.25;
+        font-weight: 400;
+        letter-spacing: -0.012em;
+        margin: 0.75rem 0 0;
+        max-width: 28ch;
+      }
+
+      .standfirst {
+        max-width: var(--measure);
+        margin: 1.25rem 0 0;
+      }
+
+      section {
+        margin-top: 2.75rem;
+      }
+
+      h2 {
+        font-family: var(--font-ui);
+        font-size: 0.82rem;
+        font-weight: 600;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        margin: 0 0 0.9rem;
+      }
+
+      h3 {
+        font-size: 1.0625rem;
+        font-weight: 600;
+        margin: 1.75rem 0 0.35rem;
+      }
+
+      h3:first-of-type {
+        margin-top: 0;
+      }
+
+      p,
+      li {
+        max-width: var(--measure);
+      }
+
+      p {
+        margin: 0 0 1rem;
+      }
+
+      .loop {
+        padding-left: 1.3rem;
+        margin: 0;
+      }
+
+      .loop li {
+        margin-bottom: 0.7rem;
+      }
+
+      /*
+        The status note is a card rather than a paragraph because it is the one thing on
+        the page a reader must not skim past: everything else describes a system, and this
+        says the system is not running anywhere.
+      */
+      .status {
+        background: var(--paper-raised);
+        border: 1px solid var(--rule);
+        border-left: 3px solid var(--accent);
+        border-radius: 2px;
+        padding: 1.15rem 1.25rem 0.15rem;
+      }
+
+      .figures {
+        border-collapse: collapse;
+        margin: 0.35rem 0 1rem;
+        font-family: var(--font-ui);
+        font-size: 0.94rem;
+      }
+
+      .figures caption {
+        text-align: left;
+        padding-bottom: 0.5rem;
+      }
+
+      .figures th,
+      .figures td {
+        border-bottom: 1px solid var(--rule);
+        padding: 0.4rem 1.25rem 0.4rem 0;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .figures th {
+        font-weight: 600;
+      }
+
+      .figures td:last-child,
+      .figures th:last-child {
+        padding-right: 0;
+      }
+
+      .colophon {
+        margin-top: 3.5rem;
+        border-top: 1px solid var(--rule);
+        padding-top: 1.5rem;
+        font-family: var(--font-ui);
+        font-size: 0.94rem;
+      }
+
+      .colophon p {
+        color: var(--ink-soft);
+      }
+
+      /*
+        The repository URL is the one long run of text on this page that is not inside a
+        <code> and therefore not covered by the rule above. Measured over the rendered
+        text, it is the longest such token — 31 characters — and at 360px there is about
+        320px of column to put it in. That fits, and "it fits" is a fact about one font
+        stack on one machine; this declaration makes it a fact about every font stack.
+      */
+      .colophon a {
+        overflow-wrap: anywhere;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="masthead">
+        <p class="wordmark">ab-ovo</p>
+        <h1>A book you work, not a book you read.</h1>
+        <p class="standfirst">
+          ab-ovo is a learning platform being built around
+          <em>Mathematics from Zero for the AI Engineer</em> — 47 programs of
+          programmed-learning frames, in English and Polish, together with the book’s
+          computer exercises. The frames are Stroud’s: each one asks you for something
+          before it tells you anything, and the next frame opens with the answer you should
+          have written. A PDF cannot enforce that, and paper has no way to notice when a
+          reader skims.
+        </p>
+      </header>
+
+      <main>
+        <section aria-labelledby="status-heading">
+          <h2 id="status-heading">Where this stands</h2>
+          <div class="status">
+            <p>
+              <strong>Nothing is deployed.</strong> There is no running instance of ab-ovo,
+              at any address, for anybody. You cannot read a frame here, and this page is
+              not a way in to one.
+            </p>
+            <p class="quiet">
+              What exists is a repository: a web application that builds, an acceptance
+              suite that drives it in a real browser, and one vertical slice of the reader
+              loop that works. This page describes that, and names where each claim on it
+              can be checked.
+            </p>
+          </div>
+        </section>
+
+        <section aria-labelledby="antigoal-heading">
+          <h2 id="antigoal-heading">The anti-goal, before the features</h2>
+          <p><strong>The instrument measures the book, never the reader.</strong></p>
+          <p>
+            When a frame is answered wrongly by many readers, that is evidence about the
+            frame — its wording, its position, the frame before it — and it goes into
+            revising the book. It is not evidence about the people who answered. There is no
+            leaderboard, no ranking and no per-reader score, and the absence is structural
+            rather than promised: the outcomes table is keyed on a frame, a check, an
+            attempt and a verdict, and carries no identifier and no timestamp, so there is
+            nothing a per-reader view could be built from.
+          </p>
+          <p class="quiet">
+            This is stated here, above everything else, because the pressure to misuse a
+            number arrives from somebody who did not read to the end. A claim made in public
+            is one a later feature has to argue with.
+            <code>docs/adr/0009-the-instrument-measures-the-book.md</code> carries the
+            reasoning.
+          </p>
+        </section>
+
+        <section aria-labelledby="loop-heading">
+          <h2 id="loop-heading">The loop the product is built around</h2>
+          <ol class="loop">
+            <li>Read a frame. It is short by construction — one idea, sometimes one line.</li>
+            <li>
+              Commit an answer before you turn over. The commitment is the mechanism; a
+              frame you skimmed teaches nothing, and the book is built on that assumption.
+            </li>
+            <li>
+              Reveal the next frame, which opens with the answer. Compare, then carry on or
+              go back one.
+            </li>
+            <li>
+              Where a program has computer exercises, work them in the lab pane. Python runs
+              in your own browser, and your code does not leave the machine.
+            </li>
+          </ol>
+        </section>
+
+        <section aria-labelledby="properties-heading">
+          <h2 id="properties-heading">Two properties that are structural</h2>
+
+          <h3>The answer is absent, not hidden</h3>
+          <p>
+            The reveal is a navigation. The answer to the frame you are on is rendered by
+            the request for the <em>next</em> one and by nothing before it, so a reader who
+            opens the inspector finds it nowhere in the document — and prefetching is off,
+            so it is not on the wire either. That is the difference between a mechanism and
+            a discipline somebody has to keep, and an acceptance test asserts exactly it
+            against the DOM, in both languages and on the route where a frame shares a page
+            with the lab. <code>tests/e2e/specs/frame-view.spec.ts</code> and
+            <code>tests/e2e/specs/frame-and-lab.spec.ts</code> are where it is asserted, and
+            both were watched failing before they were believed.
+          </p>
+
+          <h3>The exercises run in your own browser, from this origin</h3>
+          <p>
+            The book’s computer exercises are Python, and their checks run client-side under
+            Pyodide — no account, no backend, and no reader-supplied code executed on any
+            server. A check compares strings rather than floats, because two numbers are the
+            same number only if they print the same way; a failed check names the frames to
+            re-read and never the solution, because the whole mechanism of the book is that
+            you commit an answer before you see one.
+          </p>
+          <p>A Python runtime in a browser is a real download, so it was measured.</p>
+          <table class="figures">
+            <caption class="quiet">
+              One journey through the lab page, first visit and second.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Cost</th>
+                <th scope="col">First visit</th>
+                <th scope="col">Second visit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Bytes over the wire</th>
+                <td>about 6.6 MB</td>
+                <td>about 2 KB</td>
+              </tr>
+              <tr>
+                <th scope="row">Until the Check button enables</th>
+                <td>2.08–2.43 s</td>
+                <td>1.75–2.02 s</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="quiet">
+            <strong>Caching the bytes does not buy back the boot.</strong> A second visit
+            transfers essentially nothing and still spends about two seconds, so the wait is
+            instantiating WebAssembly and starting CPython rather than transferring
+            anything. Those figures are one machine’s — headless Chromium on a four-vCPU
+            container, eight runs, 19 September 2026, driving a server over loopback — so
+            the transfer itself was essentially free there, and a reader adds their own link
+            on top of it. The ranges, the file-by-file breakdown and what was deliberately
+            not measured are in
+            <code>docs/adr/0007-exercise-checks-are-python-in-the-browser.md</code>.
+          </p>
+        </section>
+
+        <section aria-labelledby="content-heading">
+          <h2 id="content-heading">What the frame view is reading today</h2>
+          <p>
+            A <strong>fixture</strong>: four steps, written for this repository and marked
+            as such — the bundle’s own version tag is <code>fixture-0</code>. It is enough
+            to build the schema, the loader and the view against, and it is not the book.
+          </p>
+          <p class="quiet">
+            The book’s 47 programs will arrive as a versioned bundle attached to the book’s
+            own release; no such release exists yet. The schema, the loader and the view did
+            not have to wait for it, and did not.
+          </p>
+        </section>
+
+        <section aria-labelledby="licence-heading">
+          <h2 id="licence-heading">Two licences, and only one of them is here</h2>
+          <p>
+            <strong>This repository is MIT.</strong> The book’s content is
+            <strong>CC BY-NC-SA</strong>, and it is <strong>not committed here</strong>: it
+            is fetched at a pinned revision, file by file, each against its own sha256, and
+            the fetch fails loudly on a mismatch so that a silently edited file cannot pass
+            for a fetched one. <code>web/content/book.lock.json</code> is the pin, and it
+            names the revision, the licence and every digest.
+          </p>
+        </section>
+      </main>
+
+      <footer class="colophon">
+        <p>
+          This page fetched nothing. No font, stylesheet, script, icon or image comes from
+          anywhere but this address; the whole document is one file, and there is no
+          JavaScript on it to disable. That is the product’s own rule, kept here because a
+          page advertising it while loading a font from a third party would have falsified
+          it in the first request you made.
+        </p>
+        <p>
+          <a href="https://github.com/konradcinkusz/ab-ovo"
+            >github.com/konradcinkusz/ab-ovo</a
+          >
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

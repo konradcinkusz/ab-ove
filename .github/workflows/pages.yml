@@ -1,0 +1,310 @@
+# pages.yml — publishes site/index.html to GitHub Pages.
+#
+# WHAT IS PUBLISHED. One file. `site/` holds the whole of it: a self-contained document
+# with its styles in a <style> block, no JavaScript and nothing to fetch. It is served
+# exactly as it is committed, so there is no build step here and no output directory —
+# `upload-pages-artifact` takes `site/` and that is the site.
+#
+# WHY A TOP-LEVEL `site/` AND NOT `docs/`. `docs/` in this repository is prose for
+# contributors — ADRs, the architecture register, the UX plan — and none of it is meant to
+# be served to a stranger. A published artefact inside it would mean the directory had two
+# audiences and no way to tell which file belonged to which. `web/` is the Next.js
+# application and is a pnpm workspace: a loose HTML file there enters the lint, typecheck
+# and build surface of something it has nothing to do with. `site/` claims nothing that is
+# already claimed, and its contents are exactly what gets published.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────
+# THE FAILURE THIS WORKFLOW WILL HIT FIRST, AND WHY IT IS NOT A BUG IN THIS FILE
+# ─────────────────────────────────────────────────────────────────────────────────────
+#
+# The sibling repository `konradcinkusz/math-for-ai-engineers` has a workflow of this
+# shape, and NOT ONE of its runs has ever succeeded. Every one dies at
+# `actions/configure-pages@v5` with *Create Pages site failed: Resource not accessible by
+# integration*, in runs whose every other step is green.
+#
+# The reason is not a missing line in `permissions:` below, and it is not a value of
+# `enablement:`. Creating a repository's FIRST Pages site is an administrative action, and
+# `administration` is not among the scopes a workflow can grant its own `GITHUB_TOKEN` —
+# `contents`, `pages`, `id-token` and the rest are, and that one is not. So no permission
+# added here and no input passed there can reach that call. `enablement: true` helps only
+# AFTER a site exists, by letting a later run find it through "Get Pages site" rather than
+# attempting to create one, which is why it is harmless to leave set and misleading to
+# describe as a substitute for the click.
+#
+#   THE FIX IS A HUMAN, ONCE, OUTSIDE EVERY FILE IN THIS REPOSITORY:
+#   Settings -> Pages -> Build and deployment -> Source -> "GitHub Actions".
+#
+# That click creates the site under the admin's own permissions. Every push afterwards
+# deploys with nothing further needed here. Until it happens, this workflow is red on every
+# push to main, and that is the intended reading rather than noise to suppress: a workflow
+# quietly filtered into silence is how a repository ends up with a page nobody has ever
+# served. The `explain` step below writes the sentence above into the job summary, and only
+# when `configure-pages` is what failed — an unrelated failure must never be reported as a
+# Settings problem.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────
+#
+# WHY THERE IS A GUARD JOB. docs/ux/UI-UX.md rule 4 — no external request, of any kind —
+# is the first thing this page claims to a reader, in its own footer. A page that made that
+# promise while loading a font from a third party would falsify the product in the first
+# request anybody ever made of it. Holding the rule by review means trusting whoever edits
+# the file next; holding it by a check means the property survives them. The guard runs on
+# pull requests that touch the page as well as on pushes, so the rule is checked BEFORE a
+# change to it is merged rather than after it has been served.
+#
+# It is deliberately the same discipline the sibling's Pages workflow applies to its own
+# artefact: Pages must never publish something that did not pass the gate, and it runs that
+# gate itself rather than trusting another workflow's.
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+# Read-only by default; the deploy job widens it for itself and nothing else.
+permissions:
+  contents: read
+
+# One deployment at a time, and never cancelled: a half-replaced site is worse than a
+# queued run. This is GitHub's own recommendation for a Pages deployment and it is the
+# opposite of ci.yml's setting, which cancels superseded pull-request runs because those
+# produce nothing anybody serves.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────────────
+  # The gate. Two seconds, no permissions beyond reading the tree, and it is the only
+  # thing standing between an edit to the page and a reader.
+  # ───────────────────────────────────────────────────────────────────────────────────
+  guard:
+    name: the page fetches nothing
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refuse to publish a page that would make a request
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib
+          import re
+          import sys
+
+          DOC = pathlib.Path("site/index.html")
+          raw = DOC.read_text(encoding="utf-8")
+
+          # HTML comments are stripped FIRST, and that is a decision rather than a
+          # convenience. A comment cannot cause a fetch, and the file's own header comment
+          # discusses <script>, <link> and external requests by name in order to explain
+          # why it has none — so a check that read comments would fail on the paragraph
+          # justifying the property it is checking. Everything below therefore runs against
+          # what a browser would act on.
+          body = re.sub(r"<!--.*?-->", "", raw, flags=re.DOTALL)
+
+          problems: list[str] = []
+
+          def at(index: int) -> int:
+              return body.count("\n", 0, index) + 1
+
+          # 1. Anything that makes a browser go and get something. This is a list of
+          #    CONSTRUCTS rather than of hosts, on purpose: a same-origin <img> would pass
+          #    a check for "https://" and would still be a second request, a second file to
+          #    keep, and a second place an external reference could later be moved into.
+          #    The page's claim is that it fetches NOTHING, which is the stronger property
+          #    and the cheaper one to hold.
+          FETCHING = [
+              (r"<script\b", "a <script> element — this page carries no JavaScript at all"),
+              (r"<link\b", "a <link> element — the styles live in the <style> block"),
+              (r"<img\b", "an <img> element"),
+              (r"<iframe\b", "an <iframe> element"),
+              (r"<video\b", "a <video> element"),
+              (r"<audio\b", "an <audio> element"),
+              (r"<embed\b", "an <embed> element"),
+              (r"<object\b", "an <object> element"),
+              (r"<source\b", "a <source> element"),
+              (r"<track\b", "a <track> element"),
+              (r"\bsrc\s*=", "a src= attribute"),
+              (r"\bsrcset\s*=", "a srcset= attribute"),
+              (r"@import", "a CSS @import"),
+              (r"\burl\s*\(", "a CSS url()"),
+          ]
+          for pattern, what in FETCHING:
+              for hit in re.finditer(pattern, body, re.IGNORECASE):
+                  problems.append(f"line {at(hit.start())}: {what}")
+
+          # 2. Every absolute URL left in the document must be somewhere a reader CLICKS.
+          #    A hyperlink is not a request this page makes; a stylesheet href is. The
+          #    distinction is the whole of rule 4, so it is checked rather than assumed —
+          #    the set of anchor targets is built first and every http(s) occurrence has to
+          #    be in it.
+          anchors = {
+              m.group(1)
+              for m in re.finditer(
+                  r"<a\b[^>]*?href\s*=\s*\"([^\"]*)\"", body, re.IGNORECASE | re.DOTALL
+              )
+          }
+          for hit in re.finditer(r"https?://[^\s\"'<>)]+", body):
+              if hit.group(0) not in anchors:
+                  problems.append(
+                      f"line {at(hit.start())}: {hit.group(0)} is not the target of an "
+                      "<a href>, so it is a request rather than a link"
+                  )
+
+          # 3. One forbidden claim, checkable. The repository records the book's 80/80
+          #    validation as NOT ESTABLISHED, so the page may not mention the standard at
+          #    all. The other two things it may not say — that anything is deployed, and
+          #    that the whole book is in the application — are paraphrasable and therefore
+          #    a reading job; this check makes no claim to cover them, and saying so here
+          #    is cheaper than a green tick somebody reads as covering all three.
+          for hit in re.finditer(r"80\s*/\s*80", body):
+              problems.append(
+                  f"line {at(hit.start())}: the page mentions 80/80 validation, which this "
+                  "repository records as NOT ESTABLISHED"
+              )
+
+          # 4. The shape a reader and a screen reader both depend on. Counted rather than
+          #    eyeballed, because "there is a <main>" is the kind of thing that survives an
+          #    edit by luck.
+          for pattern, want, what in [
+              (r"<h1\b", 1, "exactly one <h1>"),
+              (r"<main\b", 1, "exactly one <main> landmark"),
+              (r"<header\b", 1, "exactly one <header> landmark"),
+              (r"<footer\b", 1, "exactly one <footer> landmark"),
+              (r"<html\b[^>]*\blang\s*=", 1, "a lang on <html>"),
+              (r"<meta\b[^>]*\bcharset\s*=", 1, "a charset declaration"),
+              (r"<meta\b[^>]*name\s*=\s*\"viewport\"", 1, "a viewport meta"),
+          ]:
+              found = len(re.findall(pattern, body, re.IGNORECASE))
+              if found != want:
+                  problems.append(f"expected {what}, found {found}")
+
+          if problems:
+              print("::error::site/index.html would not be served as it claims to be.")
+              for line in problems:
+                  print(f"  {line}")
+              sys.exit(1)
+
+          links = sorted(a for a in anchors if a.startswith("http"))
+          print(f"{DOC}: no script, no external resource, nothing to fetch.")
+          print(f"links a reader may click ({len(links)}):")
+          for link in links:
+              print(f"  {link}")
+          PY
+
+  # ───────────────────────────────────────────────────────────────────────────────────
+  # The deployment. Skipped on pull requests: a fork's pull request must not be able to
+  # replace the published site, and a branch's preview is not something this repository
+  # has asked for.
+  # ───────────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: publish
+    needs: guard
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # FIRST, and that placement is the sibling repository's measured lesson rather than
+      # a style. Its Pages workflow ran this step last for eighty-nine runs: seventeen
+      # minutes of green steps, then one second here to fail, then upload and deploy
+      # skipped. A one-second precondition that decides whether anything can be published
+      # belongs ahead of the work it gates. There is no seventeen-minute build here to
+      # save, and it still belongs first — because then the failure is the first thing in
+      # the log rather than something a reader scrolls past four green steps to find.
+      - name: Configure Pages
+        id: configure_pages
+        uses: actions/configure-pages@v5
+        with:
+          # Harmless once a site exists and incapable of creating one; the header comment
+          # says why at length. Set so that a later run finds the site rather than trying
+          # to create it.
+          enablement: true
+
+      # Fires only when the step above is what failed. An unrelated failure must never be
+      # reported as a Settings problem, and this step's own `id` is what makes that
+      # distinction checkable rather than asserted.
+      - name: Explain a Pages-configuration failure, if that is what happened
+        if: ${{ failure() && steps.configure_pages.conclusion == 'failure' }}
+        run: |
+          {
+            echo "## This failed at Settings, not at the page"
+            echo ""
+            echo "\`actions/configure-pages\` could not create a Pages site for this"
+            echo "repository. That is not a missing line in this workflow's"
+            echo "\`permissions:\` block and it is not a value of \`enablement:\`."
+            echo ""
+            echo "Creating a repository's **first** Pages site is an administrative"
+            echo "action, and \`administration\` is not among the scopes a workflow can"
+            echo "grant its own \`GITHUB_TOKEN\`. No change to this file can reach that"
+            echo "call."
+            echo ""
+            echo "**Fix once, by hand:** a repository admin visits"
+            echo "**Settings → Pages → Build and deployment → Source** and chooses"
+            echo "**GitHub Actions**. That single click creates the site under the"
+            echo "admin's own permissions. Every push after it publishes with nothing"
+            echo "further needed here."
+            echo ""
+            echo "The sibling repository \`konradcinkusz/math-for-ai-engineers\` has never"
+            echo "had that click, and every run of its Pages workflow has failed at this"
+            echo "same step. A green workflow that has never been allowed to create a"
+            echo "site is the shape this estate spends its time removing."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+      # The issue this workflow closes asks for a REAL HTTP request to the published URL,
+      # verified rather than assumed — because "the deploy step went green" and "a reader
+      # can read the page" are two claims and only the second one matters. It retries,
+      # because a deployment that has just been accepted is not always being served a
+      # second later, and it greps for a string from the document so that a 200 from an
+      # error page or from a stale deployment cannot pass for the page.
+      - name: Fetch what was published, and fail if it is not the page
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          echo "published at: $PAGE_URL"
+          for attempt in 1 2 3 4 5; do
+            code="$(curl -sS -o body.html -w '%{http_code}' -L --max-time 30 "$PAGE_URL" || echo 000)"
+            if [ "$code" = "200" ] && grep -q 'A book you work, not a book you read' body.html; then
+              {
+                echo "## Published, and fetched back"
+                echo ""
+                echo "\`$PAGE_URL\` answered **$code** and carries the page."
+                echo ""
+                echo "\`\`\`"
+                echo "bytes: $(wc -c < body.html)"
+                echo "title: $(grep -o '<title>[^<]*</title>' body.html || true)"
+                echo "\`\`\`"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "attempt $attempt: HTTP $code, not yet the page. Waiting."
+            sleep $(( attempt * 5 ))
+          done
+          echo "::error::$PAGE_URL did not answer 200 with the published page. The deployment reported success and a reader cannot read it, which is the difference this step exists to catch."
+          exit 1
