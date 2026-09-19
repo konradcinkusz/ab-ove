@@ -98,11 +98,12 @@ panel, because an operator would believe it); that the panel names the service a
 read the report from; and the three defensive branches — an empty integration list, a payload
 in an unrecognised shape, and the fact that none of these may render as "no API".
 
-**The payload is served by the test, and that is deliberate.** The CI context runs the web app
-with no API behind it, by design — the Phase 1 reader loop has nothing to say to a backend
-yet. A test that needed a live API would be skipped in the only context that runs it, which
-is how a suite ends up asserting nothing. Route-fulfilment tests the half that is this
-frontend's: that every state the API can report arrives on the page as itself.
+**The payload is served by the test, and that is deliberate.** These tests run against the
+web app on `:3000`, which has no API behind it — by design, and still, since the backend the
+e2e job now starts is given to the signed-in deployment alone (ADR-0035). A test that needed
+a live API would be skipped in the only context that runs it, which is how a suite ends up
+asserting nothing. Route-fulfilment tests the half that is this frontend's: that every state
+the API can report arrives on the page as itself.
 
 The live half is not abandoned. The last test in that file reads a **real** deployment and
 asserts at least one integration with a state of `live` or `degraded`. It is declared as a
@@ -414,6 +415,13 @@ Without `E2E_EXPECT_API` that test reports as **skipped with a reason**, never a
 is gated on an explicit operator statement ("I expect an API here") rather than on probing
 whether one answered, because a test that quietly passes when the backend is absent cannot
 tell that from a backend that broke.
+
+**CI does not set it, and that did not change when CI grew a backend** (ADR-0035). That test
+is tagged `@core`, so it runs against the `:3000` deployment, which is the one deliberately
+left with no API; the backend the e2e job starts belongs to `:3100`. Turning the variable on
+in CI would mean giving `:3000` an API too, and that would retire the only un-intercepted run
+this suite has against a genuinely backend-less web app — which is the product's first
+requirement, not a gap. It stays a deployment-only switch.
 
 ### The base URL
 

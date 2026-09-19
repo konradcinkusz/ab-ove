@@ -330,9 +330,36 @@ jobs:
   # §3 fixes the Fly workflow set at three, and the tag pipeline deploys one shared dev
   # estate. What makes a runner-local server the right answer here rather than a
   # concession is a product fact: the Phase 1 reader loop works with NO account and NO
-  # backend, so the smoke layer's subject is the web app alone. Nothing is being faked —
-  # there is nothing for it to talk to yet. The day a protected flow crosses into the
-  # API, this job needs a deployed target and E2E_BASE_URL is where it goes.
+  # backend, so the smoke layer's subject is the web app alone. Nothing is being faked.
+  # If the suite is ever aimed at a deployed target instead, E2E_BASE_URL is where that
+  # address goes and the servers below stop being started (playwright.config.ts).
+  #
+  # THE BACKEND, AND WHICH DEPLOYMENT CAN SEE IT (issue #170, ADR-0035).
+  #
+  # This job now also runs a Postgres service container and a real AbOvo.Api against it,
+  # because the seam between the BFF proxy and the API — read the session cookie, attach
+  # the token as a bearer, walk the ladder, carry the answer back — had nothing to carry
+  # a bearer TO, so it was asserted nowhere.
+  #
+  # It does NOT make the whole job signed-in-with-a-backend. The suite drives two web
+  # deployments (see tests/e2e/playwright.config.ts) and only the SECOND one is given
+  # AB_OVO_API_URL:
+  #
+  #   :3000  the reader loop, with no identity service and no API — unchanged, and the
+  #          one un-intercepted run this repository has against a genuinely backend-less
+  #          deployment, which is the product's first requirement (ADR-0004)
+  #   :3100  the signed-in deployment, pointed at the identity fixture and now at the API
+  #
+  # Which is why the API listens on 8180 and not on its own 8080: 8080 is rung four of
+  # FRONTEND-BFF.md §5's candidate ladder ("localhost"), so an API there would be found
+  # by BOTH deployments and the first one would silently stop being backend-less. On
+  # 8180 the only way to reach it is to be TOLD where it is, which is rung one and the
+  # way every real deployment works.
+  #
+  # E2E_EXPECT_API IS STILL NOT SET HERE, and that is the same decision seen from the
+  # other side. The test it gates is `@core` — it runs against :3000, whose whole job is
+  # to have no API — and its own skip reason asks for "a deployment with AbOvo.Api
+  # reachable behind the BFF proxy", which is issue #270's ground, not this one's.
   # ───────────────────────────────────────────────────────────────────────────────────
   e2e:
     name: e2e (playwright acceptance)
@@ -342,6 +369,36 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     needs: [web]
     timeout-minutes: 40
+
+    # ─────────────────────────────────────────────────────────────────────────────────
+    # P3 — one Postgres, a logical database per service; here there is one service, so
+    # one database. The image tag is pinned for the reason every image in this estate is
+    # (SHARED-SERVICE-REUSE.md §2): `:latest` makes the runner's day the variable.
+    #
+    # NO PASSWORD, AND THEREFORE NO SECRET TO LEAK. `POSTGRES_HOST_AUTH_METHOD: trust`
+    # is the whole of the authentication configuration, so the connection string below
+    # carries no credential at all and AGENTS.md's "no secret is ever a literal" has
+    # nothing to be true of. This is a container bound to one ephemeral runner's
+    # loopback, holding a schema and no rows, destroyed with the machine — the same
+    # reasoning that lets `fixtures/accounts.mts` hold passwords no deployment accepts.
+    # Do not "improve" this by inventing a password: a literal one would be a secret in
+    # a public file, and a generated one cannot be written here because service-container
+    # `env` is evaluated before any step can run.
+    # ─────────────────────────────────────────────────────────────────────────────────
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: apidb
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready --username postgres --dbname apidb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
     env:
       # There is exactly one source of truth for the port, and it is the Aspire
       # orchestration in src/AbOvo.AppHost/AppHost.cs, which maps web to 3000 — the same
@@ -349,6 +406,28 @@ jobs:
       # A compiled-in fallback that has drifted from it is the tell that nobody has run
       # the suite in a while (E2E-ACCEPTANCE-TESTING.md §6).
       E2E_BASE_URL: http://127.0.0.1:3000
+
+      # Deliberately NOT 8080 — see the note above the job. 8080 is the candidate
+      # ladder's localhost rung, and an API there would be reachable from the deployment
+      # whose whole purpose is to have none.
+      E2E_API_BASE_URL: http://127.0.0.1:8180
+
+      # The identity fixture's address, which AbOvo.Api validates tokens against.
+      # tests/e2e/playwright.config.ts derives it as E2E_BASE_URL's port + 200 and
+      # tests/e2e/fixtures/authservice-stub.mts defaults to the same number; the API is
+      # started before Playwright runs, so the job has to name it up front. That is a
+      # second place for one rule, and .github/scripts/wait-for-backend.sh's last check
+      # is what stops the two drifting.
+      E2E_AUTH_BASE_URL: http://127.0.0.1:3200
+
+      # No credential in it, for the reason given above the service container.
+      ABOVO_API_CONNECTION: Host=127.0.0.1;Port=5432;Database=apidb;Username=postgres
+
+      # Under artifacts/, which .gitignore already reserves for build output, so the API's
+      # log and pid cannot show up as untracked files. `runner.temp` would read better and
+      # is not available in a job-level `env:` block — only `github` is.
+      API_LOG: ${{ github.workspace }}/artifacts/abovo-api.log
+      API_PID_FILE: ${{ github.workspace }}/artifacts/abovo-api.pid
     steps:
       - uses: actions/checkout@v4
 
@@ -385,6 +464,70 @@ jobs:
           CONTRACT
             exit 1
           fi
+
+      # ─────────────────────────────────────────────────────────────────────────────────
+      # THE BACKEND (issue #170, ADR-0035). Started here, before the frontend work, and
+      # GATED IMMEDIATELY — a dead container is cheapest to read next to the step that
+      # was supposed to fill it, and there is no point building thirteen megabytes of
+      # Pyodide for a suite whose backend never came up.
+      # ─────────────────────────────────────────────────────────────────────────────────
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          # The SDK version is global.json's to state, never this file's — the same
+          # reasoning as the dotnet job above.
+          global-json-file: global.json
+
+      - name: Publish AbOvo.Api
+        run: dotnet publish src/AbOvo.Api/AbOvo.Api.csproj --configuration Release --output artifacts/api
+
+      - name: Start AbOvo.Api against the job's Postgres
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # THE ISSUER AND THE AUDIENCE ARE READ, NOT RETYPED. ADR-0031 records that this
+          # estate declares them in four places and carries a test asserting the four
+          # agree; that test parses named files, so a fifth copy written here would drift
+          # silently. flyio/api.fly.toml is one of the four, and it is the one that speaks
+          # for AbOvo.Api, so this job takes them from there.
+          read_fly() {
+            sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*\"\([^\"]*\)\".*/\1/p" flyio/api.fly.toml | head -n 1
+          }
+          issuer="$(read_fly Jwt__Issuer)"
+          audience="$(read_fly Jwt__Audience)"
+          if [ -z "$issuer" ] || [ -z "$audience" ]; then
+            echo "::error file=flyio/api.fly.toml::Could not read Jwt__Issuer and Jwt__Audience out of flyio/api.fly.toml. The e2e job takes them from there rather than restating them (ADR-0031), so a renamed key has to fail here instead of quietly leaving AbOvo.Api with no identity configured."
+            exit 1
+          fi
+
+          mkdir -p artifacts
+
+          # `Jwt__Authority` is the SUITE'S FIXTURE, not the Fly address beside those two
+          # in that file: the tokens this job validates are minted by
+          # tests/e2e/fixtures/authservice-stub.mts, which publishes a JWKS and enough
+          # OIDC metadata for a consumer configured with an authority to find it.
+          ASPNETCORE_URLS="$E2E_API_BASE_URL" \
+          ASPNETCORE_ENVIRONMENT=Production \
+          DATABASE_PROVIDER=PostgreSQL \
+          ConnectionStrings__apidb="$ABOVO_API_CONNECTION" \
+          Jwt__Authority="$E2E_AUTH_BASE_URL" \
+          Jwt__Issuer="$issuer" \
+          Jwt__Audience="$audience" \
+          Jwt__RequireHttpsMetadata=false \
+            nohup dotnet artifacts/api/AbOvo.Api.dll > "$API_LOG" 2>&1 &
+
+          echo $! > "$API_PID_FILE"
+          echo "AbOvo.Api started as pid $(cat "$API_PID_FILE"), logging to $API_LOG"
+
+      # THE GATE. It fails; it never skips. Every branch names what did not start, and
+      # each one has been watched firing — see the pull request that added it and the
+      # header of the script itself.
+      - name: Require Postgres and AbOvo.Api
+        shell: bash
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: bash .github/scripts/wait-for-backend.sh
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -484,6 +627,22 @@ jobs:
       # ─────────────────────────────────────────────────────────────────────────────────
       - name: Run the identity layer
         run: pnpm --dir tests/e2e run test:identity
+
+      # The gate above prints the API's log when the API is what failed. This covers the
+      # other order: a suite that failed for a reason the API's log explains — a 401 nobody
+      # expected, a migration that half-ran — where nothing would otherwise show it. It is
+      # a log tail rather than an artifact because the interesting part is always the end
+      # of it, and a file in the run's summary is one more click than anybody makes.
+      - name: The AbOvo.Api log, when something failed
+        if: failure()
+        shell: bash
+        run: |
+          if [ -f "$API_LOG" ]; then
+            echo "----- last 200 lines of $API_LOG -----"
+            tail -n 200 "$API_LOG"
+          else
+            echo "There is no AbOvo.Api log at $API_LOG: the job failed before it was started."
+          fi
 
       # trace: 'on-first-retry' and screenshot/video on failure are the harness defaults
       # TESTING-STRATEGY.md §5 prescribes, and they are worth nothing if the report never
