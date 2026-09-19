@@ -1,21 +1,41 @@
 # ab-ovo — the screens, and what comes next
 
-Two halves. The first is **what is scaffolded today**, which is a landing page and an
-integration panel and nothing else — described honestly, because a UX document that
-describes a plan as though it were a screen is the same defect as a stale README. The second
-is a **ranked backlog**, ordered to match the delivery phases, so that the first delivery
-session picks up a decision rather than re-deriving it.
+Three parts, where there were two. The first is **what exists today**, described honestly,
+because a UX document that describes a plan as though it were a screen is the same defect as
+a stale README — a standard this section failed for several weeks while it claimed three
+routes and the application served seven. The second is **the order**: the execution sequence
+every issue title carries, generated from here so that there is one source for it rather than
+two competing ones. The third is the **ranked backlog** by delivery phase, which says what
+each item is rather than when it happens.
 
 - [What exists today](#what-exists-today)
 - [The design language, as built](#the-design-language-as-built)
 - [Rules every screen inherits](#rules-every-screen-inherits)
+- [The order](#the-order)
 - [The ranked backlog](#the-ranked-backlog)
 
 ---
 
 ## What exists today
 
-Three routes and one component. That is the whole surface.
+Seven route directories under `web/app/src/app/`, and the reader loop runs through two of
+them. This list is the surface; each entry says what it is and what it needs, because *needs
+an account* and *needs a backend* are the two properties that decide whether something is in
+the reader loop at all.
+
+| Route | What it is | Needs |
+| --- | --- | --- |
+| `/` | the landing page, the anti-goal, the loop, the integration panel | nothing |
+| `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a navigation | nothing |
+| `/lab/<id>` | the book's exercises under Pyodide, in this tab | nothing |
+| `/login` | a form that posts credentials to this app's own BFF | an identity service |
+| `/account` | the reader's own progress, export and deletion | an account |
+| `/instrument` | the author's view: frames ranked by how badly the book is doing | an account |
+| `/healthz` | the app's own liveness | nothing |
+| `/api/*` | the BFF: config, auth, session, and the one proxy to any backend | — |
+
+**The first three are the whole product for a reader who never signs in**, and that is a
+requirement rather than an accident.
 
 ### `/` — the landing page
 
@@ -40,15 +60,24 @@ Its sections, in order, and the order is the argument:
 7. **Colophon** — that the page is served entirely from its own origin, and the repository
    link.
 
-### `/login` — a stub that tells the truth
+### `/login` — a form, and no token in the document
 
-`web/app/src/app/login/page.tsx`. There is **no sign-in form**, because accounts are phase 3.
-The page exists because `middleware.ts` redirects here, and a gate whose redirect target 404s
-turns *you are not signed in* into *the site is broken*.
+`web/app/src/app/login/page.tsx`. **This section claimed for several weeks that there was no
+sign-in form, because accounts were phase 3.** Phase 3.2 shipped, and it shipped one step
+stronger than the backlog row planned: the form posts *credentials* to `/api/auth/login`, which
+talks to `authservice` server-side, so the tokens are never in the document at all rather than
+passing through it on the way to a session endpoint (ADR-0018). No JavaScript on the happy
+path.
 
-So it renders what actually happened and what the reader can do instead — the heading is
-*Signing in is not the way in* — and it branches on whether an identity service is configured
-at all, rather than offering a button that cannot work (P8).
+`login/2fa/` is the second step. A password can be answered with a challenge rather than a
+session, and that challenge lives in an **HttpOnly cookie** scoped like a session cookie and
+useless as one — it cannot authenticate a request, it expires in about five minutes, and it is
+cleared on sign-out (ADR-0029). The alternative, a hidden form field, is a credential signed
+with the session key that survives form restore and screenshots.
+
+It still branches on whether an identity service is configured at all, and says so plainly
+rather than offering a button that cannot work (P8) — a deployment with no identity service is
+a supported configuration, not a broken one.
 
 The `?redirect=` parameter is accepted **only** as a same-origin absolute path. A value
 starting `//` or with a scheme is discarded. It arrives on a query string, which means an
@@ -67,6 +96,48 @@ integration, each with a `live`/`degraded` badge and the detail string the API s
 **unreachable** — which is *not an error state*. "No API answered" is a supported
 configuration of this product, so the panel says so plainly and repeats that nothing on the
 page depends on it.
+
+### `/read/<track>/<unit>/<lang>/<step>` — one frame
+
+`web/app/src/app/read/[track]/[unit]/[lang]/[step]/page.tsx`. A Server Component with no client
+boundary, which is what makes the answer **absent rather than hidden**: the reveal is a
+navigation to `n + 1`, so the answer to the frame you are on is rendered by the request for the
+*next* one and by nothing before it. `prefetch={false}` on that one link is part of the same
+property and is the half that is easy to lose.
+
+The URL is the position, so it survives a reload with no session. `/read/` is in the
+middleware's public-prefix list.
+
+The dotted row under the question carries **no input**, and that is a decision rather than an
+omission — see #48, which records what that costs the instrument, and #58, which is where it is
+argued.
+
+### `/lab/<id>` — the exercises
+
+`web/app/src/app/lab/p01/page.tsx` renders `<LabPane>` and nothing else: no cookie, no fetch,
+no backend, which is what lets `/lab` sit in the public-route list. Python is compiled to
+WebAssembly and served from this origin — `pyodide` is a pinned dependency rather than a script
+tag for exactly that reason — and runs in a module worker, so a runaway interpreter can be
+ended from outside.
+
+The stub is fetched from this origin, the checks are read out of the book's own `test_<id>.py`
+at boot rather than copied here, and a failure names the frames to re-read and never the
+solution.
+
+**It does not yet sit beside the frame.** That is requirement 1.5 and it is #53 and #54.
+
+### `/account` — the reader's own record
+
+Progress, export, and deletion that deletes. The deletion screen says what goes, what stays,
+and what no deletion can reach — an anonymous outcome already folded into a rate cannot be
+retracted, because nothing can find the rows that were yours.
+
+### `/instrument` — the author's view
+
+Frames ranked worst first, each carrying its own interval, a frame's place decided by its blend
+rather than by one failing check. *early, not wrong* appears beside the number on every row
+whose interval is not disjoint from the row below it. Session-gated, and there is no per-reader
+view on it — by architectural absence rather than by policy.
 
 ### What is behind them
 
@@ -130,6 +201,76 @@ it. They are listed here rather than left to be rediscovered per screen.
    commitment. A component that shows the next frame's opening, a hint that contains the
    answer, or an exercise check that prints the solution has broken the product, not
    improved it.
+
+---
+
+## The order
+
+**This table is the source of the order numbers carried in issue titles.** GitHub has no native
+ordering and its issue numbers are creation order, so the sequence has to be written down
+somewhere; writing it in two places would be a second copy of something that has a source,
+which is the defect this estate keeps recording. It is written here, once.
+
+**Title format:** `NNN [category] Title`. Numbers step by ten so an item can be inserted
+without renumbering thirty titles. Categories are `feature`, `bug`, `infra`, `decision`,
+`probe`, `docs`, and the state markers `blocked` and `manual` — `manual` meaning a human act
+that no agent can perform, which in this repository is most of the first deploy.
+
+**Relationship to the phases below.** The phases say *what an item is* and group it by
+delivery; the order says *when it happens*. Where an item descends from a phase item, the
+`From` column names it. Items with no `From` are new and did not exist when the phases were
+written.
+
+| # | Cat. | Issue | Title | From |
+| --- | --- | --- | --- | --- |
+| 010 | docs | #47 | UI-UX.md describes three routes where the app has seven | — |
+| 020 | docs | #48 | The first-attempt measure comes only from lab checks | — |
+| 030 | docs | #49 | A navigation-caching service worker belongs on the refused list | — |
+| 040 | bug | #50 | A runaway interpreter cannot be stopped | — |
+| 050 | bug | #51 | The first lab declaring `runtime: numpy` will reach jsDelivr | — |
+| 060 | probe | #52 | Measure what Pyodide costs in a browser | — |
+| 070 | feature | #53 | One route that renders a frame and the lab pane together | 1.5 |
+| 080 | feature | #54 | Narrow screen: the pane below the frame, usable at 360 px | 1.5 |
+| 090 | feature | #55 | Open the lab from a frame that carries a `check` | 2b.2 |
+| 100 | probe | #56 | Does a canonical form give a stable digest | — |
+| 110 | blocked | #57 | How many of the book's answers are checkable at all | — |
+| 120 | decision | #58 | ADR-0032: does a frame accept the reader's answer | — |
+| 130 | feature | #59 | Schema v2: the answer model | — |
+| 140 | feature | #60 | The answer field, and a verdict computed in the browser | — |
+| 150 | feature | #61 | The answer verdict reaches the existing tally | — |
+| 160 | feature | #62 | The counter-metric: revealed without answering | — |
+| 170 | infra | #63 | Postgres and `AbOvo.Api` in the e2e job | — |
+| 180 | testing | #64 | A spec driving the proxy with a real bearer to a real API | — |
+| 190 | manual | #65 | Create the Fly deploy token | — |
+| 200 | manual | #66 | Generate the RSA PKCS#8 keypair | — |
+| 210 | manual | #67 | Generate the three database passwords | — |
+| 220 | infra | #68 | Create `ab-ovo-postgres`, stage secrets before the first deploy | — |
+| 230 | infra | #69 | Deploy authservice and assert the JWKS is not empty | — |
+| 240 | infra | #70 | Deploy `AbOvo.Api` | — |
+| 250 | infra | #71 | Deploy the web app — the first public URL | — |
+| 260 | manual | #72 | Set both GHCR packages to public | 5.4 |
+| 270 | infra | #73 | `E2E_EXPECT_API=1` and the one skipped acceptance test | — |
+| 280 | manual | #74 | Verify LICENSE is present in the first public commit | 5.2 |
+| 290 | feature | #75 | The quick start runs from a genuinely fresh clone | 5.3 |
+| 300 | decision | #76 | The content is CC BY-NC-SA, and that is the tightest constraint | — |
+| 310 | manual | #77 | Set the repository description and topics | 5.5 |
+| 320 | manual | #78 | Rename the repository to `ab-ovo` | 5.6 |
+| 330 | blocked | #79 | The real content bundle: 47 programs | 2b.1 |
+| 340 | blocked | #80 | A second lab | — |
+| 350 | blocked | #81 | A second track | — |
+
+**Three things this ordering asserts**, each of which is a claim and not a preference:
+
+1. **010–030 come first because they are the documents that everything else is read against.**
+   A numbering source that is wrong about what exists generates numbers for the wrong things.
+2. **070–090 are the only large unblocked work.** They need no content bundle, no deployment,
+   no decision and nobody's permission. Everything they compose already exists and is tested.
+3. **100 and 110 precede 120 deliberately.** An ADR written before its measurement is a
+   decision without its evidence, and a refusal at 120 is a valid outcome that closes
+   130–160 with it.
+
+Phase 5.1 — scanning the full git history for secrets — is absent because it is done: 56
+commits, 4.61 MB, zero findings, audit committed under `docs/architecture/`.
 
 ---
 
@@ -236,6 +377,15 @@ frame *is* the teaching.
 
 **A mobile app.** The web app is responsive and the loop is text. A second client is a second
 copy of everything above.
+
+**A service worker that caches or prefetches `/read/` navigations.** Refused, and the reason is
+not performance. The reveal *is* a navigation to step `n + 1`, and `prefetch={false}` on that
+one link exists so the next step's payload — the answer in it — is not on the wire before the
+reader has committed. A runtime or navigation cache can hold that step ahead of time from
+outside React, and because the acceptance test asserts the answer is absent **from the DOM**,
+it would stay green while the property broke. Caching Pyodide is fine and is a different thing;
+if one is ever added, the test that protects the reveal has to assert over the cache rather
+than over the document.
 
 **Gamification** — streaks, badges, points. Every one of them is a reason to move a number
 that is not learning, and the book's own front matter says the method feels worse than
