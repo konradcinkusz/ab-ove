@@ -1,6 +1,6 @@
 import { bundleFor, languageIn, tagFor, unitIn } from '@/lib/content/bundle';
-import type { Bundle, Unit } from '@/lib/content/schema';
-import { LABS, type LabDescriptor } from '@/lib/lab/protocol';
+import type { Bundle, CheckRef, Unit } from '@/lib/content/schema';
+import { LABS, labFor, type LabDescriptor } from '@/lib/lab/protocol';
 
 /**
  * The four segments a composed route shares, resolved once.
@@ -76,4 +76,60 @@ export function resolveComposed(params: ComposedRouteParams): Composed | undefin
  */
 export function composedBase(track: string, unit: string, lab: string) {
   return (edition: string): string => `/read/${track}/${unit}/${edition}/lab/${lab}`;
+}
+
+/** Where the frame asking the question is, so the offer can open the lab beside IT. */
+export interface FramePosition {
+  readonly track: string;
+  readonly unit: string;
+  readonly language: string;
+  readonly step: number;
+}
+
+/**
+ * Where a frame's own `check` opens: this route, this lab, THIS frame.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE COMPOSED ROUTE AND NOT `/lab/<id>`, AND THE FRAME STAYING ON SCREEN IS THE WHOLE OF
+ * THE REASON.
+ *
+ * The fixture's worked case says it out loud — frame 4's body is "Measure it yourself rather
+ * than taking it from this page" — so the frame is the question and the exercise is how it
+ * gets answered. `/lab/p01` renders the pane and nothing else, which would answer a frame by
+ * navigating away from it; this address is the one UI-UX.md 1.5 describes, where the pane
+ * sits beside the frame and never covers it. It also keeps the edition and the position,
+ * because `<lang>` and `<step>` are segments of it: a reader reading in Polish opens the lab
+ * in Polish, at the frame they were on, and can turn frames with the pane still mounted.
+ *
+ * THE EXERCISE IS NOT IN THIS ADDRESS, AND THAT IS A DECISION RATHER THAN AN OMISSION.
+ * Both halves of the offer come out of one `check`, so they cannot disagree about which lab
+ * and which exercise are meant — but nothing on the far end reads an exercise today. The
+ * pane renders the whole of `<stem>.py`, in which an exercise is a region, and a list of
+ * checks read out of the book's own test file at boot. So `?exercise=gap` would be a second
+ * address for a page that renders identically, which is the defect `resolveComposed` above
+ * refuses in the spelling of a path segment — "two spellings of one frame is the same defect
+ * as two copies of one string" — and `#gap` would be a fragment pointing at an element
+ * nobody renders. The exercise is named ON the control instead, where a reader can act on
+ * it, and the segment arrives in the change that reads one.
+ *
+ * ON A PHONE THIS LANDS ABOVE THE PANE RATHER THAN AT IT, and that is known rather than
+ * overlooked. #54 stacked the composition below the columns' dividing width, and
+ * `frame-beside-lab.tsx` records the measurement: about 2,800 px tall at 360x640, with the
+ * editor some 1,390 px down. So a reader who taps this arrives at the frame with the lab
+ * under it.
+ *
+ * No fragment is added for it. The only id on that page is the editor's, which exists to
+ * pair a `<label>` with a `<textarea>` rather than to be navigated to, and aiming at it from
+ * here would make this route a thing that has EDITED `LabPane` instead of one that composes
+ * it — which is the reasoning `frame-beside-lab.tsx` gives for putting its own "back to the
+ * frame" anchor outside the pane rather than inside it. The mirror of that anchor, on the
+ * pane's side, belongs in the file that owns the composition and not in a link built here.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+export function checkOpensAt(check: CheckRef, at: FramePosition): string | undefined {
+  // `labFor` is where the two lists of labs are reconciled and where `undefined` is
+  // justified; this function only turns its answer into an address.
+  const lab = labFor(check.lab);
+  if (!lab) return undefined;
+  return `${composedBase(at.track, at.unit, lab.id)(at.language)}/${at.step}`;
 }

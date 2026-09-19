@@ -189,6 +189,20 @@ interface Strings {
   readonly next: string;
   readonly lastFrame: string;
   readonly previous: string;
+  /**
+   * What a frame that carries a `check` offers, with the exercise NAMED in it.
+   *
+   * The name is the whole of what the sentence is for. A lab's exercise file holds all of
+   * that program's exercises at once — `gap`, `epsilon`, `tenth` and the rest are regions
+   * of one `<stem>.py` — so "open the lab" would land a reader in a file of functions with
+   * nothing to say which one this frame was asking for. The id comes out of the step's own
+   * `check`, beside the lab, so the two cannot name different things.
+   *
+   * A FUNCTION RATHER THAN A STRING WITH A SLOT, because the id does not sit in the same
+   * place in both languages and a template assembled at the call site would put it in the
+   * English one twice.
+   */
+  readonly checkOffer: (exercise: string) => string;
   readonly languageLabel: string;
   readonly programs: string;
   readonly contents: string;
@@ -284,6 +298,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     next: 'Next frame',
     lastFrame: 'That is the last frame of this program.',
     previous: 'Previous',
+    checkOffer: (exercise) => `Work exercise ${exercise} in the lab, beside this frame`,
     languageLabel: 'Language',
     programs: 'Programs',
     contents: 'Contents',
@@ -365,6 +380,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     next: 'Kolejna ramka',
     lastFrame: 'To ostatnia ramka tego programu.',
     previous: 'Poprzednia',
+    checkOffer: (exercise) =>
+      `Zrób ćwiczenie ${exercise} w laboratorium obok tej ramki`,
     languageLabel: 'Język',
     programs: 'Programy',
     contents: 'Spis treści',
@@ -450,6 +467,7 @@ export interface Chrome {
   readonly next: string;
   readonly lastFrame: string;
   readonly previous: string;
+  readonly checkOffer: (exercise: string) => string;
   readonly languageLabel: string;
   readonly programs: string;
   readonly contents: string;

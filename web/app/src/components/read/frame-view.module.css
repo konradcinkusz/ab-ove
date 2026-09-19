@@ -174,3 +174,34 @@
 :global([data-frame-keys='on']) .keys {
   visibility: visible;
 }
+
+/*
+ * The frame's own exercise — issue #55.
+ *
+ * QUIET, AND DELIBERATELY NOT A SECOND `.reveal`. The reveal is the control the frame is
+ * built around and it is the only filled button on the page; a second one beside it would
+ * make a reader choose between two equal-looking things at the moment the frame is asking
+ * them to commit to an answer. This is an aside — a rule and a line of text, in the key the
+ * cue and the keyboard hint already use — which is what the offer is: something available,
+ * not something being asked for.
+ *
+ * It renders as a <p> whether or not it is a link (see frame-view.tsx: on the composed
+ * route, when the lab beside the frame is already the one the check names, there is nothing
+ * to navigate to), so the block must look deliberate with no anchor in it at all.
+ */
+.check {
+  border-top: 1px solid var(--rule);
+  color: var(--ink-faint);
+  font-size: 0.875rem;
+  margin: 2rem 0 0;
+  padding-top: 0.875rem;
+}
+
+.checkLink {
+  color: var(--accent);
+}
+
+.checkLink:hover,
+.checkLink:focus-visible {
+  text-decoration: underline;
+}
