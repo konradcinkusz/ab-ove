@@ -324,6 +324,16 @@ checking.
   candidate ladder, the bearer injection. Those are `tests/AbOvo.Api.Tests`'s job.
   `TESTING-STRATEGY.md §1` names "duplicate backend integration tests through a browser" as a
   non-goal: each such test is minutes added to every PR forever.
+
+  **The COMPOSITION of those pieces is covered, and it is a different claim.** Issue #180:
+  each piece is individually asserted and the hop between them — this app's proxy carrying a
+  real bearer from an HttpOnly cookie to a real `AbOvo.Api` — was asserted nowhere, because
+  `sync.spec.ts` stubs the account at the network and the API's own tests hand
+  `WebApplicationFactory` a principal rather than a cookie. `specs/bearer-hop.spec.ts` drives
+  it, in the `identity` project, against the backend `ci.yml` now starts (ADR-0035). It
+  asserts nothing the API could answer on its own: every assertion is about what a browser
+  holding this app's cookie gets back through this app's proxy. Its §1 needs no API and runs
+  everywhere; §§2–5 need one and say in the skip's own reason what is lost without it.
 - **Cross-browser.** One browser, chromium. See *Deliberate deviations*.
 - **Visual regression.** Pixel-checking is a stated non-goal.
 - **Mutation testing, as a tool.** `E2E-ACCEPTANCE-TESTING.md §2` asks for Stryker to be run
@@ -616,6 +626,24 @@ This stops being true the moment a journey signs in. When Phase 3 lands, that te
 a generated identity (`test.user.{uuid}@example.com`) **and** a teardown that deletes it —
 unless the environment it runs against is mechanically guaranteed to be thrown away, which
 the shared dev estate is not.
+
+**And one file now does create server-side state, so the paragraph above has an exception
+rather than a slow drift into being false.** `specs/bearer-hop.spec.ts` writes progress rows
+to a real `AbOvo.Api`, because a hop that carries nothing proves nothing. Two consequences,
+both taken deliberately:
+
+- **It cleans up after itself.** The service offers exactly one teardown — `DELETE /progress`
+  forgets every row for the caller's own subject — and the file calls it before and after the
+  tests that write, so a crashed earlier run cannot decide what "the furthest frame" is.
+- **It is the one file in `specs/` that is not `fullyParallel`-safe by construction**, and it
+  says so at its own `test.describe.configure({ mode: 'serial' })`. The fixture's accounts
+  exist for claim shapes rather than for scenarios, so these tests share one account, and the
+  only teardown available is "forget everything for this subject". CI already runs one worker;
+  the serial mode is what makes a local run deterministic as well.
+
+Generating an identity per test is the right answer and is not available: the identity
+service here is a fixture with three accounts compiled into it (`fixtures/accounts.mts`), and
+inventing a registration endpoint for it would be a fixture proving something about itself.
 
 ---
 
