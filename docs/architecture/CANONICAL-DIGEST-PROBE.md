@@ -194,8 +194,11 @@ recorded defects in the book's own history.
 ### 4b. `0.1 + 0.2` is exactly `0.3`, which contradicts the program it comes from
 
 Every pipeline that computes reduces `0.1 + 0.2` to `0.3`: the engine does exact decimal
-arithmetic. P01's headline is that those are not one number in binary64, which is why
-`p01.sum.shown` is committed as `0.30000000000000004`.
+arithmetic. P01 commits the printed form of that same sum as
+`p01.sum.shown` = `0.30000000000000004`, with `p01.sum.gap` = `5.6e-17` beside it — so the
+book and the engine disagree about the one arithmetic fact the program exists to establish.
+That is read out of the fetched values file rather than characterised from the program,
+which this repository does not hold.
 
 So a digest built on any computing pipeline marks `0.3` correct for the question whose entire
 point is that it is not. `canonical` is the only stage that keeps them apart, and it is the
@@ -524,7 +527,7 @@ const CASES = [
   ['A6', 'diff', 'p01.fp16.max.exact beside p01.fp16.max, two keys on purpose', '65504', '6.550e+4'],
   ['A7', 'diff', 'p01.f03.prob beside p01.f03.readback: float() of the first gives the second', '2.43e-2085', '0.0'],
   ['A8', 'diff', 'p01.sum.shown against the decimal a reader expects', '0.30000000000000004', '0.3'],
-  ['A9', 'diff', "P01's headline: these are not one number in binary64", '0.1 + 0.2', '0.3'],
+  ['A9', 'diff', 'p01.sum.shown commits the printed form of this sum', '0.1 + 0.2', '0.3'],
   ['A10', 'same', '\\num{} sets a thin space in both editions', '10\\,000', '10000'],
   ['A11', 'same', 'a magnitude, spelled out against a power', '1\\,000\\,000', '10^{6}'],
   ['A12', 'same', 'p01.fp64.floor.exp, with a space after the sign', '-324', '- 324'],
