@@ -12,7 +12,7 @@ import { afterEach, test } from 'node:test';
 import { CONSENT_KEY, CONSENT_VERSION, type Slot as ConsentSlot } from '../consent/store.ts';
 
 import { ATTEMPTS_KEY } from './attempts.ts';
-import { framesOf, reportRun, type RunReport } from './report.ts';
+import { answerCheckName, framesOf, reportRun, type RunReport } from './report.ts';
 
 /** A `localStorage` over a plain object, holding both this product's keys. */
 function storage(initial: Record<string, string> = {}) {
@@ -287,4 +287,103 @@ test('a run with nothing to report makes no request', async () => {
   const { sent } = browser({ [CONSENT_KEY]: CONSENTED });
   await reportRun({ ...RUN, output: 'Traceback (most recent call last):' });
   assert.deepEqual(sent, []);
+});
+
+test('a worksheet check carries its frame, so the teaching score cannot collapse into itself', () => {
+  /*
+    ──────────────────────────────────────────────────────────────────────────────────────
+    THE ARITHMETIC THIS NAME EXISTS TO PREVENT, RUN HERE SO THE REASON OUTLIVES THE COMMENT.
+
+    `RateEndpoints.ScoresOver` decides the downstream measure by asking whether a check is
+    still in use at a LATER frame:
+
+        lastFrameOf = cells.GroupBy(Check).ToDictionary(g => g.Key, g => g.Max(Step))
+        carrying    = frame.Where(c => lastFrameOf[c.Check] > frame.Key)
+        if (carrying.Count == 0) continue;
+
+    That is right for a lab check, whose docstring names several frames. A worksheet answer
+    names one. File every one under a shared `answer` and the name stops identifying
+    anything: frame 3 looks carried by frame 12, `carrying` selects frame 3's own cell, and
+    Teaching = 0.35r + 0.65r = r — the blend is the pressurable measure wearing a blend's
+    clothes, which is the one outcome ADR-0026's weights exist to make impossible.
+
+    This models that selection over three frames of one unit and asserts the property the
+    name buys: nothing carries, so the service computes no score and reports the cells.
+    ──────────────────────────────────────────────────────────────────────────────────────
+  */
+  const steps = [3, 7, 12];
+  const cells = steps.map((step) => ({ step, check: answerCheckName(step) }));
+
+  const lastFrameOf = new Map<string, number>();
+  for (const cell of cells) {
+    lastFrameOf.set(cell.check, Math.max(lastFrameOf.get(cell.check) ?? 0, cell.step));
+  }
+
+  for (const cell of cells) {
+    assert.equal(
+      lastFrameOf.get(cell.check)! > cell.step,
+      false,
+      `frame ${cell.step}'s own answer is being read as carrying it forward`,
+    );
+  }
+
+  // And the shared name is what it would have been, so the test fails if somebody
+  // "simplifies" the name back and this case stops being the one being prevented.
+  const shared = steps.map((step) => ({ step, check: 'answer' }));
+  const sharedLast = Math.max(...shared.map((c) => c.step));
+  assert.equal(
+    shared.filter((c) => sharedLast > c.step).length,
+    2,
+    'the collapse this name prevents no longer happens, so the name may not be needed',
+  );
+});
+
+test('every worksheet outcome is one check, and the service would accept its name', () => {
+  /*
+    ONE NAME FOR ALL THREE OUTCOMES, WHICH IS THE CORRECTION A SECOND NAME NEEDED.
+
+    A draft filed a blank reveal under `revealed-blank-<n>`. Every report under it carried
+    `passed: false`, so its rate was 0% however the book was written — and `Pooled(frame)`
+    pools every attempt-1 cell into the first-attempt measure, so on the eleven frames of
+    P01 where a lab check and a cue frame coincide it would have dragged that measure down
+    because a reader declined to type. `answerCheckName` carries the measurement.
+
+    There is nothing here asserting the absence of a second name, deliberately: a test that
+    says `answerCheckName` has one parameter is the type system's job and it already fails
+    the build. What is asserted is the property the API depends on.
+  */
+  assert.equal(answerCheckName(12), 'answer-12');
+
+  // The service validates a check name against a pattern rather than a list, so a name it
+  // refuses is a tally silently lost to a 400 — which no reader and no author would ever see.
+  const ACCEPTED = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
+  for (const step of [1, 9, 45, 10_000]) {
+    const name = answerCheckName(step);
+    assert.ok(ACCEPTED.test(name), `the API would refuse the check name ${name}`);
+  }
+});
+
+test('a blank on a verdict-able frame fails the same cell a wrong answer fails', () => {
+  /*
+    THE POINT OF THE FOLD, ASSERTED AS ARITHMETIC RATHER THAN AS A COMMENT.
+
+    Of readers who engaged with one frame's worksheet, some match, some miss and some give
+    up. All three land on one cell, so the rate is matched/engaged — a proportion with a real
+    denominator that can come out anywhere between 0 and 1. Under the two-name draft the
+    give-ups sat on a cell of their own that could only ever read 0%.
+  */
+  const outcomes = ['matched', 'missed', 'blank', 'matched', 'blank'] as const;
+  const cells = outcomes.map((outcome) => ({
+    check: answerCheckName(12),
+    passed: outcome === 'matched',
+  }));
+
+  const names = new Set(cells.map((c) => c.check));
+  assert.equal(names.size, 1, 'the outcomes of one frame are being split across cells');
+
+  const passed = cells.filter((c) => c.passed).length;
+  assert.equal(passed, 2);
+  assert.equal(cells.length, 5);
+  // Neither 0 nor 1: the whole property a check that can only fail does not have.
+  assert.ok(passed > 0 && passed < cells.length);
 });

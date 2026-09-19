@@ -194,6 +194,7 @@ export function FrameView({
           <RichText language={language} text={say(step.answer, language)} />
           <YouWrote
             bookNumber={bookNumber}
+            bundleTag={bundle.tag}
             chromeLanguage={chrome.language}
             language={language}
             matches={chrome.matchesBook}

@@ -36,10 +36,43 @@
  * for no reason and teach them the question is noise; not bumping it when a new field
  * starts being recorded would carry an answer to a question nobody was asked.
  *
- * Version 1 is: an outcome against a frame in a bundle version, an attempt and a check run.
- * No reader identifier on any row.
+ * Version 1 was: an outcome against a frame in a bundle version, an attempt and a check
+ * run, where a check run meant a Python exercise in the lab. No reader identifier on any
+ * row.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * VERSION 2 — THE WORKSHEET CONTRIBUTES, AND THAT IS A NEW KIND OF CONTRIBUTION.
+ *
+ * The lab reached one program of forty-seven and has left the reader loop (ADR-0040). What
+ * replaced it is the worksheet, on every frame that asks the reader for something — so the
+ * instrument's source changes from *a Python check in one program* to *the reader's own
+ * answer, anywhere in the book*.
+ *
+ * That is exactly the case issue #14 wrote this number for. The ROWS have the same shape
+ * and carry no more about a reader than version 1 did; what changed is **where they come
+ * from and how many frames can produce one**, and a reader who agreed to a tally over one
+ * lab did not thereby agree to a tally over every frame they read. Bumping re-asks them.
+ *
+ * Version 2 is: the same outcome against a frame in a bundle version and the same attempt,
+ * from ONE worksheet source — `answer-<n>`, on the frames where the book's whole answer is
+ * one printed number (85 of 1 036), carrying whether what the reader wrote matched it.
+ *
+ * **The reader is never shown a failure and the tally records one**, which is the asymmetry
+ * ADR-0045 argues for: a rate that can only contain passes is 100% by construction and
+ * measures nothing.
+ *
+ * A reveal with nothing written FAILS THAT SAME CELL rather than getting one of its own, and
+ * only where the reader has a sheet on the frame — they opened the pad, or drew, or wrote and
+ * cleared. A reader who works on paper, as the book prescribes, has no sheet and is never
+ * counted at all. A draft gave the blank its own name and every report under it would have
+ * carried `passed: false`, so its rate was 0% however the book was written; ADR-0045 §3 has
+ * that and the eleven frames of P01 where it would also have polluted the score.
+ *
+ * Still no reader identifier on any row, and still nothing about WHAT they wrote: the text
+ * never leaves the browser, only whether it matched.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  */
-export const CONSENT_VERSION = 1 as const;
+export const CONSENT_VERSION = 2 as const;
 
 /**
  * The version lives INSIDE the record, not in the key.

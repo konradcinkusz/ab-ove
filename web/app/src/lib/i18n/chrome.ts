@@ -327,7 +327,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     consent: {
       invitationTitle: 'Help fix the book?',
       invitationWhat:
-        'The book has never been read by anybody, and its author cannot know which frames are wrong. ab-ovo can find out \u2014 by recording, for each frame, which version of the book it was in, which attempt this was, and what a check run said.',
+        'The book has never been read by anybody, and its author cannot know which frames are wrong. ab-ovo can find out \u2014 by recording, for each frame you answer, which version of the book it was in, which attempt this was, and whether your answer matched the book\u2019s own. Never the answer itself: your words stay in this browser.',
       invitationNoReader:
         'No identifier for you goes on any of it: not a column, not a hash, not a join away. That is what makes the result safe to publish, and it is why nothing recorded here can be turned into a score about you.',
       invitationEitherWay:
@@ -448,7 +448,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     consent: {
       invitationTitle: 'Pomo\u017cesz poprawi\u0107 ksi\u0105\u017ck\u0119?',
       invitationWhat:
-        'Tej ksi\u0105\u017cki nikt jeszcze nie przeczyta\u0142, a jej autor nie wie, kt\u00f3re ramki s\u0105 z\u0142e. ab-ovo mo\u017ce si\u0119 tego dowiedzie\u0107 \u2014 zapisuj\u0105c dla ka\u017cdej ramki, w kt\u00f3rej wersji ksi\u0105\u017cki si\u0119 znajdowa\u0142a, kt\u00f3re to by\u0142o podej\u015bcie i co powiedzia\u0142o sprawdzenie.',
+        'Tej ksi\u0105\u017cki nikt jeszcze nie przeczyta\u0142, a jej autor nie wie, kt\u00f3re ramki s\u0105 z\u0142e. ab-ovo mo\u017ce si\u0119 tego dowiedzie\u0107 \u2014 zapisuj\u0105c dla ka\u017cdej ramki, na kt\u00f3r\u0105 odpowiesz, w kt\u00f3rej wersji ksi\u0105\u017cki si\u0119 znajdowa\u0142a, kt\u00f3re to by\u0142o podej\u015bcie i czy twoja odpowied\u017a zgadza si\u0119 z t\u0105 z ksi\u0105\u017cki. Nigdy samej odpowiedzi: twoje s\u0142owa zostaj\u0105 w tej przegl\u0105darce.',
       invitationNoReader:
         '\u017baden identyfikator ciebie tam nie trafia: ani kolumna, ani skr\u00f3t, ani z\u0142\u0105czenie. W\u0142a\u015bnie dlatego wynik mo\u017cna bezpiecznie publikowa\u0107 i dlatego nic z tego, co si\u0119 tu zapisuje, nie zamieni si\u0119 w ocen\u0119 ciebie.',
       invitationEitherWay:

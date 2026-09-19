@@ -259,6 +259,18 @@ rather than by one failing check. *early, not wrong* appears beside the number o
 whose interval is not disjoint from the row below it. Session-gated, and there is no per-reader
 view on it — by architectural absence rather than by policy.
 
+**Two instruments reach it now, and the screen says which produced each cell.** A lab check
+asks whether the reader's code satisfied an assertion; a worksheet answer asks whether the
+number they wrote before the reveal is the number the book prints. They coincide on eleven
+frames of P01 and they do not measure the same thing, so the word is on the row rather than in
+a legend. The index lists the pinned bundle's units rather than the units with labs — a
+worksheet answer is reported from any program, so a list built from the labs would have shown
+one and withheld forty-six. Most of those tables are empty today, which is said rather than
+hidden: an author who cannot tell *nothing here* from *not measured here* is worse off than one
+reading a zero. And a worksheet frame sits under **no teaching score** permanently rather than
+thinly — an answer written before a reveal belongs to that frame and is never used at a later
+one, so there is no downstream for it to have ([ADR-0045](../adr/0045-a-worksheet-answer-is-one-cell-and-a-blank-fails-it.md)).
+
 ### What is behind them
 
 Not screens, but the reader's experience rests on all five: `/api/config` (addresses read at
@@ -370,8 +382,8 @@ written.
 | 120 | decision | #58 | Does a frame accept the reader's answer (a new ADR) | — |
 | 130 | feature | #59 | Schema v2: the answer model | — |
 | 140 | feature | #60 | The answer field, and a verdict computed in the browser | — |
-| 150 | feature | #61 | The answer verdict reaches the existing tally | — |
-| 160 | feature | #62 | The counter-metric: revealed without answering | — |
+| 150 | feature | #61 | The answer verdict reaches the existing tally | [ADR-0045](../adr/0045-a-worksheet-answer-is-one-cell-and-a-blank-fails-it.md) |
+| 160 | feature | #62 | The counter-metric: revealed without answering — **folded into 150 rather than built.** A cell of its own could only ever carry `passed: false`, so its rate was 0% by construction, and it pooled into the first-attempt measure on the eleven frames of P01 where a lab check and a cue frame coincide. A blank now fails the same cell a wrong answer fails. What is genuinely lost — telling a give-up from a miss — wants a field outside the score, and is owed | [ADR-0045](../adr/0045-a-worksheet-answer-is-one-cell-and-a-blank-fails-it.md) §3 |
 | 170 | infra | #63 | Postgres and `AbOvo.Api` in the e2e job | — |
 | 180 | testing | #64 | A spec driving the proxy with a real bearer to a real API | — |
 | 190 | manual | #65 | Create the Fly deploy token | — |
