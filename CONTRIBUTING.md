@@ -24,11 +24,18 @@ Both setup scripts exist on purpose, and changing one means changing the other: 
 that would otherwise fail on Windows is the one that generates the mandatory secret, and
 PowerShell ships no `openssl`.
 
-Then:
+Then, in this order:
 
 ```bash
+bash scripts/fetch-book-content.sh   # once per clone — the lab engine, pinned and digest-verified
 dotnet run --project src/AbOvo.AppHost
 ```
+
+**The fetch is not optional and it is not part of `setup.sh`.** `web/content/book/` is
+derived rather than committed (ADR-0008): the repository holds the pin and a sha256 per
+file, and the script writes the tree. The AppHost brings the web app up, whose `predev`
+runs `prepare-lab-assets`, which exits 1 naming this script. Skip it and the first thing
+you see is a build failure, not a missing feature.
 
 **A fresh clone with every optional step skipped still runs.** That is a property the
 scaffold is tested for, not an aspiration: `dotnet run --project src/AbOvo.Api` on its own
@@ -41,6 +48,7 @@ the change to discuss**, not a detail of it.
 ## Run what CI runs, before you push
 
 ```bash
+bash scripts/fetch-book-content.sh    # first: `dotnet test` and `pnpm --dir web build` both need it
 dotnet build AbOvo.sln -warnaserror
 dotnet test AbOvo.sln
 pnpm --dir web lint
@@ -48,6 +56,13 @@ pnpm --dir web typecheck
 pnpm --dir web build
 bash scripts/scan-secrets.sh --staged
 ```
+
+`ci.yml` fetches before Restore for the same reason, and the distinction is worth having:
+**the Api does not need the book, its tests do.** `Instrument/Proportion.cs` carries
+`public const double Z = 1.96;` — transcribed from the book and named as such — so
+`dotnet run --project src/AbOvo.Api` runs on a bare clone, while `NormalGatesTests` and
+`RatesCarryTheirIntervalTests` throw on the missing `p27.tex` because checking the
+transcription is the whole of what they do.
 
 And for the acceptance layer, which drives a **production** build rather than `next dev` —
 a suite that only ever sees the dev server is testing a program nobody deploys:
