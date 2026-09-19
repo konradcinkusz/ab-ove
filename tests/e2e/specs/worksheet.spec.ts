@@ -72,6 +72,28 @@ function decimalPair(): { unit: string; asks: number; answers: number; number: s
 const line = (page: import('@playwright/test').Page, name: RegExp) =>
   page.getByRole('textbox', { name });
 
+/**
+ * Press `Clear my answer` through both of its steps, as a reader must.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * A SECOND ATTEMPT GOES THROUGH THIS, AND THE TESTS BELOW USED TO SKIP IT.
+ *
+ * Two of them wrote an answer, revealed it, came back, and expected the line to be
+ * editable again. It is not, and it must not be: an answer committed BEFORE the reveal is
+ * the reader's own evidence of what they thought, and a page that let them quietly rewrite
+ * it after seeing the book's answer would destroy the only thing the commitment was for.
+ * The lock is asserted directly two tests below.
+ *
+ * So the product was right and the specs were wrong — they were asserting a second attempt
+ * is free, when the design says it costs one deliberate, two-step control. Which is what a
+ * reader does, and now what these do.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+async function clearTheAnswer(page: import('@playwright/test').Page, label: RegExp, confirm: RegExp): Promise<void> {
+  await page.getByRole('button', { name: label }).click();
+  await page.getByRole('button', { name: confirm }).click();
+}
+
 test.describe('the worksheet', () => {
   test('a frame that asks has somewhere to write, and one that does not has not @smoke', async ({
     page,
@@ -125,8 +147,11 @@ test.describe('the worksheet', () => {
     // The same frame, a different number. NOT "wrong", NOT a cross, NOT a score — the
     // reader's line and nothing else, and they compare it themselves.
     await page.goto(at('en', NUMERIC.asks));
+    // A second attempt is not free: the first is locked, because it was committed before
+    // the reveal. The reader clears it on purpose, which is the control this presses.
+    await clearTheAnswer(page, /clear my answer/i, /^clear it$/i);
     const field = line(page, /your answer/i);
-    await expect(field, 'the line did not come back editable for a second attempt').toBeEditable();
+    await expect(field, 'clearing did not give the line back').toBeEditable();
     await field.fill(`${NUMERIC.number}00000`);
     await page.locator(`a[href="${at('en', NUMERIC.answers)}"]`).click();
 
@@ -242,6 +267,13 @@ test.describe('the worksheet', () => {
     // comma rather than about any two strings happening to be equal.
     const english = (n: number): string => `/read/${track}/${found.unit}/en/${n}`;
     await page.goto(english(found.asks));
+    /*
+      Cleared first, and the reason is a design decision rather than a detail: the sheet
+      key carries no edition, so a reader who switches editions mid-frame keeps the line
+      they wrote. That is deliberate — see lib/sheet/store.ts — and it means the Polish
+      attempt above is still there, locked, on the English page.
+    */
+    await clearTheAnswer(page, /clear my answer/i, /^clear it$/i);
     await line(page, /your answer/i).fill(comma);
     await page.locator(`a[href="${english(found.answers)}"]`).click();
     await expect(page.locator('body')).toContainText(/matches the book/i);
@@ -270,5 +302,94 @@ test.describe('the worksheet', () => {
 
     const toApi = sent.filter((entry) => entry.includes('/api/proxy'));
     expect(toApi, 'writing an answer reached the backend').toEqual([]);
+  });
+
+  /* ── The Working pad ──────────────────────────────────────────────────────────────── */
+
+  test('a reader can work something out beside the frame, without writing code @smoke', async ({
+    page,
+  }) => {
+    /*
+      THE OWNER'S REQUIREMENT, EXECUTED. What used to be here was a Python interpreter — 6.4
+      MB of runtime and a language this book's front matter never assumes. What a reader
+      beside a frame needs is a scrap of paper that can add up, and this is the assertion
+      that they have one.
+
+      The lines are the book's own: `2^10` is Program F01's, `sqrt(3^2 + 4^2)` is Program
+      F09's, and `0.1 + 0.2` is Program P01's headline — printed unrounded on purpose,
+      because a pad that tidied it away would teach the opposite of the page it sits on.
+    */
+    await page.goto(at('en', NUMERIC.asks));
+
+    const pane = page.getByRole('group').filter({ hasText: 'Working' }).first();
+    await pane.locator('summary').click();
+
+    const field = page.getByRole('textbox', { name: /your working/i });
+    await field.fill(['2^10', '0.1 + 0.2', 'sqrt(3^2 + 4^2)'].join('\n'));
+    await field.press('Control+Enter');
+
+    const results = page.locator('pre').last();
+    await expect(results).toContainText('1024');
+    await expect(results, 'the pad rounded away the float, which is Program P01’s subject').toContainText(
+      '0.30000000000000004',
+    );
+    await expect(results).toContainText('5');
+  });
+
+  test('a name can be given a value, and a bad line does not stop the good ones @core', async ({
+    page,
+  }) => {
+    // The difference between a pad and an interpreter: paper does not refuse the rest of
+    // the page because one line has a typo in it.
+    await page.goto(at('en', NUMERIC.asks));
+    await page.getByRole('group').filter({ hasText: 'Working' }).first().locator('summary').click();
+
+    const field = page.getByRole('textbox', { name: /your working/i });
+    await field.fill(['w = 0.5', 'nope + 1', 'w * 3'].join('\n'));
+    await field.press('Control+Enter');
+
+    const results = page.locator('pre').last();
+    await expect(results).toContainText('is not defined');
+    await expect(results, 'a typo above stopped the line below it').toContainText('1.5');
+  });
+
+  test('a Polish comma is a decimal point, and the separator is a semicolon @smoke', async ({
+    page,
+  }) => {
+    /*
+      ──────────────────────────────────────────────────────────────────────────────────
+      THE CASE THE PAD'S WHOLE GRAMMAR IS FOR, asserted in the edition it matters in.
+
+      In Polish `2,5` is two and a half. A calculator that read a comma as an argument
+      separator would answer `5` to `max(2,5)` — silently, to a reader who asked for two
+      and a half — which is a confident wrong answer with nothing to notice it. So the
+      separator is a semicolon, and both readings are pinned here: the comma stays a
+      decimal point, and the semicolon does the separating.
+      ──────────────────────────────────────────────────────────────────────────────────
+    */
+    await page.goto(`/read/${track}/${unit}/pl/${NUMERIC.asks}`);
+    await page.getByRole('group').filter({ hasText: 'Obliczenia' }).first().locator('summary').click();
+
+    const field = page.getByRole('textbox', { name: /twoje obliczenia/i });
+    await field.fill(['1,5 + 1,5', 'max(2;5)', 'max(2,5)'].join('\n'));
+    await field.press('Control+Enter');
+
+    const results = page.locator('pre').last();
+    await expect(results, 'a Polish comma stopped being a decimal point').toContainText('2,5');
+    await expect(results).toContainText('3');
+    await expect(results).toContainText('5');
+  });
+
+  test('a frame that asks nothing offers no pad @core', async ({ page }) => {
+    // Same rule as the answer line: a teaching frame elicits nothing, so a place to work
+    // something out beside it is a control with no question.
+    const teaching = program.steps.find((step) => !step.cue && step.n > 1);
+    expect(teaching, 'the program has no teaching frame, so this proves nothing').toBeTruthy();
+
+    await page.goto(at('en', teaching!.n));
+    await expect(
+      page.getByRole('group').filter({ hasText: 'Working' }),
+      'a teaching frame offers a pad for arithmetic it never asks for',
+    ).toHaveCount(0);
   });
 });

@@ -6,6 +6,7 @@ import { chromeFor } from '@/lib/i18n/chrome';
 import { bookNumberOf } from '@/lib/sheet/number';
 
 import { AnswerLine } from './answer-line.tsx';
+import { Working } from './working.tsx';
 import { ClearAnswer } from './clear-controls.tsx';
 import { FrameKeys } from './frame-keys.tsx';
 import styles from './frame-view.module.css';
@@ -242,6 +243,27 @@ export function FrameView({
           ) : (
             <div className={styles.dots} aria-hidden="true" />
           )}
+          {/*
+            THE PAD IS ON THE FRAMES THAT ASK AND ON NO OTHER, for the same reason the
+            answer line is: a teaching frame elicits nothing, so a place to work something
+            out beside it is a control with no question. It sits between the line and the
+            reveal because that is the order the reader works in — write, check the
+            arithmetic, turn over — and it is a `<details>`, so it costs one line until
+            somebody wants it.
+          */}
+          {step.cue ? (
+            <Working
+              hint={chrome.workingHint}
+              label={chrome.workingLabel}
+              language={chrome.language}
+              n={step.n}
+              run={chrome.workingRun}
+              summary={chrome.working}
+              tag={bundle.tag}
+              track={track}
+              unit={unit.id}
+            />
+          ) : null}
           <Link className={styles.reveal} href={forward} lang={chrome.language} prefetch={false}>
             {step.cue ? chrome.reveal : chrome.next}
           </Link>

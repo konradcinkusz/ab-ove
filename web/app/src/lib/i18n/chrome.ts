@@ -250,6 +250,11 @@ interface Strings {
   /** Its second press, which is the one that destroys anything. */
   readonly clearAnswerConfirm: string;
   /** The index's control for every worksheet in this browser, first press. */
+  /** The Working pad — a place to try a line of arithmetic beside the frame. */
+  readonly working: string;
+  readonly workingRun: string;
+  readonly workingHint: string;
+  readonly workingLabel: string;
   readonly clearWorksheets: string;
   /** Its second press — this one cannot be undone and says so. */
   readonly clearWorksheetsConfirm: string;
@@ -390,6 +395,10 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     earlierEdition: 'written against an earlier edition',
     clearAnswer: 'Clear my answer',
     clearAnswerConfirm: 'Clear it',
+    working: 'Working',
+    workingRun: 'Work it out',
+    workingHint: 'One line at a time. A name can be given a value: w = 0.5',
+    workingLabel: 'Your working',
     clearWorksheets: 'Clear my worksheets',
     clearWorksheetsConfirm: 'Clear them — this cannot be undone',
     programsCrumb: '← Programs',
@@ -500,6 +509,10 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     earlierEdition: 'zapisane przy wcześniejszym wydaniu',
     clearAnswer: 'Wyczyść moją odpowiedź',
     clearAnswerConfirm: 'Wyczyść',
+    working: 'Obliczenia',
+    workingRun: 'Policz',
+    workingHint: 'Po jednej linii. Nazwie można nadać wartość: w = 0,5',
+    workingLabel: 'Twoje obliczenia',
     clearWorksheets: 'Wyczyść moje notatki',
     clearWorksheetsConfirm: 'Wyczyść — nie da się cofnąć',
     programsCrumb: '← Programy',
@@ -614,6 +627,11 @@ export interface Chrome {
   readonly earlierEdition: string;
   readonly clearAnswer: string;
   readonly clearAnswerConfirm: string;
+  /** The Working pad — a place to try a line of arithmetic beside the frame. */
+  readonly working: string;
+  readonly workingRun: string;
+  readonly workingHint: string;
+  readonly workingLabel: string;
   readonly clearWorksheets: string;
   readonly clearWorksheetsConfirm: string;
   readonly programsCrumb: string;

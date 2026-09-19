@@ -153,3 +153,141 @@
     display: none;
   }
 }
+
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * THE WORKING PAD — a scrap of paper that can add up, and the whole of what replaced a
+ * Python runtime in the reader loop.
+ *
+ * It is a `<details>`, so it costs one line when closed and needs no JavaScript to open.
+ * It sits ABOVE the reveal, which is why it is closed on every arrival: anything that
+ * opened by itself would push the control the frame is built around down the page after
+ * the reader had looked at where it was.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
+.pane {
+  margin-top: 0.75rem;
+}
+
+.paneSummary {
+  color: var(--ink-faint);
+  cursor: pointer;
+  font-size: 0.8125rem;
+}
+
+.paneBody {
+  margin-top: 0.5rem;
+}
+
+/*
+ * The text and its results, side by side and sharing a baseline grid.
+ *
+ * ONE COLUMN OF RESULTS, NOT A SECOND EDITABLE BOX. The gutter is a `<pre>` with the same
+ * font, size and line height as the field, so line five of the working sits opposite line
+ * five of the answers — which is the only arrangement in which a reader can read them as
+ * pairs without counting.
+ */
+.workingGrid {
+  display: grid;
+  gap: 0 1rem;
+  grid-template-columns: 1fr minmax(6rem, 14rem);
+}
+
+.workingField,
+.workingGutter {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.5rem;
+  margin: 0;
+}
+
+.workingField {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed var(--rule);
+  color: var(--ink);
+  overflow: hidden;
+  padding: 0;
+  resize: none;
+  width: 100%;
+}
+
+.workingField:focus-visible {
+  border-bottom-color: var(--accent);
+  outline: none;
+}
+
+.workingGutter {
+  color: var(--ink-faint);
+  overflow: hidden;
+  white-space: pre;
+}
+
+.workingValue {
+  color: var(--live);
+}
+
+/*
+ * A refusal is quieter than a result, deliberately.
+ *
+ * `--degraded` rather than a red: a line the pad could not read is the reader mid-thought,
+ * not a fault, and the pad goes on to the lines below it. A colour that shouted would make
+ * a typo look like the product breaking.
+ */
+.workingError {
+  color: var(--degraded);
+  font-style: italic;
+}
+
+.paneFoot {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0.75rem 0 0;
+}
+
+/*
+ * NOT A SECOND `.reveal`. The reveal is the one filled control on the page and the frame is
+ * built around it; a second filled button beside it would make the reader choose between
+ * two equal-looking things at the moment they are being asked to commit. This is an
+ * outlined control in the foot's own key.
+ */
+.runButton {
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.25rem 0.75rem;
+}
+
+.runButton:hover,
+.runButton:focus-visible {
+  border-color: var(--accent);
+}
+
+.paneHint {
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+}
+
+/* The standard visually-hidden idiom, for the live region that reads the results aloud. */
+.visuallyHidden {
+  clip-path: inset(50%);
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+@media (max-width: 30rem) {
+  /* At 360 px two columns leave neither readable; the results go under the working. */
+  .workingGrid {
+    grid-template-columns: 1fr;
+  }
+}
