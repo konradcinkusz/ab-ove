@@ -385,8 +385,12 @@ silently, in published bundles, on the day a dependency is updated.
 the producer Python. A digest has to be computed by the producer and compared by the browser,
 so **two implementations must agree byte for byte on the canonical form**. A search of PyPI
 for `mathjson`, `compute-engine`, `cortex-compute-engine` and `mathjson-python` returns
-nothing, so the book's compiler would have to run Node to publish a bundle — a second
-toolchain in the book's release path that ADR-0008 and ADR-0014 do not contemplate.
+nothing, so the book's compiler would have to run Node to publish a bundle. That is a second
+toolchain in the book's release path, and it is not a small ask of ADR-0014: the reason that
+ADR gives for the schema being JSON Schema rather than a TypeScript type is precisely that
+the producer is Python and *"a contract the producer cannot check is a contract the producer
+discovers by having a release rejected"* — a digest the producer can only compute by running
+the consumer's language puts that reasoning back where it started.
 
 Running a canonicaliser in Python in the browser instead is not free either.
 [ADR-0032](../adr/0032-a-lab-runtime-is-refused-until-its-wheels-are-on-this-origin.md)
