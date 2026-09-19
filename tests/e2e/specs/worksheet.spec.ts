@@ -380,7 +380,7 @@ test.describe('the worksheet', () => {
     await expect(results).toContainText('5');
   });
 
-  test('the pad keeps what is written on a frame with no answer on it @core', async ({ page }) => {
+  test('the pad keeps what is written on a frame with no answer on it @smoke', async ({ page }) => {
     /*
       ──────────────────────────────────────────────────────────────────────────────────
       THE TEST THAT WOULD HAVE CAUGHT THE DEFECT, AND IT SHIPPED WITHOUT ONE.

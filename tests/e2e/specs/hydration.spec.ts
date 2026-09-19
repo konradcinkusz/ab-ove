@@ -59,7 +59,23 @@ const HYDRATION =
 
 test.describe('hydration', () => {
   for (const path of PAGES) {
-    test(`${path} hydrates without a mismatch @core`, async ({ page }) => {
+    /*
+      ONE OF THESE IS `@smoke` AND THE REST ARE `@core`, WHICH IS A BUDGET DECISION MADE
+      ON PURPOSE.
+
+      A pull request runs the smoke layer only (`ci.yml`, and TESTING-STRATEGY.md §2 sets
+      the 5-10 minute budget it protects). The defect this file exists for shipped green
+      through every other gate there is — build, lint, unit, and every other acceptance
+      test — so leaving the whole sweep at `@core` would mean a pull request that
+      reintroduced it got a green tick and the guard ran a merge too late.
+
+      Nine pages at two seconds each is more than a smoke layer should spend. One frame
+      page is not: it is the page the defect was on, it carries every client island in the
+      product, and it costs about two seconds. The other eight run on the way to main.
+    */
+    const tier = path === `/read/${track}/F01/en/${CUE}` ? '@smoke' : '@core';
+
+    test(`${path} hydrates without a mismatch ${tier}`, async ({ page }) => {
       const complaints: string[] = [];
 
       page.on('pageerror', (error) => {
@@ -106,7 +122,7 @@ test.describe('hydration', () => {
     });
   }
 
-  test('the place row holds the language switch rather than being closed by it @core', async ({
+  test('the place row holds the language switch rather than being closed by it @smoke', async ({
     page,
   }) => {
     /*
