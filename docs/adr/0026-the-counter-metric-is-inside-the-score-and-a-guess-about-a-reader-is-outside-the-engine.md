@@ -151,6 +151,36 @@ strongest thing this schema supports, which is the trade ADR-0023 made deliberat
 look like that — eight of thirteen span — but a future lab could, and it would rank nothing while
 reporting every cell. That is the honest outcome and it is visible rather than silent.
 
+**First-attempt correctness has exactly one source today, and it is a lab check run.**
+`ScoresOver` reads `Attempt == 1` over `FrameOutcome` rows, and those rows have one way in:
+`reportRun` in `web/app/src/lib/instrument/report.ts` posts a run's verdicts to
+`POST /api/v1/outcomes`, and `OutcomeEndpoints` is the only writer of that table. So the
+measure this ADR weights at 0.35 is *whether this frame's checks passed on the run the browser
+counted as first* — over the frames a check's docstring names, never over the book's frames
+generally. A frame that no lab reaches has no first-attempt cell at all, for the same
+structural reason §4 gives for a frame no check carries forward, and the two absences compose:
+the scored set is the frames a lab both **reaches** and **carries forward**. ADR-0023's own
+consequences asked this write-up to say one more thing and it is said here: the attempt number
+is the client's and the service cannot verify it, so first-attempt correctness is reported
+rather than measured in the strict sense.
+
+**The counter-measure that would pair with a reveal is unmeasurable here, not merely
+unmeasured.** The pairing rule wants the pressurable measure caught by something its
+degenerate strategy cannot also move ([ADR-0009](0009-the-instrument-measures-the-book.md)
+§3), and for a reading surface the obvious candidate is a reveal ratio: `docs/ux/UI-UX.md`
+carries it as planned work under the name *the counter-metric: revealed without answering*,
+and [ADR-0012](0012-solutions-are-never-served-to-the-browser.md) says of the lab-shaped twin
+that such a row "cannot arrive by accident". `frame-view.tsx` renders the `\dotline` row
+`aria-hidden="true"` and with no input, and says that is _"a decision rather than an
+omission"_ — ADR-0009 puts the instrument on the book and never on the reader, and a text box
+there would be the first place a per-reader record could come from. With no affordance for
+answering, every reveal is a reveal without answering: the ratio is 1 by construction and
+separates nothing, whatever the book does. That is why the measure is not in `Measure` at all
+— and the reason is worth keeping distinct from §6's. §6 keeps a **guess about a reader** out
+of the table on principle; this one is out because there is nothing to put in it. Whether the
+reading surface should take an answer is argued at #58 and is not decided here or by this
+paragraph.
+
 **The weights are now a shape, so changing them is expensive.** The issue says so: _"cheap now
 and expensive once the weights table has a shape."_ This is the moment it stops being cheap, and
 that is the intended cost of both requirements.
