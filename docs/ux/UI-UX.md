@@ -119,6 +119,50 @@ components and every reveal discards the editor. The frame arrives at the layout
 route too rather than a claim carried over — `specs/frame-and-lab.spec.ts` asserts it again
 over the markup, because two components meeting is where it would be lost.
 
+#### On a phone the pane goes below the frame, and does not become a tab
+
+**This is the decision #54 was opened to take, and it is written here rather than left in a
+stylesheet because it is a decision about the product.** Requirement 1.5 had said *below* since
+it was written; an external proposal for this layout said **tabs on a phone, or nothing at
+all**. Those are different products on a small screen, so one of them had to win and the
+reason had to be recorded. **Below wins, 1.5's wording stands, and it was not close.**
+
+Three things decided it, in this order.
+
+1. **A tab hides the frame, and 1.5's last clause forbids exactly that** — *it never covers
+   the frame a reader is working from*. Reading that clause as being only about `z-index` is
+   reading it as a rule about CSS rather than about a reader: a reader whose frame is behind
+   an inactive tab cannot see the question they are answering, and the only way back is a
+   control the pane owns. The clause is about what is on screen, and tabs make the two halves
+   mutually exclusive by construction.
+2. **The stacked layout already fits 360 px, so tabs would buy nothing.** Measured against the
+   fixture bundle at 360x640, in both editions: `scrollWidth` equals `clientWidth` and no
+   element's right edge passes the viewport, so nothing scrolls sideways; the frame occupies
+   the first 525 to 758 px, which is about one screen; and the reveal lands around y=304 —
+   above the fold, and above the pane in source order, so the pane has nothing it can push.
+   The cost of stacking is scroll distance, and the remedy for scroll distance is a link.
+3. **Tabs would cost this route its shape.** The frame is a sibling of the pane rather than a
+   child of it so that its markup stays out of a Client Component's props, which is the one
+   thing on this page serialised into the document for hydration; a tab container is exactly
+   that wrapper. The CSS-only alternatives avoid the client boundary and buy the other half
+   of the problem — the inactive panel is `display: none`, so find-in-page stops finding the
+   frame, and a `:target` fragment ends up competing with the URL for the job of saying where
+   the reader is.
+
+**What stacking costs, and the one control that pays for it.** The two halves are one above
+the other, so the editor opens about 1,390 px down and the page runs to about 2,800: a reader
+at the foot of the checks is some four screens below the question. The foot of the pane
+therefore carries **one link back to the frame**, below the two-column breakpoint only, and
+`frame-beside-lab.tsx` renders it outside `LabPane` because it is navigation between the two
+halves rather than something the lab contains. **A sticky version was rejected**: it would be
+one tap from anywhere instead of one tap from the end, and it would spend the property that
+makes the last clause free — two grid tracks with nothing positioned, floated or given a
+`z-index` cannot overlap, and that is a guarantee rather than a promise somebody keeps.
+
+`specs/narrow-screen.spec.ts` holds all of it at 360 px, and the two assertions a reader
+would feel — the frame becoming unreachable, and the page scrolling sideways — are `@smoke`
+so that the run which gates a merge is the one that sees them.
+
 The dotted row under the question carries **no input**, and that is a decision rather than an
 omission — see #48, which records what that costs the instrument, and #58, which is where it is
 argued.
@@ -140,8 +184,10 @@ solution.
 
 **Beside the frame it is `/read/<track>/<unit>/<lang>/lab/<id>/<step>`**, which is
 requirement 1.5's wide screen (#53). It renders `<LabPane>` unchanged, from a layout that
-also renders the frame; #54 is the narrow screen and #55 is the control on a frame that
-carries a `check`, which is what will send a reader there without typing a URL.
+also renders the frame; #54 settled the narrow screen — the pane goes **below**, not into a
+tab, and the argument is above under *On a phone the pane goes below the frame* — and #55 is
+the control on a frame that carries a `check`, which is what will send a reader there without
+typing a URL.
 
 ### `/account` — the reader's own record
 
@@ -313,7 +359,7 @@ the largest thing that needs no backend and no content bundle.*
 | 1.2 | **Editor and run control.** Plain text editing, monospace, tab handling, a visible Run. No autocomplete, no language server, no AI assistance ([ADR-0010](../adr/0010-no-language-model-in-the-loop.md)). | A reader can type a solution, run it, and see stdout and the traceback unedited. |
 | 1.3 | **Check results.** Per check: pass, fail, or `todo` for a stub. A failure names **the frames to re-read**, never the solution. | The message is the covered answer box. A check that passes on an empty stub is a defect, and the engine is watched failing on stubs before it is believed. |
 | 1.4 | **Exercise state is local.** The reader's code is theirs; it is kept in the browser and sent nowhere. | Nothing leaves the origin. The colophon's promise stays true with the pane open. |
-| 1.5 | **The pane's relationship to the frame.** It sits beside the reading column on a wide screen and below it on a narrow one; it never covers the frame a reader is working from. The wide screen is built (#53): `/read/<track>/<unit>/<lang>/lab/<id>/<step>`, two grid tracks that divide at 80 rem, with the frame first in source order at every width. #54 is the rest. | Usable at 360 px without the frame becoming unreachable. |
+| 1.5 | **The pane's relationship to the frame.** It sits beside the reading column on a wide screen and below it on a narrow one; it never covers the frame a reader is working from. Both are built: `/read/<track>/<unit>/<lang>/lab/<id>/<step>`, two grid tracks that divide at 80 rem (#53), with the frame first in source order at every width and the pane stacked under it below that (#54). **Below rather than tabbed was the open question and it is settled** — a tab hides the frame, which the last clause above forbids; the argument and the 360 px measurements are under *On a phone the pane goes below the frame*. | Usable at 360 px without the frame becoming unreachable. Measured: nothing scrolls sideways in either edition, the reveal sits above the pane and above the fold, and the foot of the pane links back to the frame. `specs/narrow-screen.spec.ts`. |
 
 ### Phase 2 — content schema and the frame view
 
