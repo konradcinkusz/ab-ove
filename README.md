@@ -424,10 +424,11 @@ dotnet test AbOvo.sln              # unit, in-memory integration, and the archit
 pnpm --dir web dev                 # the web app alone, no API, no container
 ```
 
-**The fetch is first because the two lines under it both need it**, and this block used to
-print it second. Run it top to bottom on a fresh clone and every line succeeds; run the
-old order and `dotnet test` stops on the missing figures file before reaching the command
-that would have supplied it.
+**The fetch is first because `dotnet test` and `pnpm dev` both need it**, and this block
+used to print it below the first of them. `pnpm install` does not — it is second only
+because `pnpm dev` wants it. Run the block top to bottom on a fresh clone and every line
+succeeds; run the old order and `dotnet test` stops on the missing figures file before the
+reader reaches the command that would have supplied it.
 
 The last line is worth knowing: the reader loop is required to work with no backend, so the
 web app runs on its own and the integration panel simply reports that no API answered.
