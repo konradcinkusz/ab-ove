@@ -61,6 +61,29 @@ async function openReady(
   n: number,
 ): Promise<void> {
   await page.goto(at(language, n));
+  await keysReady(page);
+}
+
+/**
+ * Wait until the page's keyboard handler has bound, before pressing one of its keys.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE SAME WAIT `openReady` DOES, BUT AFTER A CLIENT-SIDE NAVIGATION — AND THE ABSENCE OF
+ * IT COST TWO MINUTES PER RUN AND READ LIKE A BROKEN KEY.
+ *
+ * `waitForURL` resolves on `load`, which is before React has hydrated the island that
+ * listens for the arrow keys. A press in that window reaches a page with no handler on it
+ * and is simply lost — and the test then waits out its whole budget for a navigation that
+ * was never going to happen, reporting the wait rather than the press.
+ *
+ * Measured rather than reasoned about: pressing `←` on the summary immediately after
+ * arriving there times out, and pressing it after this wait navigates in under a second.
+ * The product is right and the suite was wrong — this file's own header says the page
+ * "cannot promise a shortcut that is not live, and this suite cannot press one", which is
+ * exactly the rule these two presses were skipping.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+async function keysReady(page: import('@playwright/test').Page): Promise<void> {
   await expect(
     page.locator('[data-frame-keys="on"]'),
     'the keyboard handler never attached, so nothing below would be pressing anything',
@@ -94,7 +117,9 @@ test.describe('reading ergonomics', () => {
     await page.waitForURL(`**/read/${track}/${unitId}/en/summary`);
 
     // Symmetric, or a reader who arrived by `→` is stranded on a screen whose own key map
-    // promises `← back`.
+    // promises `← back`. The wait is not a flake guard: the summary is a different page
+    // with its own island, and pressing before it binds is pressing at nothing.
+    await keysReady(page);
     await page.keyboard.press('ArrowLeft');
     await page.waitForURL(`**${at('en', steps.length)}`);
   });

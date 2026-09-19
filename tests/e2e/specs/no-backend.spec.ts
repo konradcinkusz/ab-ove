@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 import { collectPageErrors, describePageErrors } from './support/page-errors.js';
 import { serveNetworkFailure, serveProxyFailure } from './support/service-info.js';
 
+import { track, unitNamed } from './support/bundle.ts';
+
 /**
  * JOURNEY 4 — the app with no backend.
  *
@@ -28,6 +30,16 @@ import { serveNetworkFailure, serveProxyFailure } from './support/service-info.j
  * which fault it was, and the page threw nothing on the way.
  */
 
+/*
+  Titles read from the served bundle rather than typed. They WERE typed, as the
+  fixture's `How a computer stores a number`, and the day the application started
+  serving the real book this file was asserting against a link that does not exist.
+  A literal in a spec has no source, so nothing notices when the content moves —
+  see specs/support/bundle.ts.
+*/
+const P01 = unitNamed('P01');
+const F01 = unitNamed('F01');
+
 test.describe('no backend', () => {
   test('reaches the programs when the API cannot be reached at all @smoke', async ({ page }) => {
     const pageErrors = collectPageErrors(page);
@@ -45,12 +57,12 @@ test.describe('no backend', () => {
       neither of those two links may depend on a service that is not there (ADR-0015).
     */
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
-    await expect(
-      page.getByRole('link', { name: 'How a computer stores a number' }),
-    ).toHaveAttribute('href', '/read/math-for-ai-engineers/P01/en');
-    await expect(
-      page.getByRole('link', { name: 'Jak komputer przechowuje liczbę' }),
-    ).toHaveAttribute('href', '/read/math-for-ai-engineers/P01/pl');
+    for (const language of ['en', 'pl']) {
+      await expect(
+        page.getByRole('link', { name: P01.titles[language]! }),
+        `the ${language} link into P01 is not on the index`,
+      ).toHaveAttribute('href', `/read/${track}/P01/${language}`);
+    }
 
     // And the way to the product's argument is still there, so a reader who wants to know
     // what this is before working a frame is not stranded by a missing service either.
@@ -183,7 +195,7 @@ test.describe('no backend', () => {
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
     await expect(
-      page.getByRole('link', { name: 'Numbers, powers and roots' }),
+      page.getByRole('link', { name: F01.titles['en']! }),
       'the index rendered its heading and lost the programs — the list is compiled in and needs no API',
     ).toBeVisible();
   });

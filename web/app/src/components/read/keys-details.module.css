@@ -1,13 +1,52 @@
 /*
  * The key map's own two rules, shared by every page that carries it.
  *
- * `white-space: nowrap` on the row rather than on the `<kbd>`: what must not break is the
- * key and what it does, together — a line ending after `→` and resuming with `next` on the
- * next line reads as two entries.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * THE ROW WRAPS AND THE KEY DOES NOT, WHICH IS THE SECOND ANSWER HERE. The first was
+ * `white-space: nowrap` on the whole row, on the reasoning that a line ending after `→` and
+ * resuming with `next` reads as two entries. That reasoning is right and it cost more than
+ * it bought: at 360 px the longest row — `Ctrl+Enter` and what it does — is 384 px wide, so
+ * an unbreakable row reaches 24 px past the viewport.
+ *
+ * It was latent rather than visible, which is the part worth recording. A CLOSED `<details>`
+ * in current Chromium is `content-visibility: hidden` and not `display: none`, so its
+ * content is laid out, measurable and out of the viewport while nothing is painted — and it
+ * becomes a sideways-scrolling page the moment a reader on a phone opens the panel. Found
+ * by `narrow-screen.spec.ts`, which measures every element's right edge rather than asking
+ * whether the document scrolls, and would have missed it if it had asked the easier
+ * question.
+ *
+ * So the key itself is unbreakable, which is what actually must not split, and the
+ * description after it wraps.
+ * ────────────────────────────────────────────────────────────────────────────────────────
  */
 .details {
   color: var(--ink-faint);
   font-size: 0.8125rem;
+
+  /*
+    ────────────────────────────────────────────────────────────────────────────────────
+    ITS OWN ROW IN THE FLEX FOOT, WHICH IS NOT A PREFERENCE.
+
+    A `<details>` in a flex row is sized to its SUMMARY — the word `Keys`, some 40 px — and
+    its panel is then laid out inside that 40 px box. Every row of the key map is wider
+    than the word `Keys`, so the panel overflows its own container at any viewport width,
+    and at 360 px it reaches 24 px past the page.
+
+    It was invisible until measured, twice over: a closed `<details>` in current Chromium is
+    `content-visibility: hidden` rather than `display: none`, so the panel is laid out and
+    overflowing while nothing is painted — and opening it is what makes a reader see it.
+    `narrow-screen.spec.ts` catches it because it measures every element's right edge
+    instead of asking whether the document scrolls; the document does not, which is why the
+    easier question would have said the page was fine.
+
+    `flex-basis: 100%` puts the disclosure on its own line, so the panel is as wide as the
+    foot and its rows wrap the way any paragraph does. The summary stays where it was on a
+    wide screen because the foot is `flex-wrap: wrap` and this is its last child.
+    ────────────────────────────────────────────────────────────────────────────────────
+  */
+  flex-basis: 100%;
+  min-width: 0;
 }
 
 .details summary {
@@ -22,10 +61,10 @@
 
 .list li {
   margin-top: 0.25rem;
-  white-space: nowrap;
 }
 
 .list kbd {
+  white-space: nowrap;
   background: var(--paper-raised);
   border: 1px solid var(--rule);
   border-radius: 3px;

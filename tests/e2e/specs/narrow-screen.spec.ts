@@ -62,9 +62,42 @@ async function overflowing(page: Page): Promise<readonly string[]> {
   return page.evaluate(() => {
     const limit = document.documentElement.clientWidth;
     const found: string[] = [];
+
+    /*
+      ─────────────────────────────────────────────────────────────────────────────────
+      CONTENT INSIDE A VISUALLY-HIDDEN BOX IS NOT MEASURED, AND THE EXCEPTION IS EXACT.
+
+      `getBoundingClientRect` reports an element's LAYOUT rectangle, which for a descendant
+      of a clipped container is its unclipped one. KaTeX renders every span twice — the
+      visible HTML, and a MathML copy for screen readers inside `.katex-mathml`, which its
+      stylesheet hides with the standard 1×1 `overflow: hidden` idiom. Measured on F01
+      frame 2: the container is 1px by 1px and correctly clipped, and its `<semantics>`
+      child still reports a right edge of 503px on a 360px screen.
+
+      That is eighteen findings about content no reader can see, on a page that does not
+      scroll sideways — and left in, they bury the one finding that matters.
+
+      The exception is deliberately narrow: an ancestor that is BOTH clipped and collapsed
+      to a pixel or less. That is the visually-hidden idiom and nothing else looks like it.
+      A closed `<details>` does NOT qualify — its box is a normal size and its content
+      becomes visible on a click, which is why this helper still catches a key panel that
+      would overflow the moment a reader on a phone opened it.
+      ─────────────────────────────────────────────────────────────────────────────────
+    */
+    const hiddenForAssistiveTech = (element: Element): boolean => {
+      for (let node: Element | null = element; node; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        if (style.overflow === 'hidden') {
+          const box = node.getBoundingClientRect();
+          if (box.width <= 1 || box.height <= 1) return true;
+        }
+      }
+      return false;
+    };
+
     document.querySelectorAll('*').forEach((element) => {
       const box = element.getBoundingClientRect();
-      if (box.width > 0 && Math.round(box.right) > limit + 1) {
+      if (box.width > 0 && Math.round(box.right) > limit + 1 && !hiddenForAssistiveTech(element)) {
         found.push(
           `<${element.tagName.toLowerCase()} class="${element.className}"> reaches ${Math.round(box.right)}px of ${limit}px`,
         );
