@@ -177,7 +177,7 @@
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "runtime": {
-          "$comment": "#239 §6: the track manifest names the runtime each lab needs, so the application loads numpy only for the labs that say so and the cost is a decision rather than a default.",
+          "$comment": "#239 §6: the track manifest names the runtime each lab needs, so the application loads numpy only for the labs that say so and the cost is a decision rather than a default. A VALUE HERE IS NOT FREE, and a compiler author should know before emitting one: the application serves the Python runtime from its own origin and nothing else (UI-UX.md rule 4), so a runtime whose wheels are not staged there is refused at build time rather than fetched from a CDN at read time. Today that means \"numpy\" would be rejected — see ADR-0032 and web/app/src/lib/content/runtime-assets.ts, which names the files and what taking the decision would involve.",
           "enum": ["stdlib", "numpy"]
         },
         "exercises": {
