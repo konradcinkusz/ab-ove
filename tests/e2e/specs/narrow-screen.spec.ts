@@ -1,8 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { expect, test, type Page } from '@playwright/test';
+
+import { pickPair, track, unitNamed } from './support/bundle.ts';
 
 /**
  * The composed route on a phone — UI-UX.md requirement 1.5, issue #54.
@@ -30,44 +28,16 @@ import { expect, test, type Page } from '@playwright/test';
  * gates a merge is the one that sees them. See playwright.config.ts's project greps.
  *
  * WHY THE EXPECTED STRINGS ARE READ FROM THE BUNDLE. A copy of the text here would be a
- * second copy of something that has a source and would drift the first time the fixture
- * moved, silently, because nothing compares them. The loader below repeats the one in
- * `frame-and-lab.spec.ts`; what is NOT repeated is the data, which is the part that could
- * go wrong. Lifting the loader into `support/` is worth doing when a third spec wants it.
+ * second copy of something that has a source and would drift the first time the content
+ * moved, silently, because nothing compares them. The loader IS now in `support/` — the
+ * "worth doing when a third spec wants it" the previous version of this note deferred
+ * became worth doing when the application stopped serving the fixture at all.
  */
-const HERE = dirname(fileURLToPath(import.meta.url));
-
-interface FixtureStep {
-  readonly n: number;
-  readonly body: Record<string, string>;
-  readonly answer?: Record<string, string>;
-}
-
-function bundle(): { track: string; unit: string; steps: readonly FixtureStep[] } {
-  const path = join(
-    HERE,
-    '..',
-    '..',
-    '..',
-    'web',
-    'app',
-    'src',
-    'lib',
-    'content',
-    'fixtures',
-    'book-p01.bundle.json',
-  );
-  const parsed = JSON.parse(readFileSync(path, 'utf8'));
-  const unit = parsed?.units?.[0];
-  if (!parsed?.track?.id || !unit?.id || !Array.isArray(unit.steps)) {
-    throw new Error(
-      `${path} no longer has the shape this suite reads. Fixture and spec must move together.`,
-    );
-  }
-  return { track: parsed.track.id, unit: unit.id, steps: unit.steps };
-}
-
-const { track, unit, steps } = bundle();
+/* P01 from the served bundle — it is the one program that has a lab. */
+const unit = 'P01';
+const program = unitNamed(unit);
+const pair = pickPair(program);
+const { asking, answering } = pair;
 
 /** The lab, as the URL spells it — `LABS` in web/app/src/lib/lab/protocol.ts is the source. */
 const LAB = 'p01';
@@ -79,8 +49,6 @@ const composed = (language: string, n: number): string =>
 const PHONE = { width: 360, height: 640 } as const;
 
 /** The first step whose NEXT step opens with an answer — the reveal this file exercises. */
-const asking = steps.find((_step, index) => steps[index + 1]?.answer !== undefined);
-const answering = asking ? steps[asking.n] : undefined;
 
 const revealTo = (page: Page, language: string, n: number) =>
   page.locator(`a[href="${composed(language, n)}"]`);
@@ -123,7 +91,7 @@ test.describe('the frame and the lab pane at 360 px', () => {
      * box at all, or having one of zero height, so the first two expectations are not
      * ceremony: they are the difference between "stacked" and "one of them is hidden".
      */
-    await page.goto(composed('en', asking!.n));
+    await page.goto(composed('en', asking.n));
 
     const frame = page.getByRole('article');
     const pane = page.getByRole('main');
@@ -163,7 +131,7 @@ test.describe('the frame and the lab pane at 360 px', () => {
      * that breaks first; the `pl` half of frame-view.spec.ts records the same reasoning.
      */
     for (const language of ['en', 'pl']) {
-      await page.goto(composed(language, asking!.n));
+      await page.goto(composed(language, asking.n));
       await expect(page.getByTestId('lab-editor')).toBeVisible();
 
       const wide = await overflowing(page);
@@ -191,10 +159,10 @@ test.describe('the frame and the lab pane at 360 px', () => {
      * that would have to be written to make tabs work — and it would be free to render the
      * next step to make a tab switch feel instant.
      */
-    const question = asking!.body.en!;
-    const answer = answering!.answer!.en!;
+    const question = pair.question.en!;
+    const answer = pair.answer.en!;
 
-    await page.goto(composed('en', asking!.n));
+    await page.goto(composed('en', asking.n));
 
     const editor = page.getByTestId('lab-editor');
     await expect(editor, 'the pane is not on the composed route at 360 px').toBeVisible();
@@ -215,7 +183,7 @@ test.describe('the frame and the lab pane at 360 px', () => {
      * that the pane created". Source order is what guarantees it — the frame precedes the
      * pane — so this asserts the guarantee rather than a pixel budget somebody chose.
      */
-    const reveal = revealTo(page, 'en', answering!.n);
+    const reveal = revealTo(page, 'en', answering.n);
     await expect(reveal, 'the reveal is not on the page at 360 px').toBeVisible();
     const revealBox = (await reveal.boundingBox())!;
     const paneBox = (await page.getByRole('main').boundingBox())!;
@@ -230,7 +198,7 @@ test.describe('the frame and the lab pane at 360 px', () => {
     await editor.fill(sentinel);
 
     await reveal.click();
-    await expect(page).toHaveURL(new RegExp(`${composed('en', answering!.n)}$`));
+    await expect(page).toHaveURL(new RegExp(`${composed('en', answering.n)}$`));
     await expect(page.locator('body'), 'the reveal did not produce the answer').toContainText(
       answer,
     );
@@ -252,7 +220,7 @@ test.describe('the frame and the lab pane at 360 px', () => {
      * renders identically, scrolls nowhere, and logs nothing — so the assertion is that the
      * frame is on screen afterwards and was not before.
      */
-    await page.goto(composed('en', asking!.n));
+    await page.goto(composed('en', asking.n));
     await expect(page.getByTestId('lab-editor')).toBeVisible();
 
     /*
@@ -295,7 +263,7 @@ test.describe('the frame and the lab pane at 360 px', () => {
      * failed on this build and named the reason: the element is in the DOM either way.
      */
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(composed('en', asking!.n));
+    await page.goto(composed('en', asking.n));
     await expect(page.getByTestId('lab-editor')).toBeVisible();
 
     await expect(
@@ -313,7 +281,7 @@ test.describe('the frame and the lab pane at 360 px', () => {
      * navigating by landmark has to be able to reach the frame — which is 1.5's last clause
      * read through a screen reader, and the one reading of it that scrolling cannot satisfy.
      */
-    await page.goto(composed('en', asking!.n));
+    await page.goto(composed('en', asking.n));
     await expect(page.getByRole('main')).toHaveCount(1);
 
     // The name is the chrome's, in the chrome's language — see lib/i18n/chrome.ts.

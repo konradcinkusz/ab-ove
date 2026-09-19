@@ -44,6 +44,12 @@ interface Plural {
   readonly other: string;
 }
 
+/** One row of the keyboard map, shown in the frame's own hint and in the foot's `Keys` details. */
+interface KeyEntry {
+  readonly key: string;
+  readonly does: string;
+}
+
 /**
  * The account-deletion screen.
  *
@@ -152,7 +158,6 @@ interface ConsentStrings {
 
 interface Strings {
   readonly answer: string;
-  readonly keys: string;
   /**
    * The accessible name of the region the frame sits in when something else shares the
    * page with it — today the lab pane, on the composed route of UI-UX.md 1.5.
@@ -187,7 +192,6 @@ interface Strings {
   readonly cue: string;
   readonly reveal: string;
   readonly next: string;
-  readonly lastFrame: string;
   readonly previous: string;
   /**
    * What a frame that carries a `check` offers, with the exercise NAMED in it.
@@ -212,6 +216,49 @@ interface Strings {
   readonly continueAtFrame: (n: number) => string;
   readonly frame: Plural;
   readonly section: Plural;
+
+  /**
+   * PR3 — the place row, the jumper, the keys map, and `/summary`.
+   *
+   * These sit apart from the block above because they are new rather than because they
+   * differ in kind; the separation is only so a reviewer can see what one pass added.
+   */
+  /** `← Programs`, the contents page's own way back up — a NEW key rather than reusing
+   * `programs`, because that string is also this application's index heading and an arrow
+   * belongs on the crumb's link and nowhere near an `<h1>`. */
+  readonly programsCrumb: string;
+  /** The frame-jumper's accessible name — it has no visible label, only the number itself. */
+  readonly goToFrame: string;
+  /** The foot's `<details>` summary, and the heading a screen reader announces for it. */
+  readonly keysHeading: string;
+  /** The full keyboard map, in the order a reader would want to read it. */
+  readonly keysMap: readonly KeyEntry[];
+  /**
+   * The accessible name of the foot's navigation landmark, on all three reading screens.
+   *
+   * Invisible, and it earns its place anyway: the language switch is already a labelled
+   * `<nav>`, so an unlabelled second one leaves a screen-reader user with a landmark list
+   * reading "navigation, navigation" — which is worse than one landmark would have been.
+   * It says "where to next" rather than "in this program" because the summary's foot leads
+   * OUT of the program, to the next one.
+   */
+  readonly footNav: string;
+  /** On the last frame of a section that is not the program's last: `Next section →`. */
+  readonly nextSection: string;
+  /** Frame 1's own foot link, replacing `previous` where there is nowhere to go back to. */
+  readonly backToContents: string;
+  /** The last frame's reveal-shaped control, opening `/summary` instead of a frame. */
+  readonly summaryAndChecklist: string;
+  readonly summaryHeading: string;
+  readonly canYouHeading: string;
+  /** Honest, for now: schema v1 carries no Test exercises or Further problems to show. */
+  readonly exercisesNotYet: string;
+  readonly nextProgramLabel: string;
+  /** Its mirror, on the contents page's foot: the program before this one. */
+  readonly previousProgramLabel: string;
+  /** The summary screen's own way back, mirroring the frame's crumb. */
+  readonly backToLastFrame: string;
+  readonly labOptional: string;
 }
 
 /**
@@ -230,7 +277,6 @@ interface Strings {
 export const TABLE: Readonly<Record<string, Strings>> = {
   en: {
     answer: 'Answer',
-    keys: '→ next frame · ← back',
     frameRegion: 'The frame',
     backToFrame: 'Back to the frame',
     forget: 'Forget where I am',
@@ -296,7 +342,6 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     cue: 'The next frame answers this.',
     reveal: 'Reveal the answer',
     next: 'Next frame',
-    lastFrame: 'That is the last frame of this program.',
     previous: 'Previous',
     checkOffer: (exercise) => `Work exercise ${exercise} in the lab, beside this frame`,
     languageLabel: 'Language',
@@ -308,10 +353,29 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     continueAtFrame: (n) => `Continue at frame ${n}`,
     frame: { one: 'frame', other: 'frames' },
     section: { one: 'section', other: 'sections' },
+    programsCrumb: '← Programs',
+    goToFrame: 'Go to frame',
+    keysHeading: 'Keys',
+    keysMap: [
+      { key: '→', does: 'next frame' },
+      { key: '←', does: 'previous frame' },
+      { key: 'g', does: 'go to a frame number' },
+    ],
+    footNav: 'Where to next',
+    nextSection: 'Next section →',
+    backToContents: 'Contents',
+    summaryAndChecklist: 'Summary and checklist',
+    summaryHeading: 'Summary',
+    canYouHeading: 'Can you?',
+    exercisesNotYet:
+      'The Test exercises and Further problems for this program are not in this edition of the app yet.',
+    nextProgramLabel: 'Next program',
+    previousProgramLabel: 'Previous program',
+    backToLastFrame: '← Back to the frame',
+    labOptional: 'This program also has computer exercises in Python, optional',
   },
   pl: {
     answer: 'Odpowiedź',
-    keys: '→ kolejna ramka · ← wstecz',
     frameRegion: 'Ramka',
     backToFrame: 'Wróć do ramki',
     forget: 'Zapomnij, gdzie jestem',
@@ -378,7 +442,6 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     cue: 'Odpowiedź znajdziesz w kolejnej ramce.',
     reveal: 'Pokaż odpowiedź',
     next: 'Kolejna ramka',
-    lastFrame: 'To ostatnia ramka tego programu.',
     previous: 'Poprzednia',
     checkOffer: (exercise) =>
       `Zrób ćwiczenie ${exercise} w laboratorium obok tej ramki`,
@@ -391,6 +454,26 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     continueAtFrame: (n) => `Wróć do ramki ${n}`,
     frame: { one: 'ramka', few: 'ramki', many: 'ramek', other: 'ramki' },
     section: { one: 'sekcja', few: 'sekcje', many: 'sekcji', other: 'sekcji' },
+    programsCrumb: '← Programy',
+    goToFrame: 'Przejdź do ramki',
+    keysHeading: 'Klawisze',
+    keysMap: [
+      { key: '→', does: 'kolejna ramka' },
+      { key: '←', does: 'poprzednia ramka' },
+      { key: 'g', does: 'przejdź do numeru ramki' },
+    ],
+    footNav: 'Dokąd dalej',
+    nextSection: 'Następna sekcja →',
+    backToContents: 'Spis treści',
+    summaryAndChecklist: 'Podsumowanie i lista',
+    summaryHeading: 'Podsumowanie',
+    canYouHeading: 'Czy potrafisz?',
+    exercisesNotYet:
+      'Zadania testowe i Dalsze zadania tego programu nie są jeszcze w tej wersji aplikacji.',
+    nextProgramLabel: 'Następny program',
+    previousProgramLabel: 'Poprzedni program',
+    backToLastFrame: '← Wróć do ramki',
+    labOptional: 'Ten program ma też ćwiczenia komputerowe w Pythonie, opcjonalne',
   },
 };
 
@@ -451,7 +534,6 @@ export interface Chrome {
    */
   readonly language: string;
   readonly answer: string;
-  readonly keys: string;
   readonly frameRegion: string;
   readonly backToFrame: string;
   readonly forget: string;
@@ -465,7 +547,6 @@ export interface Chrome {
   readonly cue: string;
   readonly reveal: string;
   readonly next: string;
-  readonly lastFrame: string;
   readonly previous: string;
   readonly checkOffer: (exercise: string) => string;
   readonly languageLabel: string;
@@ -477,6 +558,21 @@ export interface Chrome {
   readonly continueAtFrame: (n: number) => string;
   readonly frames: (n: number) => string;
   readonly sections: (n: number) => string;
+  readonly programsCrumb: string;
+  readonly goToFrame: string;
+  readonly keysHeading: string;
+  readonly keysMap: readonly KeyEntry[];
+  readonly footNav: string;
+  readonly nextSection: string;
+  readonly backToContents: string;
+  readonly summaryAndChecklist: string;
+  readonly summaryHeading: string;
+  readonly canYouHeading: string;
+  readonly exercisesNotYet: string;
+  readonly nextProgramLabel: string;
+  readonly previousProgramLabel: string;
+  readonly backToLastFrame: string;
+  readonly labOptional: string;
 }
 
 /** The controls for a reader of `language`, falling back to English rather than failing. */

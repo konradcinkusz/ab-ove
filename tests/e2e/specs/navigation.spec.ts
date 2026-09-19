@@ -1,8 +1,13 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { expect, test } from '@playwright/test';
+
+import {
+  languages,
+  needleOrNone,
+  track,
+  trackTitles,
+  uniqueProbeIn,
+  unitNamed,
+} from './support/bundle.ts';
 
 /**
  * JOURNEY — finding a program, opening it, and coming back to the same frame.
@@ -17,55 +22,19 @@ import { expect, test } from '@playwright/test';
  * copy of something that has a source, and the two would drift the first time the fixture
  * moved — silently, because nothing compares them.
  */
-const HERE = dirname(fileURLToPath(import.meta.url));
-
-interface FixtureSection {
-  readonly id: string;
-  readonly titles: Record<string, string>;
-  readonly firstStep: number;
-}
-
-interface FixtureStep {
-  readonly n: number;
-  readonly body: Record<string, string>;
-  readonly answer?: Record<string, string>;
-}
-
-function bundle() {
-  const path = join(
-    HERE,
-    '..',
-    '..',
-    '..',
-    'web',
-    'app',
-    'src',
-    'lib',
-    'content',
-    'fixtures',
-    'book-p01.bundle.json',
-  );
-  const parsed = JSON.parse(readFileSync(path, 'utf8'));
-  const unit = parsed?.units?.[0];
-  if (!parsed?.track?.id || !parsed?.track?.titles || !unit?.id || !Array.isArray(unit.steps)) {
-    throw new Error(
-      `${path} no longer has the shape this suite reads. Fixture and spec must move together.`,
-    );
-  }
-  return {
-    track: parsed.track.id as string,
-    trackTitles: parsed.track.titles as Record<string, string>,
-    languages: parsed.track.languages as string[],
-    unit: unit.id as string,
-    unitTitles: unit.titles as Record<string, string>,
-    sections: (unit.sections ?? []) as FixtureSection[],
-    steps: unit.steps as FixtureStep[],
-  };
-}
-
-const { track, trackTitles, languages, unit, unitTitles, sections, steps } = bundle();
+/*
+  F01, from the bundle the application serves — see specs/support/bundle.ts for why the
+  committed fixture stopped being the right source the day `bundleFor()` started reading
+  `web/content/bundle/bundle.json` and refusing to fall back to anything smaller.
+*/
+const unit = 'F01';
+const program = unitNamed(unit);
+const unitTitles = program.titles;
+const sections = program.sections;
+const steps = program.steps;
 
 const contentsAt = (language: string): string => `/read/${track}/${unit}/${language}`;
+const summaryAt = (language: string): string => `${contentsAt(language)}/summary`;
 const frameAt = (language: string, n: number): string => `${contentsAt(language)}/${n}`;
 
 test.describe('navigation', () => {
@@ -82,7 +51,7 @@ test.describe('navigation', () => {
     // BOTH editions, each under its own title, each its own link. The index is where a
     // reader who has not chosen a language arrives, so it is the one page that could
     // quietly make the book monolingual — and the failure would look like a tidier page.
-    expect(languages.length, 'the fixture no longer has two editions to distinguish').toBe(2);
+    expect(languages.length, 'the track no longer has two editions to distinguish').toBe(2);
     for (const language of languages) {
       await expect(
         page.getByRole('link', { name: unitTitles[language]! }),
@@ -106,7 +75,7 @@ test.describe('navigation', () => {
     // Every heading the program declares, linking at the frame it opens on. The section
     // anchors are the one thing a contents page is FOR: "where does the part about the gap
     // start?" is the question, and the answer is a frame number.
-    expect(sections.length, 'the fixture no longer declares sections to list').toBeGreaterThan(0);
+    expect(sections.length, `${unit} no longer declares sections to list`).toBeGreaterThan(0);
     for (const section of sections) {
       await expect(
         page.getByRole('link', { name: section.titles.en! }),
@@ -117,7 +86,7 @@ test.describe('navigation', () => {
     const second = sections[1] ?? sections[0]!;
     await page.getByRole('link', { name: second.titles.en! }).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt('en', second.firstStep)}$`));
-    await expect(page.locator('body')).toContainText(steps[second.firstStep - 1]!.body.en!);
+    await expect(page.locator('body')).toContainText(uniqueProbeIn(program, second.firstStep, 'en'));
   });
 
   test('the contents page carries no frame’s text, in either edition @core', async ({ page }) => {
@@ -141,18 +110,99 @@ test.describe('navigation', () => {
         sections[0]!.titles[language]!,
       );
 
+      /*
+        ON A NEEDLE, not on the body: a real frame is Markdown with KaTeX in it, so the
+        source string is on no page and `not.toContain(body)` would be a green assertion
+        about nothing. A needle is a run of plain words that survives rendering, or — for
+        an answer that is a bare formula — the TeX itself, which KaTeX keeps in an
+        `<annotation>` element and which is therefore findable in markup exactly when the
+        answer has been rendered.
+
+        A few frames have neither, and they are SKIPPED AND COUNTED rather than asserted
+        weakly: a needle too short to mean anything ("1", "8") is absent from no page at
+        all. The count is then asserted, so this test cannot quietly degrade into checking
+        nothing the day the needle rules change.
+      */
+      let checked = 0;
       for (const step of steps) {
-        expect(
-          markup,
-          `frame ${step.n}'s body is printed on the ${language} contents page`,
-        ).not.toContain(step.body[language]!);
-        if (step.answer) {
+        const inBody = needleOrNone(step.body[language]!);
+        if (inBody) {
+          checked += 1;
+          expect(
+            markup,
+            `frame ${step.n}'s body is printed on the ${language} contents page`,
+          ).not.toContain(inBody);
+        }
+        const inAnswer = step.answer ? needleOrNone(step.answer[language]!) : undefined;
+        if (inAnswer) {
+          checked += 1;
           expect(
             markup,
             `frame ${step.n}'s ANSWER is printed on the ${language} contents page`,
-          ).not.toContain(step.answer[language]!);
+          ).not.toContain(inAnswer);
         }
       }
+      expect(
+        checked,
+        `almost nothing was assertable in ${language}, so this test proved almost nothing`,
+      ).toBeGreaterThan(steps.length);
+    }
+  });
+
+  test('the last frame hands off to the program’s summary @core', async ({ page }) => {
+    // The end of a program used to be a full stop — a sentence saying so, and no control.
+    // A reader who had just read forty-five frames had to go back up to the index to find
+    // the next program, which is two levels up from where they were.
+    await page.goto(frameAt('en', steps.length));
+    await page.getByRole('link', { name: /summary/i }).click();
+    await expect(page).toHaveURL(new RegExp(`${summaryAt('en')}$`));
+
+    // And the way back is on it, pointing at the frame that sent them.
+    await page.getByRole('link', { name: /back to the frame/i }).click();
+    await expect(page).toHaveURL(new RegExp(`${frameAt('en', steps.length)}$`));
+  });
+
+  test('the summary carries no frame’s text, in either edition @core', async ({ page }) => {
+    // ──────────────────────────────────────────────────────────────────────────────────
+    // THE SAME PROPERTY THE CONTENTS PAGE IS HELD TO, ON THE PAGE MOST LIKELY TO BREAK IT.
+    //
+    // This screen exists to print the book's return index — the Summary items and the
+    // declared outcomes — and those PARAPHRASE what a run of frames concluded. A
+    // paraphrase is the right thing to print here and a quotation is not: a reader can
+    // reach this page by URL without having read a frame of the program.
+    //
+    // The positive control is in the same block, and it matters more here than on the
+    // contents page: a summary screen that rendered nothing at all would satisfy every
+    // absence assertion below and look, from a test, exactly like a correct one.
+    // ──────────────────────────────────────────────────────────────────────────────────
+    for (const language of languages) {
+      const response = await page.request.get(summaryAt(language), { maxRedirects: 0 });
+      expect(response.status(), 'a summary page must answer 200 with no session').toBe(200);
+
+      await page.goto(summaryAt(language));
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(unitTitles[language]!);
+
+      const markup = await page.content();
+      let checked = 0;
+      for (const step of steps) {
+        const inBody = needleOrNone(step.body[language]!);
+        if (inBody) {
+          checked += 1;
+          expect(
+            markup,
+            `frame ${step.n}'s body is printed on the ${language} summary`,
+          ).not.toContain(inBody);
+        }
+        const inAnswer = step.answer ? needleOrNone(step.answer[language]!) : undefined;
+        if (inAnswer) {
+          checked += 1;
+          expect(
+            markup,
+            `frame ${step.n}'s ANSWER is printed on the ${language} summary`,
+          ).not.toContain(inAnswer);
+        }
+      }
+      expect(checked, `nothing was assertable in ${language}`).toBeGreaterThan(steps.length);
     }
   });
 
@@ -164,12 +214,12 @@ test.describe('navigation', () => {
     const target = frameAt('pl', n);
 
     await page.goto(target);
-    await expect(page.locator('body')).toContainText(steps[n - 1]!.body.pl!);
+    await expect(page.locator('body')).toContainText(uniqueProbeIn(program, n, 'pl'));
 
     await page.reload();
     await expect(page).toHaveURL(new RegExp(`${target}$`));
     await expect(page.locator('body'), 'the reload did not return the same frame').toContainText(
-      steps[n - 1]!.body.pl!,
+      uniqueProbeIn(program, n, 'pl'),
     );
 
     // And there is genuinely no session behind it: the same URL fetched cold, with
@@ -191,7 +241,7 @@ test.describe('navigation', () => {
 
     await page.getByRole('link', { name: /previous/i }).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt('en', 1)}$`));
-    await expect(page.locator('body')).toContainText(steps[0]!.body.en!);
+    await expect(page.locator('body')).toContainText(uniqueProbeIn(program, 1, 'en'));
   });
 
   test('a frame leads back up to its own contents @core', async ({ page }) => {
@@ -228,7 +278,7 @@ test.describe('navigation', () => {
       await expect(
         page.locator(`article[lang="${language}"]`),
         `the ${language} frame does not declare its language`,
-      ).toContainText(steps[0]!.body[language]!);
+      ).toContainText(uniqueProbeIn(program, 1, language));
     }
 
     // And the controls follow the edition, which is what #6 settled: on a Polish frame the

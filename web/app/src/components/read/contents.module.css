@@ -201,3 +201,35 @@
 .start:focus-visible {
   filter: brightness(1.1);
 }
+
+/*
+ * THE FOOT: the two neighbouring programs, and the key map.
+ *
+ * It is the same shape as the frame's own foot (frame-view.module.css) on purpose — a
+ * reader moving between the two screens should not have to re-learn where the way out is.
+ * The neighbours are ids rather than titles: a title is as long as the book made it, and
+ * two of them side by side on a 360px screen is a paragraph where a signpost was wanted.
+ */
+.foot {
+  align-items: flex-start;
+  border-top: 1px solid var(--rule);
+  color: var(--ink-faint);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8125rem;
+  gap: 0.75rem 1rem;
+  justify-content: space-between;
+  margin-top: 3rem;
+  padding-top: 1rem;
+}
+
+.footSide {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
+.foot a {
+  color: inherit;
+}
+

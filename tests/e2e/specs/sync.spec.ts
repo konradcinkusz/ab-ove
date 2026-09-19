@@ -1,8 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { expect, test, type Page, type Route } from '@playwright/test';
+
+import { track as TRACK, unitNamed } from './support/bundle.ts';
 
 /**
  * JOURNEY — the same reader, on a second machine.
@@ -77,36 +75,17 @@ const PROGRESS_ONE = '**/api/proxy/api/v1/progress/*/*';
  * asserting the clamp rather than the merge. The fixture is four frames long; the first
  * draft of this suite used 40 and 12, and every test failed on a product that was working.
  */
-const HERE = dirname(fileURLToPath(import.meta.url));
-
-function frameCount(): number {
-  const path = join(
-    HERE,
-    '..',
-    '..',
-    '..',
-    'web',
-    'app',
-    'src',
-    'lib',
-    'content',
-    'fixtures',
-    'book-p01.bundle.json',
-  );
-  const parsed = JSON.parse(readFileSync(path, 'utf8'));
-  const steps = parsed?.units?.[0]?.steps;
-  if (!Array.isArray(steps) || steps.length < 2) {
-    throw new Error(
-      `${path} no longer has the shape this suite reads. Fixture and spec must move together.`,
-    );
-  }
-  return steps.length;
-}
-
-const TRACK = 'math-for-ai-engineers';
 const UNIT = 'P01';
 
-const AHEAD = frameCount();
+/*
+  FROM THE SERVED BUNDLE, not from the committed fixture. `bundleFor()` reads
+  `web/content/bundle/bundle.json` and never the fixture — see specs/support/bundle.ts —
+  so a length taken from the fixture would be four where the program is thirty-five, and
+  `ResumeLast`'s clamp would quietly turn every assertion below into an assertion about
+  the clamp. That is the failure mode the paragraph above already records at 40 and 12;
+  this is the same mistake arriving from the other direction.
+*/
+const AHEAD = unitNamed(UNIT).steps.length;
 const BEHIND = 1;
 
 interface Row {

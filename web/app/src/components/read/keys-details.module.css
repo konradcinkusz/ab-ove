@@ -1,0 +1,35 @@
+/*
+ * The key map's own two rules, shared by every page that carries it.
+ *
+ * `white-space: nowrap` on the row rather than on the `<kbd>`: what must not break is the
+ * key and what it does, together — a line ending after `→` and resuming with `next` on the
+ * next line reads as two entries.
+ */
+.details {
+  color: var(--ink-faint);
+  font-size: 0.8125rem;
+}
+
+.details summary {
+  cursor: pointer;
+}
+
+.list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.list li {
+  margin-top: 0.25rem;
+  white-space: nowrap;
+}
+
+.list kbd {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0.0625rem 0.3125rem;
+}
