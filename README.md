@@ -223,6 +223,31 @@ rest on more than one frame, and `test_6_store_rounds_to_the_format` rests on fr
 a zero would read as *readers could not use this frame later*, which is the opposite of *nobody
 has asked*, and would sort it to the top of a list somebody acts on.
 
+**Both of those numbers come from one place today, and it is the lab.** A frame has a
+first-attempt cell because somebody pressed *Check* in the lab pane: `reportRun` in
+`web/app/src/lib/instrument/report.ts` posts a run's verdicts to `POST /api/v1/outcomes`, and
+`src/AbOvo.Api/Endpoints/OutcomeEndpoints.cs` is what writes the table the rates are read
+from. Follow that path in either direction and there is no branch off it. So *did the reader
+get it right first time* means, precisely, *did this frame's checks pass on the run the
+browser counted as the first* — over the frames a check's docstring names, and no others. A
+frame that carries a question and an answer and no check is not scored badly by this
+instrument; it is not scored at all. The attempt number is the browser's own count and the
+service cannot verify it
+([ADR-0023](docs/adr/0023-a-tally-is-a-count-against-a-frame-not-a-record-of-a-run.md) §3),
+which is the second reason to read this measure as narrower than its name.
+
+**And the reading surface reports nothing, which is a decision rather than a gap.** The
+dotted row under a frame is `\dotline` — somewhere to write before turning over — and
+`frame-view.tsx` says in as many words why it carries no input: *"that is a decision rather
+than an omission"*, because [ADR-0009](docs/adr/0009-the-instrument-measures-the-book.md)
+puts the instrument on the book and never on the reader, and a text box there would be the
+first place a per-reader record could come from. One consequence is worth printing rather
+than leaving to be discovered. The counter-measure that would pair with a reveal — *how many
+readers revealed without answering* — is not merely unmeasured here but **unmeasurable**:
+with nowhere to answer, every reveal is a reveal without answering, so the ratio is 1
+whatever the book does and separates nothing. Whether a frame should take an answer at all is
+an open decision (#58); recording the state here does not take it.
+
 **Anything that guesses at a reader's state is absent, not present at zero.** `Measure` is a
 closed enum, so a weight cannot be added by editing a dictionary — the member has to exist
 first, beside the note that justifies it. The test asserts over the enum rather than the
