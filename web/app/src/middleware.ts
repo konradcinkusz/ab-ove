@@ -64,6 +64,11 @@ const PUBLIC_PATHS = new Set<string>([
   // only the check sees the redirect.
   '/healthz',
 
+  // What the landing page used to be. It is public for the same reason `/` is: it explains
+  // the product to somebody who has not got an account and is deciding whether to want one,
+  // and a sign-in form is a poor answer to "what is this".
+  '/about',
+
   // The two index pages. They are here rather than in PUBLIC_PREFIXES because every entry
   // in that list ends in a slash — '/lab' as a prefix also matches '/labour' and
   // '/lab-admin', and a gate that opens a page nobody has written yet is a gate that will

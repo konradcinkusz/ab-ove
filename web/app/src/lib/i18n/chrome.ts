@@ -158,28 +158,6 @@ interface ConsentStrings {
 
 interface Strings {
   readonly answer: string;
-  /**
-   * The accessible name of the region the frame sits in when something else shares the
-   * page with it — today the lab pane, on the composed route of UI-UX.md 1.5.
-   *
-   * It exists because that route has two landmarks and the frame is not the one carrying
-   * `<main>`: the pane brings its own, and giving the reading column a second `<main>`
-   * would be invalid rather than helpful. A named region is what lets a reader navigating
-   * by landmark reach the frame at all, which is the requirement's own last clause read
-   * through a screen reader.
-   */
-  readonly frameRegion: string;
-  /**
-   * The way back up, at the foot of the lab pane on a narrow screen — UI-UX.md 1.5, #54.
-   *
-   * It exists because the two halves are stacked rather than tabbed, and stacking's whole
-   * defence is that both stay reachable. Measured at 360x640 the composed route is about
-   * 2,800 px tall, so a reader who has read to the end of the checks is some four screens
-   * below the question they are answering. The link is that distance in one tap, and it
-   * has no job at all once the two halves sit side by side — which is why the stylesheet
-   * takes it away at the same width the columns divide.
-   */
-  readonly backToFrame: string;
   readonly forget: string;
   readonly signIn: string;
   readonly signOut: string;
@@ -193,20 +171,6 @@ interface Strings {
   readonly reveal: string;
   readonly next: string;
   readonly previous: string;
-  /**
-   * What a frame that carries a `check` offers, with the exercise NAMED in it.
-   *
-   * The name is the whole of what the sentence is for. A lab's exercise file holds all of
-   * that program's exercises at once — `gap`, `epsilon`, `tenth` and the rest are regions
-   * of one `<stem>.py` — so "open the lab" would land a reader in a file of functions with
-   * nothing to say which one this frame was asking for. The id comes out of the step's own
-   * `check`, beside the lab, so the two cannot name different things.
-   *
-   * A FUNCTION RATHER THAN A STRING WITH A SLOT, because the id does not sit in the same
-   * place in both languages and a template assembled at the call site would put it in the
-   * English one twice.
-   */
-  readonly checkOffer: (exercise: string) => string;
   readonly languageLabel: string;
   readonly programs: string;
   readonly contents: string;
@@ -277,8 +241,6 @@ interface Strings {
 export const TABLE: Readonly<Record<string, Strings>> = {
   en: {
     answer: 'Answer',
-    frameRegion: 'The frame',
-    backToFrame: 'Back to the frame',
     forget: 'Forget where I am',
     signIn: 'Sign in',
     signOut: 'Sign out',
@@ -343,7 +305,6 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     reveal: 'Reveal the answer',
     next: 'Next frame',
     previous: 'Previous',
-    checkOffer: (exercise) => `Work exercise ${exercise} in the lab, beside this frame`,
     languageLabel: 'Language',
     programs: 'Programs',
     contents: 'Contents',
@@ -376,8 +337,6 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   },
   pl: {
     answer: 'Odpowiedź',
-    frameRegion: 'Ramka',
-    backToFrame: 'Wróć do ramki',
     forget: 'Zapomnij, gdzie jestem',
     signIn: 'Zaloguj się',
     signOut: 'Wyloguj się',
@@ -443,8 +402,6 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     reveal: 'Pokaż odpowiedź',
     next: 'Kolejna ramka',
     previous: 'Poprzednia',
-    checkOffer: (exercise) =>
-      `Zrób ćwiczenie ${exercise} w laboratorium obok tej ramki`,
     languageLabel: 'Język',
     programs: 'Programy',
     contents: 'Spis treści',
@@ -534,8 +491,6 @@ export interface Chrome {
    */
   readonly language: string;
   readonly answer: string;
-  readonly frameRegion: string;
-  readonly backToFrame: string;
   readonly forget: string;
   readonly signIn: string;
   readonly signOut: string;
@@ -548,7 +503,6 @@ export interface Chrome {
   readonly reveal: string;
   readonly next: string;
   readonly previous: string;
-  readonly checkOffer: (exercise: string) => string;
   readonly languageLabel: string;
   readonly programs: string;
   readonly contents: string;

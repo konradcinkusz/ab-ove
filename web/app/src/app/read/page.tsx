@@ -1,16 +1,25 @@
 import type { Metadata } from 'next';
 
-import { ProgramList } from '@/components/read/program-list';
+import { ReadingIndex } from '@/components/read/reading-index';
 import { allBundles } from '@/lib/content/bundle';
 
 /**
- * The reading index: every program this application serves.
+ * The reading index at its own address — the same page `/` renders.
  *
- * A Server Component over content compiled into the app — no fetch, no cookie, no backend —
- * which is the reader-loop-needs-no-account requirement of ADR-0004 applied to the page a
- * reader arrives at first. `/read` is in the middleware's PUBLIC_PATHS rather than covered
- * by the `/read/` prefix, because every entry in the prefix list ends in a slash and an
- * index path therefore needs its own line.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * ONE COMPONENT, TWO ROUTES, AND NOT A REDIRECT. `/` is the index now (see
+ * `reading-index.tsx` for why the manifesto moved to `/about`), and this path still exists
+ * because the middleware names it in PUBLIC_PATHS, five acceptance specs address it, and
+ * `/read/<track>/...` makes `/read` a reasonable thing for a reader to type. A 308 here
+ * would work and would make every one of those a redirect to follow — including the
+ * `maxRedirects: 0` checks that exist precisely to catch a route answering with a
+ * redirect it should not.
+ *
+ * The two files differ in their metadata and in nothing else. That is deliberate: this
+ * page is addressed by somebody who wants the programs, and `/` by somebody who has been
+ * handed the product, so the title each one puts in a tab and a search result is not the
+ * same title even though the page is.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * `allBundles()` throws if a pinned bundle does not validate, and this page is prerendered,
  * so THAT THROW FAILS THE BUILD rather than reaching a reader at all. Measured, not
@@ -27,5 +36,5 @@ export const metadata: Metadata = {
 };
 
 export default function ProgramsPage(): React.JSX.Element {
-  return <ProgramList bundles={allBundles()} />;
+  return <ReadingIndex bundles={allBundles()} />;
 }

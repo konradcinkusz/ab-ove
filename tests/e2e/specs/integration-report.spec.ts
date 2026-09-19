@@ -33,7 +33,7 @@ test.describe('integration report', () => {
     page,
   }) => {
     await serveServiceInfo(page, SAMPLE_SERVICE_INFO);
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     await expect(report).toBeVisible();
@@ -76,7 +76,7 @@ test.describe('integration report', () => {
 
   test('names the service and version it read the report from @core', async ({ page }) => {
     await serveServiceInfo(page, SAMPLE_SERVICE_INFO);
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
 
@@ -93,7 +93,7 @@ test.describe('integration report', () => {
 
   test('says so plainly when the API reports no optional integrations @core', async ({ page }) => {
     await serveServiceInfo(page, { ...SAMPLE_SERVICE_INFO, integrations: [] });
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     await expect(report).toContainText('The API answered and reports no optional integrations.');
@@ -117,7 +117,7 @@ test.describe('integration report', () => {
       }),
     );
 
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     await expect(report).toContainText('The API answered in a shape this page did not expect.');
@@ -148,7 +148,7 @@ test.describe('integration report', () => {
     // sleep.
     test.setTimeout(120_000);
 
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     await expect(report).toBeVisible();

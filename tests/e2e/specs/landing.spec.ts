@@ -1,7 +1,18 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * JOURNEY 1 — the landing page renders, and states the product's anti-goal.
+ * JOURNEY 1 — the landing page renders, states the product's anti-goal, and IS the book.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * `/` IS THE INDEX NOW, and three tests left this file because of it. The loop, "what it
+ * needs from you" and the phases are asserted in `about.spec.ts`, against the page that
+ * carries them. What is here is what a reader must meet on the page they cannot avoid:
+ * the anti-goal, the two refusals that give it teeth, and a way into a program.
+ *
+ * The `<h1>` assertion changed with the page and the change is deliberate rather than a
+ * concession: a heading should say what is on the page, and what is on this page is the
+ * programs. The wordmark is above it as a name.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * Why an anti-goal is worth a test at all: every system that measures learning drifts
  * towards measuring the learner, because that is the easier number to produce and the one
@@ -29,9 +40,7 @@ test.describe('landing page', () => {
     // first test passes against a blank body is the failure mode this whole discipline is
     // about, so the identity of the page is asserted before anything on it.
     await expect(page).toHaveTitle(/ab-ovo/);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'A book you work, not a book you read.',
-    );
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
 
     // `<section aria-label="What this instrument is for">` — a section with an accessible
     // name is a `region`, so the anti-goal is reachable by role and by the name its author
@@ -75,58 +84,18 @@ test.describe('landing page', () => {
     await expect(page.getByRole('heading', { name: /leaderboard|ranking/i })).toHaveCount(0);
   });
 
-  test('describes the reader loop as four steps, in order @core', async ({ page }) => {
+  test('is the way into the book, not a page in front of it @smoke', async ({ page }) => {
+    // The landing page used to be seven sections of argument with one link into the book
+    // below them. A product whose first screen does not lead to the thing it is for is a
+    // product nobody reaches — so the programs are ON it now, and this is the assertion
+    // that says so from outside: a title on the index opens that program's contents.
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'The loop', level: 2 })).toBeVisible();
-
-    // One literal substring, never a comma-delimited list: Playwright's `hasText` matches a
-    // single substring, and the audited estate silently disabled thirteen call sites by
-    // passing it an OR list it does not support (E2E-ACCEPTANCE-TESTING.md §4).
-    const loop = page.getByRole('list').filter({ hasText: 'Read a frame.' });
-    await expect(loop).toHaveCount(1);
-
-    const steps = loop.getByRole('listitem');
-    await expect(steps).toHaveCount(4);
-
-    // The order is the content. Stroud's frame is a commitment device, and a loop that
-    // revealed the answer before asking for one would be a different product — so the
-    // sequence is asserted as a sequence rather than as four unordered facts.
-    await expect(steps.nth(0)).toContainText('Read a frame.');
-    await expect(steps.nth(1)).toContainText('Commit an answer before you turn over.');
-    await expect(steps.nth(2)).toContainText('Reveal the next frame, which opens with the answer.');
-    await expect(steps.nth(3)).toContainText('work them in the lab pane');
-  });
-
-  test('promises the reader loop needs no account and no backend @core', async ({ page }) => {
-    await page.goto('/');
-
-    await expect(page.getByRole('heading', { name: 'What it needs from you', level: 2 })).toBeVisible();
-
-    // The product's first requirement, in the product's own words. specs/no-backend.spec.ts
-    // is the test that the claim is true; this is the test that the claim is made.
-    await expect(page.getByRole('main')).toContainText(
-      'The reader loop works with no account and no backend',
-    );
-  });
-
-  test('names the four phases in the order they are being built @core', async ({ page }) => {
-    await page.goto('/');
-
-    const phases = page.getByRole('list').filter({ hasText: 'Phase 1' });
-    await expect(phases).toHaveCount(1);
-
-    const entries = phases.getByRole('listitem');
-    await expect(entries).toHaveCount(4);
-
-    // These two rows are also this suite's own scope boundary: the lab pane and the frame
-    // view are what README.md §"What this suite does not cover" says is untested, and they
-    // are untested because the page itself says they are unbuilt. If a phase ships, this
-    // assertion is where the suite learns it has work to do.
-    await expect(entries.nth(0)).toContainText('The lab pane');
-    await expect(entries.nth(1)).toContainText('The content schema and the frame view');
-    await expect(entries.nth(2)).toContainText('Progress and accounts');
-    await expect(entries.nth(3)).toContainText('The instrument');
+    const first = page.getByRole('link', { name: 'Numbers, powers and roots' });
+    await expect(first).toBeVisible();
+    await first.click();
+    await expect(page).toHaveURL(/\/read\/[^/]+\/F01\/en$/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Numbers, powers and roots');
   });
 
   test('links to the canonical repository @core', async ({ page }) => {

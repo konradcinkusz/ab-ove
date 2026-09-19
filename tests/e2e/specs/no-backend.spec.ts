@@ -29,17 +29,36 @@ test.describe('no backend', () => {
     const pageErrors = collectPageErrors(page);
     await serveNetworkFailure(page);
 
-    const response = await page.goto('/');
-    expect(response?.status(), 'the page itself must still answer 200').toBe(200);
+    /*
+      TWO PAGES, BECAUSE THE PRODUCT'S FIRST SCREEN AND ITS ARGUMENT ARE NO LONGER ONE.
 
-    // 1. The product is intact. Not "the body is non-empty" — the argument the page is for,
-    //    element by element, exactly as journey 1 asserts it with a backend present.
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'A book you work, not a book you read.',
-    );
+      `/` is the index: the anti-goal and 47 programs, served from content compiled into
+      the app. `/about` carries the loop, the phases and the panel. Both have to survive a
+      dead API and the failure would look different on each — the index would lose its
+      list, the argument page would lose its panel — so both are asserted here rather than
+      one standing in for the other.
+    */
+    const index = await page.goto('/');
+    expect(index?.status(), 'the index must still answer 200').toBe(200);
+
+    // 1a. The index is intact: the anti-goal, and the book itself.
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
     await expect(
       page.getByRole('region', { name: 'What this instrument is for' }),
     ).toContainText('The instrument measures the book, never the reader.');
+    await expect(
+      page.getByRole('link', { name: 'Numbers, powers and roots' }),
+      'the index lost the programs, which are compiled in and need no API at all',
+    ).toBeVisible();
+
+    const response = await page.goto('/about');
+    expect(response?.status(), 'the page itself must still answer 200').toBe(200);
+
+    // 1b. The argument is intact. Not "the body is non-empty" — element by element,
+    //     exactly as journey 1 asserts it with a backend present.
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'A book you work, not a book you read.',
+    );
     await expect(
       page.getByRole('list').filter({ hasText: 'Read a frame.' }).getByRole('listitem'),
     ).toHaveCount(4);
@@ -70,7 +89,7 @@ test.describe('no backend', () => {
     // shape of a deployment running with no API at all, which is exactly what CI runs and
     // what a reader on a self-hosted copy may run forever.
     await serveProxyFailure(page, 503);
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     await expect(report).toContainText('no API');
@@ -102,7 +121,7 @@ test.describe('no backend', () => {
     // it, which matters to whoever is holding the pager: one means nothing is deployed, the
     // other means something is there and cold.
     await serveProxyFailure(page, 504);
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     await expect(report).toContainText('The API did not answer in time. It may be starting from cold.');
@@ -118,7 +137,7 @@ test.describe('no backend', () => {
       route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
     );
 
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     // Neither of the two known faults, so the panel states the status rather than guessing.
@@ -129,20 +148,26 @@ test.describe('no backend', () => {
     expect(pageErrors, describePageErrors(pageErrors)).toEqual([]);
   });
 
-  test('keeps the landing page public when there is no session and no identity service @core', async ({
+  test('keeps the public pages public with no session and no identity service @core', async ({
     page,
   }) => {
-    // The middleware is private-by-default and opts routes out one at a time, so the landing
-    // page being public is a list entry somebody wrote rather than an absent gate. A reader
-    // with no cookie must reach it — if '/' ever falls out of that list the symptom is a
-    // redirect to a sign-in page that a deployment without an identity service cannot even
-    // serve, and the product's first requirement is gone.
+    // The middleware is private-by-default and opts routes out one at a time, so each of
+    // these being public is a list entry somebody wrote rather than an absent gate. A
+    // reader with no cookie must reach all three — if one falls out of that list the
+    // symptom is a redirect to a sign-in page that a deployment without an identity
+    // service cannot even serve, and the product's first requirement is gone.
+    //
+    // THREE PATHS RATHER THAN ONE, because `/about` is a new entry in that list and a new
+    // entry is exactly the kind that gets forgotten. `/read` was already there; it is
+    // asserted here too so this test names the whole public surface a reader meets before
+    // opening a frame.
     await serveNetworkFailure(page);
 
-    const response = await page.goto('/');
-    expect(response?.status()).toBe(200);
-    expect(new URL(page.url()).pathname, 'the landing page must not redirect to sign-in').toBe('/');
-
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    for (const path of ['/', '/about', '/read']) {
+      const response = await page.goto(path);
+      expect(response?.status(), `${path} did not answer 200`).toBe(200);
+      expect(new URL(page.url()).pathname, `${path} redirected to sign-in`).toBe(path);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    }
   });
 });

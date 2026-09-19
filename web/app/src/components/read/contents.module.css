@@ -233,3 +233,87 @@
   color: inherit;
 }
 
+
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * The index's own furniture — `reading-index.tsx`, served at `/` and at `/read`.
+ */
+
+/* A name, not a heading: the `<h1>` says what is on the page. */
+.wordmark {
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+/*
+ * Two sentences, and they read as an assertion rather than as a banner: a left bar in the
+ * accent, no tint, no box. A tinted panel here would look like a promotion of the thing it
+ * is refusing to do.
+ */
+.antigoal {
+  border-left: 3px solid var(--accent);
+  margin: 0 0 2.5rem;
+  padding: 0 0 0 1rem;
+}
+
+.antigoal p {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  margin: 0 0 0.5rem;
+}
+
+.antigoal p:last-child {
+  margin-bottom: 0;
+}
+
+/*
+ * `Foundation` / `Main sequence`. Set like the `Contents` heading a level up rather than
+ * like a title: it divides a list, it does not introduce a section of prose.
+ */
+.groupLabel {
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  margin: 2rem 0 0.5rem;
+  text-transform: uppercase;
+}
+
+.indexFoot {
+  border-top: 1px solid var(--rule);
+  margin-top: 3rem;
+  padding-top: 1rem;
+}
+
+/*
+ * The reader's own controls. Each is absent until its own island has read the browser, so
+ * the row is empty on a first visit — which is why it is a row and not a bordered block: an
+ * empty bordered block is a piece of furniture asking to be explained.
+ */
+.indexControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin: 0;
+}
+
+.indexControls:empty {
+  display: none;
+}
+
+.indexLinks {
+  color: var(--ink-faint);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8125rem;
+  gap: 0.5rem 1.25rem;
+  margin: 0.75rem 0 0;
+}
+
+.indexLinks a {
+  color: inherit;
+}

@@ -253,13 +253,26 @@ test.describe('navigation', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(unitTitles.en!);
   });
 
-  test('the landing page has a way in @smoke', async ({ page }) => {
-    // Until this existed, /read was reachable only by typing it. A product whose first
-    // screen does not lead to the thing it is for is a product nobody reaches.
-    await page.goto('/');
-    await page.getByRole('link', { name: /open the programs/i }).click();
-    await expect(page).toHaveURL(/\/read$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Programs' })).toBeVisible();
+  test('/read and / are the same page @smoke', async ({ page }) => {
+    // Until recently `/read` was reachable only by typing it or by finding one link at the
+    // foot of an argument. It is now what `/` renders — one component at two routes, see
+    // `reading-index.tsx` — and this asserts the two really are one page rather than two
+    // lists that will disagree: the same heading, and the same program under it.
+    //
+    // NOT A REDIRECT, which is the other way to make them agree and is asserted against
+    // here: `maxRedirects: 0` would start failing the day somebody replaces this page with
+    // a 308, and five other specs address `/read` expecting a page.
+    const direct = await page.request.get('/read', { maxRedirects: 0 });
+    expect(direct.status(), '/read must answer 200 rather than redirect').toBe(200);
+
+    for (const path of ['/', '/read']) {
+      await page.goto(path);
+      await expect(page.getByRole('heading', { level: 1, name: 'Programs' })).toBeVisible();
+      await expect(
+        page.getByRole('link', { name: unitTitles.en! }),
+        `${path} does not list ${unit}`,
+      ).toHaveAttribute('href', contentsAt('en'));
+    }
   });
 
   test('the reading surface says which language it is in @core', async ({ page }) => {
