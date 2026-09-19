@@ -209,8 +209,9 @@ note "Schema applied: ${applied} migration(s) recorded."
 # `tests/e2e/fixtures/authservice-stub.mts` defaults to the same number. The API is started
 # by the JOB, before Playwright runs, so the job has to name that address up front — which
 # is a second place for one rule. This is the check that stops the two drifting. It does
-# not prove the fixture answers there (nothing has started it yet); the spec issue #180
-# asks for is what proves that.
+# not prove the fixture answers there (nothing has started it yet);
+# tests/e2e/specs/bearer-hop.spec.ts is what proves that, by carrying a token the fixture
+# minted through this app's proxy and asking the API to accept it.
 
 base_port="${E2E_BASE_URL##*:}"
 base_port="${base_port%%/*}"
@@ -244,8 +245,8 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     echo "| Identity fixture | ${E2E_AUTH_BASE_URL} | the address the API will validate against |"
     echo
     echo "\`auth\` being configured is a claim about this deployment's settings, not evidence"
-    echo "that the fixture answers. Playwright starts it, and the spec issue #180 asks for is"
-    echo "what proves the two ends agree."
+    echo "that the fixture answers. Playwright starts it, and"
+    echo "tests/e2e/specs/bearer-hop.spec.ts is what proves the two ends agree."
   } >> "$GITHUB_STEP_SUMMARY"
 fi
 
