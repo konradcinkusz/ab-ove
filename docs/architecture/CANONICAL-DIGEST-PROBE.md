@@ -647,9 +647,24 @@ if (mode === 'detail') {
 The version-drift tables in §5 are the same harness run against second and third installs
 (`npm install @cortex-js/compute-engine@0.100.0` in another directory), importing
 `node_modules/@cortex-js/compute-engine/dist/esm-min/compute-engine.js` by path and diffing
-the canonical forms. The bundle figures in §6 are `esbuild entry.mjs --bundle --minify
---format=esm --platform=browser` over a one-line entry that constructs the engine, then
-`gzip -9`.
+the canonical forms.
+
+The bundle figures in §6 are `esbuild entry.mjs --bundle --minify --format=esm
+--platform=browser`, then `gzip -9` over the output. What `entry.mjs` references decides
+what survives tree-shaking, so it is given rather than described:
+
+```js
+import { ComputeEngine } from '@cortex-js/compute-engine';
+const ce = new ComputeEngine();
+globalThis.__digest = (s) => JSON.stringify(ce.parse(s).canonical.simplify().json);
+```
+
+This entry reaches for `simplify` rather than `Expand`, so the obvious question is whether
+the pipeline §7 would actually want costs more. Measured, with the same command over an
+entry calling `ce.box(['Expand', …]).evaluate().simplify()`: **3,142,743 bytes minified
+against 3,142,712, and 897,909 gzipped either way** — thirty-one bytes apart before
+compression and identical after it. The engine is not tree-shaken by which operation you
+call, so §6's figure is the price of importing it at all.
 
 ---
 
