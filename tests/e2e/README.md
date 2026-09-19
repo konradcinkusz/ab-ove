@@ -43,21 +43,47 @@ layer, is deliberately not written here: `playwright test --list` answers it in 
 is never stale. This file already took that decision for the counts in its *Running it*
 section, and the ones it left standing here had gone the same way.
 
-### 1. The landing page renders and states the product's anti-goal — `specs/landing.spec.ts`
+### 1. The product's argument, and its anti-goal — `specs/about.spec.ts`
 
-The page's own promise is that **the instrument measures the book, never the reader**: a
+The product's own promise is that **the instrument measures the book, never the reader**: a
 frame most readers get wrong is evidence about the frame, not about them. The suite asserts
 the promise is made (the heading, the anti-goal region, the sentence, and the two
 commitments under it) and — separately — that the product contains no affordance that would
-contradict it: no leaderboard, ranking or score link, button or heading anywhere on the
-page. The day one ships, that test fails and somebody has to delete either the feature or
-the promise. That argument is the point of the test.
+contradict it: no leaderboard, ranking or score link, button or heading. The day one ships,
+that test fails and somebody has to delete either the feature or the promise. That argument
+is the point of the test.
 
 It also asserts the reader loop's four steps **in order** (a loop that revealed the answer
 before asking for one would be a different product), the four phases in the order they are
 being built, and that the footer links to `https://github.com/konradcinkusz/ab-ovo` — the
 canonical spelling. The repository was created as `ab-ove`, a typo; GitHub redirects the old
 name, which is exactly why a wrong link would work and would still be wrong.
+
+**This journey ran against `/` until
+[ADR-0036](../../docs/adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)**,
+which made the landing page the index of programs and moved the argument to `/about`. The
+same sentences, the same two negative assertions, one URL — with one deliberate exception:
+the negative assertions are ALSO kept on `/` by journey 1b, because the index is the page a
+leaderboard would actually appear on. A promise enforced only on the page that states it is
+enforced where it is least likely to be broken.
+
+### 1b. The landing page is the index — `specs/landing.spec.ts`
+
+What replaced the argument on `/`: a grid of programs, an edition switch, and the account
+control at the top. The assertions are about **hrefs into the reading route** rather than
+about tiles existing — a grid of tiles linking nowhere would satisfy every weaker form of
+this test, and "a reader arriving is one move from working a program" is the requirement the
+change was made for.
+
+The edition switch gets four of them, because it is the part that could quietly undo
+[ADR-0015](../../docs/adr/0015-the-reading-index-has-no-default-language.md): both editions
+are linked when nothing is chosen, one when something is, an edition the book does not have
+is no choice rather than a fallback to English, and *Both editions* gets a reader back to
+the page that picks neither. `web/app/src/lib/content/chosen-edition.test.ts` covers the
+same rule at the layer with the logic (P13); this covers it on the page.
+
+It also asserts that `/read` still answers **308** to `/`. A redirect nobody asserts is one
+somebody removes as dead code.
 
 ### 2. `GET /api/config` returns runtime-resolved addresses — `specs/runtime-config.spec.ts`
 
@@ -311,8 +337,8 @@ checking.
   reveal the next — is therefore **untested**, because there is no frame view to drive. The
   *working* half is now covered by journey 5. This is the single largest gap in the suite and
   it is a gap in the product, not in the tests.
-  `specs/landing.spec.ts` asserts the landing page still names it among the phases, which is
-  the cheapest available signal that this section has gone stale.
+  `specs/about.spec.ts` asserts `/about` still names it among the phases, which is the
+  cheapest available signal that this section has gone stale.
 - **Progress and accounts — Phase 3, not built.** No sign-in, no registration, no session.
   Consequently there is **no `storageState`** in this suite. `E2E-ACCEPTANCE-TESTING.md §3`
   requires tests that do not exercise login to start from a saved authenticated state rather
@@ -550,10 +576,11 @@ Fixed, ranked, and the same for anyone adding a test or a component.
 | **Avoid — CSS class chains, DOM traversal** | `.panel .badge.badge-live` | any styling refactor, with no relation to behaviour |
 
 **Journeys 1 to 4 use no `data-testid` at all, and journey 5 uses nothing else. Both are
-correct.** Accessible locators rank *above* `data-testid`, and every element the landing-page
-journeys drive already has a role and an accessible name: `<main>`, the `<h1>`, the two
-`<section>`s that carry `aria-label` / `aria-labelledby` and are therefore `region`s, the
-`<ol>`/`<ul>` lists and their items, and the footer link.
+correct.** Accessible locators rank *above* `data-testid`, and every element those journeys
+drive already has a role and an accessible name: `<main>`, the `<h1>`, the two `<section>`s
+that carry `aria-label` / `aria-labelledby` and are therefore `region`s, the `<ol>`/`<ul>`
+lists and their items, the footer link, and — on the index — each program's title as the
+name of the link into it.
 
 The lab pane is the deliberate fallback the third row is for. A code editor, a stdout pane and
 a machine-readable summary line have no useful accessible name — "the textarea whose label is
@@ -686,7 +713,8 @@ tests/e2e/
   playwright.config.ts              base URL, layers, harness defaults, webServer
   tsconfig.json                     strict; `pnpm run typecheck` is a real gate
   specs/
-    landing.spec.ts                 journey 1 — the page and its anti-goal
+    about.spec.ts                   journey 1 — the argument and its anti-goal
+    landing.spec.ts                 journey 1b — the index, its tiles and its edition switch
     runtime-config.spec.ts          journey 2 — GET /api/config, resolved at request time
     integration-report.spec.ts      journey 3 — P8, seen from a browser
     no-backend.spec.ts              journey 4 — the reader loop's premise

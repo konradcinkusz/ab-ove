@@ -9,8 +9,14 @@ import { serveNetworkFailure, serveProxyFailure } from './support/service-info.j
  * This is not an error-handling nicety. ab-ovo's first product requirement is that the
  * reader loop works with NO account and NO backend: frames are served with the site and the
  * lab pane runs Python in the browser under Pyodide, so "no API answered" is a SUPPORTED
- * CONFIGURATION of this product rather than an outage. The landing page says so in prose,
- * and a claim asserted nowhere lasts until the first component that fetches during render.
+ * CONFIGURATION of this product rather than an outage. `/about` says so in prose, and a
+ * claim asserted nowhere lasts until the first component that fetches during render.
+ *
+ * SINCE ADR-0036 THE PREMISE IS ASSERTED WHERE IT IS ACTUALLY SPENT. The landing page is now
+ * the index of programs, so the first test below drives the GRID with the API unreachable —
+ * a reader with no backend reaching the list of programs and a link into one is the
+ * requirement itself, where the old version of this test asserted the page that described
+ * it. The prose and the integration panel moved to `/about` and are asserted there.
  *
  * The failure is injected in the BROWSER, with route interception, for two reasons. It is
  * deterministic — no waiting on a real backend to be down, and no 45-second ladder walk —
@@ -23,13 +29,45 @@ import { serveNetworkFailure, serveProxyFailure } from './support/service-info.j
  */
 
 test.describe('no backend', () => {
-  test('renders the whole landing page when the API cannot be reached at all @smoke', async ({
+  test('reaches the programs when the API cannot be reached at all @smoke', async ({ page }) => {
+    const pageErrors = collectPageErrors(page);
+    await serveNetworkFailure(page);
+
+    const response = await page.goto('/');
+    expect(response?.status(), 'the page itself must still answer 200').toBe(200);
+
+    /*
+      THE REQUIREMENT, NOT A DESCRIPTION OF IT. With no backend at all, the index renders and
+      a program is one click away — asserted as the href into the reading route, because a
+      grid that rendered tiles linking nowhere would pass every weaker form of this test.
+
+      Both editions, because the index that picks neither is the one a reader arrives at, and
+      neither of those two links may depend on a service that is not there (ADR-0015).
+    */
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
+    await expect(
+      page.getByRole('link', { name: 'How a computer stores a number' }),
+    ).toHaveAttribute('href', '/read/math-for-ai-engineers/P01/en');
+    await expect(
+      page.getByRole('link', { name: 'Jak komputer przechowuje liczbę' }),
+    ).toHaveAttribute('href', '/read/math-for-ai-engineers/P01/pl');
+
+    // And the way to the product's argument is still there, so a reader who wants to know
+    // what this is before working a frame is not stranded by a missing service either.
+    await expect(page.getByRole('link', { name: 'About ab-ovo' })).toBeVisible();
+
+    // It did not throw on the way. A client component that throws during render leaves the
+    // server-rendered HTML on screen, so every assertion above can pass on a crashed page.
+    expect(pageErrors, describePageErrors(pageErrors)).toEqual([]);
+  });
+
+  test('renders the whole of the argument when the API cannot be reached at all @smoke', async ({
     page,
   }) => {
     const pageErrors = collectPageErrors(page);
     await serveNetworkFailure(page);
 
-    const response = await page.goto('/');
+    const response = await page.goto('/about');
     expect(response?.status(), 'the page itself must still answer 200').toBe(200);
 
     // 1. The product is intact. Not "the body is non-empty" — the argument the page is for,
@@ -70,7 +108,7 @@ test.describe('no backend', () => {
     // shape of a deployment running with no API at all, which is exactly what CI runs and
     // what a reader on a self-hosted copy may run forever.
     await serveProxyFailure(page, 503);
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     await expect(report).toContainText('no API');
@@ -102,7 +140,7 @@ test.describe('no backend', () => {
     // it, which matters to whoever is holding the pager: one means nothing is deployed, the
     // other means something is there and cold.
     await serveProxyFailure(page, 504);
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     await expect(report).toContainText('The API did not answer in time. It may be starting from cold.');
@@ -118,7 +156,7 @@ test.describe('no backend', () => {
       route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
     );
 
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     // Neither of the two known faults, so the panel states the status rather than guessing.
@@ -143,6 +181,22 @@ test.describe('no backend', () => {
     expect(response?.status()).toBe(200);
     expect(new URL(page.url()).pathname, 'the landing page must not redirect to sign-in').toBe('/');
 
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
+  });
+
+  test('keeps the about page public on the same terms @core', async ({ page }) => {
+    // Same gate, second entry. ADR-0036 moved the anti-goal to a page of its own, and a
+    // commitment about what this system measures that a reader must sign in to read would be
+    // worth very little — so `/about` is in the middleware's public list beside `/`, and this
+    // is the assertion that says so rather than the list saying it to itself.
+    await serveNetworkFailure(page);
+
+    const response = await page.goto('/about');
+    expect(response?.status()).toBe(200);
+    expect(new URL(page.url()).pathname, 'the about page must not redirect to sign-in').toBe(
+      '/about',
+    );
+
+    await expect(page.getByRole('region', { name: 'What this instrument is for' })).toBeVisible();
   });
 });

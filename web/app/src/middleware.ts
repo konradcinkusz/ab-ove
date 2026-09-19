@@ -53,7 +53,11 @@ import { isPlausiblyUnexpired, verifyAccessToken } from '@/lib/server/token';
  * rather than left as an absent gate.
  */
 const PUBLIC_PATHS = new Set<string>([
-  '/', // the landing page
+  '/', // the landing page, which is the index of programs (ADR-0036)
+  // What the landing page used to be: the product's argument and the anti-goal it commits
+  // to in public. Public for the same reason `/` is — it needs no account, and a reader
+  // deciding whether to trust what this system measures must not have to register first.
+  '/about',
   '/login',
   '/register',
   // The platform health check. `flyio/web.fly.toml` points [[http_service.checks]] at
@@ -64,12 +68,16 @@ const PUBLIC_PATHS = new Set<string>([
   // only the check sees the redirect.
   '/healthz',
 
-  // The two index pages. They are here rather than in PUBLIC_PREFIXES because every entry
+  // The two index paths. They are here rather than in PUBLIC_PREFIXES because every entry
   // in that list ends in a slash — '/lab' as a prefix also matches '/labour' and
   // '/lab-admin', and a gate that opens a page nobody has written yet is a gate that will
   // one day open a page somebody has. The trailing slash costs exactly this: the index path
   // of a public section needs its own entry. Write both, or the section's front door 307s
   // while every page behind it is public.
+  //
+  // '/read' is now a 308 to '/' (ADR-0036) and STILL BELONGS HERE. A redirect is a response
+  // like any other, so removing this entry would answer an anonymous reader with a bounce
+  // to '/login' on the way to a page that needs no account — the redirect would never run.
   '/lab',
   '/read',
 

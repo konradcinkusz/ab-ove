@@ -205,6 +205,25 @@ interface Strings {
   readonly checkOffer: (exercise: string) => string;
   readonly languageLabel: string;
   readonly programs: string;
+  /**
+   * The way to everything the index no longer says, and the reason the index can be a
+   * grid of programs at all (ADR-0036).
+   *
+   * It is a link label rather than a heading because the page it names is not a step in
+   * the reader loop: a reader who came to work a program never has to read it, and a
+   * reader who wants to know what the instrument is for must be able to find it in one
+   * move from the first screen.
+   */
+  readonly about: string;
+  /**
+   * The edition switch's third position, offered only once an edition has been chosen.
+   *
+   * ADR-0015 refused a default edition, and ADR-0036 keeps that refusal by making "no
+   * choice" a real state rather than a state the reader can only reach by clearing a
+   * cookie. Without this label the switch is a trap door: two ways in and no way back to
+   * the page that picks neither.
+   */
+  readonly bothEditions: string;
   readonly contents: string;
   readonly opening: string;
   readonly position: (n: number, total: number) => string;
@@ -301,6 +320,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     checkOffer: (exercise) => `Work exercise ${exercise} in the lab, beside this frame`,
     languageLabel: 'Language',
     programs: 'Programs',
+    about: 'About ab-ovo',
+    bothEditions: 'Both editions',
     contents: 'Contents',
     opening: 'Opening',
     position: (n, total) => `${n} of ${total}`,
@@ -384,6 +405,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       `Zrób ćwiczenie ${exercise} w laboratorium obok tej ramki`,
     languageLabel: 'Język',
     programs: 'Programy',
+    about: 'O ab-ovo',
+    bothEditions: 'Obie edycje',
     contents: 'Spis treści',
     opening: 'Wstęp',
     position: (n, total) => `${n} z ${total}`,
@@ -470,6 +493,8 @@ export interface Chrome {
   readonly checkOffer: (exercise: string) => string;
   readonly languageLabel: string;
   readonly programs: string;
+  readonly about: string;
+  readonly bothEditions: string;
   readonly contents: string;
   readonly opening: string;
   readonly position: (n: number, total: number) => string;

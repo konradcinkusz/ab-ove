@@ -36,8 +36,20 @@ import styles from './account-control.module.css';
  */
 export function AccountControl({
   language,
+  returnTo,
 }: {
   readonly language: string;
+  /**
+   * Where signing in should return the reader, when the page knows better than the path
+   * alone does. Omitted, it is the current path — which is the right answer everywhere
+   * except the index (ADR-0036), whose chosen edition lives in the query string.
+   *
+   * It is a PROP rather than a `useSearchParams()` call for the reason the comment on
+   * `pathname` below gives: reading the query here would opt every page that renders this
+   * control out of static rendering. The one page whose query matters computes the value
+   * on the server, where it already has it, and hands it over as a string.
+   */
+  readonly returnTo?: string;
 }): React.JSX.Element | null {
   const status = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   const chrome = chromeFor(language);
@@ -51,12 +63,17 @@ export function AccountControl({
     Suspense boundary around a control that is absent from the first paint anyway.
 
     What it costs is that signing in from a page with a meaningful query string would
-    return the reader to that page without it. No page that renders this control has one:
-    a frame is `/read/<track>/<unit>/<lang>/<n>`, the lab is a path, and every piece of
-    reading state is a segment. Whoever adds a page whose query matters and puts this
-    control on it has to revisit the trade rather than discover it.
+    return the reader to that page without it. A frame is
+    `/read/<track>/<unit>/<lang>/<n>`, the lab is a path, and every piece of reading state
+    is a segment — so for most of this product the path IS the location.
+
+    THE INDEX IS THE EXCEPTION, AND IT WAS REVISITED RATHER THAN DISCOVERED. ADR-0036 put
+    the reader's chosen edition in `?lang=`, which is exactly the meaningful query string
+    this note was written to warn about, so that page passes `returnTo` and the trade is
+    paid where it is visible instead of losing the edition on the way back from sign-in.
   */
   const pathname = usePathname();
+  const target = returnTo ?? pathname;
 
   useEffect(() => {
     // Shared with the progress sync: `ask()` collapses concurrent callers into one
@@ -73,7 +90,7 @@ export function AccountControl({
     return (
       <Link
         className={styles.account}
-        href={`/login?redirect=${encodeURIComponent(pathname)}`}
+        href={`/login?redirect=${encodeURIComponent(target)}`}
         lang={chrome.language}
       >
         {chrome.signIn}

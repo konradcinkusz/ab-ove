@@ -53,8 +53,9 @@ This repository stands at **builds, tests green, images build**. There is no run
 instance of ab-ovo, at any address, for anybody.
 
 What exists is the scaffold, one thin vertical slice through it, and **the lab pane**: an
-API with a health endpoint and a service-info endpoint, a web app with a landing page and a
-live integration panel, a Playwright acceptance suite, four `fly.toml` files describing a
+API with a health endpoint and a service-info endpoint, a web app whose landing page is the
+index of programs and whose `/about` carries the argument and a live integration panel, a
+Playwright acceptance suite, four `fly.toml` files describing a
 topology that has never been applied, and the CI gates that would catch a regression in any
 of it. The domain model is still **one entity** — `ReaderProgress`, which arrived with
 synchronisation (#11) and is the only thing this estate stores about anybody. There are no
@@ -383,7 +384,7 @@ printed in the console.
 
 | Comes up at | What it is |
 | --- | --- |
-| `http://localhost:3000` | the web app — landing page, integration panel, `/login` |
+| `http://localhost:3000` | the web app — the index of programs, `/about`, `/login` |
 | `http://localhost:8081` | `authservice`, including `/.well-known/jwks.json` |
 | a port Aspire assigns | `AbOvo.Api` — the dashboard names it; nothing hard-codes it |
 

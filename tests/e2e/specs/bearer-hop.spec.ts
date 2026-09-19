@@ -427,7 +427,7 @@ test.describe('the bearer is the cookie’s, and the API checks it', () => {
     // own proxy in §2 — and it must still buy nothing, because this browser has no session.
     const token = await mintedTokenFor(browser, READER);
 
-    await page.goto('/read'); // public, and same-origin, which is all the fetch below needs
+    await page.goto('/'); // public, and same-origin, which is all the fetch below needs
 
     const answer = await throughProxy(page, PROGRESS, {
       headers: { authorization: `Bearer ${token}` },
@@ -467,7 +467,7 @@ test.describe('the bearer is the cookie’s, and the API checks it', () => {
     expect(real, 'signing in set no access-token cookie').toBeDefined();
     await context.addCookies([{ ...(real as NonNullable<typeof real>), value: challenge }]);
 
-    await page.goto('/read');
+    await page.goto('/');
     const answer = await throughProxy(page, PROGRESS);
 
     expect(

@@ -138,7 +138,18 @@ test.describe('runtime configuration', () => {
       (request) => new URL(request.url()).pathname === '/api/config',
     );
 
-    await page.goto('/');
+    /*
+      `/about`, and the choice of page is part of the assertion since ADR-0036.
+
+      `<IntegrationReport />` is the only component in this app that reads the runtime
+      config, and it moved to `/about` with the rest of the argument. The landing page
+      therefore makes NO request of its own at all any more — which is a better first screen
+      and a worse place to assert this property from, because a test pointed at `/` would go
+      green on a page that had stopped asking rather than on one whose addresses were
+      compiled in. Pointed here it still fails the moment somebody reintroduces
+      NEXT_PUBLIC_*.
+    */
+    await page.goto('/about');
 
     const request = await configRequest;
     expect(request.method()).toBe('GET');
@@ -180,7 +191,7 @@ test.describe('runtime configuration', () => {
     // completion deterministically and the request list is the whole list rather than
     // whatever had happened by the time the assertion ran.
     await serveServiceInfo(page, SAMPLE_SERVICE_INFO);
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     await expect(report.getByRole('listitem')).toHaveCount(
@@ -188,7 +199,7 @@ test.describe('runtime configuration', () => {
     );
 
     /**
-     * Property 3, and the landing page's own colophon as an assertion: "No font, stylesheet,
+     * Property 3, and this page's own colophon as an assertion: "No font, stylesheet,
      * script or icon is fetched from anywhere else, and the browser never talks to a backend
      * directly." A compiled-in backend address is what breaks this, and so is a
      * `next/font/google` import somebody adds because it reads well.
