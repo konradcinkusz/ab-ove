@@ -331,6 +331,14 @@ machine missing one the first line stops, prints what is missing with an install
 beside it, and changes nothing, which is the behaviour to expect rather than a failure to
 report.
 
+**Only the first line has a PowerShell twin, and the second does not need one.** On Windows
+the fetch runs under the bash that ships with Git — the same assumption `scripts/setup.ps1`
+already makes where it installs the pre-commit hook, and the same one its closing screen
+makes where it sends you to `bash scripts/scan-secrets.sh`. Setup is duplicated because a
+step in it genuinely cannot be written once — PowerShell ships no `openssl`, and step 3
+generates an RSA keypair. Nothing in the fetch is like that, so it stays one script and one
+implementation, which is the thing that cannot go out of step between two platforms.
+
 **The middle line was not in this section until somebody ran the section from an empty
 directory** (#75), and that is the whole class of defect a quick start has: a step that
 only looks unnecessary because the machine writing the instructions had already taken it.
