@@ -618,13 +618,33 @@ Step3-GenerateSecret
 Step4-Optional
 
 Write-Head 'Done'
-Write-Host '  Run the whole system (needs a container engine):'
+# THE NEXT COMMAND IS NOT IN THIS SCRIPT, and this is the screen that has to say so. The
+# bash twin's epilogue carries the identical block, for the identical reason.
+#
+# web/content/book/ is not tracked here - ADR-0008 makes the book's lab engine a versioned
+# artefact fetched at a pinned revision - so on a fresh clone the AppHost's web resource
+# stops in its predev, and `dotnet test` throws on the missing figures file. Both name
+# scripts/fetch-book-content.sh. Measured from a clone into an empty directory (#75): until
+# then this block handed the reader two commands that could not work yet.
+#
+# It is NAMED here rather than RUN here. REPO-BASELINE.md §3 puts one setup script per
+# repository and requires it to work on both platforms, so performing the fetch would mean
+# a second implementation - this file - of a step ADR-0008 expects a released bundle to
+# replace. Naming it costs one line in each and cannot drift in behaviour.
+#
+# A bash script, on Windows, deliberately: this epilogue already sends the reader to
+# `bash scripts/scan-secrets.sh`, and step 2 above states the same assumption in as many
+# words - on Windows the hook runs under the bash that ships with Git.
+Write-Host "  Fetch the book's lab engine (once per clone, pinned and digest-verified):"
+Write-Host '      bash scripts/fetch-book-content.sh'
+Write-Host ''
+Write-Host '  Run the whole system (needs a container engine, and the fetch above):'
 Write-Host "      dotnet run --project $AppHostProject"
 Write-Host ''
 Write-Host '  Run only the API (no containers, in-memory database, /health reports it):'
 Write-Host "      dotnet run --project $ApiProject"
 Write-Host ''
-Write-Host '  Tests:                dotnet test'
-Write-Host '  Scan history:         bash scripts/scan-secrets.sh'
+Write-Host '  Tests (need the fetch):  dotnet test'
+Write-Host '  Scan history:            bash scripts/scan-secrets.sh'
 Write-Host '  What every variable is, and what degrades without it:   secrets.env.example'
 Write-Host '  Variables by tier, and the operational recipes:          scripts/README.md'

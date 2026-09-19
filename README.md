@@ -314,18 +314,49 @@ button that cannot work.
 
 ---
 
-## Quick start — one command
+## Quick start — three commands, and two of them are once per clone
 
 ```bash
+bash scripts/setup.sh                # or:  pwsh -File scripts/setup.ps1
+bash scripts/fetch-book-content.sh   # the lab engine, pinned and digest-verified
 dotnet run --project src/AbOvo.AppHost
 ```
 
-That is the whole of running it. On a **fresh machine**, run the onboarding script once
-first — it is idempotent and safe to re-run:
+The first two are per clone, both are idempotent, and both are safe to re-run. The third
+is the whole of running it every time after that, which is
+[P1](docs/architecture/00-ARCHITECTURE.md) intact rather than dropped: the heading counts
+what an empty directory costs, and P1 is a claim about bringing the system **up**, which is
+still one command. Nothing here asks for a prerequisite without naming it either — on a
+machine missing one the first line stops, prints what is missing with an install pointer
+beside it, and changes nothing, which is the behaviour to expect rather than a failure to
+report.
 
-```bash
-bash scripts/setup.sh                       # or:  pwsh -File scripts/setup.ps1
+**The middle line was not in this section until somebody ran the section from an empty
+directory** (#75), and that is the whole class of defect a quick start has: a step that
+only looks unnecessary because the machine writing the instructions had already taken it.
+`web/content/book/` is not in git — it is the book's lab engine at a pinned revision
+([ADR-0008](docs/adr/0008-content-is-a-versioned-bundle.md),
+[ADR-0013](docs/adr/0013-the-book-lives-inside-the-web-build-context.md)) — so a clone has
+no lab engine. The AppHost declares the Next.js app as a resource and lets Aspire own the
+pnpm invocation (`src/AbOvo.AppHost/AppHost.cs`, and the deviation register's entry for
+`AddNextJsApp`), so what the `web` resource comes up through is a development run of
+`web/app` — and that run stages the engine into `public/` in its `predev` before `next dev`
+starts. Measured by running it from a clone into an empty directory:
+
+```text
+prepare-lab-assets: web/content/book/lab/check.py is missing.
+  Fix:  bash scripts/fetch-book-content.sh
 ```
+
+It stops before anything comes up, and it stops well — the message is the command. That is
+the only reason the omission was survivable rather than a reader's dead end, and it is not
+a reason to leave it out of the sequence.
+
+`dotnet test AbOvo.sln` needs the same fetch for an unrelated reason, so the order matters
+there too: the interval gates in `tests/AbOvo.Api.Tests` read the book's own committed
+figures out of `web/content/book/figures/values/p27.tex` rather than carrying a copy that
+could drift, and they throw naming this same script when it is absent. `ci.yml` fetches
+before it restores for exactly that reason.
 
 `src/AbOvo.AppHost/AppHost.cs` is the composition root (P1). It brings up Postgres with a
 data volume and pgAdmin, creates the two logical databases (`apidb` and `authdb`), starts
@@ -379,11 +410,16 @@ degradation rather than failing to start (P8).
 ### Running the pieces separately
 
 ```bash
+bash scripts/fetch-book-content.sh # once per clone — pinned and digest-verified
+pnpm --dir web install             # once per clone
 dotnet test AbOvo.sln              # unit, in-memory integration, and the architecture rules
-bash scripts/fetch-book-content.sh # once — the lab engine, pinned and digest-verified
-pnpm --dir web install             # once
 pnpm --dir web dev                 # the web app alone, no API, no container
 ```
+
+**The fetch is first because the two lines under it both need it**, and this block used to
+print it second. Run it top to bottom on a fresh clone and every line succeeds; run the
+old order and `dotnet test` stops on the missing figures file before reaching the command
+that would have supplied it.
 
 The last line is worth knowing: the reader loop is required to work with no backend, so the
 web app runs on its own and the integration panel simply reports that no API answered.
@@ -392,8 +428,10 @@ The fetch is a **separate line rather than a step in `scripts/setup.sh`**, and t
 decision with a cost. `web/content/book/` is not committed — it is the book's lab engine at
 a pinned revision ([ADR-0008](docs/adr/0008-content-is-a-versioned-bundle.md),
 [ADR-0013](docs/adr/0013-the-book-lives-inside-the-web-build-context.md)) — so a fresh clone
-has no lab engine and `pnpm dev` stops in its prebuild. It stops well: the message names
-this exact command. Putting it in the onboarding script would mean writing it twice, once
+has no lab engine. `pnpm build` stops in its `prebuild` and `pnpm dev` stops in its
+`predev` — `web/app/package.json` wires the same staging script to both, because the lab
+pane is broken in exactly the same way either way. Both stop well: the message names this
+exact command. Putting it in the onboarding script would mean writing it twice, once
 in bash and once in `scripts/setup.ps1`, and REPO-BASELINE.md §3 is emphatic that there is
 one setup script per repository and that it works on both platforms. That is worth doing
 when the fetch stops being provisional; today the bundle of phase 2 replaces it, and a
