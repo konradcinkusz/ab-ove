@@ -6,6 +6,7 @@ import { chromeFor } from '@/lib/i18n/chrome';
 import { bookNumberOf } from '@/lib/sheet/number';
 
 import { AnswerLine } from './answer-line.tsx';
+import { Sketch } from './sketch.tsx';
 import { Working } from './working.tsx';
 import { ClearAnswer } from './clear-controls.tsx';
 import { FrameKeys } from './frame-keys.tsx';
@@ -261,6 +262,30 @@ export function FrameView({
               summary={chrome.working}
               tag={bundle.tag}
               track={track}
+              unit={unit.id}
+            />
+          ) : null}
+          {/*
+            And somewhere to draw, on the same terms. A great many of this book's questions
+            are answered fastest with a picture — a curve's shape, a point on an axis, the
+            region under something — and the answer line above is this pane's text
+            alternative, which is what makes a canvas acceptable on a surface that is
+            otherwise entirely text. Closed until asked for, like the pad; `sketch.tsx`
+            records why it never opens itself.
+          */}
+          {step.cue ? (
+            <Sketch
+              axes={chrome.sketchAxes}
+              clear={chrome.sketchClear}
+              full={chrome.sketchFull}
+              grid={chrome.sketchGrid}
+              label={chrome.sketchLabel}
+              n={step.n}
+              none={chrome.sketchNone}
+              summary={chrome.sketch}
+              tag={bundle.tag}
+              track={track}
+              undo={chrome.sketchUndo}
               unit={unit.id}
             />
           ) : null}

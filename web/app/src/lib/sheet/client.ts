@@ -13,6 +13,7 @@ import {
   keyOf,
   patchSheet,
   readSheet,
+  upsertSheet,
   writeSheet,
 } from './store.ts';
 
@@ -160,6 +161,21 @@ export function readHere(frame: FrameRef): Sheet | undefined {
   return readSheet(slot(), frame);
 }
 
+/**
+ * Write what the reader typed, creating the sheet if this is the first thing they wrote
+ * here. Silent, like `writeHere` and for the same reason — the caller is a field being
+ * typed into, and announcing would re-render it mid-word.
+ */
+export function upsertHere(
+  frame: FrameRef,
+  tag: string,
+  fields: Partial<Omit<Sheet, 'tag'>>,
+): void {
+  upsertSheet(slot(), frame, tag, fields);
+  snapshots.delete(keyOf(frame));
+}
+
+/** Change a FLAG on a sheet that already exists; see `patchSheet` on why it cannot create. */
 export function patchHere(frame: FrameRef, patch: Partial<Sheet>): void {
   patchSheet(slot(), frame, patch);
   snapshots.delete(keyOf(frame));

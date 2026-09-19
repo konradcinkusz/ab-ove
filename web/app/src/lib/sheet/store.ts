@@ -250,6 +250,48 @@ export function patchSheet(
 }
 
 /**
+ * Write some of a sheet, CREATING it when the reader has not written here before.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE COUNTERPART TO `patchSheet`, AND THE PAIR EXISTS BECAUSE THE TWO CASES ARE OPPOSITE.
+ *
+ * `patchSheet` refuses to create, so that arriving at frame n+1 cannot invent a sheet for
+ * frame n that the reader never visited. That is right for `revealed`, which is a fact
+ * ABOUT a sheet — and exactly wrong for anything the reader typed, which IS the sheet.
+ *
+ * The Working pad shipped using `patchSheet` and the consequence was measured rather than
+ * reasoned about: a reader who opened Working on a frame before writing an answer, did
+ * their arithmetic and moved on lost every character, silently, because there was no
+ * record to patch. Nothing failed; the text was simply never stored.
+ *
+ * So: content upserts, flags patch. The two are named differently for that reason alone.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * THE MERGE LIVES HERE AND NOT IN THE THREE COMPONENTS THAT NEED IT. Each of them was
+ * spelling out "keep the working, keep the reveal, keep the sketch flag, keep the
+ * background" around the one field it owns — and the fourth copy of that list is where a
+ * field added later gets forgotten by whoever writes it. `tag` is taken from the caller
+ * because a write against the served bundle re-stamps a sheet written against an older one.
+ */
+export function upsertSheet(
+  slot: Slot | undefined,
+  frame: FrameRef,
+  tag: string,
+  fields: Partial<Omit<Sheet, 'tag'>>,
+): Sheet | undefined {
+  const current = readSheet(slot, frame);
+  return writeSheet(slot, frame, {
+    tag,
+    answer: current?.answer ?? '',
+    working: current?.working ?? '',
+    ...(current?.revealed ? { revealed: true } : {}),
+    ...(current?.hasSketch ? { hasSketch: true } : {}),
+    ...(current?.background ? { background: current.background } : {}),
+    ...fields,
+  });
+}
+
+/**
  * Clear the ANSWER LINE of one frame, and keep everything else the reader wrote.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────

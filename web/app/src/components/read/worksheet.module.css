@@ -291,3 +291,74 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── the sketch ──────────────────────────────────────────────────────────────────────── */
+
+/*
+  THE CANVAS IS IN NORMAL FLOW AND SIZED BY ITS ASPECT RATIO.
+
+  `aspect-ratio` rather than a fixed height, so the box the browser reserves before paint is
+  exactly the box the canvas ends up occupying — a canvas given a width and left to find its
+  own height is 150 px tall until the script runs and then jumps, which is the layout shift
+  this whole surface is built to avoid. 640/426 is `strokes.ts`'s own logical size, so the
+  drawing is never distorted by the element it is drawn in.
+*/
+.canvas {
+  aspect-ratio: 640 / 426;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--ink);
+  display: block;
+  width: 100%;
+
+  /*
+    `touch-action: none` ON THE CANVAS ALONE, and the restriction is the point.
+
+    Without it a finger drawing a downward line scrolls the page instead, and the pointer
+    events stop arriving mid-stroke. With it on any ancestor, a reader on a phone could not
+    scroll past the sketch at all — the pane would be a hole in the page. So it is exactly
+    as wide as the surface that needs to capture a drag.
+  */
+  touch-action: none;
+}
+
+.canvas:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/*
+  44 px, which is the smallest target a finger hits reliably, and these are the controls a
+  reader reaches for mid-drawing with the hand that is already on the screen.
+*/
+.sketchButton {
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--ink-faint);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 0.7rem;
+}
+
+.sketchButton:hover {
+  border-color: var(--ink-faint);
+  color: var(--ink);
+}
+
+/* The background a reader chose, said with an attribute a screen reader reads rather than
+   with a colour only a sighted reader can compare. */
+.sketchButton[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.sketchFull {
+  color: var(--degraded);
+  font-size: 0.85rem;
+  margin: 0.6rem 0 0;
+}

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { runSheet, type LineResult } from '@/lib/sheet/evaluate';
-import { patchHere, useSheet } from '@/lib/sheet/client';
+import { upsertHere, useSheet } from '@/lib/sheet/client';
 import { WORKING_LIMIT } from '@/lib/sheet/store';
 
 import styles from './worksheet.module.css';
@@ -78,11 +78,33 @@ export function Working({
     `Clear my worksheets` emptying it. Adjusting state during render rather than in an
     effect is React's own prescription for "derive from a prop", and the compiler's
     `set-state-in-effect` rule refuses the alternative.
+
+    ──────────────────────────────────────────────────────────────────────────────────────
+    THE SECOND CONDITION IS NOT A TIDY-UP: WITHOUT IT THE PAD CLEARS ITS OWN RESULTS.
+
+    Committing invalidates this frame's cached snapshot, so the next read returns a NEW
+    object for the same content — and `stored !== seed` cannot tell that from somebody else
+    having written. `Run` therefore set the results and then, one render later, threw them
+    away: the reader pressed the button and the gutter stayed blank.
+
+    It was invisible until the pad started storing anything. Before that, a commit on a
+    frame with no sheet wrote nothing, the re-read returned `undefined` again, and
+    `undefined !== undefined` is false — so the clobber never fired and the defect waited
+    for the day the write started working.
+
+    Comparing the TEXT rather than the reference says what is actually meant: a store that
+    now says something different from what is in the box is somebody else's edit and the
+    results on screen are stale; a store that says the same thing is this component's own
+    write coming back, and there is nothing to discard.
+    ──────────────────────────────────────────────────────────────────────────────────────
   */
   if (stored !== seed) {
     setSeed(stored);
-    setText(stored?.working ?? '');
-    setResults([]);
+    const incoming = stored?.working ?? '';
+    if (incoming !== text) {
+      setText(incoming);
+      setResults([]);
+    }
   }
 
   /* Grow to the text, up to twenty rows; past that it scrolls rather than eating the page. */
@@ -95,7 +117,10 @@ export function Working({
 
   const commit = useCallback(
     (value: string) => {
-      patchHere({ track, unit, n }, { tag, working: value.slice(0, WORKING_LIMIT) });
+      // `upsertHere` rather than `patchHere`: a reader may open this pad on a frame they
+      // have written nothing else on, and patch-if-present would have discarded every
+      // character of it. See `upsertSheet` — content upserts, flags patch.
+      upsertHere({ track, unit, n }, tag, { working: value.slice(0, WORKING_LIMIT) });
     },
     [track, unit, n, tag],
   );

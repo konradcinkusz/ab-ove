@@ -255,6 +255,14 @@ interface Strings {
   readonly workingRun: string;
   readonly workingHint: string;
   readonly workingLabel: string;
+  readonly sketch: string;
+  readonly sketchLabel: string;
+  readonly sketchGrid: string;
+  readonly sketchAxes: string;
+  readonly sketchNone: string;
+  readonly sketchUndo: string;
+  readonly sketchClear: string;
+  readonly sketchFull: string;
   readonly clearWorksheets: string;
   /** Its second press — this one cannot be undone and says so. */
   readonly clearWorksheetsConfirm: string;
@@ -399,6 +407,14 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     workingRun: 'Work it out',
     workingHint: 'One line at a time. A name can be given a value: w = 0.5',
     workingLabel: 'Your working',
+    sketch: 'Sketch',
+    sketchLabel: 'Draw your answer',
+    sketchGrid: 'Grid',
+    sketchAxes: 'Axes',
+    sketchNone: 'Plain',
+    sketchUndo: 'Undo',
+    sketchClear: 'Clear',
+    sketchFull: 'This sketch is now too large to keep. What is on screen stays until you leave the frame.',
     clearWorksheets: 'Clear my worksheets',
     clearWorksheetsConfirm: 'Clear them — this cannot be undone',
     programsCrumb: '← Programs',
@@ -513,6 +529,14 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     workingRun: 'Policz',
     workingHint: 'Po jednej linii. Nazwie można nadać wartość: w = 0,5',
     workingLabel: 'Twoje obliczenia',
+    sketch: 'Szkic',
+    sketchLabel: 'Narysuj swoją odpowiedź',
+    sketchGrid: 'Siatka',
+    sketchAxes: 'Osie',
+    sketchNone: 'Gładko',
+    sketchUndo: 'Cofnij',
+    sketchClear: 'Wyczyść',
+    sketchFull: 'Ten szkic jest już za duży, żeby go zapisać. To, co widać, zostaje do wyjścia z ramki.',
     clearWorksheets: 'Wyczyść moje notatki',
     clearWorksheetsConfirm: 'Wyczyść — nie da się cofnąć',
     programsCrumb: '← Programy',
@@ -632,6 +656,14 @@ export interface Chrome {
   readonly workingRun: string;
   readonly workingHint: string;
   readonly workingLabel: string;
+  readonly sketch: string;
+  readonly sketchLabel: string;
+  readonly sketchGrid: string;
+  readonly sketchAxes: string;
+  readonly sketchNone: string;
+  readonly sketchUndo: string;
+  readonly sketchClear: string;
+  readonly sketchFull: string;
   readonly clearWorksheets: string;
   readonly clearWorksheetsConfirm: string;
   readonly programsCrumb: string;

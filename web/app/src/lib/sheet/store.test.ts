@@ -23,6 +23,7 @@ import {
   keyOf,
   patchSheet,
   readSheet,
+  upsertSheet,
   writeSheet,
 } from './store.ts';
 
@@ -185,4 +186,78 @@ test('NOTHING ELSE IN lib/sheet WALKS THE STORE — a convention, held here', ()
     [],
     'a module in lib/sheet other than store.ts enumerates browser storage',
   );
+});
+
+test('upsert CREATES a sheet where patch refuses to, which is the whole reason both exist', () => {
+  /*
+    THE TEST THAT WOULD HAVE CAUGHT THE DEFECT, AND IT WAS FOUND BY READING RATHER THAN BY
+    ANY GATE. The Working pad shipped calling `patchSheet`, so a reader who opened it on an
+    untouched frame, did their arithmetic and moved on lost every character — silently,
+    because patch-if-present had nothing to patch and returned `undefined` exactly as it is
+    designed to. Nothing threw, nothing failed, and the text was simply never stored.
+
+    Both halves are asserted together on purpose: the refusal is correct for `revealed` and
+    wrong for content, so a future draft that "fixes" `patchSheet` to create breaks the
+    first line here and learns why from the second.
+  */
+  const slot = slotOf();
+
+  assert.equal(patchSheet(slot, FRAME, { working: '2^10' }), undefined, 'patch must not create');
+  assert.equal(readSheet(slot, FRAME), undefined);
+
+  upsertSheet(slot, FRAME, 'dev-abc', { working: '2^10' });
+  assert.deepEqual(readSheet(slot, FRAME), { tag: 'dev-abc', answer: '', working: '2^10' });
+});
+
+test('upsert keeps every field it was not asked to change', () => {
+  /*
+    The reason the merge moved out of the components. Each of them spelled this list out
+    around the one field it owned, the sketch needed a third copy, and the copy that forgets
+    a field is always the one written after a field is added. Asserted as a whole record
+    rather than field by field, so a sixth field that is not carried through fails here.
+  */
+  const slot = slotOf();
+  upsertSheet(slot, FRAME, 'dev-abc', {
+    answer: '32',
+    working: '2^5',
+    revealed: true,
+    hasSketch: true,
+    background: 'grid',
+  });
+
+  upsertSheet(slot, FRAME, 'dev-abc', { working: '2^5\n2^10' });
+
+  assert.deepEqual(readSheet(slot, FRAME), {
+    tag: 'dev-abc',
+    answer: '32',
+    working: '2^5\n2^10',
+    revealed: true,
+    hasSketch: true,
+    background: 'grid',
+  });
+});
+
+test('upsert re-stamps a sheet written against an earlier edition', () => {
+  // A stale sheet is shown rather than hidden — see the header — and the moment the reader
+  // writes on it again it is theirs against the edition in front of them. That is why the
+  // tag is the caller's rather than the record's.
+  const slot = slotOf();
+  upsertSheet(slot, FRAME, 'dev-old', { answer: '32' });
+
+  upsertSheet(slot, FRAME, 'dev-new', { working: 'check' });
+
+  assert.equal(readSheet(slot, FRAME)?.tag, 'dev-new');
+  assert.equal(readSheet(slot, FRAME)?.answer, '32', 'the reader’s own words are not the tag');
+});
+
+test('upsert costs the reader the write and never the page', () => {
+  // The rule every function here keeps: a browser refusing storage loses the sheet and
+  // leaves the book readable.
+  const slot = slotOf();
+  slot.setItem = () => {
+    throw new Error('quota');
+  };
+
+  assert.doesNotThrow(() => upsertSheet(slot, FRAME, 'dev-abc', { answer: '32' }));
+  assert.equal(upsertSheet(slot, FRAME, 'dev-abc', { answer: '32' }), undefined);
 });

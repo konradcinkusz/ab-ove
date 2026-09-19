@@ -44,13 +44,31 @@ export interface PlaceRowProps {
  * that drew a line under nothing) are gone.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * IT IS A `<p>`, NOT A `<nav>` — deliberately, and it is the reason this component exists
- * rather than the three blocks being merged inline into `frame-view.tsx`.
- * `language-switch.spec.ts`'s "the control names both editions" test locates the switch by
+ * IT IS A `<div>`, AND IT IS NOT A `<nav>` — two separate decisions, one of which was got
+ * wrong first and broke every frame page in the book.
+ *
+ * Not a `<nav>`: `language-switch.spec.ts` locates the switch by
  * `page.getByRole('navigation').filter({ has: page.locator('[lang=pl]') })` and asserts
- * `toHaveCount(1)` — a second `<nav>` anywhere on the page that happens to contain a
- * `[lang]` descendant would break that assertion by making the switch ambiguous. The place
- * row is prose that HOLDS a `<nav>` (the language switch itself, unchanged); it is not one.
+ * `toHaveCount(1)`, so a second `<nav>` containing a `[lang]` descendant would make the
+ * switch ambiguous. That reasoning stands. This row HOLDS a `<nav>`; it is not one.
+ *
+ * THE FIRST DRAFT CONCLUDED FROM THAT THAT IT SHOULD BE A `<p>`, AND `<p>` CANNOT CONTAIN
+ * A `<nav>`. The HTML parser closes an open `<p>` when it meets flow content that may not
+ * nest inside one, so the browser's DOM had the switch as a SIBLING of this row where
+ * React had rendered it as a child. React called that a hydration mismatch and regenerated
+ * the entire client tree on every frame page:
+ *
+ *     In HTML, <nav> cannot be a descendant of <p>. This will cause a hydration error.
+ *
+ * Nothing looked broken, which is why it shipped. The page renders, the switch works, and
+ * the cost is paid by every client island on the frame — each one re-mounts from scratch
+ * instead of hydrating, so any of them seeded from `useSyncExternalStore`'s SERVER snapshot
+ * silently gets the client one instead. The sketch pane's remembered background was the
+ * symptom that found it, a whole PR later: it was stored correctly and never read back.
+ *
+ * A `<div>` holds a `<nav>` legally, is not itself a navigation, and `.place` is
+ * `display: flex`, so nothing on the page moves. Prose semantics were never the point —
+ * this row is a bar of controls.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * THE UNIT TITLE'S LINK CARRIES ONLY THE TITLE, NEVER THE ID IN FRONT OF IT.
@@ -76,7 +94,7 @@ export function PlaceRow({
   const contentsHref = contentsHrefFor(language);
 
   return (
-    <p className={styles.place}>
+    <div className={styles.place}>
       <span className={styles.locus}>
         <span className={styles.unitId}>{unitId}</span>
         <span aria-hidden="true" className={styles.dot}>
@@ -117,7 +135,7 @@ export function PlaceRow({
           <span>{last}</span>
         </span>
       </span>
-    </p>
+    </div>
   );
 }
 

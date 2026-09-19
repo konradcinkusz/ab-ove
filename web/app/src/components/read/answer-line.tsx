@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
-import { readHere, useSheet, writeHere } from '@/lib/sheet/client';
+import { upsertHere, useSheet } from '@/lib/sheet/client';
 import { ANSWER_LIMIT } from '@/lib/sheet/store';
 
 import styles from './worksheet.module.css';
@@ -94,10 +94,16 @@ export function AnswerLine({
     flag also worked and fired a setState during the very first render, including on the
     server, for no gain.
 
-    The seed is the stored SHEET, by reference. `writeHere` deliberately does not announce,
-    so a reader typing does not invalidate the snapshot they are seeded from and get their
-    caret thrown to the start — only a CLEAR announces, which is exactly when the field
-    should empty. See `lib/sheet/client.ts`.
+    The seed is the stored SHEET, by reference. `upsertHere` deliberately does not
+    ANNOUNCE — only a clear does, which is exactly when this field should empty — so no
+    other island is told and no listener runs while a reader types.
+
+    It does still drop this frame's cached snapshot, which it must, or coming back to the
+    frame later would read a value from before the write. So the comparison below does fire
+    on every keystroke and re-seeds with the string the field already holds: React sees the
+    same value, writes nothing to the DOM and the caret stays put. The pad beside this one
+    has the same shape and a third piece of state that is NOT in the store, which is why it
+    needs a stricter test than this one does — see `working.tsx`.
   */
   const [seed, setSeed] = useState(stored);
 
@@ -138,19 +144,12 @@ export function AnswerLine({
     element.style.height = `${Math.min(element.scrollHeight, 10 * 24)}px`;
   }, [value]);
 
+  // The merge — keep the working, the reveal, the sketch flag and the background — lives
+  // in `upsertSheet` rather than being spelled out here, because it was spelled out in two
+  // components and the sketch needed a third, and the copy that forgets a field is the one
+  // written after a field is added.
   const commit = (text: string): void => {
-    const existing = readHere({ track, unit, n });
-    writeHere(
-      { track, unit, n },
-      {
-        tag,
-        answer: text,
-        working: existing?.working ?? '',
-        ...(existing?.revealed ? { revealed: true } : {}),
-        ...(existing?.hasSketch ? { hasSketch: true } : {}),
-        ...(existing?.background ? { background: existing.background } : {}),
-      },
-    );
+    upsertHere({ track, unit, n }, tag, { answer: text });
   };
 
   return (

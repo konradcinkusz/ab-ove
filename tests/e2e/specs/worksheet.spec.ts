@@ -380,6 +380,147 @@ test.describe('the worksheet', () => {
     await expect(results).toContainText('5');
   });
 
+  test('the pad keeps what is written on a frame with no answer on it @core', async ({ page }) => {
+    /*
+      ──────────────────────────────────────────────────────────────────────────────────
+      THE TEST THAT WOULD HAVE CAUGHT THE DEFECT, AND IT SHIPPED WITHOUT ONE.
+
+      The pad was committing through `patchSheet`, which refuses to CREATE a sheet — a rule
+      that exists so arriving at frame n+1 cannot invent a record for a frame the reader
+      never visited. Applied to content it means: a reader who opens the pad on a frame
+      they have written nothing else on, does their arithmetic and moves on loses every
+      character. Silently. Nothing throws, nothing warns, and the text is simply never
+      stored.
+
+      Every existing test here typed an answer first, so every one of them had a record to
+      patch and all of them passed. The order is the whole test: pad FIRST, nothing else.
+      ──────────────────────────────────────────────────────────────────────────────────
+    */
+    await page.goto(at('en', NUMERIC.asks));
+    await page.getByRole('group').filter({ hasText: 'Working' }).first().locator('summary').click();
+
+    const pad = page.getByRole('textbox', { name: /your working/i });
+    await pad.fill('2^10');
+    await pad.blur();
+
+    // Reload rather than read storage: what matters to the reader is that it is there when
+    // they come back, and asserting on the key would pass against a store nothing reads.
+    await page.reload();
+    await page.getByRole('group').filter({ hasText: 'Working' }).first().locator('summary').click();
+    await expect(
+      page.getByRole('textbox', { name: /your working/i }),
+      'the pad discarded the reader’s working because they had not written an answer first',
+    ).toHaveValue('2^10');
+  });
+
+  test('a sketch is drawn, kept, and comes back @core', async ({ page }) => {
+    /*
+      A great many of this book's questions are answered fastest with a picture, and a
+      reader with no paper to hand had no way to commit to one at all.
+
+      What is asserted is the round trip and not the pixels: a canvas cannot be read, so
+      the only honest question is whether what the reader drew is still there when they
+      return. The strokes are read back through the page's own storage because there is
+      nothing else to look at — `strokes.test.ts` is where the geometry is pinned.
+    */
+    await page.goto(at('en', NUMERIC.asks));
+    await page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+
+    /*
+      By its label and not by a role: a `<canvas>` has no implicit ARIA role at all, so
+      `getByRole('img')` — which is what it looks like it ought to be — matches nothing.
+      Giving it `role="img"` in the markup was the other way to make that locator work and
+      would have been a lie: there is no image, there is a surface the reader draws on.
+    */
+    const canvas = page.getByLabel(/draw your answer/i);
+    const box = await canvas.boundingBox();
+    expect(box, 'the canvas has no box, so nothing below draws anything').toBeTruthy();
+
+    // An L: down, then right. Two straight runs and one corner, which is the shape the
+    // simplifier reduces to three points and the shape a wrong one would flatten to two.
+    await page.mouse.move(box!.x + 60, box!.y + 40);
+    await page.mouse.down();
+    for (let i = 1; i <= 12; i += 1) await page.mouse.move(box!.x + 60, box!.y + 40 + i * 12);
+    for (let i = 1; i <= 12; i += 1) await page.mouse.move(box!.x + 60 + i * 14, box!.y + 184);
+    await page.mouse.up();
+
+    /*
+      The synchronous shadow first. `hasSketch` is in localStorage rather than beside the
+      strokes precisely so the reveal can decide what to offer without awaiting IndexedDB —
+      a button that appeared a moment after paint would push the reveal down the page.
+    */
+    await expect
+      .poll(async () =>
+        page.evaluate(
+          (key) => JSON.parse(localStorage.getItem(key) ?? '{}').hasSketch,
+          `ab-ovo:sheet:v1:${track}/${unit}/${NUMERIC.asks}`,
+        ),
+      )
+      .toBe(true);
+
+    await page.reload();
+    await page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+
+    const kept = await page.evaluate(
+      (key) =>
+        new Promise<number[][] | string>((resolve) => {
+          const open = indexedDB.open('ab-ovo-sheet', 1);
+          open.onsuccess = () => {
+            const get = open.result.transaction('sketches', 'readonly').objectStore('sketches').get(key);
+            get.onsuccess = () => resolve(get.result as number[][]);
+            get.onerror = () => resolve('unreadable');
+          };
+          open.onerror = () => resolve('no database');
+        }),
+      `ab-ovo:sheet:v1:${track}/${unit}/${NUMERIC.asks}`,
+    );
+
+    expect(Array.isArray(kept), `the strokes did not survive: ${String(kept)}`).toBe(true);
+    const strokes = kept as number[][];
+    expect(strokes, 'one movement of the pen is one stroke').toHaveLength(1);
+
+    /*
+      Twenty-five raw points went in and an L is three: the ends and the corner. The upper
+      bound is what says the simplifier ran at all; the lower is what says it did not eat
+      the corner, which is the one distortion a reader would certainly see.
+    */
+    const points = strokes[0]!.length / 2;
+    expect(points, `an L kept ${points} points of 25`).toBeGreaterThanOrEqual(3);
+    expect(points, `an L kept ${points} points of 25`).toBeLessThan(8);
+  });
+
+  test('the background a reader chose is still chosen when they come back @core', async ({
+    page,
+  }) => {
+    /*
+      ──────────────────────────────────────────────────────────────────────────────────
+      THE SECOND TEST THAT EARNED ITS PLACE BY FAILING, AND THE CAUSE WAS NOT HERE.
+
+      The choice stored correctly and never came back, and the reason was four components
+      away: the place row was a `<p>` holding the language switch's `<nav>`, which HTML
+      does not allow, so hydration failed and React regenerated the whole client tree on
+      every frame page in the book. A component seeded from the server snapshot then gets
+      the client one instead — invisible everywhere except here, where the seed was a
+      constant. `place-row.tsx` carries the finding; `hydration.spec.ts` is the guard.
+
+      So this is a test about a background and it is really a test about hydration, which
+      is why it is worth keeping even though the stylesheet could not care less.
+      ──────────────────────────────────────────────────────────────────────────────────
+    */
+    await page.goto(at('en', NUMERIC.asks));
+    await page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+
+    await page.getByRole('button', { name: 'Grid' }).click();
+    await expect(page.getByRole('button', { name: 'Grid' })).toHaveAttribute('aria-pressed', 'true');
+
+    await page.reload();
+    await page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+    await expect(
+      page.getByRole('button', { name: 'Grid' }),
+      'the reader’s chosen background was stored and not read back',
+    ).toHaveAttribute('aria-pressed', 'true');
+  });
+
   test('a frame that asks nothing offers no pad @core', async ({ page }) => {
     // Same rule as the answer line: a teaching frame elicits nothing, so a place to work
     // something out beside it is a control with no question.
