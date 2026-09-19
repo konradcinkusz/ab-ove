@@ -19,6 +19,7 @@ import { FrameKeys } from './frame-keys.tsx';
 import styles from './frame-view.module.css';
 import { LanguageSwitch } from './language-switch.tsx';
 import { RememberPosition } from './remember-position.tsx';
+import { RichInline, RichText } from './rich-text.tsx';
 
 export interface FrameViewProps {
   readonly bundle: Bundle;
@@ -177,7 +178,7 @@ export function FrameView({
           crumb the way OUT of the composed route rather than a link that keeps a pane the
           reader has finished with.
         */}
-        <Link href={reading(language)}>{say(unit.titles, language)}</Link>
+        <Link href={reading(language)}><RichInline language={language} text={say(unit.titles, language)} /></Link>
       </p>
 
       <LanguageSwitch
@@ -190,7 +191,11 @@ export function FrameView({
 
       <div className={styles.rule}>
         <span className={styles.badge}>{step.n}</span>
-        {section ? <span className={styles.section}>{say(section.titles, language)}</span> : null}
+        {section ? (
+          <span className={styles.section}>
+            <RichInline language={language} text={say(section.titles, language)} />
+          </span>
+        ) : null}
       </div>
 
       {/*
@@ -203,12 +208,12 @@ export function FrameView({
           <span className={styles.answerLabel} lang={chrome.language}>
             {chrome.answer}
           </span>
-          <p>{say(step.answer, language)}</p>
+          <RichText language={language} text={say(step.answer, language)} />
         </div>
       ) : null}
 
       <div className={styles.body}>
-        <p>{say(step.body, language)}</p>
+        <RichText language={language} text={say(step.body, language)} />
       </div>
 
       {forward ? (
