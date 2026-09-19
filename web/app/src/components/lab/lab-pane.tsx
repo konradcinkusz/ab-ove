@@ -32,7 +32,10 @@ export function LabPane({
   /** The content tag to record outcomes against, resolved on the server. See the route. */
   readonly bundleTag?: string;
 }): React.JSX.Element {
-  const { status, statusText, checks, stub, result, run } = useLabRuntime(lab, bundleTag);
+  const { status, statusText, checks, stub, result, run, stop } = useLabRuntime(
+    lab,
+    bundleTag,
+  );
   const [source, setSource] = useState('');
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -50,6 +53,20 @@ export function LabPane({
   const onCheck = useCallback(() => {
     run(source);
   }, [run, source]);
+
+  /*
+   * Stop does not touch `source`, and that is the requirement rather than an omission.
+   *
+   * The reader's file lives in this component's state; the interpreter that was running it
+   * lives in a worker. Ending one cannot reach the other, which is what makes the control
+   * offerable at all — the privacy note above tells a reader that closing the tab discards
+   * their work, and a Stop that also discarded it would be a worse trap than the runaway
+   * loop, because they would press it on purpose.
+   */
+  const onStop = useCallback(() => {
+    stop();
+    editorRef.current?.focus();
+  }, [stop]);
 
   const onReset = useCallback(() => {
     if (stub === null) return;
@@ -165,6 +182,23 @@ export function LabPane({
         >
           Check
         </button>
+        {/*
+          ENABLED EXACTLY WHILE A RUN IS IN FLIGHT, and offered at all times so the bar
+          does not reflow under the reader's cursor as a run starts and ends.
+
+          `status === 'running'` and not `busy`: `busy` also covers `loading`, and while
+          Python is booting there is nothing to stop — including the reboot this button
+          itself causes, which is a `loading` the reader must not be invited to restart.
+        */}
+        <button
+          type="button"
+          className={`${styles.button} ${styles.danger}`}
+          data-testid="lab-stop"
+          onClick={onStop}
+          disabled={status !== 'running'}
+        >
+          Stop
+        </button>
         <button
           type="button"
           className={`${styles.button} ${styles.secondary}`}
@@ -178,7 +212,10 @@ export function LabPane({
           className={`${styles.status} ${status === 'failed' ? styles.statusFailed : ''}`}
           data-testid="lab-status"
           // The status changes without the reader doing anything — boot finishing, a run
-          // ending — so it is announced rather than merely repainted.
+          // ending, the replacement interpreter arriving seconds after a Stop — so it is
+          // announced rather than merely repainted. The Stop case is the one that most
+          // needs it: the press is the reader's, the several seconds that follow are not,
+          // and silence there is indistinguishable from the pane having died.
           role="status"
           aria-live="polite"
         >

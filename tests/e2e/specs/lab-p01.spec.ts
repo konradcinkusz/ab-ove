@@ -14,8 +14,8 @@ import {
  *
  * notes/10 §6.1 fixes this phase's definition of done as one journey: open Lab P1, paste the
  * reference solution of ONE exercise, press Check, and see the ok line for that check and the
- * SUMMARY line. Test 1 is that journey and nothing else; the six around it are what make
- * test 1 worth believing.
+ * SUMMARY line. Test 1 is that journey and nothing else; every test around it is there to
+ * make test 1 worth believing.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────
  * WHY ONE EXERCISE, AND WHAT THAT DOES NOT BUY
@@ -36,7 +36,7 @@ import {
  * So neither is redundant and neither is sufficient — which is E2E-ACCEPTANCE-TESTING.md §2's
  * point that "a real assertion proves only that a test CAN pass, not that it can catch
  * anything", and is why the two were written as a pair and each was watched failing. The full
- * matrix of which broken pane each of these seven tests kills is in README.md §5.
+ * matrix of which broken pane each test in this file kills is in README.md §5.
  *
  * lab/tools/labcheck.py --tests already holds the book's own engine to exactly this
  * both-directions rule, against lab/solutions/ and against the untouched stubs. These two
@@ -121,10 +121,27 @@ const TENTH_CHECK = 'test_3_tenth_error_is_exactly_one_gap';
 const WRONG_TENTH_BODY = '    return 0.0';
 const PASSING_TENTH_BODY = '    return 1.0';
 
+/**
+ * A body that does not return, for the Stop test.
+ *
+ * `while True: pass` rather than anything cleverer, and for a reason: it allocates nothing,
+ * so the worker spins rather than exhausting the wasm heap — an out-of-memory crash would
+ * end the run by itself and the test would pass against a pane with no Stop at all. It is
+ * also what a reader actually writes, since a mistaken exit condition in `threshold` or in
+ * `flips_to_zero` is exactly this.
+ *
+ * It goes in the `gap` region because every check in the pinned module that touches exercise
+ * 1 calls `M.gap(...)` unconditionally, so the run cannot reach a SUMMARY line whatever
+ * order `check.py` collects the checks in. The test asserts the region still exists rather
+ * than assuming it.
+ */
+const RUNAWAY_BODY = '    while True:\n        pass';
+
 const pane = (page: Page) => ({
   status: page.getByTestId('lab-status'),
   editor: page.getByTestId('lab-editor'),
   run: page.getByTestId('lab-run'),
+  stop: page.getByTestId('lab-stop'),
   reset: page.getByTestId('lab-reset'),
   output: page.getByTestId('lab-output'),
   summary: page.getByTestId('lab-summary'),
@@ -415,6 +432,109 @@ test.describe('lab P1', () => {
     await expect(editor).toBeEditable();
 
     // And it recovers: the stub runs to a clean result afterwards, from the same page.
+    await editor.fill(STUB_SOURCE);
+    await runToCompletion(page, summary);
+    await expect(summary).toHaveText(`SUMMARY ok=0 fail=0 todo=${TOTAL_CHECKS}`);
+  });
+
+  test('a run that will not end can be stopped, and the reader keeps their code @core', async ({
+    page,
+  }) => {
+    /**
+     * THE DEFECT THIS EXISTS FOR, and it is the one the pane had no answer to at all.
+     *
+     * Every exercise is a function stub the reader completes, and Lab P1 asks for
+     * `threshold` by bisection and `flips_to_zero` by a multiply-until-zero loop — so
+     * `while True:` with a mistaken exit condition is an expected input, not an edge case.
+     * Pyodide runs CPython on the worker's own thread, so a spinning interpreter receives no
+     * message: the ONLY thing that reaches it is `Worker.terminate()`, which ends it. Before
+     * this control existed the reader's way out was to reload the tab, and the pane's own
+     * privacy note tells them that discards everything they have written.
+     *
+     * THREE ASSERTIONS, EACH WATCHED KILLING A DIFFERENT BROKEN PANE — which is what
+     * separates a test that can pass from one that can catch anything
+     * (E2E-ACCEPTANCE-TESTING.md §2). Measured, against three panes each wrong in one way:
+     *
+     *   | a pane that…                                   | fails on            |
+     *   | the button is rendered and calls nothing       | the status line     |
+     *   | Stop also puts the stub back in the editor     | the editor's value  |
+     *   | Stop reboots, reports ready, and `run()` can   | the Check after it  |
+     *   |   no longer reach the replacement worker       |                     |
+     *
+     * The third is the one that is easy to leave out and is the reason the test does not
+     * end at `ready`: every visible thing about that pane is right — it says it stopped, it
+     * comes back to ready, it keeps the reader's file — and it cannot run anything again.
+     * Reported as "the run produced no SUMMARY line" after 60 s, which is what a reader
+     * would have experienced as a Check that did nothing.
+     */
+    expect(REGION_NAMES, 'the pinned book no longer has a "gap" exercise').toContain('gap');
+
+    await page.goto(LAB_PATH);
+    const { editor, output, run, stop, reset, status, summary } = pane(page);
+    await waitForRuntime(page);
+
+    // Offered but not armed: there is nothing to stop before a run, and a control that is
+    // live when it can do nothing teaches a reader to ignore it.
+    await expect(stop, 'Stop was enabled before any run').toBeDisabled();
+
+    const runaway = stubWithReplacedBody('gap', RUNAWAY_BODY);
+    await editor.fill(runaway);
+    await run.click();
+
+    /**
+     * IN FLIGHT, and asserted without the flakiness that kept this out of the suite.
+     *
+     * README.md's "what this suite does NOT cover" refused to assert the in-flight control
+     * states, because a run that finishes before the assertion polls fails a test about a
+     * correct pane — and a Check on a booted runtime is about 100 ms. This run CANNOT
+     * finish: the interpreter is in a loop with no exit. So the window these two assertions
+     * look at is unbounded rather than a tenth of a second, and it is the only place in the
+     * suite where the in-flight contract can be asserted honestly.
+     */
+    await expect(stop, 'Stop was not enabled while a run was in flight').toBeEnabled({
+      timeout: RUN_TIMEOUT,
+    });
+    await expect(run, 'Check stayed pressable during a run').toBeDisabled();
+
+    await stop.click();
+
+    /**
+     * WHAT HAPPENED, IN THE READER'S TERMS — the issue's second requirement, and the reason
+     * this is not asserted as "not an error". A deliberate stop and a crashed pane look the
+     * same from the reader's chair unless the page says which it was.
+     *
+     * Not the flaky shape either, and the difference is measured rather than argued: the
+     * pane answers this within a frame of the click, and it stops saying it only once a
+     * REPLACEMENT interpreter has booted — a fetch of the worker module, a fetch of ~9 MB of
+     * wasm and its instantiation, which the boot measurement at the top of this file puts at
+     * seconds. An auto-retrying assertion polls inside that window many times over.
+     */
+    await expect(status, 'the status line did not say the run had been stopped').toHaveText(
+      /stopped/i,
+      { timeout: RUN_TIMEOUT },
+    );
+
+    // AND BACK TO READY, which is the issue's first requirement. `waitForRuntime` asserts it
+    // on the control rather than on the wording, which is the assertion that survives the
+    // status line being reworded.
+    await waitForRuntime(page);
+    await expect(stop, 'Stop stayed armed with no run in flight').toBeDisabled();
+    await expect(reset).toBeEnabled();
+
+    // THE READER'S WORK SURVIVED. Byte for byte, including the loop they will now go and fix.
+    await expect(editor, 'Stop discarded what the reader had written').toHaveValue(runaway);
+
+    // Nothing was reported, because nothing ran: an abandoned run printed no line and
+    // reached no check, and a transcript or a SUMMARY here would be the pane inventing one.
+    await expect(output).toBeEmpty();
+    await expect(summary).toBeEmpty();
+
+    /**
+     * AND THE PANE CAN RUN AGAIN, which is the assertion that makes `ready` mean something.
+     * A pane that reports ready without an interpreter the Check button can reach satisfies
+     * every assertion above it; this is the only line that knows the difference, and it is
+     * also the reader's own next move — they stopped their loop in order to go and fix it.
+     */
     await editor.fill(STUB_SOURCE);
     await runToCompletion(page, summary);
     await expect(summary).toHaveText(`SUMMARY ok=0 fail=0 todo=${TOTAL_CHECKS}`);
