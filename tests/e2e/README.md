@@ -17,10 +17,15 @@ testing nothing. Everything below that reads like pedantry is a line item from t
 unconditionally, on every run.** There is no `if (count === 0) return`, no
 `try { expect(...) } catch {}`, and no commented-out body anywhere in `specs/`. A scenario
 that cannot run yet is declared with `test.skip(condition, reason)` so the runner reports it
-as *skipped with a reason* rather than as passed — there is exactly one of those today and
-it names both its blocker and the environment variable that turns it on.
+as *skipped with a reason* rather than as passed. `grep -rn 'test.skip(' specs/` is the list;
+a number here would be a claim nobody re-runs. Today it finds `integration-report.spec.ts`,
+waiting on a deployment with `AbOvo.Api` behind the BFF proxy and on `E2E_EXPECT_API=1`,
+and its reason names both.
 
-The three banned shapes, for the grep that enforces them:
+The banned shapes, for the grep that enforces them. They are listed rather than counted,
+because this heading said *three* over a table of four from this file's first commit
+(`f064c6b`, where both the heading and the fourth row arrived together) until it was read
+— a claim about itself that nothing checks, which is the shape the file exists to ban:
 
 | Banned | Why |
 |---|---|
