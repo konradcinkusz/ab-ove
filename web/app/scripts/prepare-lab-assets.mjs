@@ -15,6 +15,14 @@
  * lab would stop working wherever that CDN is slow, blocked or down, for a page whose
  * entire promise is that it needs nothing but the browser. So Pyodide is a DEPENDENCY, and
  * this script is the step that turns a dependency into bytes on our own origin.
+ *
+ * AND IT IS THE STEP THAT REFUSES TO SHIP CONTENT THOSE BYTES DO NOT COVER. What it copies
+ * is the INTERPRETER, and `content-schema.v1.json` lets a bundle ask for more than that —
+ * `"runtime": "numpy"` is a wheel `loadPackage` fetches afterwards. So after the copy, this
+ * script asks whether every file the pinned bundles need is now in public/pyodide/, and
+ * dies naming the ones that are not (ADR-0032, issue #51). The rule above is what that
+ * check holds up; without it the rule was one content change away from being broken by a
+ * bundle nobody would have had to look at twice.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * It is wired as BOTH `prebuild` and `predev`, because the pane is broken in exactly the
@@ -29,10 +37,29 @@
  * never a moving ref — applied to a binary asset.)
  */
 import { createHash } from 'node:crypto';
-import { cp, mkdir, readFile, rm, stat } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+/**
+ * The application's own modules, imported into a build script — which works because Node 22
+ * strips types on the way in (web/package.json's engine floor is 22.18.0 for exactly this
+ * reason, stated there for `node --test`). Nothing is bundled and nothing is emitted; this
+ * is the same source the app and the unit tier read.
+ *
+ * The alternative was to re-read the fixture JSON here, and that is the shape this
+ * repository keeps calling a second copy of something that has a source: `bundle.ts` is
+ * where "which bundles does this application serve" is written down, and a script that
+ * answered it separately would be right until the day the two disagreed.
+ */
+import { allBundles } from '../src/lib/content/bundle.ts';
+import {
+  declaredRuntimes,
+  unservedWheels,
+  unservedWheelsReport,
+  wheelsRequiredBy,
+} from '../src/lib/content/runtime-assets.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const app = resolve(here, '..');
@@ -213,6 +240,68 @@ async function stagePyodide() {
 }
 
 /**
+ * The runtime every pinned bundle asks for, checked against what has just been written to
+ * the origin.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE RULE THE COPY ABOVE EXISTS TO KEEP, HELD FOR PACKAGES TOO.
+ *
+ * That copy puts the INTERPRETER on this origin. `content-schema.v1.json` lets a bundle say
+ * `"runtime": "numpy"`, and numpy is not in the interpreter — it is a wheel `loadPackage`
+ * fetches afterwards, against a base URL derived from the `indexURL` the worker passes. The
+ * pinned fixture says `"stdlib"`, so nothing is missing today; the day a bundle says
+ * otherwise, the lab pane asks for a file this origin does not have and the first thing that
+ * would have noticed is a reader.
+ *
+ * So this runs AFTER the copy, and it asks the literal question rather than a proxy for it:
+ * is every file that content needs now in public/pyodide/? Reading the directory that was
+ * just written, and the lock that was just staged into it, is what makes it literal —
+ * checking PYODIDE_FILES instead would be checking the intention.
+ *
+ * WHY THIS DOES NOT COPY THE WHEELS. Measured: `pyodide`'s npm package ships none, so there
+ * is nothing here to copy and a copy loop would be a rule nobody could watch working.
+ * src/lib/content/runtime-assets.ts carries the reasoning and the failure names what taking
+ * that decision would involve. UI-UX.md rule 4, FRONTEND-BFF.md §1.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+async function assertRuntimesAreServed(dest) {
+  let bundles;
+  try {
+    bundles = allBundles();
+  } catch (error) {
+    // Reached before `next build` would reach it, and the same defect: a pinned bundle that
+    // does not validate. Reported in this script's voice rather than as a bare stack, since
+    // this is the first step of the build a person sees.
+    return fail(
+      `a pinned content bundle does not load:\n  ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  const declarations = declaredRuntimes(bundles);
+  // Named apart from the book lock this script already holds: same word, two artefacts, and
+  // the one read here is the index the browser is served.
+  const pyodideLock = JSON.parse(await readFile(join(dest, 'pyodide-lock.json'), 'utf8'));
+
+  let required;
+  try {
+    required = wheelsRequiredBy(declarations, pyodideLock);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : String(error));
+  }
+
+  const unserved = unservedWheels(required, await readdir(dest));
+  if (unserved.length > 0) fail(unservedWheelsReport(unserved));
+
+  // Said plainly when there is nothing to say. A track may legitimately have no labs at all,
+  // and "served in full" over an empty list would read as a check that found everything
+  // present rather than as one that had nothing to look for.
+  const runtimes = declarations.map(({ runtime }) => runtime);
+  return runtimes.length === 0
+    ? 'no lab runtime declared'
+    : `lab runtime ${runtimes.join(', ')} served in full`;
+}
+
+/**
  * The worker, copied rather than bundled — and this copy is the reason it works at all.
  *
  * MEASURED: Turbopack's worker factory calls `new Worker(url, { ...options, type: void 0 })`,
@@ -242,6 +331,8 @@ const { lock, lockPath } = await readLock();
 await stageWorker();
 const book = await stageBook(lock, lockPath);
 const pyodide = await stagePyodide();
+// After the copy, never before it: the question is about the directory that now exists.
+const runtimeNote = await assertRuntimesAreServed(join(publicDir, 'pyodide'));
 
 const mb = (pyodide.bytes / 1024 / 1024).toFixed(1);
 console.log(
@@ -249,5 +340,8 @@ console.log(
     `(${pyodide.count} files, ${mb} MB); ` +
     `public/book ← ${lock.source.repository}@${lock.source.revision.slice(0, 7)} ` +
     `(${book.served} files verified, ${book.withheld} withheld from the browser); ` +
-    'public/lab ← pyodide-worker.js',
+    'public/lab ← pyodide-worker.js; ' +
+    // Printed rather than silent, on the same reasoning as "N files verified" above: a
+    // guard whose output nobody ever sees is one nobody notices has stopped running.
+    runtimeNote,
 );

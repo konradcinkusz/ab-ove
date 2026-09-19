@@ -188,7 +188,10 @@ it. They are listed here rather than left to be rediscovered per screen.
    component and a confidence badge that a caller wires together, because a separable pair is
    one somebody separates (METRIC-ETHICS.md §3).
 4. **No external request.** No CDN font, stylesheet, script, icon or image. The colophon
-   promises it to the reader's face.
+   promises it to the reader's face. For the lab's Python runtime the rule is held
+   mechanically: a bundle may not declare a `labs[].runtime` whose files `public/pyodide/`
+   does not carry, and `prepare-lab-assets.mjs` fails the build naming them
+   ([ADR-0032](../adr/0032-a-lab-runtime-is-refused-until-its-wheels-are-on-this-origin.md)).
 5. **The browser talks to this origin only.** Never to the API, never to `authservice`. That
    is why this estate needs no CORS configuration on the frontend's account, and needing one
    would mean the rule had already been broken (FRONTEND-BFF.md §1).
