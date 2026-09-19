@@ -2,8 +2,10 @@
 
 **Date:** 2026-09-19 · **Run by:** Claude Code, session `01MmBAqfTAeixhqSMQjNksV1`
 **Issue:** [#56](https://github.com/konradcinkusz/ab-ove/issues/56) — order 100, a probe
-**Reads into:** [#58](https://github.com/konradcinkusz/ab-ove/issues/58) — ADR-0033, does a
-frame accept the reader's answer
+**Reads into:** [#58](https://github.com/konradcinkusz/ab-ove/issues/58) — does a frame accept
+the reader's answer. No ADR number is named here: `docs/ux/UI-UX.md` records that an ADR takes
+the next free number at the moment it is written, and a document that names one in advance is
+the reservation that rule exists to stop.
 **Candidate:** `@cortex-js/compute-engine` 0.131.3, MIT — the engine #56 names
 **Result:** **partial.** Outcome 2 of the three #56 lists. A digest is a mechanism for a
 **numeric** answer and does not need this library to be one; for an expression it is close
