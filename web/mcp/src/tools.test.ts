@@ -289,18 +289,70 @@ test('a step the program does not have IS an error — the number names nothing'
   assert.match(result.text, /is not one of them/);
 });
 
-test('finishing the program is not an error either', async () => {
-  const d = deps();
+/** Work P01 to its last step, the way a reader does. */
+async function finish(d: ReturnType<typeof deps>): Promise<number> {
   await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
   const total = program().steps.length;
   for (let n = 1; n < total; n += 1) {
-    await handle('submit_answer', { track: TRACK, unit: UNIT, step: n, answer: 'x' }, d);
+    const moved = await handle('submit_answer', { track: TRACK, unit: UNIT, step: n, answer: 'x' }, d);
+    assert.ok(!moved.isError, moved.text);
   }
+  return total;
+}
+
+test('finishing the program is a hand-off, not an error and not a dead end', async () => {
+  const d = deps();
+  const total = await finish(d);
 
   const last = await handle('submit_answer', { track: TRACK, unit: UNIT, step: total, answer: 'x' }, d);
   assert.ok(!last.isError, 'a reader who finished the book was told the server had failed');
-  assert.match(last.text, /finished/);
-  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, total);
+  assert.match(last.text, /finished — all \d+ steps worked/);
+  // The reading surface's /summary, one transport over: the book's return index, labels only.
+  const unit = program();
+  for (const route of unit.routes ?? []) {
+    if (route.kind === 'quiz') continue;
+    assert.ok(last.text.includes(say(route.labels!, LANG)), `the ${route.kind} label was not offered`);
+    if (route.answer) assert.ok(!last.text.includes(say(route.answer, LANG)), 'a route ANSWER was emitted');
+  }
+  assert.match(last.text, /\*\*Summary\*\*/);
+  assert.match(last.text, /\*\*Can you\?\*\*/);
+  // The fixture has one program, so there is no next one — and it says so rather than
+  // ending on nothing.
+  assert.match(last.text, /last program in the track/);
+  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, total, 'finishing moved the cursor');
+
+  // Reopening a finished program shows the last step and the same hand-off.
+  const reopened = await handle('open_program', { unit: UNIT }, d);
+  assert.ok(!reopened.isError);
+  assert.match(reopened.text, /step \d+ of \d+/);
+  assert.match(reopened.text, /finished — all \d+ steps worked/);
+
+  // And the list says so.
+  assert.match((await handle('list_programs', {}, d)).text, new RegExp(`P01 · .* — finished \\(${total} steps\\)`));
+});
+
+test('the hand-off names the next program and the call that opens it', async () => {
+  // Two programs, from the fixture's one: the next is found by adjacency in the manifest.
+  const bundle = BUNDLES.for(TRACK)!;
+  const unit = bundle.units[0]!;
+  const two: Bundle = {
+    ...bundle,
+    units: [unit, { ...unit, id: 'P02', titles: { en: 'The second program', pl: 'Drugi program' } }],
+  };
+  const d = {
+    cursors: new MemoryCursorStore(),
+    bundles: { for: (id: string) => (id === TRACK ? two : undefined), all: () => [two] },
+  };
+  const total = await finish(d);
+
+  const last = await handle('submit_answer', { unit: UNIT, step: total, answer: 'x' }, d);
+  assert.match(last.text, /\*\*Next program:\*\* P02 · The second program/);
+  assert.match(last.text, /open_program with unit "P02" \(edition "en"\)/);
+
+  // The next program's answers are as absent from the hand-off as this one's.
+  for (const step of two.units[1]!.steps) {
+    if (step.answer) assert.ok(!last.text.includes(say(step.answer, LANG)), 'the next program leaked an answer');
+  }
 });
 
 test('a missing bundle is a sentence naming the fetch script, not a protocol error', async () => {

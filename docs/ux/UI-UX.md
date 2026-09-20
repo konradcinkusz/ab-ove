@@ -631,7 +631,11 @@ exists so that the first of those cannot arrive quietly.
 The reveal is the thing that does NOT travel for free. It is a navigation on the reading
 surface and it is nothing on a transport with no navigation, so the property is rebuilt
 there rather than inherited: a step is served only at or below the reader's furthest, which
-makes an unreached answer unselectable rather than filtered. The note above about the
+makes an unreached answer unselectable rather than filtered. What does travel: the place row
+(every step opens with program, title, section and position), the summary screen (the last
+step hands off to the program's Summary, *Can you?* and the next program), and the book's
+runs in the program list — each from the same function the surface uses, so the two never
+divide or name the book two ways. The note above about the
 service worker applies here with the sign turned over — the acceptance suite asserts over
 the DOM, and a transport that has none needs its own gate or the suite stays green while the
 property does not reach it.

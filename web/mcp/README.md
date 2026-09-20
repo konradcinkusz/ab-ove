@@ -79,7 +79,9 @@ shows a place says so too**, because a reader of an MCP host sees results and ne
    and naming a different one switches, at the same step.
 3. `submit_answer` — the reader's own words, verbatim, with the number of the step they
    answer; the next step comes back, and it opens with the book's answer to the one just
-   done. A step that asks nothing says so, and goes on with no answer.
+   done. A step that asks nothing says so, and goes on with no answer. On the last step it
+   is the hand-off: the book's Summary and *Can you?* for the program, and the next
+   program with the call that opens it — the reading surface's summary screen, here.
 
 `track` can be left out: this server carries one. A program id is matched in any case.
 

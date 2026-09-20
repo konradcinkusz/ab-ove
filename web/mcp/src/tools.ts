@@ -17,7 +17,7 @@ import type { Cursor, Refusal } from './reveal.ts';
 import type { CursorStore } from './cursor.ts';
 import { isIdentifier } from './cursor.ts';
 import { ContentUnavailable, groupsOf, languageIn, say, unitIn } from './content.ts';
-import type { BundleSource, Step, Unit } from './content.ts';
+import type { Bundle, BundleSource, Step, Text, Unit } from './content.ts';
 
 /**
  * What the host is told about the server as a whole, before any tool is called.
@@ -303,6 +303,46 @@ export function render(unit: Unit, step: Step, language: string): string {
 }
 
 /**
+ * THE HAND-OFF, when a program is finished — the reading surface's `/summary`, one
+ * transport over.
+ *
+ * The first version ended a program on an error: the last `submit_answer` was refused as
+ * `program-complete`, with `isError` set, and a reader who had just worked forty-eight
+ * steps was told the server had failed and given nowhere to go. The web ends a program on
+ * a screen: the book's own Summary, its *Can you?* list, and the next program. This is
+ * that screen.
+ *
+ * ONLY THE ROUTES' LABELS, NEVER `route.answer`. A Summary item paraphrases what a run of
+ * frames concluded — the book's own rule is that a label may name the skill and may not
+ * carry the finding — and the quiz's `answer` is an answer, which the leak walk in
+ * `tools.test.ts` asserts is never emitted at any cursor, this block included.
+ */
+export function completion(unit: Unit, language: string, next: Unit | undefined): string {
+  const routes = unit.routes ?? [];
+  const summary = routes.filter((route) => route.kind === 'summary');
+  const outcomes = routes.filter((route) => route.kind === 'outcome');
+  const range = (from: number, to: number): string => (from === to ? `step ${from}` : `steps ${from}–${to}`);
+  const item = (route: { labels?: Text; from: number; to: number }): string =>
+    `- ${route.labels ? say(route.labels, language) : ''} (${range(route.from, route.to)})`;
+
+  const parts: string[] = [
+    `## ${unit.id} · ${say(unit.titles, language)} · finished — all ${unit.steps.length} steps worked.`,
+  ];
+  if (summary.length > 0) {
+    parts.push(`**Summary** — the book's own return index; each item names what a run of steps established, and the steps to re-read for it:\n${summary.map(item).join('\n')}`);
+  }
+  if (outcomes.length > 0) {
+    parts.push(`**Can you?** — what the reader should now be able to do:\n${outcomes.map(item).join('\n')}`);
+  }
+  parts.push(
+    next
+      ? `**Next program:** ${next.id} · ${say(next.titles, language)}. To open it, call open_program with unit "${next.id}" (edition "${language}").`
+      : 'This was the last program in the track. list_programs shows them all.',
+  );
+  return parts.join('\n\n');
+}
+
+/**
  * The track a call means when it names none: the only one, if there is only one.
  *
  * Every call used to require the track id, and a server that carries one track was making
@@ -322,6 +362,17 @@ function soleTrack(bundles: BundleSource): string | ToolResult {
 interface Located {
   readonly track: string;
   readonly unit: Unit;
+}
+
+/**
+ * The program after this one, by ADJACENCY in `bundle.units` — the order the book's own
+ * manifest declares — and never by adding one to a parsed id: the book renumbered its own
+ * main sequence once already when P07 was inserted (program-contents.tsx records it).
+ */
+function nextUnit(bundle: Bundle | undefined, unit: Unit): Unit | undefined {
+  if (!bundle) return undefined;
+  const index = bundle.units.findIndex((candidate) => candidate.id === unit.id);
+  return index >= 0 ? bundle.units[index + 1] : undefined;
 }
 
 /**
@@ -429,9 +480,14 @@ async function dispatch(
             ? say(program.titles, cursor.language)
             : editions.map((edition) => say(program.titles, edition)).join(' · ');
           const total = program.steps.length;
+          /*
+            A place on the last step is "finished": no last step of this book asks
+            anything (measured on the pinned bundle), so reaching it is reaching the end,
+            and the hand-off is what open_program returns there.
+          */
           const place = cursor
             ? cursor.step === total
-              ? `on the last step (${total} of ${total})`
+              ? `finished (${total} steps)`
               : `at step ${cursor.step} of ${total}`
             : 'not opened';
           lines.push(`  ${heading ? '  ' : ''}${program.id} · ${titled} — ${total} steps — ${place}`);
@@ -477,7 +533,10 @@ async function dispatch(
       : existing.language !== saved.language
         ? `Resuming "${unit.id}" at step ${saved.step}, switched to the "${saved.language}" edition.`
         : `Resuming "${unit.id}" at step ${saved.step}.`;
-    return { text: `${opening}\n\n${render(unit, served.step, saved.language)}${ephemeral}` };
+    // On the last step the program is finished; the step is shown, and then where to next.
+    const finished =
+      saved.step === unit.steps.length ? `\n\n${completion(unit, saved.language, nextUnit(bundle, unit))}` : '';
+    return { text: `${opening}\n\n${render(unit, served.step, saved.language)}${finished}${ephemeral}` };
   }
 
   const cursor = await deps.cursors.read(track, unit.id);
@@ -535,18 +594,30 @@ async function dispatch(
       );
     }
 
-    const moved = advance(unit, cursor);
-    if (!moved.ok) return refusalResult(moved.refusal);
-
-    const saved = await deps.cursors.save(moved.cursor);
-    const served = current(unit, saved);
-    if (!served.ok) return refusalResult(served.refusal);
-
     const recorded = answer
       ? `Recorded as the reader's answer to step ${cursor.step}:\n"${answer}"\n` +
         '(Not marked, and not kept as evidence about the reader. If that is not what they ' +
         'wrote, say so and re-read the step rather than moving on.)\n\n'
       : `Step ${cursor.step} asked nothing, so nothing was recorded.\n\n`;
+
+    const moved = advance(unit, cursor);
+    if (!moved.ok) {
+      /*
+        The last step: there is no next one to open, and the first version said so with
+        `isError` and a sentence — a reader who had just finished the book was told the
+        server had failed. The hand-off instead, as the reading surface's `/summary`: the
+        book's Summary, its *Can you?*, and the next program. The cursor is unchanged, and
+        nothing is destroyed; opening the program again shows the same.
+      */
+      if (moved.refusal.kind === 'program-complete') {
+        return { text: recorded + completion(unit, cursor.language, nextUnit(deps.bundles.for(track), unit)) };
+      }
+      return refusalResult(moved.refusal);
+    }
+
+    const saved = await deps.cursors.save(moved.cursor);
+    const served = current(unit, saved);
+    if (!served.ok) return refusalResult(served.refusal);
 
     return { text: recorded + render(unit, served.step, saved.language) };
   }

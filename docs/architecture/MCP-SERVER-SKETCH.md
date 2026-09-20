@@ -127,6 +127,17 @@ one language; the step itself is in the reader's edition. The host's model relay
 table like the reading surface's `chrome.ts` is the fix, when a reader of the Polish edition
 asks for it.
 
+**Finishing a program is a hand-off, not an error and not a dead end.** The last
+`submit_answer` used to be refused as `program-complete`, and a reader who had worked
+forty-eight steps was told the server had failed and given nowhere to go. It now records the
+answer and returns the reading surface's `/summary`, one transport over: the book's own
+Summary and *Can you?* — the routes' **labels only**, never `route.answer`, because a label
+may name the skill and may not carry the finding — and the next program, found by adjacency
+in the manifest, with the `open_program` call that opens it. The cursor does not move.
+`open_program` on a finished program shows the last step and the same block; `list_programs`
+says *finished*. The leak walk in `tools.test.ts` covers the block at every cursor, and a
+two-program bundle walks the next-program branch with its answers in the off-limits set.
+
 **`submit_answer` names the step it answers, so a retry cannot advance twice.** A host that
 timed out and called again used to move the reader two steps: the skipped step's body was
 never shown while its answer arrived in the next banner. A submit for a step the reader is
