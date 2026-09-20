@@ -80,12 +80,44 @@ The answer is not marked, scored or stored as evidence about the reader. It is e
 in the result so the reader can see what was recorded as theirs.
 `.trim();
 
+/**
+ * What a host reads about a tool before it decides whether to ask the reader's permission
+ * (MCP `annotations`). Hints, not gates — the spec says so — and every one below is true
+ * of the code rather than of a wish: a host that trusted a false `readOnlyHint` would
+ * stop asking before a write, which is the wrong direction to be wrong in.
+ */
+export interface ToolAnnotations {
+  /** Reads nothing but the book and the place; changes nothing. */
+  readonly readOnlyHint: boolean;
+  /** Nothing here destroys anything — a place only ever moves forward (ADR-0019). */
+  readonly destructiveHint: boolean;
+  /** Calling it again with the same arguments changes nothing more. */
+  readonly idempotentHint: boolean;
+  /** The book and the reader's own place; no open world. */
+  readonly openWorldHint: boolean;
+}
+
 export interface ToolDefinition {
   readonly name: string;
   readonly title: string;
   readonly description: string;
   readonly inputSchema: Record<string, unknown>;
+  readonly annotations: ToolAnnotations;
 }
+
+/**
+ * The three shapes a tool here can have. A re-read costs a permission prompt in a host
+ * that has not been told it is read-only; the gate's own refusal made that prompt look
+ * like the server asking to do something, three times a frame.
+ */
+const READS: ToolAnnotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+/**
+ * `open_program` writes a place, and writes the same place if called again; `submit_answer`
+ * names its step, so the retry a host makes after a timeout records nothing and moves
+ * nobody — which is exactly what `idempotentHint` promises, and the reason `step` is
+ * required rather than optional.
+ */
+const MOVES: ToolAnnotations = { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 
 const TRACK = {
   type: 'string',
@@ -107,6 +139,7 @@ export const TOOLS: readonly ToolDefinition[] = [
       'and how far the reader has got in each. Call this first when the reader has not ' +
       'named a program.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    annotations: READS,
   },
   {
     name: 'open_program',
@@ -132,6 +165,7 @@ export const TOOLS: readonly ToolDefinition[] = [
       required: ['unit'],
       additionalProperties: false,
     },
+    annotations: MOVES,
   },
   {
     name: 'current_step',
@@ -145,6 +179,7 @@ export const TOOLS: readonly ToolDefinition[] = [
       required: ['unit'],
       additionalProperties: false,
     },
+    annotations: READS,
   },
   {
     name: 'submit_answer',
@@ -179,6 +214,7 @@ export const TOOLS: readonly ToolDefinition[] = [
       required: ['unit', 'step'],
       additionalProperties: false,
     },
+    annotations: MOVES,
   },
   {
     name: 'review_step',
@@ -196,6 +232,7 @@ export const TOOLS: readonly ToolDefinition[] = [
       required: ['unit', 'step'],
       additionalProperties: false,
     },
+    annotations: READS,
   },
 ];
 

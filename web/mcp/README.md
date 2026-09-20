@@ -61,6 +61,13 @@ or, in a host's own configuration file, with the path written out:
 }
 ```
 
+In a host that lists a server's prompts, **`read`** is the way in: pick it, name a program
+or leave it out, and the host's model is told the method before it is told a step. Its
+`program` argument completes to the ids as you type. The tools carry their annotations, so
+a host that reads them stops asking permission for a re-read: `list_programs`,
+`current_step` and `review_step` are read-only; `open_program` and `submit_answer` write a
+place and never destroy one, and calling either again changes nothing more.
+
 ## Where the reader's place is kept
 
 With `AB_OVO_API_URL` and `AB_OVO_READER_TOKEN` set, the reader's place is kept in
@@ -93,7 +100,8 @@ program does not have is an error, because it names nothing.
 
 ## The tools
 
-`list_programs`, `open_program`, `current_step`, `submit_answer`, `review_step`.
+`list_programs`, `open_program`, `current_step`, `submit_answer`, `review_step` — and one
+prompt, `read`, whose `program` argument completes.
 
 Only `submit_answer` moves the reader forward, and on a step that asks for one it requires
 the reader's own answer as free text. Nothing grades it: the next step opens with the book's

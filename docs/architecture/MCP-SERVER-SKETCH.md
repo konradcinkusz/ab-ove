@@ -161,6 +161,21 @@ a developer's message. `content.ts` wraps it at the one crossing as `ContentUnav
 reader of a host sees; `list_programs` and `open_program` now carry the same sentence, so
 the reader learns it before losing their place rather than by losing it.
 
+**Every tool carries its annotations, and there is a prompt.** A host that has not been
+told a tool is read-only asks the reader's permission for it, so a re-read cost a prompt
+three times a frame and the gate's own refusal looked like the server asking to do
+something. `list_programs`, `current_step` and `review_step` say `readOnlyHint`;
+`open_program` and `submit_answer` say they write, never destroy, and are idempotent — the
+last because a submit names its step, so a retry records nothing. Hints, not gates: the
+spec says so, and every one is true of the code rather than of a wish. A host surfaces a
+server's prompts as menu entries, which is the only way a reader who does not know the tool
+names finds the way in: the one prompt, `read`, states the method in the reader's voice and
+then asks for `list_programs` or `open_program`, and its `program` argument completes to
+the ids (`completion/complete`), because a completion value is what the host inserts and
+the titles are in the list. Registered on the low-level `Server`, with `prompts` and
+`completions` declared as capabilities — the SDK refuses a handler for an undeclared one at
+start-up. `prompts.ts` is the logic; `server.test.ts` drives it over an in-memory transport.
+
 ### The answer contract, and what it can and cannot do
 
 The tool description carries the format rule the host's model reads: `answer` is the
@@ -293,7 +308,8 @@ pnpm --dir web -r test
 
 The unit tier needs no network, no database and no deployment: the gate is pure functions
 and the tool surface runs against the committed fixture through an in-memory cursor (P13 —
-test at the layer with the logic). The fixture is **injected**, not fetched — `Deps.bundles`
+test at the layer with the logic), and `server.test.ts` drives the protocol itself —
+tools, annotations, the prompt, completions — over `InMemoryTransport`. The fixture is **injected**, not fetched — `Deps.bundles`
 is a `BundleSource`, because `bundleFor()` deliberately never serves a fixture and throws
 when the compiled bundle has not been fetched. `bash scripts/fetch-book-content.sh` is what
 the running server needs; the tests do not.

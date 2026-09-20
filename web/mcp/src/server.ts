@@ -19,12 +19,19 @@ import { pathToFileURL } from 'node:url';
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import {
+  CallToolRequestSchema,
+  CompleteRequestSchema,
+  GetPromptRequestSchema,
+  ListPromptsRequestSchema,
+  ListToolsRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
 
 import { ApiCursorStore, MemoryCursorStore } from './cursor.ts';
 import type { CursorStore } from './cursor.ts';
 import { liveBundles } from './content.ts';
 import type { BundleSource } from './content.ts';
+import { PROMPTS, completeArgument, promptMessages } from './prompts.ts';
 import { SERVER_INSTRUCTIONS, TOOLS, handle } from './tools.ts';
 
 export interface ServerOptions {
@@ -38,7 +45,13 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
   const server = new Server(
     { name: 'ab-ovo', version: '0.1.0' },
     {
-      capabilities: { tools: {} },
+      /*
+        Declared, or the registrations below throw at start-up: the SDK checks a handler's
+        method against the capabilities the server announced. `prompts` is the reader's way
+        in from a host's menu; `completions` is what fills the prompt's `program` argument
+        with the ids.
+      */
+      capabilities: { tools: {}, prompts: {}, completions: {} },
       // The host shows these to the model before any tool is called. The method has to
       // arrive before the first step does, or the first thing that happens is an assistant
       // helpfully working frame 1.
@@ -46,14 +59,41 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
     },
   );
 
+  const bundles = (): BundleSource => options.bundles ?? liveBundles;
+
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: TOOLS.map((tool) => ({
       name: tool.name,
       title: tool.title,
       description: tool.description,
       inputSchema: tool.inputSchema,
+      // Read-only, idempotent, closed-world: what a host reads to stop asking the reader's
+      // permission for a re-read. tools.ts says which is which and why.
+      annotations: tool.annotations,
     })),
   }));
+
+  server.setRequestHandler(ListPromptsRequestSchema, async () => ({
+    prompts: PROMPTS.map((prompt) => ({
+      name: prompt.name,
+      title: prompt.title,
+      description: prompt.description,
+      arguments: prompt.arguments.map((argument) => ({ ...argument })),
+    })),
+  }));
+
+  server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+    const found = promptMessages(request.params.name, request.params.arguments ?? {});
+    if (!found) throw new Error(`No such prompt: ${request.params.name}`);
+    return { description: found.description, messages: found.messages.map((message) => ({ ...message })) };
+  });
+
+  server.setRequestHandler(CompleteRequestSchema, async (request) => {
+    const { ref, argument } = request.params;
+    const values =
+      ref.type === 'ref/prompt' ? completeArgument(bundles(), ref.name, argument) : [];
+    return { completion: { values: [...values], total: values.length, hasMore: false } };
+  });
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const result = await handle(
@@ -61,7 +101,7 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
       (request.params.arguments ?? {}) as Record<string, unknown>,
       {
         cursors,
-        bundles: options.bundles ?? liveBundles,
+        bundles: bundles(),
         ...(options.placeIsEphemeral ? { placeIsEphemeral: true } : {}),
       },
     );

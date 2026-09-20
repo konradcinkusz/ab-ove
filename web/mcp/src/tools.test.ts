@@ -90,11 +90,15 @@ test('the fixture carries answers, so the tests below can fail', () => {
   assert.ok(answers().length > 0, 'P01 must carry at least one answer');
 });
 
-test('every tool declares a name, a description and an object schema', () => {
+test('every tool declares a name, a description, an object schema and its annotations', () => {
   for (const tool of TOOLS) {
     assert.ok(tool.name.length > 0);
     assert.ok(tool.description.length > 0);
     assert.equal((tool.inputSchema as { type: string }).type, 'object');
+    // Nothing here destroys and nothing reaches an open world; the two that write say so.
+    assert.equal(tool.annotations.destructiveHint, false, tool.name);
+    assert.equal(tool.annotations.openWorldHint, false, tool.name);
+    assert.equal(tool.annotations.readOnlyHint, !['open_program', 'submit_answer'].includes(tool.name), tool.name);
   }
 });
 
