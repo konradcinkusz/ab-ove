@@ -186,13 +186,23 @@ real answer and passes through unchanged.
 **That contract is prose, and prose is a request.** ADR-0009 draws the line this estate
 works to — *"an anti-goal that exists only as prose is a request; one the architecture
 cannot express is a rule."* No gate can decide whether the answer that arrived is the
-reader's, because the model fills the argument. So two things sit under it: the server
-instructions state the method before any tool is called, and `submit_answer` **echoes back
-what it recorded**, so a reader who was answered *for* can see that they were. That is a
-narrowing, not a fix, and it is the honest limit of this design.
+reader's, because the model fills the argument. Two things sit under it, and they are not
+the same shape of thing: the server instructions state the method before any tool is
+called, which is still prose; and, where the host supports it, MCP elicitation puts the
+argument in front of the reader directly and records what comes back from *that* instead —
+which is the gate the paragraph above says nothing can be, on the one transport where a
+form can stand between the model's claim and the record.
+[ADR-0054](../adr/0054-submit-answer-elicits-the-reader-before-it-trusts-the-argument.md) is
+that decision.
+
+**On a host that does not support elicitation, the limit is exactly what it was.**
+`submit_answer` **echoes back what it recorded**, so a reader who was answered *for* can see
+that they were — a narrowing, not a fix, and the honest floor under every host regardless of
+what it can ask its reader directly.
 
 `ANSWER_CONTRACT` and `SERVER_INSTRUCTIONS` are constants asserted by the unit tier — the
-nearest thing a prose contract can have to a gate.
+nearest thing a prose contract can have to a gate, and still the whole of the protection on
+a host with no elicitation to fall through to.
 
 ---
 

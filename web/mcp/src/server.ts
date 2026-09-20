@@ -33,6 +33,7 @@ import { liveBundles } from './content.ts';
 import type { BundleSource } from './content.ts';
 import { PROMPTS, completeArgument, promptMessages } from './prompts.ts';
 import { SERVER_INSTRUCTIONS, TOOLS, handle } from './tools.ts';
+import type { ElicitOutcome } from './tools.ts';
 
 export interface ServerOptions {
   /** Where the content comes from; the live loader unless a test injects the fixture. */
@@ -60,6 +61,42 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
   );
 
   const bundles = (): BundleSource => options.bundles ?? liveBundles;
+
+  /*
+    ASK THE READER DIRECTLY, WHEN THE HOST WILL LET US — MCP elicitation, checked at call
+    time rather than assumed from what the client declared at `initialize`: a client can
+    say `elicitation: {}` and mean only URL-mode, or the call can fail for a reason that has
+    nothing to do with support (a closed tab, a timeout). Either way `tools.ts` only needs
+    to know whether the reader actually confirmed something, so every failure path here
+    collapses to `unavailable` and `submit_answer` falls back to trusting the argument —
+    exactly what it already does for a host with no elicitation at all.
+  */
+  const elicitAnswer = async (step: number, proposed: string): Promise<ElicitOutcome> => {
+    if (!server.getClientCapabilities()?.elicitation?.form) return { kind: 'unavailable' };
+    try {
+      const result = await server.elicitInput({
+        message:
+          `Step ${step}: check this before it is recorded as your answer.` +
+          (proposed ? '' : ' Type what you wrote — the assistant sent nothing.'),
+        requestedSchema: {
+          type: 'object',
+          properties: {
+            answer: {
+              type: 'string',
+              title: 'Your answer',
+              description: 'Edit this if it is not what you wrote, then confirm.',
+              ...(proposed ? { default: proposed } : {}),
+            },
+          },
+        },
+      });
+      if (result.action !== 'accept') return { kind: 'declined' };
+      const value = result.content?.answer;
+      return { kind: 'confirmed', answer: typeof value === 'string' ? value : '' };
+    } catch {
+      return { kind: 'unavailable' };
+    }
+  };
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: TOOLS.map((tool) => ({
@@ -102,6 +139,7 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
       {
         cursors,
         bundles: bundles(),
+        elicit: elicitAnswer,
         ...(options.placeIsEphemeral ? { placeIsEphemeral: true } : {}),
       },
     );

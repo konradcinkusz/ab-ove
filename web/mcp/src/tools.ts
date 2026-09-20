@@ -6,11 +6,13 @@
  * is a rule." So nothing below is load-bearing for the reveal. The gate is `reveal.ts` and
  * it holds whatever a model decides to do with these strings.
  *
- * What the descriptions ARE load-bearing for is the one thing no gate can decide: whether
- * the answer that arrives is the reader's. A model cannot be prevented from composing one —
- * it fills the argument — so the contract is stated where the model reads it, in the words
- * it will act on, and `submit_answer` echoes back what it recorded so a reader who was
- * answered FOR can see that they were.
+ * What the descriptions ARE load-bearing for is whether the answer that arrives is the
+ * reader's — and on a host with no elicitation, that is still a request rather than a rule:
+ * a model cannot be prevented from composing one, so the contract is stated where the model
+ * reads it and `submit_answer` echoes back what it recorded, a narrowing rather than a gate.
+ * On a host that supports elicitation, `submit_answer` has an actual gate for this one
+ * property — ADR-0054 — and the argument becomes a suggestion the reader confirms or
+ * overrules rather than a claim taken on faith.
  */
 import { advance, current, explain, serve, FIRST_STEP } from './reveal.ts';
 import type { Cursor, Refusal } from './reveal.ts';
@@ -78,6 +80,12 @@ useful thing for the reader to compare against the book than a guess you wrote f
 
 The answer is not marked, scored or stored as evidence about the reader. It is echoed back
 in the result so the reader can see what was recorded as theirs.
+
+On a host that supports elicitation, a step that asks for something puts this argument in
+front of the reader directly, pre-filled with whatever is passed here, before anything is
+recorded — so the reader confirms or corrects it themselves rather than trusting the
+argument that arrived. Pass what the reader told you regardless; on a host without
+elicitation it is the only source this tool has.
 `.trim();
 
 /**
@@ -442,6 +450,18 @@ function locate(bundles: BundleSource, track: string, unit: string): Located | T
 const isResult = (value: unknown): value is ToolResult =>
   typeof value === 'object' && value !== null && 'text' in value;
 
+/**
+ * What came back from asking the reader directly, through the host's own UI rather than
+ * through the model's text. `unavailable` covers both "this host does not support
+ * elicitation" and "it claimed to and the call failed anyway" — `submit_answer` treats the
+ * two identically, by falling back to the argument the model supplied, so a transport hiccup
+ * degrades to today's behaviour rather than failing the call.
+ */
+export type ElicitOutcome =
+  | { readonly kind: 'confirmed'; readonly answer: string }
+  | { readonly kind: 'declined' }
+  | { readonly kind: 'unavailable' };
+
 export interface Deps {
   readonly cursors: CursorStore;
   /** Injected so the unit tier runs against the committed fixture, never through bundleFor(). */
@@ -452,6 +472,13 @@ export interface Deps {
    * then say so; a reader is told in the channel they can read.
    */
   readonly placeIsEphemeral?: boolean;
+  /**
+   * Ask the reader to confirm or correct a step's answer directly, through the host's UI,
+   * bypassing the model — MCP elicitation. Absent on a host that does not support it, which
+   * `submit_answer` treats exactly like an `unavailable` outcome: trust the argument, as
+   * before. Never called for a step with no cue, because there is nothing to confirm.
+   */
+  readonly elicit?: (step: number, proposed: string) => Promise<ElicitOutcome>;
 }
 
 /**
@@ -623,7 +650,36 @@ async function dispatch(
       non-empty answer to go on from one, so the assistant invented a word or asked the
       reader to answer a question nobody put.
     */
-    const answer = typeof args.answer === 'string' ? args.answer.trim() : '';
+    const proposed = typeof args.answer === 'string' ? args.answer.trim() : '';
+
+    /*
+      THE ELICITED ANSWER REPLACES THE ARGUMENT; IT DOES NOT JUST CONFIRM IT.
+
+      `ANSWER_CONTRACT` is prose, and prose is a request — no gate can decide whether the
+      argument that arrived is the reader's, because the model fills it in either way. Where
+      the host can put a form in front of the reader directly, this is the gate: `answer`
+      below is what came back from THAT, not from the model's own argument, so an assistant
+      that composed one gets overruled by whatever the reader actually typed or accepted.
+      Never attempted on a step with no cue — there is nothing to confirm.
+    */
+    let answer = proposed;
+    let confirmedByReader = false;
+    if (here.step.cue && deps.elicit) {
+      const outcome = await deps.elicit(cursor.step, proposed);
+      if (outcome.kind === 'confirmed') {
+        answer = outcome.answer.trim();
+        confirmedByReader = true;
+      } else if (outcome.kind === 'declined') {
+        return refused(
+          `Nothing recorded: asked the reader directly to confirm step ${cursor.step}'s answer ` +
+            'and they declined or cancelled. Ask them in the conversation instead, and call ' +
+            'submit_answer again once they have.',
+        );
+      }
+      // 'unavailable' falls through: trust the argument, exactly as a host with no
+      // elicitation support always has.
+    }
+
     if (here.step.cue && !answer) {
       return problem(
         'No answer was supplied. Ask the reader what they wrote — do not answer the step for them. ' +
@@ -632,7 +688,7 @@ async function dispatch(
     }
 
     const recorded = answer
-      ? `Recorded as the reader's answer to step ${cursor.step}:\n"${answer}"\n` +
+      ? `Recorded as the reader's answer to step ${cursor.step}${confirmedByReader ? ', confirmed directly with the reader' : ''}:\n"${answer}"\n` +
         '(Not marked, and not kept as evidence about the reader. If that is not what they ' +
         'wrote, say so and re-read the step rather than moving on.)\n\n'
       : `Step ${cursor.step} asked nothing, so nothing was recorded.\n\n`;
