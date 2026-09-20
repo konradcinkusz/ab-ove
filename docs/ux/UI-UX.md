@@ -175,10 +175,16 @@ kinds, 21 714 maths spans. [ADR-0037](../adr/0037-the-books-prose-is-rendered-no
 `F01 · <title>  ›  <section>    English · polski    [12] / 45`. It replaced a crumb chain, a
 language row with its own label, a rule-and-badge row and a foot count — four things saying
 where the reader is in four ways, around one question. The frame number **is** an input: type
-a number, press Enter, arrive. `→`/`←` move; `g` focuses the jumper; `Enter` puts the caret in
-the answer line; `Ctrl/⌘+Enter` commits and reveals; `Esc` returns to reading. Every segment
-of the one-line hint is gated on the island that implements it, and while a field has focus
-the line says what is true *there*, because the arrows are dead inside a text field.
+a number, press Enter, arrive. `→`/`←` move; `g` focuses the jumper; `Enter` with nothing
+focused puts the caret in the answer line; `Ctrl+Enter` — spelt `⌘+Enter` on an Apple
+keyboard, from a flag the page sets rather than a string it rewrites — commits and reveals;
+`Esc` returns to reading. Every segment of the one-line hint is gated on the island that
+implements it, and while a field has focus the line says what is true *there*, because the
+arrows are dead inside a text field: the hint is one line per state, all in one grid cell so
+that switching moves nothing, and the foot's `Keys` list is the whole map with a note beside
+a key that means something else elsewhere. **The two keys and the typing-state hint were
+decided in ADR-0041 and shipped later than the rest of it** — this paragraph described them
+for a while before `frame-keys.tsx` had them, and `specs/reading.spec.ts` now presses both.
 
 The row is a `<div>`. It must not be a `<nav>` — `language-switch.spec.ts` counts navigations
 containing a `[lang]` descendant and expects one — and it was a `<p>`, which **cannot contain

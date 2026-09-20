@@ -55,6 +55,11 @@ export interface AnswerLineProps {
  * an accelerator on top of it. Nothing here gates the reveal: a reader may turn over having
  * written nothing, with no nudge and no sentence about it, because the book prescribes pen
  * and paper and a reader using it would meet that sentence on every frame.
+ *
+ * `Esc` RETURNS TO READING — it blurs the field, which commits (the `onBlur` below), so a
+ * keyboard reader leaving by Esc keeps exactly what a mouse reader leaving by a click
+ * keeps. `frame-keys.tsx` then sees focus on the document again and the arrows are live.
+ * The `id` is what that file's `Enter` focuses; the `data-typing` is what its hint reads.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * THE LOCK PROTECTS SOMETHING OR IT DOES NOT APPLY. A line is read-only once it holds text
@@ -99,17 +104,34 @@ export function AnswerLine({
     other island is told and no listener runs while a reader types.
 
     It does still drop this frame's cached snapshot, which it must, or coming back to the
-    frame later would read a value from before the write. So the comparison below does fire
-    on every keystroke and re-seeds with the string the field already holds: React sees the
-    same value, writes nothing to the DOM and the caret stays put. The pad beside this one
-    has the same shape and a third piece of state that is NOT in the store, which is why it
-    needs a stricter test than this one does — see `working.tsx`.
+    frame later would read a value from before the write. So a new record arrives here on
+    the render after ANY write to this frame's sheet — this field's own commit on blur, the
+    pad's commit, a background chosen for the sketch — and the question is what to do
+    with the field's text when it does.
+
+    ──────────────────────────────────────────────────────────────────────────────────────
+    THE FIRST ANSWER LOST A KEYSTROKE, AND A KEYBOARD TEST FOUND IT.
+
+    It re-seeded from the record whenever the record was new. That is right when the
+    record's ANSWER changed underneath the field — a clear, another tab — and wrong when
+    something else in the record changed: write a line, leave it (it commits), open the
+    pad, type, come back and type `x` — the pad committed on its way out, so the record is
+    new, and the re-render the `x` caused re-seeded the field from a record whose answer
+    is the line WITHOUT the `x`. The keystroke was gone, and so was the pad's first one in
+    the mirror case. Found by pressing Esc between the two fields in `worksheet.spec.ts`,
+    which is only the keyboard's way of doing what a click already did.
+
+    So the field adopts the record's answer only when THAT answer changed since it was
+    last seeded, and not merely because the record did. The pad keeps the same rule with
+    a third piece of state on top — see `working.tsx`.
+    ──────────────────────────────────────────────────────────────────────────────────────
   */
   const [seed, setSeed] = useState(stored);
 
   if (stored !== seed) {
     setSeed(stored);
-    setValue(stored?.answer ?? '');
+    const incoming = stored?.answer ?? '';
+    if (incoming !== (seed?.answer ?? '') && incoming !== value) setValue(incoming);
   }
 
   const locked = (stored?.answer.trim().length ?? 0) > 0 && stored?.revealed === true;
@@ -159,10 +181,17 @@ export function AnswerLine({
         autoCapitalize="off"
         autoCorrect="off"
         className={styles.field}
+        data-typing="answer-line"
+        id="answer-line"
         maxLength={ANSWER_LIMIT}
         onBlur={() => commit(value)}
         onChange={(event) => setValue(event.currentTarget.value)}
         onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            event.currentTarget.blur(); // and `onBlur` commits, so nothing typed is lost
+            return;
+          }
           if (event.key !== 'Enter') return;
           if (!event.ctrlKey && !event.metaKey) return; // a plain Enter is a newline
           event.preventDefault();

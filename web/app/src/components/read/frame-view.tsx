@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { say, sectionSpans } from '@/lib/content/bundle';
 import type { Bundle, Step, Unit } from '@/lib/content/schema';
-import { chromeFor } from '@/lib/i18n/chrome';
+import { HINT_STATES, chromeFor } from '@/lib/i18n/chrome';
 import { bookNumberOf } from '@/lib/sheet/number';
 
 import { AnswerLine } from './answer-line.tsx';
@@ -11,7 +11,7 @@ import { Working } from './working.tsx';
 import { ClearAnswer } from './clear-controls.tsx';
 import { FrameKeys } from './frame-keys.tsx';
 import styles from './frame-view.module.css';
-import { KeysDetails } from './keys-details.tsx';
+import { KeyName, KeysDetails } from './keys-details.tsx';
 import { PlaceRow } from './place-row.tsx';
 import { RememberPosition } from './remember-position.tsx';
 import { RichText } from './rich-text.tsx';
@@ -334,15 +334,28 @@ export function FrameView({
         lang={chrome.language}
       >
         {/*
-          ONE SPAN PER KEY, each revealed by the flag its own island sets — so a teaching
-          frame, which has no answer line, does not offer `Ctrl+Enter`, and no frame offers
-          anything at all until the handlers have hydrated. The separators are inside the
-          spans because a `·` between two hidden segments is a stray dot.
+          ONE LINE PER STATE, ALL IN THE SAME GRID CELL, and one visible at a time — so the
+          hint says what is true with nothing focused (the arrows, Enter, `g`) and says
+          something else inside a field (the chord that commits, Esc back), which is the
+          half of ADR-0041 the first version did not have. Stacking them in one cell is what
+          keeps the switch from moving anything: the tallest line reserves the height.
+
+          Within a line, ONE SPAN PER KEY, each revealed by the flag its own island sets — so
+          a teaching frame, which has no answer line, does not offer `Enter`, and no frame
+          offers anything at all until the handlers have hydrated. The separators are inside
+          the spans because a `·` between two hidden segments is a stray dot; the first entry
+          of every line is one that is live whenever the line is.
         */}
-        {chrome.keysMap.map((entry, index) => (
-          <span className={styles.key} data-needs={entry.needs} key={entry.key}>
-            {index > 0 ? ' · ' : null}
-            {entry.key} {entry.does}
+        {HINT_STATES.map((state) => (
+          <span className={styles.line} data-when={state} key={state}>
+            {chrome.keysMap
+              .filter((entry) => entry.when.includes(state))
+              .map((entry, index) => (
+                <span className={styles.key} data-needs={entry.needs} key={`${entry.key} ${entry.does}`}>
+                  {index > 0 ? ' · ' : null}
+                  <KeyName as="span" entry={entry} /> {entry.does}
+                </span>
+              ))}
           </span>
         ))}
       </p>

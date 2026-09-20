@@ -146,6 +146,13 @@
  */
 .keys {
   color: var(--ink-faint);
+  /*
+   * A GRID WITH ONE CELL, holding one line per state (`.line` below). Every line sits in
+   * the same cell, so the tallest of them reserves the height once and switching from the
+   * reading line to a typing line moves nothing — the same reason the row uses
+   * `visibility` and not `display` in the first place.
+   */
+  display: grid;
   font-size: 0.75rem;
   letter-spacing: 0.02em;
   margin: 0.625rem 0 0;
@@ -161,6 +168,24 @@
 }
 
 :global([data-frame-keys='on']) .keys {
+  visibility: visible;
+}
+
+/*
+ * THE STATE DECIDES THE LINE. `frame-keys.tsx` mirrors the focused field's `data-typing`
+ * onto `<html>`; no attribute is the reading state. A child's `visibility: visible` shows
+ * through a hidden parent, which is why every rule here also requires the handler's own
+ * flag — a line must not appear before the key it names is live.
+ */
+.line {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+
+:global([data-frame-keys='on']:not([data-typing])) .line[data-when='reading'],
+:global([data-frame-keys='on'][data-typing='answer-line']) .line[data-when='answer-line'],
+:global([data-frame-keys='on'][data-typing='working']) .line[data-when='working'],
+:global([data-frame-keys='on'][data-typing='jumper']) .line[data-when='jumper'] {
   visibility: visible;
 }
 
@@ -186,6 +211,22 @@
 :global([data-frame-jumper='on']) .key[data-needs='frame-jumper'],
 :global([data-frame-keys='on']) .key[data-needs='frame-keys'] {
   display: inline;
+}
+
+/*
+ * The chord's two spellings — see keys-details.module.css, which carries the same three
+ * rules for the foot's list and the reasoning behind them.
+ */
+.key [data-mod='meta'] {
+  display: none;
+}
+
+:global([data-modifier='meta']) .key [data-mod='meta'] {
+  display: inline;
+}
+
+:global([data-modifier='meta']) .key [data-mod='ctrl'] {
+  display: none;
 }
 
 /*

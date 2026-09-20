@@ -65,6 +65,24 @@ export interface FrameKeysProps {
  * by any prop this component holds, because `frame-jumper.tsx` is an independently-mounted
  * Client Component and a `ref` cannot cross that boundary — the id is the one thing both
  * sides can agree on without either one holding a reference to the other.
+ *
+ * `Enter` WITH NOTHING FOCUSED PUTS THE CARET IN THE ANSWER LINE, by the same mechanism and
+ * for a reason ADR-0041 already wrote down and this file did not have: without it a reader
+ * who had just pressed `→` reached the line through four Tab stops on every frame that
+ * asks. "Nothing focused" is the whole condition — a tabbed-to link or button keeps its own
+ * Enter, and a field is refused above with every other key — so the reveal a reader has
+ * tabbed to still follows Enter, as it always did.
+ *
+ * `Esc` IS NOT HANDLED HERE. Each field returns the reader to reading by blurring itself
+ * (`answer-line.tsx`, `working.tsx`, `frame-jumper.tsx`), because only the field knows
+ * whether leaving means committing (the line, the pad) or cancelling (the jumper, whose
+ * blur would otherwise NAVIGATE to a half-typed number).
+ *
+ * WHICH FIELD IS FOCUSED IS MIRRORED ONTO `<html>` AS `data-typing`, read off the field's
+ * own `data-typing` attribute as focus moves, so the hint can say what is true where the
+ * caret is (ADR-0041: "the arrows are dead inside a text field and a hint that promised
+ * them would be lying twice a frame"). A field joins the hint by carrying the attribute;
+ * nothing here knows their ids.
  */
 export function FrameKeys({ base, last, after }: FrameKeysProps): null {
   const router = useRouter();
@@ -114,6 +132,18 @@ export function FrameKeys({ base, last, after }: FrameKeysProps): null {
         return;
       }
 
+      if (event.key === 'Enter') {
+        // Only with NOTHING focused: `document.body` is where focus lands after a soft
+        // navigation (measured, in this file's header). A link or a button that has focus
+        // owns its own Enter and is not touched.
+        if (target && target !== document.body) return;
+        const line = document.getElementById('answer-line');
+        if (!line) return; // A teaching frame asks nothing and has no line to open.
+        event.preventDefault();
+        line.focus();
+        return;
+      }
+
       const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
       if (step === 0) return;
 
@@ -138,10 +168,28 @@ export function FrameKeys({ base, last, after }: FrameKeysProps): null {
       router.push(`${base}/${to}`);
     };
 
+    // The typing state, for the hint. `focusin` carries the element gaining focus, so one
+    // listener both sets the state on entering a field and clears it on entering anything
+    // else; `focusout` with no `relatedTarget` is focus leaving to the document itself,
+    // which `focusin` never reports.
+    const onFocusIn = (event: FocusEvent): void => {
+      const state = (event.target as HTMLElement | null)?.dataset?.['typing'];
+      if (state) document.documentElement.dataset.typing = state;
+      else delete document.documentElement.dataset.typing;
+    };
+    const onFocusOut = (event: FocusEvent): void => {
+      if (!event.relatedTarget) delete document.documentElement.dataset.typing;
+    };
+
     document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('focusin', onFocusIn);
+    document.addEventListener('focusout', onFocusOut);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('focusin', onFocusIn);
+      document.removeEventListener('focusout', onFocusOut);
       delete document.documentElement.dataset.frameKeys;
+      delete document.documentElement.dataset.typing;
     };
   }, [base, last, after, router]);
 

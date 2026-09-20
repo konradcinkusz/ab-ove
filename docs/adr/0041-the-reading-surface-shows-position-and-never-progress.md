@@ -60,3 +60,15 @@ the key is a convenience and never the only way.
 a `<nav>` — and `<p>` cannot contain the `<nav>` the language switch is, so hydration failed
 on every frame page in the book until it was measured. `hydration.spec.ts` is the guard;
 `place-row.tsx` carries the finding.
+
+**`Enter`, `Esc` and the typing-state hint shipped after the rest of this file, and this
+file said they existed.** The first implementation carried the arrows and `g`; the two keys
+above and the line that "says what is true there" were decided here and described in
+UI-UX.md, and neither was in `frame-keys.tsx`. They are now: `Enter` with nothing focused
+opens the answer line, `Esc` leaves a field the way a click would (the line and the pad
+commit; the jumper cancels first, because its blur navigates), the hint is one line per
+state stacked in one grid cell, and the chord is spelt `⌘+Enter` on an Apple keyboard from
+a flag rather than a rewritten string. What it cost: the foot's `Keys` list is longer, and
+says beside `Enter` and the pad's `Ctrl+Enter` where each applies, because one key now means
+two things on one page. `specs/reading.spec.ts` presses both keys; `chrome.test.ts` holds
+every language to the same map.

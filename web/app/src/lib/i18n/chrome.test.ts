@@ -75,6 +75,23 @@ test('a language with controls here reports itself, not the fallback', () => {
   assert.notEqual(chromeFor('pl').reveal, chromeFor('en').reveal);
 });
 
+test('every language carries the same key map, entry for entry', () => {
+  // The hint on a frame and the foot's full list are both derived from `keysMap`, so a
+  // Polish entry that dropped a key, its gate or the state it belongs to would silently
+  // show a Polish reader a shorter map than an English one. The WORDS may differ; the
+  // keys, the islands they wait for and the states they belong to may not.
+  const shape = (language: string) =>
+    TABLE[language]!.keysMap.map((entry) => ({
+      key: entry.key,
+      macKey: entry.macKey,
+      needs: entry.needs,
+      when: [...entry.when],
+    }));
+  for (const language of CHROME_LANGUAGES) {
+    assert.deepEqual(shape(language), shape(FALLBACK_LANGUAGE), `${language} has a different key map`);
+  }
+});
+
 test('a language is named in its own language', () => {
   assert.equal(endonym('en'), 'English');
   assert.equal(endonym('pl'), 'polski');

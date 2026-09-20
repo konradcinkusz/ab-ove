@@ -198,6 +198,76 @@ test.describe('reading ergonomics', () => {
     expect(page.url(), 'an arrow key inside a contenteditable navigated the frame').toBe(wasAt);
   });
 
+  test('Enter opens the answer line, Esc returns to reading, and the hint says which @core', async ({
+    page,
+  }) => {
+    /*
+      ──────────────────────────────────────────────────────────────────────────────────
+      ADR-0041 DECIDED THESE TWO KEYS AND THE CODE DID NOT HAVE THEM.
+
+      "`Enter` with nothing focused puts the caret in the answer line; `Esc` returns to
+      reading … while a field has focus the line says what is true there." UI-UX.md
+      repeated it. `frame-keys.tsx` handled the arrows and `g`, so a keyboard reader
+      reached the answer line on every cue frame through four Tab stops, and the hint went
+      on promising the arrows inside a field where they are dead. This is the decision,
+      executed — and it is the reason "read end to end from the keyboard" (the first test
+      in this file) can now be "read AND answered".
+      ──────────────────────────────────────────────────────────────────────────────────
+    */
+    const cue = steps.find((step) => step.cue && step.n > 1);
+    if (!cue) throw new Error(`${unitId} has no cue frame past the first, so this proves nothing`);
+
+    await openReady(page, 'en', cue.n);
+    const line = page.getByRole('textbox', { name: /your answer/i });
+    const hint = page.getByTestId('frame-keys-hint');
+
+    // Reading state: the arrows and Enter are offered; nothing about Esc yet. `useInnerText`
+    // throughout: every state's line is in the markup and only one is visible, and the
+    // question is what the reader can see.
+    const shown = { useInnerText: true } as const;
+    await expect(hint).toContainText('→', shown);
+    await expect(hint).toContainText('Enter', shown);
+    await expect(hint).not.toContainText('Esc', shown);
+
+    await page.keyboard.press('Enter');
+    await expect(line, 'Enter with nothing focused did not open the answer line').toBeFocused();
+
+    // Typing state: the arrows are dead in a field, so the hint stops promising them and
+    // says what is true here instead.
+    await expect(hint).toContainText('Esc', shown);
+    await expect(hint).not.toContainText('→', shown);
+    await page.keyboard.type('a line the reader wrote');
+
+    await page.keyboard.press('Escape');
+    await expect(line, 'Esc did not return the reader to reading').not.toBeFocused();
+    await expect(line, 'Esc threw away what was typed').toHaveValue('a line the reader wrote');
+    await expect(hint).toContainText('→', shown);
+
+    // And the arrows are live again, which is what "back to reading" means.
+    await page.keyboard.press('ArrowRight');
+    await page.waitForURL(`**${at('en', cue.n + 1)}`);
+  });
+
+  test('Esc in the frame number cancels what was typed rather than going there @core', async ({
+    page,
+  }) => {
+    // The jumper commits on blur — the number itself is the control — so an Esc that merely
+    // blurred it would NAVIGATE to a half-typed number. Cancel first, then leave.
+    const n = Math.min(3, steps.length);
+    await openReady(page, 'en', n);
+    const jumper = page.locator('#frame-jumper');
+
+    await page.keyboard.press('g');
+    await expect(jumper).toBeFocused();
+    await jumper.fill('1');
+    await page.keyboard.press('Escape');
+
+    await expect(jumper).not.toBeFocused();
+    await expect(jumper, 'Esc left a stray number in the place row').toHaveValue(String(n));
+    await page.waitForTimeout(400);
+    expect(page.url(), 'Esc navigated to the number that was being typed').toContain(`/${n}`);
+  });
+
   test('the shortcut is told to the reader, in their own edition @core', async ({ page }) => {
     // A keyboard path nobody is told about is not an ergonomic feature, it is a secret. The
     // assertion is relational and needs no copy of either string — see language-switch.spec.

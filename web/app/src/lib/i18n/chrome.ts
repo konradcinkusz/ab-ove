@@ -44,10 +44,38 @@ interface Plural {
   readonly other: string;
 }
 
+/**
+ * The states a frame can be in from the keyboard's point of view, and the reason the hint
+ * has more than one line.
+ *
+ * ADR-0041: "while a field has focus the line says what is true there instead — the arrows
+ * are dead inside a text field and a hint that promised them would be lying twice a frame."
+ * `reading` is nothing focused; the other three are the fields a reader types in, each
+ * carrying its own name on a `data-typing` attribute that `frame-keys.tsx` mirrors onto
+ * `<html>` as focus moves.
+ */
+export const HINT_STATES = ['reading', 'answer-line', 'working', 'jumper'] as const;
+
+export type HintState = (typeof HINT_STATES)[number];
+
 /** One row of the keyboard map, shown in the frame's own hint and in the foot's `Keys` details. */
-interface KeyEntry {
+export interface KeyEntry {
   readonly key: string;
+  /**
+   * The same chord as an Apple keyboard spells it. Both spellings are in the markup and
+   * the stylesheet shows one, from a flag `modifier-flag.tsx` sets on `<html>` — so the
+   * page never rewrites a string after paint and never hydrates against a different one.
+   */
+  readonly macKey?: string;
   readonly does: string;
+  /**
+   * Where the key means this, when the foot's full list needs to say so — `Enter` in the
+   * frame number is not `Enter` on the page. The hint line never prints it: the line is
+   * only ever shown in the state the entry belongs to.
+   */
+  readonly where?: string;
+  /** The states this entry is true in. The foot lists every entry; the hint filters by this. */
+  readonly when: readonly HintState[];
   /**
    * The `data-` flag on `<html>` this entry's hint segment is gated on, when it is gated.
    *
@@ -421,10 +449,38 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     goToFrame: 'Go to frame',
     keysHeading: 'Keys',
     keysMap: [
-      { key: '→', does: 'next frame', needs: 'frame-keys' },
-      { key: '←', does: 'previous frame', needs: 'frame-keys' },
-      { key: 'Ctrl+Enter', does: 'commit and reveal', needs: 'answer-line' },
-      { key: 'g', does: 'go to a frame number', needs: 'frame-jumper' },
+      { key: '→', does: 'next frame', needs: 'frame-keys', when: ['reading'] },
+      { key: '←', does: 'previous frame', needs: 'frame-keys', when: ['reading'] },
+      { key: 'Enter', does: 'write an answer', needs: 'answer-line', when: ['reading'] },
+      { key: 'g', does: 'go to a frame number', needs: 'frame-jumper', when: ['reading'] },
+      {
+        key: 'Ctrl+Enter',
+        macKey: '⌘+Enter',
+        does: 'commit and reveal',
+        needs: 'answer-line',
+        when: ['answer-line'],
+      },
+      {
+        key: 'Ctrl+Enter',
+        macKey: '⌘+Enter',
+        does: 'work it out',
+        where: 'in the pad',
+        needs: 'answer-line',
+        when: ['working'],
+      },
+      {
+        key: 'Enter',
+        does: 'go to that frame',
+        where: 'in the frame number',
+        needs: 'frame-jumper',
+        when: ['jumper'],
+      },
+      {
+        key: 'Esc',
+        does: 'back to reading',
+        needs: 'frame-keys',
+        when: ['answer-line', 'working', 'jumper'],
+      },
     ],
     footNav: 'Where to next',
     nextSection: 'Next section →',
@@ -545,10 +601,38 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     goToFrame: 'Przejdź do ramki',
     keysHeading: 'Klawisze',
     keysMap: [
-      { key: '→', does: 'kolejna ramka', needs: 'frame-keys' },
-      { key: '←', does: 'poprzednia ramka', needs: 'frame-keys' },
-      { key: 'Ctrl+Enter', does: 'zapisz i odsłoń', needs: 'answer-line' },
-      { key: 'g', does: 'przejdź do numeru ramki', needs: 'frame-jumper' },
+      { key: '→', does: 'kolejna ramka', needs: 'frame-keys', when: ['reading'] },
+      { key: '←', does: 'poprzednia ramka', needs: 'frame-keys', when: ['reading'] },
+      { key: 'Enter', does: 'wpisz odpowiedź', needs: 'answer-line', when: ['reading'] },
+      { key: 'g', does: 'przejdź do numeru ramki', needs: 'frame-jumper', when: ['reading'] },
+      {
+        key: 'Ctrl+Enter',
+        macKey: '⌘+Enter',
+        does: 'zapisz i odsłoń',
+        needs: 'answer-line',
+        when: ['answer-line'],
+      },
+      {
+        key: 'Ctrl+Enter',
+        macKey: '⌘+Enter',
+        does: 'policz',
+        where: 'w obliczeniach',
+        needs: 'answer-line',
+        when: ['working'],
+      },
+      {
+        key: 'Enter',
+        does: 'przejdź do tej ramki',
+        where: 'w numerze ramki',
+        needs: 'frame-jumper',
+        when: ['jumper'],
+      },
+      {
+        key: 'Esc',
+        does: 'wróć do czytania',
+        needs: 'frame-keys',
+        when: ['answer-line', 'working', 'jumper'],
+      },
     ],
     footNav: 'Dokąd dalej',
     nextSection: 'Następna sekcja →',
