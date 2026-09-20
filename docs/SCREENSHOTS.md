@@ -88,8 +88,13 @@ property rather than a screenshot somebody once took.
 
 ![The same frame with a dark background and light text: the answer box, the links and the reveal button all re-coloured, not merely inverted.](assets/screenshots/frame-dark-english.png)
 
-Dark mode is a full token swap driven by `prefers-color-scheme`, not an afterthought — a
-reader working through a program at night is the normal case.
+Dark mode is a full token swap, not an afterthought — a reader working through a program at
+night is the normal case. So is one working it at a desk under a lamp, which is why the foot
+of every reading screen carries a three-position switch: **System**, **Light**, **Dark**. The
+first is the default and is `prefers-color-scheme`, exactly as it was before the switch
+existed — it is a position a reader can return to rather than the absence of a choice, and it
+is the one that needs no JavaScript
+([ADR-0048](adr/0048-the-theme-is-a-choice-and-the-system-is-a-position.md)).
 
 ---
 
@@ -97,7 +102,7 @@ reader working through a program at night is the normal case.
 
 ### The landing page is the index
 
-![The landing page. A wordmark, links to About and Sign in, an edition switch offering English, polski and Both editions, and a grid of tiles — one per program, each with its id, its title, and how many frames and sections it has. At the foot of the page, a card headed "Help fix the book?" with two buttons.](assets/screenshots/landing-english.png)
+![The landing page. A wordmark, a link to About, a three-position theme switch reading System, Light and Dark, a link to Sign in, an edition switch offering English, polski and Both editions, and a grid of tiles — one per program, each with its id, its title, and how many frames and sections it has. At the foot of the page, a card headed "Help fix the book?" with two buttons.](assets/screenshots/landing-english.png)
 
 The first screen is the thing a reader came for, one navigation from a frame instead of two
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). It is a

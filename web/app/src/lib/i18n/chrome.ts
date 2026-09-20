@@ -276,6 +276,25 @@ interface Strings {
    * the page that picks neither.
    */
   readonly bothEditions: string;
+  /**
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * THE THEME SWITCH — three positions, and `themeSystem` is the one that makes it honest.
+   *
+   * ADR-0048. A two-position light/dark toggle has a default by construction, and that
+   * default is invisible to the reader who happens to share it — which is ADR-0015's
+   * objection to a default edition, met again one control along. So the reader's own
+   * system is a position on the switch rather than the absence of a choice, and it is
+   * somewhere to go back to after trying the other two.
+   *
+   * The words are short on purpose: this control sits on a line of 0.8125rem furniture
+   * beside the edition switch and the keyboard map, and a label reading "Match my system
+   * setting" would be the loudest thing in the page's foot.
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  readonly themeLabel: string;
+  readonly themeSystem: string;
+  readonly themeLight: string;
+  readonly themeDark: string;
   readonly contents: string;
   readonly opening: string;
   readonly position: (n: number, total: number) => string;
@@ -491,6 +510,10 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     allCourses: 'All courses',
     onlyThisCourse: 'Only this course',
     bothEditions: 'Both editions',
+    themeLabel: 'Theme',
+    themeSystem: 'System',
+    themeLight: 'Light',
+    themeDark: 'Dark',
     contents: 'Contents',
     opening: 'Opening',
     position: (n, total) => `${n} of ${total}`,
@@ -651,6 +674,13 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     allCourses: 'Wszystkie kursy',
     onlyThisCourse: 'Tylko ten kurs',
     bothEditions: 'Obie edycje',
+    // `Tryb` rather than `Motyw`: docs/SCREENSHOTS.pl.md already calls this
+    // ‘tryb ciemny’, and a product that names one concept twice teaches a reader
+    // that the two words are two things (docs/how-to/translate-a-document.md).
+    themeLabel: 'Tryb',
+    themeSystem: 'Systemowy',
+    themeLight: 'Jasny',
+    themeDark: 'Ciemny',
     contents: 'Spis treści',
     opening: 'Wstęp',
     position: (n, total) => `${n} z ${total}`,
@@ -823,6 +853,10 @@ export interface Chrome {
   readonly allCourses: string;
   readonly onlyThisCourse: string;
   readonly bothEditions: string;
+  readonly themeLabel: string;
+  readonly themeSystem: string;
+  readonly themeLight: string;
+  readonly themeDark: string;
   readonly contents: string;
   readonly opening: string;
   readonly position: (n: number, total: number) => string;
