@@ -358,6 +358,8 @@ interface Strings {
   readonly sketchUndo: string;
   readonly sketchClear: string;
   readonly sketchFull: string;
+  /** Downloads every worksheet in this browser as one file. Not destructive, so no confirm. */
+  readonly exportWorksheets: string;
   readonly clearWorksheets: string;
   /** Its second press — this one cannot be undone and says so. */
   readonly clearWorksheetsConfirm: string;
@@ -556,6 +558,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     sketchUndo: 'Undo',
     sketchClear: 'Clear',
     sketchFull: 'This sketch is now too large to keep. What is on screen stays until you leave the frame.',
+    exportWorksheets: 'Export my worksheets',
     clearWorksheets: 'Clear my worksheets',
     clearWorksheetsConfirm: 'Clear them — this cannot be undone',
     programsCrumb: '← Programs',
@@ -728,6 +731,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     sketchUndo: 'Cofnij',
     sketchClear: 'Wyczyść',
     sketchFull: 'Ten szkic jest już za duży, żeby go zapisać. To, co widać, zostaje do wyjścia z ramki.',
+    exportWorksheets: 'Pobierz moje notatki',
     clearWorksheets: 'Wyczyść moje notatki',
     clearWorksheetsConfirm: 'Wyczyść — nie da się cofnąć',
     programsCrumb: '← Programy',
@@ -907,6 +911,7 @@ export interface Chrome {
   readonly sketchUndo: string;
   readonly sketchClear: string;
   readonly sketchFull: string;
+  readonly exportWorksheets: string;
   readonly clearWorksheets: string;
   readonly clearWorksheetsConfirm: string;
   readonly programsCrumb: string;

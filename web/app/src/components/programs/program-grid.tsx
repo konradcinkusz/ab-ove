@@ -10,7 +10,7 @@ import { shownBundles } from '@/lib/content/chosen-track';
 import { FALLBACK_LANGUAGE, chromeFor, endonym } from '@/lib/i18n/chrome';
 import { coursesHref, indexHref } from '@/lib/index-href';
 
-import { ClearWorksheets } from '../read/clear-controls.tsx';
+import { ClearWorksheets, ExportWorksheets } from '../read/clear-controls.tsx';
 import { ForgetProgress, ResumeLast, type Limits } from '../read/resume.tsx';
 
 import styles from './program-grid.module.css';
@@ -154,6 +154,15 @@ export function ProgramGrid({ bundles, chosen, chosenTrack }: ProgramGridProps):
           */}
           <ThemeSwitch language={chrome.language} />
           <ResumeLast language={chrome.language} limits={limits} />
+          {/*
+            A WAY TO KEEP A COPY, BEFORE EITHER WAY TO LOSE ONE. `ExportWorksheets` is one
+            press — nothing it does is destructive (ADR-0055) — and sits between the resume
+            link and the two destructive controls that follow, so a reader who has just been
+            reminded their worksheets exist sees the safe control before the two that erase
+            them. It renders nothing when there is nothing to export, on `ClearWorksheets`'s
+            own rule about a control that would do nothing.
+          */}
+          <ExportWorksheets label={chrome.exportWorksheets} language={chrome.language} />
           {/*
             THE TWO DESTRUCTIVE CONTROLS, AFTER THE RESUME LINK AND NOT BESIDE IT. Both are
             two presses (`use-two-step.ts`): the worksheets are the reader's own working and
