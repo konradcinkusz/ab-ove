@@ -69,7 +69,7 @@ test('a place is remembered and read back', () => {
 
 test('the language is part of the place, so a reader returns to the edition they were in', () => {
   // #6 made the edition part of the URL; a resume control that dropped it would put a
-  // Polish reader back into English — which is the default ADR-0048 applies to a reader who
+  // Polish reader back into English — which is the default ADR-0049 applies to a reader who
   // has NOT chosen, quietly applied to one who has.
   const store = slot();
   remember(store, P01, { language: 'pl', step: 3 });

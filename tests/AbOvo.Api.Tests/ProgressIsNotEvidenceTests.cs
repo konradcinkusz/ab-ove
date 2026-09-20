@@ -152,7 +152,7 @@ public sealed class ProgressIsNotEvidenceTests
     }
 
     /// <summary>
-    /// The guard covers the SECOND reader-scoped table too (ADR-0048).
+    /// The guard covers the SECOND reader-scoped table too (ADR-0049).
     ///
     /// <para>
     /// "How many readers chose Polish" is a preference and not a measurement, and it is

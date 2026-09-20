@@ -108,7 +108,7 @@ test('every row this service holds is removed before the account is asked for', 
   assert.deepEqual(await deleteReaderAccount('token', 'pw', steps), { kind: 'deleted' });
   // The chosen edition is in this list for the same reason the place is: once authservice
   // has marked the account deleted, nobody can sign in as that subject again, so a row left
-  // behind under it is unreachable by any reader for ever (ADR-0048).
+  // behind under it is unreachable by any reader for ever (ADR-0049).
   assert.deepEqual(calls, ['progress', 'preference', 'account']);
 });
 

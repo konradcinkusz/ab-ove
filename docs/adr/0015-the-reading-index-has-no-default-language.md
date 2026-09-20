@@ -2,13 +2,13 @@
 
 ## Status
 
-**Superseded by [ADR-0048](0048-one-language-control-remembered-and-english-by-default.md).**
+**Superseded by [ADR-0049](0049-one-language-control-remembered-and-english-by-default.md).**
 Date: 2026-09-14. Superseded: 2026-09-20.
 
 The refusal recorded here held for six days and produced the artefact it was written to
 prevent the *other* failure of: with no default anywhere, every screen had to ask, so the
 product grew four language switches and an index that printed ninety-four titles for
-forty-seven programmes — and none of them remembered the answer. ADR-0048 reverses the
+forty-seven programmes — and none of them remembered the answer. ADR-0049 reverses the
 decision below and keeps two of its clauses verbatim: `Accept-Language` is still not read,
 and the editions are still listed in the bundle's own declared order.
 
@@ -78,7 +78,7 @@ a reader with no history is settled here, and phase 3's progress work is where a
 language could legitimately be remembered per account.
 
 **It argued, and it won:
-[ADR-0048](0048-one-language-control-remembered-and-english-by-default.md).** The shortcut
+[ADR-0049](0049-one-language-control-remembered-and-english-by-default.md).** The shortcut
 this paragraph left room for turned out to be the whole feature: once the choice is kept —
 in the browser, and on the account when there is one — the four switches this file's refusal
 made necessary collapse into one control, and a default the reader can change in a single
@@ -93,7 +93,7 @@ that one: both editions, each title its own link, nothing chosen. The refusal he
 touched nothing was being shown somebody's pick. ADR-0036 named the change that would break
 that — "a later change that drops *both*, remembers the last choice in a cookie … would be a
 decision needing its own file". That file is
-[ADR-0048](0048-one-language-control-remembered-and-english-by-default.md), which drops the
+[ADR-0049](0049-one-language-control-remembered-and-english-by-default.md), which drops the
 third position and does remember the choice. It replaces the test above with a different one:
 not "is the reader being shown somebody's pick" but "can a reader who dislikes the pick change
 it once and never see it again".

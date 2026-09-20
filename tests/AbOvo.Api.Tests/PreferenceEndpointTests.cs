@@ -8,7 +8,7 @@ namespace AbOvo.Api.Tests;
 /// The tie-break, and who may see whose chosen edition.
 ///
 /// <para>
-/// ADR-0048 asks for a language a reader chooses ONCE and finds waiting for them on the next
+/// ADR-0049 asks for a language a reader chooses ONCE and finds waiting for them on the next
 /// machine. The rule that makes that true when two machines disagree is most-recent-wins,
 /// and — like the progress group's furthest-wins — it is worth nothing as a sentence in a
 /// document. What is asserted here is the rule in both directions, the clamp that stops a
@@ -52,7 +52,7 @@ public sealed class PreferenceEndpointTests
     /// Against the ORDINARY factory, where no identity provider is configured: the kernel's
     /// always-fail scheme answers 401 rather than 500, which is P8's degraded path working
     /// rather than merely starting. The anonymous reader still gets the control and still
-    /// gets it remembered — in their own browser, which is where ADR-0048 puts it.
+    /// gets it remembered — in their own browser, which is where ADR-0049 puts it.
     /// </summary>
     [Theory]
     [InlineData("GET")]

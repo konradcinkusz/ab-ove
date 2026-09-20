@@ -53,7 +53,7 @@ test.describe('no backend', () => {
       a program is one click away — asserted as the href into the reading route, because a
       grid that rendered tiles linking nowhere would pass every weaker form of this test.
 
-      Both editions, one at a time: the index shows the reader's own (ADR-0048), and neither
+      Both editions, one at a time: the index shows the reader's own (ADR-0049), and neither
       edition may be reachable only when a service this deployment does not have is up. The
       language control is the whole path between them and it is a plain link, so it works
       here for the same reason the tiles do.

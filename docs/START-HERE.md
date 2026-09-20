@@ -9,11 +9,12 @@ you need and sends you there. If you read one page before any other, read this o
 
 ## What is this repository?
 
-**ab-ovo is a learning platform that encapsulates the book *Mathematics from Zero for the AI
-Engineer*** — 47 programs of Stroud programmed-learning frames, in English and Polish,
-together with the book's computer exercises.
+**ab-ovo is a learning platform for programmed-learning courses** — each course a sequence
+of programs of Stroud frames, in every edition it is published in, together with its computer
+exercises. The one course pinned today is *Mathematics from Zero for the AI Engineer*: 47
+programs, in English and Polish.
 
-It exists because that book is built on a mechanism a PDF cannot enforce:
+It exists because a book built that way rests on a mechanism a PDF cannot enforce:
 
 > A frame asks you for something **before** it tells you anything, and the next frame opens
 > with the answer you were supposed to have written. The reader who skims gets nothing, and

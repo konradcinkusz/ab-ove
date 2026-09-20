@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { ProgramGrid } from '@/components/programs/program-grid';
 import { allBundles } from '@/lib/content/bundle';
 import { chosenEdition } from '@/lib/content/chosen-edition';
+import { chosenTrack, shownBundles } from '@/lib/content/chosen-track';
 import { LANGUAGE_COOKIE, isLanguageTag } from '@/lib/language/store';
 
 /**
@@ -41,7 +42,7 @@ import { LANGUAGE_COOKIE, isLanguageTag } from '@/lib/language/store';
  * reader who chose Polish months ago would otherwise get an English index on the first
  * paint and a Polish one a moment later when script caught up — a flash of the wrong book,
  * on the screen where it is most visible. The cookie is the same answer in the one form a
- * server can read (ADR-0048; `lib/language/store.ts` has the argument), so the first paint
+ * server can read (ADR-0049; `lib/language/store.ts` has the argument), so the first paint
  * is already right and nothing corrects it afterwards.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
@@ -51,6 +52,19 @@ export default async function HomePage({
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<React.JSX.Element> {
   const bundles = allBundles();
+  const asked = await searchParams;
+
+  /*
+    THE BOOK FIRST, THEN THE EDITION, AND THE ORDER IS THE POINT (ADR-0048).
+
+    `?track=` narrows the page to one book and `?lang=` narrows it to one edition, and the
+    editions on offer are a property of the books ON SCREEN — so the edition is resolved
+    against the narrowed set. Asking for `?track=x&lang=pl` where x is English-only is then
+    the same answer as every other unusable value: no edition chosen, every edition x has.
+    Resolved the other way round, that request would light a switch position whose page is
+    empty.
+  */
+  const track = chosenTrack(bundles, asked['track']);
 
   const remembered = (await cookies()).get(LANGUAGE_COOKIE)?.value;
 
@@ -60,12 +74,19 @@ export default async function HomePage({
     that English. Anything that is not an edition the content has — absent, repeated,
     unknown, empty, a cookie somebody edited — falls through to the next step rather than
     erroring, because a typo in a query string is a reader's slip and not a 404.
+
+    RESOLVED AGAINST THE COURSES ON SCREEN, which is the clause the narrowing added: the
+    editions on offer are a property of the books being shown, so a reader on an
+    English-only course does not get a Polish position that leads nowhere — they get that
+    course's own first edition, which is the last step of `resolvedEdition`'s ladder. The
+    remembered answer goes through the same gate as the URL and falls through the same way,
+    so a preference for an edition this course does not publish is not an error either.
   */
   const chosen = chosenEdition(
-    bundles,
-    (await searchParams)['lang'],
+    shownBundles(bundles, track),
+    asked['lang'],
     isLanguageTag(remembered) ? remembered : undefined,
   );
 
-  return <ProgramGrid bundles={bundles} chosen={chosen} />;
+  return <ProgramGrid bundles={bundles} chosen={chosen} chosenTrack={track} />;
 }

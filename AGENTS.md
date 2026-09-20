@@ -1,7 +1,9 @@
 # AGENTS.md — working in this repository as an agent
 
-**ab-ovo is a learning platform that encapsulates the book *Mathematics from Zero for the AI
-Engineer*.** Read [`README.md`](README.md) first; this file is the part an automated
+**ab-ovo is a learning platform for programmed-learning courses; the one course pinned today
+is *Mathematics from Zero for the AI Engineer*.** A course is a whole work — one content
+repository, one compiled bundle, one tag, called a *track* in the schema and in every route —
+and a *program* is one of its forty-seven units. Read [`README.md`](README.md) first; this file is the part an automated
 contributor needs and a human reader mostly already knows.
 
 It is written to be read *before* the first edit, because most of what follows is a rule
@@ -34,7 +36,7 @@ adoption. [`CONTRIBUTING.md`](CONTRIBUTING.md) is the same ground for a human.
    because a scaffold looks empty. Entities arrive with the ticket that needs them, each with
    its own migration. (This item has now been restated twice: it said there was no domain
    model at all until #11, and two entities until
-   [ADR-0048](docs/adr/0048-one-language-control-remembered-and-english-by-default.md). A rule
+   [ADR-0049](docs/adr/0049-one-language-control-remembered-and-english-by-default.md). A rule
    stated against a fact that has moved is a rule nobody can follow.)
 
    Two of the three are named by a reader, and a query over either that does not pin one is

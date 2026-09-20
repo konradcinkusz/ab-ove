@@ -44,12 +44,7 @@
   color: var(--ink-faint);
 }
 
-/*
- * The right-hand end of the masthead: the language control and the destinations, two
- * separate navigations side by side. It is a plain `<div>` rather than the `<nav>` it used
- * to be — a `<nav>` holding a `<nav>` makes both ambiguous, which `language-choice.spec.ts`
- * counts and `place-row.tsx`'s header explains at length.
- */
+/* The destinations, the theme, and the controls that are about this reader. */
 .chrome {
   align-items: baseline;
   color: var(--ink-faint);
@@ -60,23 +55,16 @@
   gap: 0.5rem 1.25rem;
 }
 
-/* The destinations: About, the resume link, the two destructive controls, the account. */
-.chromeLinks {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-}
 
 .chromeLink {
   color: inherit;
 }
 
 /*
- * The section label's row. It held the edition switch at its other end until ADR-0048 moved
- * that to the top row with the rest of the chrome, and it stays a row rather than collapsing
- * to a bare heading so that the spacing under `Programs` does not change for a reason that
- * has nothing to do with the grid.
+ * The section label and this page's one language control, sharing a line. The control is at
+ * the far end because it qualifies the grid below rather than introducing it — and it is in
+ * THIS row rather than the masthead because this one is rendered whole on the server, where
+ * the masthead's right-hand end grows after hydration (the component says what that cost).
  */
 .headingRow {
   align-items: baseline;
@@ -214,7 +202,7 @@
 }
 
 /*
- * One title, since ADR-0048 made the index render one edition. It stays a grid rather than
+ * One title, since ADR-0049 made the index render one edition. It stays a grid rather than
  * becoming a bare inline element because the tile's own rows are laid out against it, and a
  * second title is one line away should a track ever want both back.
  */
@@ -239,7 +227,7 @@
  *
  * `:only-child` was the condition that told the two states apart back when a tile carried
  * one title for a reader who had chosen an edition and two for a reader who had not. Since
- * ADR-0048 there is always exactly one, so the selector always matches — and it is kept
+ * ADR-0049 there is always exactly one, so the selector always matches — and it is kept
  * rather than simplified away, because it is the thing that makes the overlay impossible to
  * introduce by accident beside a second link. A tile that ever grows one again loses the
  * whole-tile target instead of quietly picking which of the two it points at.
@@ -260,4 +248,27 @@
   margin: 0;
   margin-top: auto;
   padding-top: 0.25rem;
+}
+
+/*
+ * *All courses*, beside the title of the course the index has been narrowed to (ADR-0048).
+ *
+ * Set like the tile's meta rather than like the switch above it: the switch is a control a
+ * reader is choosing among, and this is one way out of a state they are already in. It is
+ * in the same block as the title so it wraps under it on a narrow screen rather than
+ * pushing the title's line, and it is absent entirely when there is nothing to go back to.
+ */
+.allCourses {
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  margin: 0.375rem 0 0;
+}
+
+.allCourses a {
+  color: var(--ink-faint);
+}
+
+.allCourses a:hover,
+.allCourses a:focus-visible {
+  color: var(--accent);
 }

@@ -30,7 +30,7 @@ export interface LanguageChoiceProps {
  * anywhere in this application.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * ADR-0048 — WHAT THIS REPLACED, AND WHY FOUR CONTROLS WAS THREE TOO MANY.
+ * ADR-0049 — WHAT THIS REPLACED, AND WHY FOUR CONTROLS WAS THREE TOO MANY.
  *
  * There were four: an edition switch above the programme grid, a switch of its own on every
  * contents page, another on every summary, and a fourth in every frame's place row — and,

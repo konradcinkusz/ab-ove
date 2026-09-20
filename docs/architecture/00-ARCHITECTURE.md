@@ -534,7 +534,7 @@ statement about a file.
 **The domain model is three tables, and the anti-goal is now a rule rather than an absence.**
 `AbOvoDbContext` declared no entity until #11; it declares `ReaderProgress` (#11),
 `FrameOutcome` (#15) and `ReaderPreference`
-([ADR-0048](../adr/0048-one-language-control-remembered-and-english-by-default.md)), each
+([ADR-0049](../adr/0049-one-language-control-remembered-and-english-by-default.md)), each
 with its own migration beside it. INIT-GENERIC-TEMPLATE.md §12 is why the first took that
 long — the template ships the mechanism and one thin vertical slice, and inventing entities
 for a product nobody has specified produces code the first ticket deletes.

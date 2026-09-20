@@ -8,7 +8,7 @@ namespace AbOvo.Api.Persistence;
 /// <para>
 /// THE THIRD ENTITY, AND IT ARRIVES WITH THE TICKET THAT NEEDED IT — the language choice is
 /// one control now, at the top of every page, defaulting to English and remembered
-/// ([ADR-0048](../../../docs/adr/0048-one-language-control-remembered-and-english-by-default.md)).
+/// ([ADR-0049](../../../docs/adr/0049-one-language-control-remembered-and-english-by-default.md)).
 /// Remembering it in the browser is the whole of the feature for a reader with no account;
 /// this row is what makes the second machine agree with the first.
 /// </para>

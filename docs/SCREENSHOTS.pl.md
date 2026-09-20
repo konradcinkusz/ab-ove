@@ -67,7 +67,7 @@ produkuje.
 
 Książka jest złożona po angielsku i po polsku, a edycja jest wyborem czytelnika, a nie czymś
 zgadniętym z nagłówka
-([ADR-0048](adr/0048-one-language-control-remembered-and-english-by-default.md)).
+([ADR-0049](adr/0049-one-language-control-remembered-and-english-by-default.md)).
 Przełączenie to odnośnik w wierszu miejsca; zachowuje twój numer ramki — i zostaje
 zapamiętane, więc pytanie pada raz, a nie na każdym ekranie.
 
@@ -91,8 +91,13 @@ weryfikowana, a nie zrzut, który ktoś kiedyś zrobił.
 
 ![Ta sama ramka na ciemnym tle z jasnym tekstem: pudełko z odpowiedzią, odnośniki i przycisk odsłonięcia mają nowe kolory, a nie odwrócone.](assets/screenshots/frame-dark-english.png)
 
-Tryb ciemny to pełna zamiana tokenów sterowana przez `prefers-color-scheme`, a nie doczepka —
-czytelnik pracujący nad programem w nocy jest przypadkiem normalnym.
+Tryb ciemny to pełna zamiana tokenów, a nie doczepka — czytelnik pracujący nad programem w
+nocy jest przypadkiem normalnym. Tak samo jak ten, który pracuje przy biurku pod lampą, i
+dlatego stópka każdego ekranu do czytania nosi trójpozycyjny przełącznik: **Systemowy**,
+**Jasny**, **Ciemny**. Pierwsza pozycja jest domyślną i jest `prefers-color-scheme`, dokładnie
+tak jak przed powstaniem przełącznika — to pozycja, do której czytelnik może wrócić, a nie brak
+wyboru, i jedyna, która nie potrzebuje JavaScriptu
+([ADR-0048](adr/0048-the-theme-is-a-choice-and-the-system-is-a-position.md)).
 
 ---
 
@@ -100,14 +105,14 @@ czytelnik pracujący nad programem w nocy jest przypadkiem normalnym.
 
 ### Strona startowa jest indeksem
 
-![Strona startowa. Znak słowny, wybór języka z opcjami English i polski, odnośniki do About i Sign in oraz siatka kafelków — po jednym na program, każdy z identyfikatorem, tytułem i liczbą ramek i sekcji. U dołu strony karta zatytułowana "Help fix the book?" z dwoma przyciskami.](assets/screenshots/landing-english.png)
+![Strona startowa. Znak słowny, wybór języka z opcjami English i polski, odnośniki do Courses i About, trójpozycyjny przełącznik trybu z opcjami System, Light i Dark, odnośnik do Sign in oraz siatka kafelków — po jednym na program, każdy z identyfikatorem, tytułem i liczbą ramek i sekcji. U dołu strony karta zatytułowana "Help fix the book?" z dwoma przyciskami.](assets/screenshots/landing-english.png)
 
 Pierwszy ekran jest tym, po co czytelnik przyszedł, o jedną nawigację od ramki zamiast o dwie
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). To
 komponent serwerowy, który nie robi żadnego zapytania i nie potrzebuje backendu; czyta jedno
 ciasteczko, własne tego origin, w którym trzymana jest wybrana przez czytelnika edycja — dzięki
 temu pierwsze malowanie jest już w niej
-([ADR-0048](adr/0048-one-language-control-remembered-and-english-by-default.md)).
+([ADR-0049](adr/0049-one-language-control-remembered-and-english-by-default.md)).
 
 Karta u dołu to **zaproszenie do zgody** i stoi na końcu celowo: czytelnik, który przyszedł
 czytać, dociera najpierw do programów, a do pytania potem. Jest zaproszeniem, a nie bramką,
@@ -122,7 +127,7 @@ Czytelnik, który nie wybrał niczego, czyta po angielsku. Jedynym sposobem, by 
 kontrolka na górze każdego ekranu; wybór to `/?lang=<edycja>` — widoczny, linkowalny,
 opuszczalny i nigdy niezgadywany z `Accept-Language` — **i jest zapamiętywany**: w tej
 przeglądarce, a na koncie czytelnika, jeśli je ma. Pytanie pada więc raz, a nie na każdym
-ekranie (ADR-0048).
+ekranie (ADR-0049).
 
 ![Strona startowa w trybie ciemnym.](assets/screenshots/landing-dark.png)
 

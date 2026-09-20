@@ -56,7 +56,7 @@ export interface PlaceRowProps {
  * Not a `<nav>`: `language-choice.spec.ts` locates the control by
  * `page.getByRole('navigation').filter({ has: page.locator('[lang=pl]') })` and asserts
  * `toHaveCount(1)`, so a second `<nav>` containing a `[lang]` descendant would make the
- * control ambiguous. That reasoning stands, and ADR-0048 sharpened it: there is now exactly
+ * control ambiguous. That reasoning stands, and ADR-0049 sharpened it: there is now exactly
  * one language control per screen in the whole product, so the count is a property of the
  * design and not only of this row. This row HOLDS that `<nav>`; it is not one.
  *
@@ -210,7 +210,7 @@ export function PlaceRow({
 
       <span className={styles.controls}>
         {/*
-          THE LANGUAGE CONTROL — this screen's only one, at the top of it (ADR-0048). The
+          THE LANGUAGE CONTROL — this screen's only one, at the top of it (ADR-0049). The
           href is the same path with one segment changed, so switching at frame 31 lands on
           frame 31; the click is what makes the choice stick for every screen after this one.
         */}

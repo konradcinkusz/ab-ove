@@ -64,12 +64,28 @@
 [![Secret scan](https://github.com/konradcinkusz/ab-ove/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/konradcinkusz/ab-ove/actions/workflows/secret-scan.yml "Secret scan — gitleaks on every pull request and every push to main")
 [![CodeQL](https://github.com/konradcinkusz/ab-ove/actions/workflows/codeql.yml/badge.svg)](https://github.com/konradcinkusz/ab-ove/actions/workflows/codeql.yml "CodeQL — SAST and dependency audit, on pull requests and weekly")
 
-**ab-ovo is a learning platform that encapsulates the book *Mathematics from Zero for the
-AI Engineer* — 47 programs of Stroud programmed-learning frames in English and Polish,
-together with the book's computer exercises.** It exists because that book is built on a
-mechanism a PDF cannot enforce: a frame asks you for something *before* it tells you
-anything, and the next frame opens with the answer you were supposed to have written — so
-the reader who skims gets nothing, and paper has no way to notice.
+**ab-ovo is a learning platform for programmed-learning courses — a course is a sequence of
+programs, each program a run of Stroud frames, worked one frame at a time in every edition
+it is published in, with its computer exercises running in the reader's own browser.** It
+exists because a book built that way rests on a mechanism a PDF cannot enforce: a frame asks
+you for something *before* it tells you anything, and the next frame opens with the answer
+you were supposed to have written — so the reader who skims gets nothing, and paper has no
+way to notice.
+
+**One course is pinned today: *Mathematics from Zero for the AI Engineer***, in English and
+Polish; what it contains is measured two paragraphs down. Which courses a deployment carries
+is `PINS` in
+[`web/app/src/lib/content/bundle.ts`](web/app/src/lib/content/bundle.ts), derived from the
+content pin in `web/content/book.lock.json`; the reading surface is written for several and
+narrows to one ([ADR-0048](docs/adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)),
+and adding a second is content work rather than a redesign — the lock file has to carry a
+second compiled bundle and `scripts/fetch-book-content.sh` has to compile it.
+
+**A *course* and a *program* are different sizes, and this document keeps them apart.** A
+course is a whole work — its own content repository, its own compiled bundle, its own tag.
+A program is one of its forty-seven units, the book's own term from programmed learning, and
+it is what a reader opens from the index. The schema and every route call a course a
+*track*, which is the word in the code and on no screen.
 
 ---
 
@@ -83,7 +99,8 @@ editions, one frame a screen, with the book's own Markdown and maths; a place ro
 the only chrome and whose frame number is a jumper; and a worksheet on every frame that asks
 for something — a line to answer on, a pad that evaluates arithmetic, a canvas to sketch on.
 Behind it: an API with a health endpoint and a service-info endpoint, a web app whose
-landing page is the index of programs and whose `/about` carries the argument and a live
+landing page is the index of programs — narrowable to one course, with `/courses` listing
+every course the deployment carries — and whose `/about` carries the argument and a live
 integration panel, a Playwright acceptance suite, four `fly.toml` files describing a
 topology that has never been applied, and the CI gates that would catch a regression in any
 of it.
@@ -91,7 +108,7 @@ of it.
 The domain model is **three entities**: `ReaderProgress`, which arrived with synchronisation
 (#11); `FrameOutcome`, the instrument's tally, which carries no reader at all (#15); and
 `ReaderPreference`, which edition a reader chose
-([ADR-0048](docs/adr/0048-one-language-control-remembered-and-english-by-default.md)). Two of
+([ADR-0049](docs/adr/0049-one-language-control-remembered-and-english-by-default.md)). Two of
 the three are all this estate stores about anybody. There are no frames and no exercises in
 any database, because the frames are a content bundle the reader fetches; and nothing a
 reader writes on a frame is stored anywhere but their own browser
@@ -427,7 +444,7 @@ printed in the console.
 
 | Comes up at | What it is |
 | --- | --- |
-| `http://localhost:3000` | the web app — the index of programs, `/about`, `/login` |
+| `http://localhost:3000` | the web app — the index of programs, `/courses`, `/about`, `/login` |
 | `http://localhost:8081` | `authservice`, including `/.well-known/jwks.json` |
 | a port Aspire assigns | `AbOvo.Api` — the dashboard names it; nothing hard-codes it |
 

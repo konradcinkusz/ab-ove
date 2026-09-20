@@ -1,5 +1,5 @@
 /*
- * THE edition control — one per screen (ADR-0048). Deliberately quiet: it is a control a
+ * THE edition control — one per screen (ADR-0049). Deliberately quiet: it is a control a
  * reader uses once and then does not want in the way of the frame, so it reads as a pair of
  * words at the measure's edge rather than as a pair of buttons.
  *

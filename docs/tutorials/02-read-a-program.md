@@ -32,7 +32,7 @@ This application cannot notice either, and it does not try. What it does is make
 The control is at the top of every screen in the product, and there is exactly one of it.
 The site opens in **English** and says so plainly rather than guessing: nothing reads your
 `Accept-Language` header and decides for you
-([ADR-0048](../adr/0048-one-language-control-remembered-and-english-by-default.md)).
+([ADR-0049](../adr/0049-one-language-control-remembered-and-english-by-default.md)).
 
 Press *polski* and you are reading Polish — on this screen, on the contents page, in every
 frame, and the next time you come back. The choice is kept in your browser, and on your

@@ -76,7 +76,7 @@ this test, and "a reader arriving is one move from working a program" is the req
 change was made for.
 
 The edition gets five of them, because it is the part that could quietly undo
-[ADR-0048](../../docs/adr/0048-one-language-control-remembered-and-english-by-default.md):
+[ADR-0049](../../docs/adr/0049-one-language-control-remembered-and-english-by-default.md):
 the index opens in English with ONE title per tile for a reader who has chosen nothing, a
 `?lang=` narrows it, a choice made in the control survives a return to the bare `/`, a link
 that names an edition beats what the reader remembers, and an edition the book does not have

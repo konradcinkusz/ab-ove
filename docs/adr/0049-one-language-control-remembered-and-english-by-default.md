@@ -1,4 +1,4 @@
-# ADR-0048: One language control, remembered, and English by default
+# ADR-0049: One language control, remembered, and English by default
 
 ## Status
 
@@ -7,6 +7,14 @@
 Supersedes [ADR-0015](0015-the-reading-index-has-no-default-language.md) and the edition
 switch [ADR-0036](0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md) added.
 ADR-0016 is untouched and is easier to satisfy than before — see Consequences.
+
+**On the number.** This was written as 0048 and renumbered on the merge: two other changes
+took that number while it was in flight, and both landed first —
+[the courses page](0048-the-courses-are-a-page-and-the-index-narrows-to-one.md) and
+[the theme switch](0048-the-theme-is-a-choice-and-the-system-is-a-position.md). Those two
+share 0048 between them, which ADR-0001's "ids are never reused" says they should not; that
+collision is theirs to resolve and renumbering somebody else's accepted decision is not this
+change's to make. 0049 is the next free number and this file takes it.
 
 ## Context
 
@@ -160,5 +168,25 @@ enhancement on top of it. That is the one part of this feature that genuinely ne
 **ADR-0016 is easier to satisfy, not harder.** "The reading controls follow the reader's
 edition" used to have an exception — the index, which had no reader edition to follow and
 was therefore English. It always has one now, so the rule is unconditional.
+
+**The courses page came under the same rule, and lost its second title.**
+[ADR-0048](0048-the-courses-are-a-page-and-the-index-narrows-to-one.md) added `/courses`
+while this was in flight, with one anchor per course carrying *every* title it had —
+explicitly "ADR-0015's refusal held at one more door", so that choosing a course did not
+make a reader choose an edition on the way. That door is now the same as every other one:
+the page has the one control at the top, reads the remembered edition from the same cookie
+the index does, and shows one title per course. What still tells a reader looking at an
+English title that the course exists in Polish is the `· English · polski` on its meta line,
+which is the course's own property and is listed whatever the reader chose.
+
+**The edition control and the theme switch diverged, and the divergence is deliberate.**
+[ADR-0048](0048-the-theme-is-a-choice-and-the-system-is-a-position.md) gave the theme three
+positions on ADR-0015's own reasoning — *System* is there so that no default is applied to a
+reader who has not chosen. This file removes the edition's equivalent, and the two are not
+in tension, because the third positions are not the same object. *System* is a real answer
+about a real signal the browser sends; there is no signal that says which edition of a book
+somebody wants, so the edition's third position was not a preference but the *absence* of
+one, rendered as ninety-four titles. Where a reader's own machine can answer, ask it; where
+nothing can, pick one and make it a press to change.
 
 Not a deviation from the reference architecture; no register row.

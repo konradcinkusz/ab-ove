@@ -232,6 +232,72 @@ interface Strings {
    * move from the first screen.
    */
   readonly about: string;
+  /**
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * THE WORD FOR A TRACK, AND THE ONLY PLACE IT IS SAID TO A READER.
+   *
+   * ab-ovo carries several courses — a course is a whole work, compiled from its own
+   * content repository at its own pin (`PINS`, in `lib/content/bundle.ts`), and what a
+   * reader chooses between on `/courses` is those. The content's own word for one is
+   * *track*: it is in the schema, in `/read/<track>/<unit>/<lang>` and in every MCP tool
+   * call, and it has never been on a screen. It should not start now — *track* names a
+   * thing in a bundle, and a reader is choosing a course of study.
+   *
+   * IT IS DELIBERATELY NOT *PROGRAM*, which is the harder half of the choice. A reader
+   * asking for this control is likely to call the thing a programme, and this
+   * application's word for one of the forty-seven units of a course is `programs`, two
+   * lines up — the book's own term, from programmed learning, and the word on the index's
+   * heading and its every breadcrumb. One word cannot be both without a reader finding
+   * out by pressing the wrong thing.
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  readonly courses: string;
+  /** One sentence on what a course is here, under the courses page's heading. */
+  readonly coursesLead: string;
+  /**
+   * The way back from a narrowed index to the one that shows every course, because a
+   * narrowing a reader cannot undo in the page is one they can only undo by editing the URL.
+   *
+   * It used to be described as the `?track=` counterpart of `bothEditions`, the edition
+   * switch's third position. That position is gone (ADR-0049): the edition is always chosen
+   * now and always changeable in one press, so there is nothing to go back OUT to. A course
+   * narrowing is not like that — it hides programmes rather than choosing between titles of
+   * the same one — which is why this label survives its former twin.
+   */
+  readonly allCourses: string;
+  /**
+   * And the way IN, beside a course's title on the index that is showing every one — so the
+   * home page of a deployment carrying several is itself the way to one of them, and not
+   * only a list to scroll past. Absent while there is one course, where it would lead to
+   * the page it is on.
+   */
+  readonly onlyThisCourse: string;
+  /**
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * THE THEME SWITCH — three positions, and `themeSystem` is the one that makes it honest.
+   *
+   * ADR-0048. A two-position light/dark toggle has a default by construction, and that
+   * default is invisible to the reader who happens to share it — which is ADR-0015's
+   * objection to a default edition, met again one control along. So the reader's own
+   * system is a position on the switch rather than the absence of a choice, and it is
+   * somewhere to go back to after trying the other two.
+   *
+   * THE EDITION CONTROL NO LONGER WORKS THIS WAY, AND THE DIVERGENCE IS DELIBERATE
+   * (ADR-0049). `themeSystem` is a real answer about a real signal — the browser reports
+   * `prefers-color-scheme` — where nothing a browser sends says which EDITION of a book
+   * somebody wants. The edition's third position was therefore not a preference but the
+   * absence of one, so it is gone and English is the default. Where the machine can answer,
+   * ask it; where nothing can, pick one and make it a press to change.
+   *
+   * The words are short on purpose: this control sits on a line of 0.8125rem furniture
+   * beside the edition switch and the keyboard map, and a label reading "Match my system
+   * setting" would be the loudest thing in the page's foot.
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  readonly themeLabel: string;
+  readonly themeSystem: string;
+  readonly themeLight: string;
+  readonly themeDark: string;
   readonly contents: string;
   readonly opening: string;
   readonly position: (n: number, total: number) => string;
@@ -239,6 +305,13 @@ interface Strings {
   readonly continueAtFrame: (n: number) => string;
   readonly frame: Plural;
   readonly section: Plural;
+  /**
+   * How many programs a book has, on the books page. A count and not a heading, which is
+   * why it is a `Plural` beside the other two rather than the `programs` string above:
+   * Polish takes *program*, *programy* and *programów* in three different bands, and a
+   * noun with a number in front of it is the one place that cannot be a fixed string.
+   */
+  readonly program: Plural;
 
   /**
    * PR3 — the place row, the jumper, the keys map, and `/summary`.
@@ -434,6 +507,15 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     languageLabel: 'Language',
     programs: 'Programs',
     about: 'About ab-ovo',
+    courses: 'Courses',
+    coursesLead:
+      'Every course ab-ovo carries, each one a sequence of programs worked a frame at a time. Opening one narrows the index to it; the index shows them all until you do.',
+    allCourses: 'All courses',
+    onlyThisCourse: 'Only this course',
+    themeLabel: 'Theme',
+    themeSystem: 'System',
+    themeLight: 'Light',
+    themeDark: 'Dark',
     contents: 'Contents',
     opening: 'Opening',
     position: (n, total) => `${n} of ${total}`,
@@ -441,6 +523,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     continueAtFrame: (n) => `Continue at frame ${n}`,
     frame: { one: 'frame', other: 'frames' },
     section: { one: 'section', other: 'sections' },
+    program: { one: 'program', other: 'programs' },
     yourAnswer: 'Your answer',
     writeItDown: 'Write it down before you read on',
     youWrote: 'You wrote',
@@ -587,6 +670,18 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     languageLabel: 'Język',
     programs: 'Programy',
     about: 'O ab-ovo',
+    courses: 'Kursy',
+    coursesLead:
+      'Wszystkie kursy, kt\u00f3re niesie ab-ovo \u2014 ka\u017cdy to ci\u0105g program\u00f3w przerabianych ramka po ramce. Otwarcie jednego zaw\u0119\u017ca do niego spis; dop\u00f3ki tego nie zrobisz, spis pokazuje wszystkie.',
+    allCourses: 'Wszystkie kursy',
+    onlyThisCourse: 'Tylko ten kurs',
+    // `Tryb` rather than `Motyw`: docs/SCREENSHOTS.pl.md already calls this
+    // ‘tryb ciemny’, and a product that names one concept twice teaches a reader
+    // that the two words are two things (docs/how-to/translate-a-document.md).
+    themeLabel: 'Tryb',
+    themeSystem: 'Systemowy',
+    themeLight: 'Jasny',
+    themeDark: 'Ciemny',
     contents: 'Spis treści',
     opening: 'Wstęp',
     position: (n, total) => `${n} z ${total}`,
@@ -594,6 +689,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     continueAtFrame: (n) => `Wróć do ramki ${n}`,
     frame: { one: 'ramka', few: 'ramki', many: 'ramek', other: 'ramki' },
     section: { one: 'sekcja', few: 'sekcje', many: 'sekcji', other: 'sekcji' },
+    // `other` is the genitive singular, as it is for the two nouns above: it is the form a
+    // fraction takes ('0,5 programu'), which is the only band `other` selects in Polish.
+    program: { one: 'program', few: 'programy', many: 'program\u00f3w', other: 'programu' },
     yourAnswer: 'Twoja odpowiedź',
     writeItDown: 'Zapisz, zanim pójdziesz dalej',
     // Impersonal on purpose: a second-person past tense in Polish has to pick a gender,
@@ -751,6 +849,14 @@ export interface Chrome {
   readonly languageLabel: string;
   readonly programs: string;
   readonly about: string;
+  readonly courses: string;
+  readonly coursesLead: string;
+  readonly allCourses: string;
+  readonly onlyThisCourse: string;
+  readonly themeLabel: string;
+  readonly themeSystem: string;
+  readonly themeLight: string;
+  readonly themeDark: string;
   readonly contents: string;
   readonly opening: string;
   readonly position: (n: number, total: number) => string;
@@ -758,6 +864,12 @@ export interface Chrome {
   readonly continueAtFrame: (n: number) => string;
   readonly frames: (n: number) => string;
   readonly sections: (n: number) => string;
+  /**
+   * `47 programs`. NOT called `programs`, which is already this table's word for the index
+   * heading and the breadcrumb — one name for a heading and a counter would be a key whose
+   * meaning depends on where it is read, and the compiler would not have a word to say.
+   */
+  readonly programCount: (n: number) => string;
   readonly yourAnswer: string;
   readonly writeItDown: string;
   readonly youWrote: string;
@@ -813,6 +925,7 @@ export function chromeFor(language: string): Chrome {
     ...strings,
     frames: (n) => pluralise(used, n, strings.frame),
     sections: (n) => pluralise(used, n, strings.section),
+    programCount: (n) => pluralise(used, n, strings.program),
   };
 }
 

@@ -26,7 +26,7 @@ namespace AbOvo.Api.Persistence;
 /// cannot see: what the table may hold, and how it may be indexed.
 /// </para>
 /// <para>
-/// IT COVERS MORE THAN ONE TABLE SINCE ADR-0048, and generalising it was cheaper than
+/// IT COVERS MORE THAN ONE TABLE SINCE ADR-0049, and generalising it was cheaper than
 /// arguing about whether the second one needed it. <see cref="ReaderPreference"/> holds which
 /// edition each reader chose — a preference and not a measurement — and "how many readers
 /// read it in Polish" is nonetheless a fact about readers, arrived at by counting them. The

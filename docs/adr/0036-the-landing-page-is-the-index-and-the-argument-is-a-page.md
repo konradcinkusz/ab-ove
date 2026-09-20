@@ -100,7 +100,7 @@ to a toggle was that its lit position is a default by construction, and the thir
 was the whole of the answer to that. This paragraph said that a later change dropping *both*
 or remembering the choice in a cookie "would be a decision needing its own file, not a
 convenience". It got one:
-[ADR-0048](0048-one-language-control-remembered-and-english-by-default.md) drops the third
+[ADR-0049](0049-one-language-control-remembered-and-english-by-default.md) drops the third
 position, defaults to English and remembers the choice in the browser and on the account. The
 switch this ADR added is gone with it — there is now one language control, shared by every
 screen, in the top row. `Accept-Language` is still not read, which is the half of the warning

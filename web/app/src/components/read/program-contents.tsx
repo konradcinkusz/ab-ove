@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { LanguageChoice } from '@/components/language/language-choice';
+import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { say, sectionSpans } from '@/lib/content/bundle';
 import type { Bundle, Unit } from '@/lib/content/schema';
 import { chromeFor } from '@/lib/i18n/chrome';
@@ -86,7 +87,7 @@ export function ProgramContents({
         everything under it.
       */}
       {/*
-        A `<div>` AND NOT A `<p>`, since ADR-0048 put the language control in this row. The
+        A `<div>` AND NOT A `<p>`, since ADR-0049 put the language control in this row. The
         control is a `<nav>`, `<p>` cannot legally contain one, and the parser closes the
         paragraph when it meets it — which React reports as a hydration mismatch and pays
         for by regenerating the whole client tree. `place-row.tsx`'s header has the full
@@ -97,7 +98,7 @@ export function ProgramContents({
           <Link href="/">{chrome.programsCrumb}</Link>
           {/*
             THE LANGUAGE CONTROL — this screen's only one, at the top of it. It sits beside
-            the way back rather than on a line of its own, which is the line ADR-0048
+            the way back rather than on a line of its own, which is the line ADR-0049
             removed: a block between the crumb and the programme's title, on every contents
             page, saying nothing the reader had not already been asked twice.
           */}
@@ -201,6 +202,19 @@ export function ProgramContents({
           ) : null}
         </span>
 
+        {/*
+          THE WAY TO TURN ON LIGHT MODE, WHERE THE READER ALREADY IS (ADR-0048).
+
+          A reader working a program at night is the normal case `UI-UX.md` names, and so is one
+          working it at a desk under a lamp. Sending either of them back to the index — or to
+          their operating system's settings, which is what this product used to ask — to change
+          the colour of the page they are reading is the wrong size of remedy.
+
+          BEFORE the keyboard map and not after it: `keys-details.tsx` is a `<details>` and is
+          last on every page on purpose, so that opening it cannot push anything a reader is
+          looking at. A control added below it would take that property away.
+        */}
+        <ThemeSwitch language={chrome.language} />
         {/*
           The same map the frame's own foot carries, from the same table, so the two can
           never disagree about what a key does. It is here as well as there because this is
