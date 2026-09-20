@@ -194,7 +194,7 @@ test.describe('the frame view', () => {
     const { number } = NUMERIC;
 
     // `numericPairAnywhere` searches the whole book, so the frame can be in any program —
-    // and since ADR-0048 a program renders for a reader who walked to it. The rest of this
+    // and since ADR-0049 a program renders for a reader who walked to it. The rest of this
     // file reads the FIRST program, which is open to everybody and needs no seed.
     await openThrough(page, NUMERIC.unit);
     await page.goto(numericAt('en', NUMERIC.asks));

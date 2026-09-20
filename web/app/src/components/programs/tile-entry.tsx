@@ -11,7 +11,7 @@ import styles from './program-grid.module.css';
 export interface TileEntryProps {
   readonly track: string;
   readonly unit: string;
-  /** The program the book puts before this one, or `undefined` for the first (ADR-0048). */
+  /** The program the book puts before this one, or `undefined` for the first (ADR-0049). */
   readonly previous: string | undefined;
   /**
    * The title per edition this tile shows, in the order the grid shows them: one entry
@@ -24,7 +24,7 @@ export interface TileEntryProps {
  * The tile's way in — the program's title, as a link or as plain text.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * THE DOOR IS THE THING THAT CLOSES, NOT THE TILE (ADR-0048).
+ * THE DOOR IS THE THING THAT CLOSES, NOT THE TILE (ADR-0049).
  *
  * A shut program keeps its id, its title, its frame count and its place in the run: the
  * index is still the book's table of contents and a reader is entitled to see what is in
@@ -63,7 +63,7 @@ export interface TileEntryProps {
  * What it costs is a reader with script off, who is left with the first program's link and
  * the URL bar. They are not gated at all — `program-gate.tsx` is script too — so nothing
  * is withheld from them; what they lose is the index's own way of naming the next program,
- * and the contents page's foot loses the same (`when-open.tsx`). ADR-0048 records it.
+ * and the contents page's foot loses the same (`when-open.tsx`). ADR-0049 records it.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export function TileEntry({ track, unit, previous, editions }: TileEntryProps): React.JSX.Element {

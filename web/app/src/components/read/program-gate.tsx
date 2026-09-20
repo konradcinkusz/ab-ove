@@ -3,13 +3,14 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useSyncExternalStore } from 'react';
 
+import { indexHref } from '@/lib/index-href';
 import { serverSnapshot, snapshot, subscribe } from '@/lib/progress/client';
 import { isOpen } from '@/lib/progress/gate';
 
 export interface ProgramGateProps {
   readonly track: string;
   readonly unit: string;
-  /** The program the book puts before this one, or `undefined` for the first (ADR-0048). */
+  /** The program the book puts before this one, or `undefined` for the first (ADR-0049). */
   readonly previous: string | undefined;
   /** The edition this page is in, so the index the reader lands on is in it too. */
   readonly language: string;
@@ -21,7 +22,7 @@ export interface ProgramGateProps {
  * ──────────────────────────────────────────────────────────────────────────────────────
  * WITHOUT THIS, THE RULE IS A DECORATION ON ONE PAGE.
  *
- * ADR-0048 shuts a program until the reader has a place in the one before it, and the
+ * ADR-0049 shuts a program until the reader has a place in the one before it, and the
  * index expresses that by not rendering a link. A link is not the only way into a URL: the
  * address bar, a bookmark, a shared link, the contents page's own foot and the browser's
  * history all reach `/read/<track>/<unit>/<lang>` without passing a tile. So the three
@@ -34,7 +35,7 @@ export interface ProgramGateProps {
  * account and no backend (ADR-0004) is what put it there. A server that could gate these
  * routes would be a server that knows who is asking, which is the product this is not. So
  * the frame renders, hydration reads the record, and a shut program is left within a few
- * hundred milliseconds. The honest cost is in ADR-0048's Consequences: the first paint of
+ * hundred milliseconds. The honest cost is in ADR-0049's Consequences: the first paint of
  * a shut program is the program, and a reader with script off is not gated at all.
  *
  * `replace`, NEVER `push`. A pushed redirect puts the shut page in the history behind the
@@ -42,11 +43,13 @@ export interface ProgramGateProps {
  * they cannot leave in the direction they are pressing.
  *
  * IT LANDS ON THE TILE. The index is forty-seven tiles and a reader who has just been
- * moved is owed the one they asked for, so the redirect carries the edition they were
- * reading (the shape `program-grid.tsx` builds for sign-in's `returnTo`) and a fragment
- * naming the program. The tile is what explains this: `opens after P06`, in its own
- * position slot. That is the whole of the explanation, and it is at the destination rather
- * than in a notice this page would have to invent and carry across a navigation.
+ * moved is owed the one they asked for, so the redirect carries a fragment naming the
+ * program, and the course and edition they were reading — through `indexHref`, which is
+ * the one place that address is built (its own note says why a fifth hand-rolled template
+ * string is a fifth chance to drop a parameter). The tile is what explains this: `opens
+ * after P06`, in its own position slot. That is the whole of the explanation, and it is at
+ * the destination rather than in a notice this page would have to invent and carry across
+ * a navigation.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * It subscribes to the record rather than reading it once, because the record can change
@@ -80,7 +83,7 @@ export function ProgramGate({ track, unit, previous, language }: ProgramGateProp
 
   useEffect(() => {
     if (isOpen(snapshot(), { track, unit, previous })) return;
-    router.replace(`/?lang=${encodeURIComponent(language)}#p-${unit}`);
+    router.replace(`${indexHref({ track, edition: language })}#p-${unit}`);
     // `progress` is a dependency and not a value: a record that changes under the page
     // asks the question again, and the answer is read from storage when it does.
   }, [progress, track, unit, previous, router, language]);

@@ -1,4 +1,4 @@
-# ADR-0048: A program opens when the one before it has been opened
+# ADR-0049: A program opens when the one before it has been opened
 
 ## Status
 
@@ -109,6 +109,13 @@ than a convenience: every record written before this rule names the programs a r
 jumped to and not the ones before them, so without it a reader at frame 31 of P20 would
 find P20 shut with their own resume control pointing into it. It is also what makes a
 record arriving from another machine safe to adopt.
+
+**It is per course, because the record is.** A position is keyed `track/unit` and
+`unitBefore` reads one bundle, so the first program of EVERY course is open and a reader
+who has walked one course has opened nothing in another. The index that narrows to a
+course ([ADR-0048](0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) therefore
+needs no rule of its own, and the redirect carries the reader's course as well as their
+edition — through `indexHref`, which is the one place that address is built.
 
 **The summary's *Next program* link is not gated, and that is a judgement rather than an
 omission.** Reaching a summary the way the product intends means having read to the last

@@ -393,7 +393,7 @@ const answerLine = (page: Page) => page.getByRole('textbox', { name: /your answe
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 async function writeAndReveal(page: Page, asks: number, text: string | null): Promise<void> {
-  // The program `pairs()` found is wherever in the book it is, and since ADR-0048 a frame
+  // The program `pairs()` found is wherever in the book it is, and since ADR-0049 a frame
   // of it renders for a reader who walked there. The seed is one write per program however
   // often it is asked for, and nothing at all when the program is the first one.
   await openThrough(page, PAIRS.unit);

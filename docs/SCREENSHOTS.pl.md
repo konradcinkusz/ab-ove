@@ -89,8 +89,13 @@ weryfikowana, a nie zrzut, który ktoś kiedyś zrobił.
 
 ![Ta sama ramka na ciemnym tle z jasnym tekstem: pudełko z odpowiedzią, odnośniki i przycisk odsłonięcia mają nowe kolory, a nie odwrócone.](assets/screenshots/frame-dark-english.png)
 
-Tryb ciemny to pełna zamiana tokenów sterowana przez `prefers-color-scheme`, a nie doczepka —
-czytelnik pracujący nad programem w nocy jest przypadkiem normalnym.
+Tryb ciemny to pełna zamiana tokenów, a nie doczepka — czytelnik pracujący nad programem w
+nocy jest przypadkiem normalnym. Tak samo jak ten, który pracuje przy biurku pod lampą, i
+dlatego stópka każdego ekranu do czytania nosi trójpozycyjny przełącznik: **Systemowy**,
+**Jasny**, **Ciemny**. Pierwsza pozycja jest domyślną i jest `prefers-color-scheme`, dokładnie
+tak jak przed powstaniem przełącznika — to pozycja, do której czytelnik może wrócić, a nie brak
+wyboru, i jedyna, która nie potrzebuje JavaScriptu
+([ADR-0048](adr/0048-the-theme-is-a-choice-and-the-system-is-a-position.md)).
 
 ---
 
@@ -98,7 +103,7 @@ czytelnik pracujący nad programem w nocy jest przypadkiem normalnym.
 
 ### Strona startowa jest indeksem
 
-![Strona startowa. Znak słowny, odnośniki do About i Sign in, przełącznik edycji z opcjami English, polski i Both editions oraz siatka kafelków — po jednym na program, każdy z identyfikatorem, tytułem i liczbą ramek i sekcji. U dołu strony karta zatytułowana "Help fix the book?" z dwoma przyciskami.](assets/screenshots/landing-english.png)
+![Strona startowa. Znak słowny, odnośnik do About, trójpozycyjny przełącznik trybu z opcjami System, Light i Dark, odnośnik do Sign in, przełącznik edycji z opcjami English, polski i Both editions oraz siatka kafelków — po jednym na program, każdy z identyfikatorem, tytułem i liczbą ramek i sekcji. U dołu strony karta zatytułowana "Help fix the book?" z dwoma przyciskami.](assets/screenshots/landing-english.png)
 
 Pierwszy ekran jest tym, po co czytelnik przyszedł, o jedną nawigację od ramki zamiast o dwie
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). To

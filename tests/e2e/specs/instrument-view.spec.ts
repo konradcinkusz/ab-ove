@@ -102,6 +102,7 @@ test.describe('the reader’s surface offers no way into a ranking', () => {
    */
   for (const [name, path] of [
     ['landing page', '/'],
+    ['courses page', '/courses'],
     ['about page', '/about'],
     ['lab index', '/lab'],
   ] as const) {

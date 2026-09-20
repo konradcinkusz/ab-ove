@@ -36,7 +36,7 @@ test('a program is shut until the reader has a place in the one before it', () =
 });
 
 test('any place opens the next program, and frame 1 is a place', () => {
-  // ADR-0048 chose the weakest gate that still makes the order true: this is the whole of
+  // ADR-0049 chose the weakest gate that still makes the order true: this is the whole of
   // it. A rule wanting the LAST frame would have to know how long F01 is, and the record
   // deliberately does not — `positionIn` takes that bound from the bundle, per call.
   assert.equal(isOpen(placesIn({ F01: 1 }), at('F02', 'F01')), true);

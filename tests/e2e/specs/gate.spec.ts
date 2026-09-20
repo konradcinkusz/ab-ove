@@ -6,7 +6,7 @@ import { openThrough } from './support/gate.ts';
 /**
  * JOURNEY — the book is entered at the beginning.
  *
- * ADR-0048's requirement in one sentence: *a program opens when the reader has a place in
+ * ADR-0049's requirement in one sentence: *a program opens when the reader has a place in
  * the one before it, and until then the way in is not there.* No account, no backend and
  * nothing sent anywhere — the gate is a question put to the reader's own record, so this
  * suite is the anonymous reader's, like `progress.spec.ts` beside it.
@@ -68,7 +68,7 @@ test.describe('a program opens when the one before it has been opened', () => {
     /*
       The second: the tile is all still there — id, title, frame count — and the way in is
       not. Both halves matter. A tile that vanished would be a book hiding its own table of
-      contents; a tile that kept its link would be ADR-0048 as decoration.
+      contents; a tile that kept its link would be ADR-0049 as decoration.
     */
     const shut = tileFor(page, second!.id);
     await expect(shut.getByText(`opens after ${first!.id}`, { exact: true })).toBeVisible();
@@ -106,7 +106,7 @@ test.describe('a program opens when the one before it has been opened', () => {
   test('reading one frame of a program opens the next one, and only the next @core', async ({
     page,
   }) => {
-    // One frame. Not the last one, not every one — ADR-0048 chose the weakest gate that
+    // One frame. Not the last one, not every one — ADR-0049 chose the weakest gate that
     // still makes the order true, and this is the test of exactly that choice.
     await page.goto(`${contentsOf(first!.id)}/1`);
     await page.waitForFunction((key) => window.localStorage.getItem(key) !== null, KEY);

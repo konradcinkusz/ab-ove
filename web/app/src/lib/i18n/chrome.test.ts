@@ -23,7 +23,7 @@ test('every language covers every plural category its own language can produce',
   for (const language of CHROME_LANGUAGES) {
     const categories = new Intl.PluralRules(language).resolvedOptions().pluralCategories;
     assert.ok(categories.length > 0, `${language} resolved to no plural categories at all`);
-    for (const noun of ['frame', 'section'] as const) {
+    for (const noun of ['frame', 'section', 'program'] as const) {
       const forms = TABLE[language]![noun];
       for (const category of categories) {
         assert.ok(
@@ -49,6 +49,11 @@ test('Polish counts take four different shapes, in the bands CLDR says', () => {
   // 12–14 is the exception band inside the rule; without it 12 would take the 2–4 form.
   assert.equal(pl.frames(12), '12 ramek');
   assert.equal(pl.sections(3), '3 sekcje');
+  // The books page's own count, which is the third noun in the table and takes the same
+  // three bands: a book with 47 programs must not read "47 programy".
+  assert.equal(pl.programCount(1), '1 program');
+  assert.equal(pl.programCount(3), '3 programy');
+  assert.equal(pl.programCount(47), '47 program\u00f3w');
 });
 
 test('English counts take two', () => {
@@ -56,6 +61,8 @@ test('English counts take two', () => {
   assert.equal(en.frames(1), '1 frame');
   assert.equal(en.frames(2), '2 frames');
   assert.equal(en.frames(0), '0 frames');
+  assert.equal(en.programCount(1), '1 program');
+  assert.equal(en.programCount(47), '47 programs');
 });
 
 test('a language with no controls here gets English ones, and SAYS they are English', () => {

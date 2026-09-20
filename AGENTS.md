@@ -1,7 +1,9 @@
 # AGENTS.md — working in this repository as an agent
 
-**ab-ovo is a learning platform that encapsulates the book *Mathematics from Zero for the AI
-Engineer*.** Read [`README.md`](README.md) first; this file is the part an automated
+**ab-ovo is a learning platform for programmed-learning courses; the one course pinned today
+is *Mathematics from Zero for the AI Engineer*.** A course is a whole work — one content
+repository, one compiled bundle, one tag, called a *track* in the schema and in every route —
+and a *program* is one of its forty-seven units. Read [`README.md`](README.md) first; this file is the part an automated
 contributor needs and a human reader mostly already knows.
 
 It is written to be read *before* the first edit, because most of what follows is a rule

@@ -262,7 +262,7 @@ test.describe('the browser holds no token and constructs no bearer', () => {
 
   test('nothing in browser storage looks like a token @identity', async ({ page }) => {
     await signIn(page, READER);
-    // The walk to this program, which since ADR-0048 is what makes a frame of it render at
+    // The walk to this program, which since ADR-0049 is what makes a frame of it render at
     // all. It is `localStorage` and nothing else — no cookie, no request — so the storage
     // this test rakes through is exactly what the application put there plus one seed that
     // could not be mistaken for a token.
@@ -334,7 +334,7 @@ test.describe('a frame a reader reads reaches the account and comes back', () =>
     // inside it and is not frame 1, which is where a reader who did nothing would be.
     const STEP = 3;
 
-    // ADR-0048: the reader of this journey is one who walked here, so the record says so.
+    // ADR-0049: the reader of this journey is one who walked here, so the record says so.
     await openThrough(page, UNIT);
     await page.goto(`/read/${TRACK}/${UNIT}/en/${STEP}`);
     await expect(page.locator('article')).toBeVisible();

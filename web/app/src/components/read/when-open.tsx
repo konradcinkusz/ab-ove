@@ -8,7 +8,7 @@ import { isOpen } from '@/lib/progress/gate';
 export interface WhenOpenProps {
   readonly track: string;
   readonly unit: string;
-  /** The program the book puts before this one, or `undefined` for the first (ADR-0048). */
+  /** The program the book puts before this one, or `undefined` for the first (ADR-0049). */
   readonly previous: string | undefined;
   /** What to show while the program is open to this reader. */
   readonly children: React.ReactNode;

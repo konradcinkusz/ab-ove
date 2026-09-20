@@ -26,7 +26,7 @@ import { openThrough } from './support/gate.ts';
  * where the same grid is asserted with the API unreachable.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * AND IT IS THE PAGE OF A READER WHO HAS WALKED TO P01 — ADR-0048.
+ * AND IT IS THE PAGE OF A READER WHO HAS WALKED TO P01 — ADR-0049.
  *
  * A program is shut until the reader has a place in the one before it, so on a FRESH
  * browser P01's tile carries no link and every assertion below would be asserting the gate
@@ -161,6 +161,13 @@ test.describe('landing page', () => {
     const about = page.getByRole('link', { name: 'About ab-ovo' });
     await expect(about).toBeVisible();
     await expect(about).toHaveAttribute('href', '/about');
+
+    // And the way to the other courses, which is in the same row and is the one link on this
+    // page that is not about the course below it (ADR-0048). `specs/courses.spec.ts` asserts
+    // what is on the other end.
+    const courses = page.getByRole('link', { name: 'Courses' });
+    await expect(courses).toBeVisible();
+    await expect(courses).toHaveAttribute('href', '/courses');
 
     /*
       Sign-in at the top of the first screen — the position this page was asked for.

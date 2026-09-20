@@ -8,7 +8,7 @@ import { served, track } from './bundle.ts';
  * ──────────────────────────────────────────────────────────────────────────────────────
  * WHY EVERY SPEC THAT DEEP-LINKS PAST THE FIRST PROGRAM NEEDS THIS.
  *
- * ADR-0048 shuts a program until the reader has a place in the one before it, and the
+ * ADR-0049 shuts a program until the reader has a place in the one before it, and the
  * reading routes enforce it (`components/read/program-gate.tsx`) — so a spec that opens
  * `/read/<track>/P01/en/1` in a fresh browser is now a spec about being sent back to the
  * index. The journeys those specs are about (the frame, the worksheet, the sync, the
@@ -21,7 +21,7 @@ import { served, track } from './bundle.ts';
  * reader who has not started" must not be handed one by its own setup.
  *
  * The order comes from the SERVED bundle rather than from the ids: `unitBefore` is
- * adjacency in the manifest (ADR-0048), and a helper that assumed F02 follows F01 would
+ * adjacency in the manifest (ADR-0049), and a helper that assumed F02 follows F01 would
  * be a second opinion about the book's order, free to disagree with the application's.
  *
  * `addInitScript` with a one-shot guard, in `sync.spec.ts`'s shape: the seed happens before

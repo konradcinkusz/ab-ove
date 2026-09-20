@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { say, sectionSpans, unitBefore } from '@/lib/content/bundle';
 import type { Bundle, Step, Unit } from '@/lib/content/schema';
 import { HINT_STATES, chromeFor } from '@/lib/i18n/chrome';
@@ -76,7 +77,7 @@ export function FrameView({
   next,
 }: FrameViewProps): React.JSX.Element {
   const track = bundle.track.id;
-  // The program that opens this one, read off the manifest (ADR-0048, `unitBefore`).
+  // The program that opens this one, read off the manifest (ADR-0049, `unitBefore`).
   const previous = unitBefore(bundle, unit.id)?.id;
   const reading = (edition: string): string => `/read/${track}/${unit.id}/${edition}`;
   const at = (n: number): string => `${reading(language)}/${n}`;
@@ -176,7 +177,7 @@ export function FrameView({
       */}
       {/*
         The gate, and the recorder that must not outlive it. A reader who has not reached
-        this program is returned to the index (ADR-0048); the recorder asks the same
+        this program is returned to the index (ADR-0049); the recorder asks the same
         question, so a deep link that arrives here before the redirect lands leaves no
         place behind to unlock it with. `previous` is the manifest's adjacency, never the
         id with one taken off it.
@@ -430,6 +431,19 @@ export function FrameView({
 
         <div className={styles.footRight}>
           <span>{chrome.position(step.n, unit.steps.length)}</span>
+          {/*
+            THE WAY TO TURN ON LIGHT MODE, WHERE THE READER ALREADY IS (ADR-0048).
+
+            A reader working a program at night is the normal case `UI-UX.md` names, and so is one
+            working it at a desk under a lamp. Sending either of them back to the index — or to
+            their operating system's settings, which is what this product used to ask — to change
+            the colour of the page they are reading is the wrong size of remedy.
+
+            BEFORE the keyboard map and not after it: `keys-details.tsx` is a `<details>` and is
+            last on every page on purpose, so that opening it cannot push anything a reader is
+            looking at. A control added below it would take that property away.
+          */}
+          <ThemeSwitch language={chrome.language} />
           {/*
             One click away from every frame rather than only from the contents page — a
             reader who forgets the shortcut mid-program should not have to leave the frame

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { say, sectionSpans, unitBefore } from '@/lib/content/bundle';
 import type { Bundle, Unit } from '@/lib/content/schema';
 
@@ -69,7 +70,7 @@ export function ProgramContents({
 
   const index = bundle.units.findIndex((candidate) => candidate.id === unit.id);
   // Through `unitBefore` rather than `index - 1`, so the gate and this foot read the
-  // book's order out of one function (ADR-0048). The forward neighbour has no such
+  // book's order out of one function (ADR-0049). The forward neighbour has no such
   // sharer and stays here.
   const previousUnit = unitBefore(bundle, unit.id);
   const nextUnit = index >= 0 ? bundle.units[index + 1] : undefined;
@@ -78,7 +79,7 @@ export function ProgramContents({
     <main className={styles.page} lang={language}>
       {/*
         A reader who has not reached this program is returned to the index, where the tile
-        says which program opens it (ADR-0048). It renders nothing and cannot run on the
+        says which program opens it (ADR-0049). It renders nothing and cannot run on the
         server, which is why the page below it is written as though every reader belongs
         here — see `program-gate.tsx` for why that is the product rather than a shortcut.
       */}
@@ -209,6 +210,19 @@ export function ProgramContents({
           ) : null}
         </span>
 
+        {/*
+          THE WAY TO TURN ON LIGHT MODE, WHERE THE READER ALREADY IS (ADR-0048).
+
+          A reader working a program at night is the normal case `UI-UX.md` names, and so is one
+          working it at a desk under a lamp. Sending either of them back to the index — or to
+          their operating system's settings, which is what this product used to ask — to change
+          the colour of the page they are reading is the wrong size of remedy.
+
+          BEFORE the keyboard map and not after it: `keys-details.tsx` is a `<details>` and is
+          last on every page on purpose, so that opening it cannot push anything a reader is
+          looking at. A control added below it would take that property away.
+        */}
+        <ThemeSwitch language={chrome.language} />
         {/*
           The same map the frame's own foot carries, from the same table, so the two can
           never disagree about what a key does. It is here as well as there because this is

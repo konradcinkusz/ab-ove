@@ -271,7 +271,7 @@ test('one program without a part sends the whole track back to grouping by prefi
 });
 
 /*
- * The program before this one — the adjacency the gate asks for (ADR-0048). Asserted over
+ * The program before this one — the adjacency the gate asks for (ADR-0049). Asserted over
  * the same synthetic bundles, because the property is about the ORDER of the manifest and
  * the fixture carries one program.
  */

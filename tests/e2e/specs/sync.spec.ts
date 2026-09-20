@@ -333,7 +333,7 @@ test.describe('progress follows the reader between machines', () => {
 
     // The walk this reader has already made. `withLocal` is what gives the other tests here
     // a place in the program; this one deliberately starts with an empty account, so the
-    // record it needs is the one ADR-0048 asks for — a place in the program before this,
+    // record it needs is the one ADR-0049 asks for — a place in the program before this,
     // without which the frame below is a page that returns the reader to the index.
     await openThrough(page, UNIT);
     await page.goto(`/read/${TRACK}/${UNIT}/en/${AHEAD}`);
@@ -463,7 +463,7 @@ test.describe('a reader without an account is not synchronised', () => {
       if (request.url().includes('/api/proxy/api/v1/progress')) asked.push(request.url());
     });
 
-    // As above: a reader who reached this program, which since ADR-0048 is the only kind
+    // As above: a reader who reached this program, which since ADR-0049 is the only kind
     // of reader a frame of it renders for. The seed writes to `localStorage` and touches
     // no cookie and no request, so the two assertions below are unaffected by it.
     await openThrough(page, UNIT);
