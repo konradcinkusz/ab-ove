@@ -200,7 +200,8 @@ function SummaryRow({ route, language, chrome, at }: SummaryRowProps): React.JSX
   return (
     <li className={summaryStyles.item}>
       <RichInline language={language} text={say(labels, language)} />{' '}
-      <Link className={summaryStyles.range} href={at(route.from)} lang={chrome.language}>
+      {/* `prefetch={false}`: a frame mid-program opens with an answer (frame-view.tsx). */}
+      <Link className={summaryStyles.range} href={at(route.from)} lang={chrome.language} prefetch={false}>
         {range}
       </Link>
     </li>

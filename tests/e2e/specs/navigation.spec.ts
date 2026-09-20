@@ -8,6 +8,7 @@ import {
   uniqueProbeIn,
   unitNamed,
 } from './support/bundle.ts';
+import { revealTo } from './support/reveal.ts';
 
 /**
  * JOURNEY — finding a program, opening it, and coming back to the same frame.
@@ -248,12 +249,70 @@ test.describe('navigation', () => {
     // there at all rather than disabled — a disabled control is a thing a reader tries.
     await expect(page.getByRole('link', { name: /previous/i })).toHaveCount(0);
 
-    await page.locator(`a[href="${frameAt('en', 2)}"]`).click();
+    await revealTo(page, frameAt('en', 2)).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt('en', 2)}$`));
 
     await page.getByRole('link', { name: /previous/i }).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt('en', 1)}$`));
     await expect(page.locator('body')).toContainText(uniqueProbeIn(program, 1, 'en'));
+  });
+
+  test('every heading of the program is one hop from a frame, and the id is the way to the index @core', async ({
+    page,
+  }) => {
+    /*
+      Section navigation was two hops — place row, contents, section, frame — and `Next
+      section →` appeared only on a section's last frame. The section in the place row is
+      a disclosure now: the summary is the current heading, and under it every heading of
+      the program links to its first frame, with the current one as text. A heading
+      carries no question and no answer (the contents page's own rule), which is what makes
+      listing them on a frame safe; the answer's absence is still asserted by
+      frame-view.spec.ts over the whole document.
+    */
+    expect(sections.length, 'this needs at least two sections to move between').toBeGreaterThan(1);
+    const [first, second] = sections;
+    await page.goto(frameAt('en', second!.firstStep));
+
+    /*
+      By attribute while it is closed — a closed `<details>` hides its content, and a role
+      query excludes hidden elements, which is right: the list is not there for a reader
+      until they open it. By role once it is open, which is also what asserts the `<ul>`
+      is still a list to assistive technology (a `list-style: none` list loses its role
+      in Chromium without an explicit one; place-row.tsx says so).
+    */
+    const closed = page.locator('details ul[aria-label="Sections"]');
+    // `has` is relative to the candidate `<details>`, so the inner locator names the list alone.
+    const picker = page.locator('details', { has: page.locator('ul[aria-label="Sections"]') });
+    await expect(picker).toHaveCount(1);
+    // Closed on arrival: the row is one line until the reader asks for the list.
+    await expect(closed).toBeHidden();
+    await expect(picker).not.toHaveAttribute('open', /.*/);
+
+    await picker.locator('summary').click();
+    const list = page.getByRole('list', { name: 'Sections' });
+    await expect(list).toBeVisible();
+
+    // The current heading is said, not linked; every other one links to where it starts.
+    const current = list.locator('[aria-current="true"]');
+    await expect(current).toHaveCount(1);
+    await expect(current).toHaveText(second!.titles.en!);
+    await expect(current.locator('a')).toHaveCount(0);
+    for (const section of sections) {
+      if (section.id === second!.id) continue;
+      await expect(
+        list.getByRole('link', { name: section.titles.en! }),
+        `section "${section.id}" is not one hop away`,
+      ).toHaveAttribute('href', frameAt('en', section.firstStep));
+    }
+    await expect(list.getByRole('link', { name: 'Contents' })).toHaveAttribute('href', contentsAt('en'));
+
+    // One hop: from the first frame of the second section to the first frame of the first.
+    await list.getByRole('link', { name: first!.titles.en! }).click();
+    await expect(page).toHaveURL(new RegExp(`${frameAt('en', first!.firstStep)}$`));
+    await expect(page.locator('body')).toContainText(uniqueProbeIn(program, first!.firstStep, 'en'));
+
+    // And the id in the row is the way to the programs, for a reader who arrived by link.
+    await expect(page.getByRole('link', { name: unit, exact: true })).toHaveAttribute('href', '/');
   });
 
   test('a frame leads back up to its own contents @core', async ({ page }) => {
@@ -307,7 +366,7 @@ test.describe('navigation', () => {
     for (const language of languages) {
       await page.goto(frameAt(language, 1));
       await expect(
-        page.locator(`a[href="${frameAt(language, 2)}"]`),
+        revealTo(page, frameAt(language, 2)),
         `the ${language} reveal does not declare the language it is written in`,
       ).toHaveAttribute('lang', language);
     }

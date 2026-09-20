@@ -340,6 +340,11 @@ interface Strings {
    */
   readonly groupLabels: Readonly<Record<string, string>>;
   /**
+   * The accessible name of the place row's section list — the disclosure under the
+   * section's title that reaches every heading of the program in one hop (ADR-0041).
+   */
+  readonly sectionsLabel: string;
+  /**
    * On a tile whose program has a stored place: `at frame 12`. A POSITION and never a
    * progress (ADR-0041) — no fraction, no bar, no "12 of 45 read" — and text rather than
    * a link, because `progress.spec.ts` holds the index to exactly one link back into the
@@ -509,6 +514,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     nextProgramLabel: 'Next program',
     previousProgramLabel: 'Previous program',
     groupLabels: { F: 'Foundation', P: 'Main sequence' },
+    sectionsLabel: 'Sections',
     atFrame: (n) => `at frame ${n}`,
     backToLastFrame: '← Back to the frame',
     labOptional: 'This program also has computer exercises in Python, optional',
@@ -663,6 +669,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     nextProgramLabel: 'Następny program',
     previousProgramLabel: 'Poprzedni program',
     groupLabels: { F: 'Podstawy', P: 'Część główna' },
+    sectionsLabel: 'Sekcje',
     atFrame: (n) => `na ramce ${n}`,
     backToLastFrame: '← Wróć do ramki',
     labOptional: 'Ten program ma też ćwiczenia komputerowe w Pythonie, opcjonalne',
@@ -788,6 +795,7 @@ export interface Chrome {
   readonly backToLastFrame: string;
   readonly labOptional: string;
   readonly groupLabels: Readonly<Record<string, string>>;
+  readonly sectionsLabel: string;
   readonly atFrame: (n: number) => string;
 }
 

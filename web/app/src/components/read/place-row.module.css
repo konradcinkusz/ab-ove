@@ -24,9 +24,19 @@
   min-width: 0;
 }
 
+/* The id, which is the way to the index — a link in the row's own colour, padded like the rest. */
 .unitId {
+  color: inherit;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  margin: -0.75rem -0.375rem;
+  padding: 0.75rem 0.375rem;
+  text-decoration: none;
+}
+
+.unitId:hover,
+.unitId:focus-visible {
+  text-decoration: underline;
 }
 
 .dot,
@@ -43,23 +53,92 @@
  * the row. `narrow-screen.spec.ts` still measures the jumper inside 360 px, which is why
  * the jumper's own rule below pads block-wise only.
  */
-.unitTitle,
-.sectionLink {
-  color: var(--ink-soft);
+.unitTitle {
+  color: inherit;
   margin: -0.75rem -0.375rem;
   padding: 0.75rem 0.375rem;
   text-decoration: none;
 }
 
-.unitTitle {
-  color: inherit;
+.unitTitle:hover,
+.unitTitle:focus-visible {
+  text-decoration: underline;
 }
 
-.unitTitle:hover,
-.unitTitle:focus-visible,
-.sectionLink:hover,
-.sectionLink:focus-visible {
+/*
+ * THE SECTION PICKER — place-row.tsx says why it is a disclosure and why it is in flow.
+ *
+ * Closed, it is the section's title with a small chevron, padded like every other link on
+ * the row. Open, it takes the whole row (`flex-basis: 100%`), so the list of headings has
+ * the measure to wrap in rather than the summary's width — the defect keys-details.module.css
+ * records for the foot's `<details>`, avoided the other way round. The list is `display:
+ * none` while closed as well: a closed `<details>` still lays its content out, and the
+ * narrow-screen sweep would measure headings nobody can see.
+ */
+.picker {
+  min-width: 0;
+}
+
+.picker[open] {
+  flex-basis: 100%;
+}
+
+.pickerSummary {
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: inline-block;
+  list-style: none;
+  margin: -0.75rem -0.375rem;
+  padding: 0.75rem 0.375rem;
+}
+
+.pickerSummary::-webkit-details-marker {
+  display: none;
+}
+
+.pickerSummary::after {
+  color: var(--ink-faint);
+  content: ' ▾';
+  font-size: 0.75em;
+}
+
+.pickerSummary:hover,
+.pickerSummary:focus-visible {
   text-decoration: underline;
+}
+
+.pickerList {
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: 0.375rem;
+  list-style: none;
+  margin: 0.5rem 0 0.25rem;
+  max-width: var(--measure);
+  padding: 0.625rem 0 0;
+}
+
+.picker:not([open]) > .pickerList {
+  display: none;
+}
+
+.pickerList a {
+  color: var(--ink-soft);
+  display: inline-block;
+  padding: 0.25rem 0;
+  text-decoration: none;
+}
+
+.pickerList a:hover,
+.pickerList a:focus-visible {
+  text-decoration: underline;
+}
+
+/* The heading the reader is under — said with weight and `aria-current`, and not a link. */
+.pickerCurrent {
+  color: var(--ink);
+  display: inline-block;
+  font-weight: 500;
+  padding: 0.25rem 0;
 }
 
 .controls {

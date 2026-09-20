@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { pickPair, track, unitNamed } from './support/bundle.ts';
+import { revealTo } from './support/reveal.ts';
 
 /**
  * The reading surface on a phone — 360 px, the floor.
@@ -201,7 +202,7 @@ test.describe('the reading surface at 360 px', () => {
      * this test: on most frames the control is below the fold at this width, which is the
      * accepted cost recorded in this file's header, and a reader scrolls to it.
      */
-    const reveal = page.locator(`a[href="${at('en', answering.n)}"]`);
+    const reveal = revealTo(page, at('en', answering.n));
     await reveal.scrollIntoViewIfNeeded();
     await expect(reveal, 'the reveal is not reachable at 360 px').toBeVisible();
 

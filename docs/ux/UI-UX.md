@@ -198,10 +198,19 @@ kinds, 21 714 maths spans. [ADR-0037](../adr/0037-the-books-prose-is-rendered-no
 
 #### One place row, and the rest of the chrome is gone
 
-`F01 · <title>  ›  <section>    English · polski    [12] / 45`. It replaced a crumb chain, a
-language row with its own label, a rule-and-badge row and a foot count — four things saying
+`F01 · <title>  ›  <section ▾>    English · polski    [12] / 45`. It replaced a crumb chain,
+a language row with its own label, a rule-and-badge row and a foot count — four things saying
 where the reader is in four ways, around one question. The frame number **is** an input: type
-a number, press Enter, arrive. `→`/`←` move; `g` focuses the jumper; `Enter` with nothing
+a number, press Enter, arrive. **The section is a disclosure**: closed, it is the heading the
+reader is under; open, it is every heading of the program, each linking to its first frame,
+the current one as text, and *Contents* first — one hop to anywhere in the program, where it
+was two through the contents page. A heading carries no question and no answer, which is
+the contents page's own rule and the reason the list leaks nothing; every link in it, the
+foot's *Next section →*, the contents page's headings and the summary's frame ranges are
+`prefetch={false}` on the reveal's own reasoning, because a frame mid-program opens with an
+answer. The list is in flow, never positioned, and opening it is the reader's act. **The id
+links to the index**, so a reader who arrived by deep link is one click from the programs;
+a separate *Programs* entry would be the side text this row was built against. `→`/`←` move; `g` focuses the jumper; `Enter` with nothing
 focused puts the caret in the answer line; `Ctrl+Enter` — spelt `⌘+Enter` on an Apple
 keyboard, from a flag the page sets rather than a string it rewrites — commits and reveals;
 `Esc` returns to reading. Every segment of the one-line hint is gated on the island that

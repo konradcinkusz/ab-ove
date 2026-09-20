@@ -146,7 +146,12 @@ export function ProgramContents({
                   "3–3", which reads as a defect.
                 */}
                 <span className={styles.range}>{from === to ? from : `${from}–${to}`}</span>
-                <Link className={styles.sectionTitle} href={at(from)}>
+                {/*
+                  `prefetch={false}`: a section's first frame opens with the answer to the
+                  frame before it, and a contents page in the viewport was pulling every
+                  one of them over the wire. The reveal's own reasoning (frame-view.tsx).
+                */}
+                <Link className={styles.sectionTitle} href={at(from)} prefetch={false}>
                   {/*
                     Through the renderer, not raw: the pinned bundle's section titles carry
                     ten maths spans between them, and a raw `say()` here would print `$` and

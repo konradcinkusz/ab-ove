@@ -164,9 +164,11 @@ export function FrameView({
         chrome={chrome}
         contentsHrefFor={reading}
         current={step.n}
+        frameHrefFor={at}
         language={language}
         last={unit.steps.length}
         section={section}
+        spans={spans}
         trackLanguages={bundle.track.languages}
         unitId={unit.id}
         unitTitle={say(unit.titles, language)}
@@ -368,8 +370,13 @@ export function FrameView({
           ) : (
             <Link href={reading(language)}>{chrome.backToContents}</Link>
           )}
+          {/*
+            `prefetch={false}`, on the reveal's reasoning: the next section's first frame
+            opens with the answer to this one, and this link was pulling it over the wire
+            while the reader was still writing.
+          */}
           {nextSpan ? (
-            <Link className={styles.nextSection} href={at(nextSpan.from)}>
+            <Link className={styles.nextSection} href={at(nextSpan.from)} prefetch={false}>
               {chrome.nextSection}
             </Link>
           ) : null}

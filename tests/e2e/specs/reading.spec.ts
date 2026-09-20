@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { languages, track, uniqueProbeIn, unitNamed } from './support/bundle.ts';
+import { revealTo } from './support/reveal.ts';
 
 /**
  * JOURNEY — reading a program, which is the thing the product is for.
@@ -278,7 +279,7 @@ test.describe('reading ergonomics', () => {
       arrived, and a script-focused element does not always count.
     */
     await openReady(page, 'en', 2);
-    const reveal = page.locator(`article > a[href="${at('en', 3)}"]`);
+    const reveal = revealTo(page, at('en', 3));
     for (let presses = 0; presses < 20; presses += 1) {
       await page.keyboard.press('Tab');
       if (await reveal.evaluate((node) => node === document.activeElement)) break;
@@ -399,7 +400,7 @@ test.describe('reading ergonomics', () => {
       }).observe({ type: 'layout-shift', buffered: true });
     });
 
-    await page.locator(`a[href="${at('en', heavy.n)}"]`).click();
+    await revealTo(page, at('en', heavy.n)).click();
     await page.waitForURL(`**${at('en', heavy.n)}`);
     await expect(page.locator('body')).toContainText(uniqueProbeIn(unit, heavy.n, 'en'));
     await page.waitForTimeout(700);

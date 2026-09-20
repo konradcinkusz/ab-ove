@@ -730,6 +730,9 @@ tests/e2e/
       service-info.ts               the API's payload shape and the route handlers
       page-errors.ts                uncaught-exception collector
       lab.ts                        the pinned book's exercise file, solutions and splices
+      bundle.ts                     the served bundle, and the needles the reading specs assert
+      reveal.ts                     the reveal's locator: the article's own child, not any href
+      sign-in.ts                    signing in against the identity fixture
 ```
 
 `specs/support/` holds no assertions and no waits, by design. Playwright's default

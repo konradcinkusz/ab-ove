@@ -80,3 +80,18 @@ reader can see which of forty-seven programs they were in. It is the same test a
 tick on a finished program would be how they are doing. It is text rather than a link, so
 the index still has exactly one way back into the stored frame, and `progress.spec.ts`
 asserts both halves — the marker is there, and nothing on the page says a percentage.
+
+**The section became a disclosure, and the id a link.** The decision above made the section
+a link to its anchor on the contents page, which put a heading two hops from a frame and
+offered *Next section →* only on a section's last frame. The place row's section is now a
+`<details>` listing every heading of the program — each linking to its first frame, the
+current one as text with `aria-current`, *Contents* first — so any section is one hop away.
+Headings carry no question and no answer (the contents page's rule), so the list leaks
+nothing; each of its links is `prefetch={false}` for the reveal's reason, and so, found on
+the way, are *Next section →*, the contents page's heading links and the summary's ranges,
+all of which had been prefetching answer-bearing frames. The row is still a `<div>` holding
+a `<nav>`, and its left half is a `<div>` too, because a `<details>` cannot live in a
+`<span>`. The unit id links to `/`; a *Programs* entry would be side text, and the id was
+already there. What it cost: a reveal is no longer the only link on a frame to the next
+frame, so every spec now locates it as the `<article>`'s own child
+(`specs/support/reveal.ts`).
