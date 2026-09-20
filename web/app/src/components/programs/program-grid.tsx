@@ -7,6 +7,7 @@ import { editionsOffered } from '@/lib/content/chosen-edition';
 import type { Bundle } from '@/lib/content/schema';
 import { FALLBACK_LANGUAGE, chromeFor, endonym } from '@/lib/i18n/chrome';
 
+import { ClearWorksheets } from '../read/clear-controls.tsx';
 import { ForgetProgress, ResumeLast, type Limits } from '../read/resume.tsx';
 
 import styles from './program-grid.module.css';
@@ -92,6 +93,19 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
           </Link>
           <ResumeLast language={chrome.language} limits={limits} />
           <ForgetProgress language={chrome.language} />
+          {/*
+            Beside `Forget where I am` and deliberately not folded into it. ADR-0017 defends
+            one-click forgetting because what it destroys is an integer per program, and it
+            names its own limit: the argument "stops holding the moment the record holds
+            anything a reader cannot trivially rebuild". A worksheet is that — the reader's
+            own working — so it takes a separate control and two presses. Both render
+            nothing when there is nothing to clear, so the row grows no dead control.
+          */}
+          <ClearWorksheets
+            confirmLabel={chrome.clearWorksheetsConfirm}
+            label={chrome.clearWorksheets}
+            language={chrome.language}
+          />
           <AccountControl language={chrome.language} returnTo={returnTo} />
         </nav>
       </header>

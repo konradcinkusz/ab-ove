@@ -69,9 +69,18 @@
   font-size: 0.875rem;
 }
 
+/*
+  WHICH INSTRUMENTS REACH A UNIT. Faint, because it is a property of this application rather
+  than a measurement of the book -- the numbers are what the author came for.
+*/
+.sources {
+  color: var(--ink-faint);
+  font-size: 0.8125rem;
+  margin-left: auto;
+}
+
 .tag {
   color: var(--ink-faint);
   font-family: var(--font-mono);
   font-size: 0.8125rem;
-  margin-left: auto;
 }

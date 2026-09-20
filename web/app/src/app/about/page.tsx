@@ -95,8 +95,10 @@ export default function AboutPage(): React.JSX.Element {
             back one.
           </li>
           <li>
-            Where a program has computer exercises, work them in the lab pane. Python runs
-            in your browser under Pyodide — your code does not leave the machine.
+            Work the program&rsquo;s own exercises where it has them. What a frame asks for is
+            a number, a word or a line of working &mdash; not a program &mdash; so nothing in
+            the loop asks you to write code. Python is a detour for the one program that has
+            computer exercises, never a step.
           </li>
         </ol>
       </section>

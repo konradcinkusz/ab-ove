@@ -1,0 +1,65 @@
+/*
+ * The book's return index, on the contents page's own visual vocabulary
+ * (contents.module.css) — a Summary item and an outcome are the same shape as a contents
+ * heading (a label, and the frame range it names), so this file adds only what that one
+ * does not already have.
+ */
+.list {
+  list-style: none;
+  margin: 0 0 2rem;
+  padding: 0;
+}
+
+.item {
+  border-top: 1px solid var(--rule);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  padding: 0.75rem 0;
+}
+
+.range {
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.range:hover,
+.range:focus-visible {
+  text-decoration: underline;
+}
+
+.notYet {
+  color: var(--ink-faint);
+  font-size: 0.875rem;
+  font-style: italic;
+  margin: 0 0 1.5rem;
+}
+
+.labLine {
+  color: var(--ink-faint);
+  font-size: 0.875rem;
+  margin: 0 0 2rem;
+}
+
+.foot {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  justify-content: space-between;
+  margin-top: 2rem;
+}
+
+.footSide {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+}
+
+.foot a {
+  color: inherit;
+}

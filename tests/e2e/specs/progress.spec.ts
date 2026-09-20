@@ -1,8 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { expect, test } from '@playwright/test';
+
+import { track, uniqueProbeIn, unitNamed } from './support/bundle.ts';
 
 /**
  * JOURNEY — coming back.
@@ -17,38 +15,11 @@ import { expect, test } from '@playwright/test';
  * degraded one, which is the opposite of the decision. So the account is an addition to a
  * working loop, and this suite is what says the loop already works.
  */
-const HERE = dirname(fileURLToPath(import.meta.url));
-
-function bundle() {
-  const path = join(
-    HERE,
-    '..',
-    '..',
-    '..',
-    'web',
-    'app',
-    'src',
-    'lib',
-    'content',
-    'fixtures',
-    'book-p01.bundle.json',
-  );
-  const parsed = JSON.parse(readFileSync(path, 'utf8'));
-  const unit = parsed?.units?.[0];
-  if (!parsed?.track?.id || !unit?.id || !Array.isArray(unit.steps)) {
-    throw new Error(
-      `${path} no longer has the shape this suite reads. Fixture and spec must move together.`,
-    );
-  }
-  return {
-    track: parsed.track.id as string,
-    unit: unit.id as string,
-    sections: (unit.sections ?? []) as { firstStep: number }[],
-    steps: unit.steps as { n: number; body: Record<string, string> }[],
-  };
-}
-
-const { track, unit, sections, steps } = bundle();
+/* F01 from the served bundle — see specs/support/bundle.ts. */
+const unit = 'F01';
+const program = unitNamed(unit);
+const sections = program.sections;
+const steps = program.steps;
 const KEY = 'ab-ovo:progress:v1';
 
 const contentsAt = (language: string): string => `/read/${track}/${unit}/${language}`;
@@ -113,7 +84,7 @@ test.describe('local progress', () => {
 
     // Read a little way in, the way a reader does.
     await readUpTo(page, 'en', STOPPED_AT!);
-    await expect(page.locator('body')).toContainText(steps[STOPPED_AT! - 1]!.body.en!);
+    await expect(page.locator('body')).toContainText(uniqueProbeIn(program, STOPPED_AT!, 'en'));
 
     // Wander off, and come back to the front door.
     await page.goto('/read');
@@ -122,7 +93,7 @@ test.describe('local progress', () => {
 
     await resume.click();
     await expect(page).toHaveURL(new RegExp(`${frameAt('en', STOPPED_AT!)}$`));
-    await expect(page.locator('body')).toContainText(steps[STOPPED_AT! - 1]!.body.en!);
+    await expect(page.locator('body')).toContainText(uniqueProbeIn(program, STOPPED_AT!, 'en'));
 
     // NO ACCOUNT, asserted rather than implied: nothing set a cookie, and the record is in
     // this browser. A test that only checked the link would pass against a product that
@@ -144,7 +115,7 @@ test.describe('local progress', () => {
     // #6 put the edition in the URL; a record that dropped it would put a Polish reader
     // back into English, which is the thing ADR-0015 refuses on the index.
     await readUpTo(page, 'pl', STOPPED_AT!);
-    await expect(page.locator('body')).toContainText(steps[STOPPED_AT! - 1]!.body.pl!);
+    await expect(page.locator('body')).toContainText(uniqueProbeIn(program, STOPPED_AT!, 'pl'));
 
     await page.goto('/read');
     await expect(resumeOn(page, 'pl', STOPPED_AT!), 'came back in the wrong edition').toHaveCount(1);

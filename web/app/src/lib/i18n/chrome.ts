@@ -44,6 +44,27 @@ interface Plural {
   readonly other: string;
 }
 
+/** One row of the keyboard map, shown in the frame's own hint and in the foot's `Keys` details. */
+interface KeyEntry {
+  readonly key: string;
+  readonly does: string;
+  /**
+   * The `data-` flag on `<html>` this entry's hint segment is gated on, when it is gated.
+   *
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * A PAGE MUST NOT PROMISE A KEY THAT IS NOT LIVE YET, AND NOT EVERY KEY IS LIVE ON EVERY
+   * FRAME. The arrows come from `frame-keys.tsx`, which is on every frame; `Ctrl+Enter`
+   * comes from the answer line, which is only on the frames that ask for something; and
+   * `g` needs the jumper. Each island sets its own flag when it binds and clears it when
+   * it unbinds, so the one-line hint says exactly what currently works.
+   *
+   * `undefined` means "always", which is nothing today and is the honest default for an
+   * entry in a list the foot's `<details>` also prints in full.
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  readonly needs?: string;
+}
+
 /**
  * The account-deletion screen.
  *
@@ -152,29 +173,6 @@ interface ConsentStrings {
 
 interface Strings {
   readonly answer: string;
-  readonly keys: string;
-  /**
-   * The accessible name of the region the frame sits in when something else shares the
-   * page with it — today the lab pane, on the composed route of UI-UX.md 1.5.
-   *
-   * It exists because that route has two landmarks and the frame is not the one carrying
-   * `<main>`: the pane brings its own, and giving the reading column a second `<main>`
-   * would be invalid rather than helpful. A named region is what lets a reader navigating
-   * by landmark reach the frame at all, which is the requirement's own last clause read
-   * through a screen reader.
-   */
-  readonly frameRegion: string;
-  /**
-   * The way back up, at the foot of the lab pane on a narrow screen — UI-UX.md 1.5, #54.
-   *
-   * It exists because the two halves are stacked rather than tabbed, and stacking's whole
-   * defence is that both stay reachable. Measured at 360x640 the composed route is about
-   * 2,800 px tall, so a reader who has read to the end of the checks is some four screens
-   * below the question they are answering. The link is that distance in one tap, and it
-   * has no job at all once the two halves sit side by side — which is why the stylesheet
-   * takes it away at the same width the columns divide.
-   */
-  readonly backToFrame: string;
   readonly forget: string;
   readonly signIn: string;
   readonly signOut: string;
@@ -187,22 +185,7 @@ interface Strings {
   readonly cue: string;
   readonly reveal: string;
   readonly next: string;
-  readonly lastFrame: string;
   readonly previous: string;
-  /**
-   * What a frame that carries a `check` offers, with the exercise NAMED in it.
-   *
-   * The name is the whole of what the sentence is for. A lab's exercise file holds all of
-   * that program's exercises at once — `gap`, `epsilon`, `tenth` and the rest are regions
-   * of one `<stem>.py` — so "open the lab" would land a reader in a file of functions with
-   * nothing to say which one this frame was asking for. The id comes out of the step's own
-   * `check`, beside the lab, so the two cannot name different things.
-   *
-   * A FUNCTION RATHER THAN A STRING WITH A SLOT, because the id does not sit in the same
-   * place in both languages and a template assembled at the call site would put it in the
-   * English one twice.
-   */
-  readonly checkOffer: (exercise: string) => string;
   readonly languageLabel: string;
   readonly programs: string;
   /**
@@ -231,6 +214,94 @@ interface Strings {
   readonly continueAtFrame: (n: number) => string;
   readonly frame: Plural;
   readonly section: Plural;
+
+  /**
+   * PR3 — the place row, the jumper, the keys map, and `/summary`.
+   *
+   * These sit apart from the block above because they are new rather than because they
+   * differ in kind; the separation is only so a reviewer can see what one pass added.
+   */
+  /**
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * THE WORKSHEET — the answer line, and what the reveal says about it.
+   *
+   * The book's own instruction is "write your answer down — on paper — and only then
+   * uncover", and the dotted row under a frame's question is where it says to write. These
+   * are the words for doing that on a screen. Every one of them is about the READER'S text
+   * and none is about whether it is right: the machine's only verdict is `matchesBook`, it
+   * is positive-only, and `lib/sheet/number.ts` records why a negative one would be wrong
+   * four times in five.
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  /** The answer line's accessible name — it has no visible label, only the dotted rule. */
+  readonly yourAnswer: string;
+  /** Its placeholder: the book's own instruction, in the edition's words. */
+  readonly writeItDown: string;
+  /** On the reveal, in front of what the reader committed. */
+  readonly youWrote: string;
+  /** The one thing the machine ever says about an answer, and only when it is certain. */
+  readonly matchesBook: string;
+  /** Under a locked line, saying why it cannot be edited. */
+  readonly writtenBefore: string;
+  /** Beside a sheet written against an earlier edition of the book. */
+  readonly earlierEdition: string;
+  /** The foot control, first press. */
+  readonly clearAnswer: string;
+  /** Its second press, which is the one that destroys anything. */
+  readonly clearAnswerConfirm: string;
+  /** The index's control for every worksheet in this browser, first press. */
+  /** The Working pad — a place to try a line of arithmetic beside the frame. */
+  readonly working: string;
+  readonly workingRun: string;
+  readonly workingHint: string;
+  readonly workingLabel: string;
+  readonly sketch: string;
+  readonly sketchLabel: string;
+  readonly sketchGrid: string;
+  readonly sketchAxes: string;
+  readonly sketchNone: string;
+  readonly sketchUndo: string;
+  readonly sketchClear: string;
+  readonly sketchFull: string;
+  readonly clearWorksheets: string;
+  /** Its second press — this one cannot be undone and says so. */
+  readonly clearWorksheetsConfirm: string;
+  /** `← Programs`, the contents page's own way back up — a NEW key rather than reusing
+   * `programs`, because that string is also this application's index heading and an arrow
+   * belongs on the crumb's link and nowhere near an `<h1>`. */
+  readonly programsCrumb: string;
+  /** The frame-jumper's accessible name — it has no visible label, only the number itself. */
+  readonly goToFrame: string;
+  /** The foot's `<details>` summary, and the heading a screen reader announces for it. */
+  readonly keysHeading: string;
+  /** The full keyboard map, in the order a reader would want to read it. */
+  readonly keysMap: readonly KeyEntry[];
+  /**
+   * The accessible name of the foot's navigation landmark, on all three reading screens.
+   *
+   * Invisible, and it earns its place anyway: the language switch is already a labelled
+   * `<nav>`, so an unlabelled second one leaves a screen-reader user with a landmark list
+   * reading "navigation, navigation" — which is worse than one landmark would have been.
+   * It says "where to next" rather than "in this program" because the summary's foot leads
+   * OUT of the program, to the next one.
+   */
+  readonly footNav: string;
+  /** On the last frame of a section that is not the program's last: `Next section →`. */
+  readonly nextSection: string;
+  /** Frame 1's own foot link, replacing `previous` where there is nowhere to go back to. */
+  readonly backToContents: string;
+  /** The last frame's reveal-shaped control, opening `/summary` instead of a frame. */
+  readonly summaryAndChecklist: string;
+  readonly summaryHeading: string;
+  readonly canYouHeading: string;
+  /** Honest, for now: schema v1 carries no Test exercises or Further problems to show. */
+  readonly exercisesNotYet: string;
+  readonly nextProgramLabel: string;
+  /** Its mirror, on the contents page's foot: the program before this one. */
+  readonly previousProgramLabel: string;
+  /** The summary screen's own way back, mirroring the frame's crumb. */
+  readonly backToLastFrame: string;
+  readonly labOptional: string;
 }
 
 /**
@@ -249,9 +320,6 @@ interface Strings {
 export const TABLE: Readonly<Record<string, Strings>> = {
   en: {
     answer: 'Answer',
-    keys: '→ next frame · ← back',
-    frameRegion: 'The frame',
-    backToFrame: 'Back to the frame',
     forget: 'Forget where I am',
     signIn: 'Sign in',
     signOut: 'Sign out',
@@ -259,7 +327,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     consent: {
       invitationTitle: 'Help fix the book?',
       invitationWhat:
-        'The book has never been read by anybody, and its author cannot know which frames are wrong. ab-ovo can find out \u2014 by recording, for each frame, which version of the book it was in, which attempt this was, and what a check run said.',
+        'The book has never been read by anybody, and its author cannot know which frames are wrong. ab-ovo can find out \u2014 by recording, for each frame you answer, which version of the book it was in, which attempt this was, and whether your answer matched the book\u2019s own. Never the answer itself: your words stay in this browser.',
       invitationNoReader:
         'No identifier for you goes on any of it: not a column, not a hash, not a join away. That is what makes the result safe to publish, and it is why nothing recorded here can be turned into a score about you.',
       invitationEitherWay:
@@ -315,9 +383,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     cue: 'The next frame answers this.',
     reveal: 'Reveal the answer',
     next: 'Next frame',
-    lastFrame: 'That is the last frame of this program.',
     previous: 'Previous',
-    checkOffer: (exercise) => `Work exercise ${exercise} in the lab, beside this frame`,
     languageLabel: 'Language',
     programs: 'Programs',
     about: 'About ab-ovo',
@@ -329,12 +395,52 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     continueAtFrame: (n) => `Continue at frame ${n}`,
     frame: { one: 'frame', other: 'frames' },
     section: { one: 'section', other: 'sections' },
+    yourAnswer: 'Your answer',
+    writeItDown: 'Write it down before you read on',
+    youWrote: 'You wrote',
+    matchesBook: 'Matches the book',
+    writtenBefore: 'written before the reveal',
+    earlierEdition: 'written against an earlier edition',
+    clearAnswer: 'Clear my answer',
+    clearAnswerConfirm: 'Clear it',
+    working: 'Working',
+    workingRun: 'Work it out',
+    workingHint: 'One line at a time. A name can be given a value: w = 0.5',
+    workingLabel: 'Your working',
+    sketch: 'Sketch',
+    sketchLabel: 'Draw your answer',
+    sketchGrid: 'Grid',
+    sketchAxes: 'Axes',
+    sketchNone: 'Plain',
+    sketchUndo: 'Undo',
+    sketchClear: 'Clear',
+    sketchFull: 'This sketch is now too large to keep. What is on screen stays until you leave the frame.',
+    clearWorksheets: 'Clear my worksheets',
+    clearWorksheetsConfirm: 'Clear them — this cannot be undone',
+    programsCrumb: '← Programs',
+    goToFrame: 'Go to frame',
+    keysHeading: 'Keys',
+    keysMap: [
+      { key: '→', does: 'next frame', needs: 'frame-keys' },
+      { key: '←', does: 'previous frame', needs: 'frame-keys' },
+      { key: 'Ctrl+Enter', does: 'commit and reveal', needs: 'answer-line' },
+      { key: 'g', does: 'go to a frame number', needs: 'frame-jumper' },
+    ],
+    footNav: 'Where to next',
+    nextSection: 'Next section →',
+    backToContents: 'Contents',
+    summaryAndChecklist: 'Summary and checklist',
+    summaryHeading: 'Summary',
+    canYouHeading: 'Can you?',
+    exercisesNotYet:
+      'The Test exercises and Further problems for this program are not in this edition of the app yet.',
+    nextProgramLabel: 'Next program',
+    previousProgramLabel: 'Previous program',
+    backToLastFrame: '← Back to the frame',
+    labOptional: 'This program also has computer exercises in Python, optional',
   },
   pl: {
     answer: 'Odpowiedź',
-    keys: '→ kolejna ramka · ← wstecz',
-    frameRegion: 'Ramka',
-    backToFrame: 'Wróć do ramki',
     forget: 'Zapomnij, gdzie jestem',
     signIn: 'Zaloguj się',
     signOut: 'Wyloguj się',
@@ -342,7 +448,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     consent: {
       invitationTitle: 'Pomo\u017cesz poprawi\u0107 ksi\u0105\u017ck\u0119?',
       invitationWhat:
-        'Tej ksi\u0105\u017cki nikt jeszcze nie przeczyta\u0142, a jej autor nie wie, kt\u00f3re ramki s\u0105 z\u0142e. ab-ovo mo\u017ce si\u0119 tego dowiedzie\u0107 \u2014 zapisuj\u0105c dla ka\u017cdej ramki, w kt\u00f3rej wersji ksi\u0105\u017cki si\u0119 znajdowa\u0142a, kt\u00f3re to by\u0142o podej\u015bcie i co powiedzia\u0142o sprawdzenie.',
+        'Tej ksi\u0105\u017cki nikt jeszcze nie przeczyta\u0142, a jej autor nie wie, kt\u00f3re ramki s\u0105 z\u0142e. ab-ovo mo\u017ce si\u0119 tego dowiedzie\u0107 \u2014 zapisuj\u0105c dla ka\u017cdej ramki, na kt\u00f3r\u0105 odpowiesz, w kt\u00f3rej wersji ksi\u0105\u017cki si\u0119 znajdowa\u0142a, kt\u00f3re to by\u0142o podej\u015bcie i czy twoja odpowied\u017a zgadza si\u0119 z t\u0105 z ksi\u0105\u017cki. Nigdy samej odpowiedzi: twoje s\u0142owa zostaj\u0105 w tej przegl\u0105darce.',
       invitationNoReader:
         '\u017baden identyfikator ciebie tam nie trafia: ani kolumna, ani skr\u00f3t, ani z\u0142\u0105czenie. W\u0142a\u015bnie dlatego wynik mo\u017cna bezpiecznie publikowa\u0107 i dlatego nic z tego, co si\u0119 tu zapisuje, nie zamieni si\u0119 w ocen\u0119 ciebie.',
       invitationEitherWay:
@@ -399,10 +505,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     cue: 'Odpowiedź znajdziesz w kolejnej ramce.',
     reveal: 'Pokaż odpowiedź',
     next: 'Kolejna ramka',
-    lastFrame: 'To ostatnia ramka tego programu.',
     previous: 'Poprzednia',
-    checkOffer: (exercise) =>
-      `Zrób ćwiczenie ${exercise} w laboratorium obok tej ramki`,
     languageLabel: 'Język',
     programs: 'Programy',
     about: 'O ab-ovo',
@@ -414,6 +517,49 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     continueAtFrame: (n) => `Wróć do ramki ${n}`,
     frame: { one: 'ramka', few: 'ramki', many: 'ramek', other: 'ramki' },
     section: { one: 'sekcja', few: 'sekcje', many: 'sekcji', other: 'sekcji' },
+    yourAnswer: 'Twoja odpowiedź',
+    writeItDown: 'Zapisz, zanim pójdziesz dalej',
+    youWrote: 'Zapisałeś',
+    matchesBook: 'Tak jak w książce',
+    writtenBefore: 'zapisane przed odsłonięciem',
+    earlierEdition: 'zapisane przy wcześniejszym wydaniu',
+    clearAnswer: 'Wyczyść moją odpowiedź',
+    clearAnswerConfirm: 'Wyczyść',
+    working: 'Obliczenia',
+    workingRun: 'Policz',
+    workingHint: 'Po jednej linii. Nazwie można nadać wartość: w = 0,5',
+    workingLabel: 'Twoje obliczenia',
+    sketch: 'Szkic',
+    sketchLabel: 'Narysuj swoją odpowiedź',
+    sketchGrid: 'Siatka',
+    sketchAxes: 'Osie',
+    sketchNone: 'Gładko',
+    sketchUndo: 'Cofnij',
+    sketchClear: 'Wyczyść',
+    sketchFull: 'Ten szkic jest już za duży, żeby go zapisać. To, co widać, zostaje do wyjścia z ramki.',
+    clearWorksheets: 'Wyczyść moje notatki',
+    clearWorksheetsConfirm: 'Wyczyść — nie da się cofnąć',
+    programsCrumb: '← Programy',
+    goToFrame: 'Przejdź do ramki',
+    keysHeading: 'Klawisze',
+    keysMap: [
+      { key: '→', does: 'kolejna ramka', needs: 'frame-keys' },
+      { key: '←', does: 'poprzednia ramka', needs: 'frame-keys' },
+      { key: 'Ctrl+Enter', does: 'zapisz i odsłoń', needs: 'answer-line' },
+      { key: 'g', does: 'przejdź do numeru ramki', needs: 'frame-jumper' },
+    ],
+    footNav: 'Dokąd dalej',
+    nextSection: 'Następna sekcja →',
+    backToContents: 'Spis treści',
+    summaryAndChecklist: 'Podsumowanie i lista',
+    summaryHeading: 'Podsumowanie',
+    canYouHeading: 'Czy potrafisz?',
+    exercisesNotYet:
+      'Zadania testowe i Dalsze zadania tego programu nie są jeszcze w tej wersji aplikacji.',
+    nextProgramLabel: 'Następny program',
+    previousProgramLabel: 'Poprzedni program',
+    backToLastFrame: '← Wróć do ramki',
+    labOptional: 'Ten program ma też ćwiczenia komputerowe w Pythonie, opcjonalne',
   },
 };
 
@@ -474,9 +620,6 @@ export interface Chrome {
    */
   readonly language: string;
   readonly answer: string;
-  readonly keys: string;
-  readonly frameRegion: string;
-  readonly backToFrame: string;
   readonly forget: string;
   readonly signIn: string;
   readonly signOut: string;
@@ -488,9 +631,7 @@ export interface Chrome {
   readonly cue: string;
   readonly reveal: string;
   readonly next: string;
-  readonly lastFrame: string;
   readonly previous: string;
-  readonly checkOffer: (exercise: string) => string;
   readonly languageLabel: string;
   readonly programs: string;
   readonly about: string;
@@ -502,6 +643,44 @@ export interface Chrome {
   readonly continueAtFrame: (n: number) => string;
   readonly frames: (n: number) => string;
   readonly sections: (n: number) => string;
+  readonly yourAnswer: string;
+  readonly writeItDown: string;
+  readonly youWrote: string;
+  readonly matchesBook: string;
+  readonly writtenBefore: string;
+  readonly earlierEdition: string;
+  readonly clearAnswer: string;
+  readonly clearAnswerConfirm: string;
+  /** The Working pad — a place to try a line of arithmetic beside the frame. */
+  readonly working: string;
+  readonly workingRun: string;
+  readonly workingHint: string;
+  readonly workingLabel: string;
+  readonly sketch: string;
+  readonly sketchLabel: string;
+  readonly sketchGrid: string;
+  readonly sketchAxes: string;
+  readonly sketchNone: string;
+  readonly sketchUndo: string;
+  readonly sketchClear: string;
+  readonly sketchFull: string;
+  readonly clearWorksheets: string;
+  readonly clearWorksheetsConfirm: string;
+  readonly programsCrumb: string;
+  readonly goToFrame: string;
+  readonly keysHeading: string;
+  readonly keysMap: readonly KeyEntry[];
+  readonly footNav: string;
+  readonly nextSection: string;
+  readonly backToContents: string;
+  readonly summaryAndChecklist: string;
+  readonly summaryHeading: string;
+  readonly canYouHeading: string;
+  readonly exercisesNotYet: string;
+  readonly nextProgramLabel: string;
+  readonly previousProgramLabel: string;
+  readonly backToLastFrame: string;
+  readonly labOptional: string;
 }
 
 /** The controls for a reader of `language`, falling back to English rather than failing. */

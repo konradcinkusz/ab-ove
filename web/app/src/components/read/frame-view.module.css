@@ -15,49 +15,16 @@
   padding: 2rem 1.25rem 4rem;
 }
 
-.crumb {
-  color: var(--ink-faint);
-  font-size: 0.8125rem;
-  letter-spacing: 0.02em;
-  margin: 0 0 2rem;
-}
-
-.crumb a {
-  color: inherit;
-}
-
 /*
- * THE RULE AND THE BADGE — notes/07 §3, by way of the book's own layout.
+ * THE CRUMB, THE RULE AND THE BADGE USED TO BE HERE, AND THEY ARE NOW ONE ROW.
  *
- * "The frame boundary is a hairline across the measure, with the frame's number in the
- * OUTER margin beside it", so that a reader thumbing for frame 37 runs a finger down the
- * edge of the block and never crosses the text. On a screen there is no spread and no outer
- * margin, so the badge sits at the start of the rule: the navigational job survives, the
- * mirroring does not apply, and pretending otherwise would be imitating a printed page
- * rather than reproducing what it was for.
+ * `place-row.module.css` holds what replaced them. Three rules are gone rather than kept
+ * for "something else might want them": the owner's complaint was that a frame carried too
+ * much side text unrelated to the frame, and a stylesheet that still describes the three
+ * blocks is an invitation to put one of them back. The badge's own reasoning — notes/07
+ * §3, the frame number where a reader thumbing for frame 37 can find it without crossing
+ * the text — survived the move and is written down there, beside the number it is about.
  */
-.rule {
-  align-items: center;
-  border-top: 1px solid var(--rule);
-  display: flex;
-  gap: 0.75rem;
-  margin: 0 0 1.0625rem;
-  padding-top: 0.5rem;
-}
-
-.badge {
-  color: var(--ink-faint);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.section {
-  color: var(--ink-faint);
-  font-size: 0.75rem;
-  letter-spacing: 0.02em;
-}
 
 /*
  * The answer to the PREVIOUS step, opening this one.
@@ -106,12 +73,6 @@
   margin: 0 0 1.25rem;
 }
 
-.cue {
-  color: var(--ink-faint);
-  font-size: 0.875rem;
-  font-style: italic;
-  margin: 0 0 0.75rem;
-}
 
 .reveal {
   background: var(--accent);
@@ -131,21 +92,49 @@
   filter: brightness(1.1);
 }
 
-.end {
-  color: var(--ink-faint);
-  font-size: 0.875rem;
-  margin: 0;
-}
 
+/*
+ * THE FOOT: where a reader goes that is not the next frame.
+ *
+ * Everything here is a move the reveal does not make — back one, out to the contents, on
+ * to the next section, or the key map — so it sits below the frame rather than beside the
+ * control the frame is built around. The reveal is still the only filled thing on the page.
+ *
+ * `flex-wrap`, and the two sides as their own flex rows: on a 360px screen the left pair
+ * (`← Previous` and `Next section →`) and the right pair (the position and `Keys`) each
+ * stay together and the two pairs stack, which is the readable break. Without the wrap the
+ * four items squeeze onto one line and the position ends up hyphenated.
+ */
 .foot {
+  align-items: flex-start;
   border-top: 1px solid var(--rule);
   color: var(--ink-faint);
   display: flex;
+  flex-wrap: wrap;
   font-size: 0.8125rem;
-  gap: 1rem;
+  gap: 0.75rem 1rem;
   justify-content: space-between;
   margin-top: 3rem;
   padding-top: 1rem;
+}
+
+.footLeft,
+.footRight {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
+/*
+ * A SECTION SKIP IS ONE CLICK FROM THE FRAME, and it is here rather than in the place row
+ * on purpose. The place row answers "where am I"; this answers "where next", and the two
+ * are different questions a reader asks at different moments — the first on arrival, the
+ * second at the end of a section. It renders only on the last frame of a section that is
+ * not the last of the program, so on the other forty-odd frames the foot is unchanged.
+ */
+.nextSection {
+  color: var(--accent);
 }
 
 /*
@@ -173,6 +162,30 @@
 
 :global([data-frame-keys='on']) .keys {
   visibility: visible;
+}
+
+/*
+ * ONE SEGMENT PER KEY, EACH GATED ON ITS OWN ISLAND.
+ *
+ * The line as a whole appears when `frame-keys.tsx` binds; each segment appears when the
+ * thing it names does. `Ctrl+Enter` belongs to the answer line, which exists only on the
+ * frames that ask for something, and `g` to the jumper — so a teaching frame's hint reads
+ * "→ next frame · ← previous frame · g go to a frame number" and a cue frame's has the
+ * fourth. A hint that promised a key the page has not got is worse than no hint: the
+ * reader presses it, nothing happens, and they stop trying the others.
+ *
+ * `display: none` here rather than `visibility`, and the difference from the line above is
+ * deliberate: the LINE must keep its space so revealing it shifts nothing, and a SEGMENT
+ * inside it must take none so the separators close up.
+ */
+.key {
+  display: none;
+}
+
+:global([data-answer-line='on']) .key[data-needs='answer-line'],
+:global([data-frame-jumper='on']) .key[data-needs='frame-jumper'],
+:global([data-frame-keys='on']) .key[data-needs='frame-keys'] {
+  display: inline;
 }
 
 /*

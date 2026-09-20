@@ -19,8 +19,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import fixture from './fixtures/book-p01.bundle.json' with { type: 'json' };
+import v2Fixture from './fixtures/book-p01.v2.bundle.json' with { type: 'json' };
 
 import schemaDocument from './content-schema.v1.json' with { type: 'json' };
+import schemaV2Document from './content-schema.v2.json' with { type: 'json' };
 
 import {
   unimplementedKeywords,
@@ -83,6 +85,20 @@ const addingAt = (path: string, value: unknown): unknown => {
   if (key in container) throw new Error(`"${path}" already exists in the fixture`);
   container[key] = value;
   return draft;
+};
+
+/**
+ * Assert the validator refused, and hand back everything it said.
+ *
+ * `refusedAt` is the sharper tool and is right nearly everywhere. This exists for the one
+ * case where the interesting claim is about the MESSAGE rather than the place: a v1 bundle
+ * relabelled v2 is refused at whichever route comes first, and pinning that index would be
+ * pinning the fixture's ordering rather than the rule.
+ */
+const refused = (value: unknown): readonly Problem[] => {
+  const result = validateBundle(value);
+  assert.equal(result.ok, false, 'expected this bundle to be refused, and it was accepted');
+  return result.ok ? [] : result.problems;
 };
 
 /** Assert the validator names this place, and say what it named instead when it does not. */
@@ -160,7 +176,31 @@ test('an unknown runtime is refused, because the application would load nothing 
 });
 
 test('a schema version this application does not read is refused, not adapted', () => {
-  refusedAt(settingAt('/schemaVersion', 2), '/schemaVersion');
+  /*
+    THIS TEST USED TO SET THE VERSION TO 2, AND ITS FAILURE WAS THE VERSION BUMP WORKING.
+
+    Two is read now, so the v1 fixture relabelled as v2 is validated against the v2 document
+    and refused for a reason about v2's rules rather than about the version. That is a better
+    fact and it has a test of its own below; this one keeps the question it was asking, with
+    a number nothing reads.
+  */
+  const problem = refusedAt(settingAt('/schemaVersion', 3), '/schemaVersion');
+  // Naming what IS read, because "unsupported version" sends the reader to the source.
+  assert.match(problem.message, /reads schema 1 and 2/);
+});
+
+test('relabelling a v1 bundle as v2 does not make it one', () => {
+  /*
+    The property the failure above exposed, kept as a guarantee: **a bundle is not upgraded
+    by editing one integer.** A v1 bundle's quiz routes carry no answer, so the v2 rules
+    refuse it — and the refusal names the missing field rather than the version, which is
+    what tells a compiler author what to emit next.
+  */
+  const problems = refused(settingAt('/schemaVersion', 2));
+  assert.match(
+    problems.map((problem) => problem.message).join('\n'),
+    /carries its answer in schema 2/,
+  );
 });
 
 // ── Structure: what JSON Schema cannot say ─────────────────────────────────────────────
@@ -359,4 +399,167 @@ test('while a property NAMED like a keyword is not mistaken for one', () => {
   // would report every field of every bundle as an unimplemented keyword — and, being
   // noisy rather than silent, would be switched off.
   assert.deepEqual(unimplementedKeywords({ properties: { enum: { type: 'string' } } }), []);
+});
+
+/* ══════════════════════════════════════════════════════════════════════════════════════
+ * SCHEMA 2 — the book's third stage, and the rules that keep it honest.
+ *
+ * Every assertion below is a REFUSAL, so every one of them is watched refusing. An
+ * acceptance test over a validator that accepts everything is green, and this file's own
+ * header says so about the keyword guard; the same standard applies to a version.
+ *
+ * The first test is the one that makes the rest mean anything: a v1 bundle still validates,
+ * unchanged, against the v1 document. Adding a version is only safe if the version already
+ * deployed takes the path it always took.
+ * ══════════════════════════════════════════════════════════════════════════════════════ */
+
+const v2Of = (): Record<string, unknown> => structuredClone(v2Fixture) as Record<string, unknown>;
+
+const quizOf = (bundle: Record<string, unknown>): Record<string, unknown> => {
+  const units = bundle['units'] as Record<string, unknown>[];
+  const routes = units[0]!['routes'] as Record<string, unknown>[];
+  const quiz = routes.find((route) => route['kind'] === 'quiz');
+  assert.ok(quiz, 'the v2 fixture has no quiz route, so the rules below assert nothing');
+  return quiz;
+};
+
+test('schema 2 reads, and schema 1 still reads exactly as it did', () => {
+  assert.equal(validateBundle(structuredClone(fixture)).ok, true, 'the v1 fixture stopped validating');
+  assert.equal(validateBundle(v2Of()).ok, true, 'the v2 fixture does not validate');
+});
+
+test('a bundle declaring no version at all is refused rather than assumed to be version 1', () => {
+  const nameless = v2Of();
+  delete nameless['schemaVersion'];
+
+  // The tempting default is 1, and it is wrong: a compiler that forgot the field is a
+  // compiler whose output nobody has characterised, and rendering it as the oldest shape is
+  // the "rendered in part" failure the version gate exists to prevent.
+  const result = validateBundle(nameless);
+  assert.equal(result.ok, false);
+  assert.equal(result.problems?.[0]?.path, '/schemaVersion');
+});
+
+test('a quiz route in schema 2 carries its question, and the rule is version-scoped', () => {
+  /*
+    THE DEFECT THIS VERSION EXISTS FOR. On the served v1 bundle all 279 outcome routes and
+    all 763 summary routes carry labels and all 370 quiz routes carry none — so the one
+    instrument the book asks a reader to use BEFORE a program is the one thing that cannot
+    be rendered.
+
+    The second half of this test is the half that matters: the same route at version 1 is
+    still fine. A rule that tightened v1 too would break every deployed bundle, and it would
+    pass a test that only checked the refusal.
+  */
+  const missing = v2Of();
+  delete quizOf(missing)['labels'];
+
+  const refused = validateBundle(missing);
+  assert.equal(refused.ok, false);
+  assert.match(refused.problems!.map((p) => p.message).join('\n'), /carries its question in schema 2/);
+
+  const asV1 = structuredClone(missing);
+  asV1['schemaVersion'] = 1;
+  delete quizOf(asV1)['answer']; // v1 has no such field, and refuses what it does not know.
+  const units = asV1['units'] as Record<string, unknown>[];
+  delete units[0]!['part'];
+  delete units[0]!['exercises'];
+
+  assert.equal(
+    validateBundle(asV1).ok,
+    true,
+    'the v2 quiz rule is being applied to a v1 bundle, which would refuse every bundle now deployed',
+  );
+});
+
+test('a quiz route in schema 2 carries its answer', () => {
+  const missing = v2Of();
+  delete quizOf(missing)['answer'];
+
+  const result = validateBundle(missing);
+  assert.equal(result.ok, false);
+  assert.match(result.problems!.map((p) => p.message).join('\n'), /carries its answer in schema 2/);
+});
+
+test('an exercise without an answer is refused, because all 771 in the book have one', () => {
+  /*
+    `answer` is REQUIRED rather than optional, and that is a measurement rather than a
+    preference: 395 Test exercises and 376 Further problems per edition, every one carrying
+    an `\answerto`. A universally present field modelled as optional is a field that can go
+    missing with nothing noticing — and the answer is the whole of what Appendix A is.
+  */
+  const bundle = v2Of();
+  const units = bundle['units'] as Record<string, unknown>[];
+  const exercises = units[0]!['exercises'] as Record<string, unknown>[];
+  delete exercises[0]!['answer'];
+
+  assert.equal(validateBundle(bundle).ok, false);
+});
+
+test('an exercise carrying a frame range is refused, which is what keeps the field absent', () => {
+  /*
+    The plan for this version proposed `teaches`, a frame range in the manner of a Quiz
+    route. The book's 47 programs contain ZERO exercise blocks carrying one, so it would be
+    a field no compiler could fill and every reader of the schema would wonder what did.
+
+    `additionalProperties: false` is what makes that absence enforceable rather than merely
+    documented, and this is the test that says so — without it, a compiler could emit the
+    field, nothing would object, and the application would silently ignore it.
+  */
+  const bundle = v2Of();
+  const units = bundle['units'] as Record<string, unknown>[];
+  const exercises = units[0]!['exercises'] as Record<string, unknown>[];
+  exercises[0]!['teaches'] = { from: 1, to: 4 };
+
+  assert.equal(validateBundle(bundle).ok, false);
+});
+
+test('exercises ascend within their kind, and the two kinds are numbered apart', () => {
+  /*
+    A reader is told to work Test exercise 4, so `n` is the reader's index into the list and
+    a repeat is a list that cannot be navigated. Within KIND rather than across the array,
+    because the book numbers the two lists from 1 independently — which the fixture exercises
+    by carrying a `test` 1, a `test` 2 and a `further` 1. If the rule were "ascends across the
+    array" that fixture would be refused, so this test proves both halves at once.
+  */
+  assert.equal(validateBundle(v2Of()).ok, true, 'a further problem numbered 1 after a test 2 was refused');
+
+  const repeated = v2Of();
+  const units = repeated['units'] as Record<string, unknown>[];
+  const exercises = units[0]!['exercises'] as Record<string, unknown>[];
+  exercises[1]!['n'] = 1;
+
+  const result = validateBundle(repeated);
+  assert.equal(result.ok, false);
+  assert.match(result.problems!.map((p) => p.message).join('\n'), /not after the previous test exercise's 1/);
+});
+
+test('an exercise missing a language is refused, as every other text is', () => {
+  // The rule that makes a bundle safe to render in either edition, applied to the fields
+  // this version adds. Nothing else in the application would notice a Polish reader being
+  // handed an English exercise — it would simply render one.
+  const bundle = v2Of();
+  const units = bundle['units'] as Record<string, unknown>[];
+  const exercises = units[0]!['exercises'] as Record<string, unknown>[];
+  delete (exercises[0]!['body'] as Record<string, unknown>)['pl'];
+
+  assert.equal(validateBundle(bundle).ok, false);
+});
+
+test('a part missing a language is refused too', () => {
+  const bundle = v2Of();
+  const units = bundle['units'] as Record<string, unknown>[];
+  const part = units[0]!['part'] as Record<string, Record<string, unknown>>;
+  delete part['titles']!['pl'];
+
+  assert.equal(validateBundle(bundle).ok, false);
+});
+
+test('both documents stay inside the subset this validator implements', () => {
+  // The guard that stops a rule being written in a keyword that silently does nothing. It
+  // matters more for v2 than for v1: the conditional rules ARE expressed elsewhere precisely
+  // because `if`/`then` is not implemented, and somebody who did not know that would reach
+  // for it first.
+  assert.deepEqual(unimplementedKeywords(schemaDocument as unknown as Parameters<typeof unimplementedKeywords>[0]), []);
+  assert.deepEqual(unimplementedKeywords(schemaV2Document as unknown as Parameters<typeof unimplementedKeywords>[0]), []);
 });

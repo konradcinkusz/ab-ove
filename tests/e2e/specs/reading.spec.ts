@@ -1,8 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { expect, test } from '@playwright/test';
+
+import { languages, track, uniqueProbeIn, unitNamed } from './support/bundle.ts';
 
 /**
  * JOURNEY — reading a program, which is the thing the product is for.
@@ -19,39 +17,23 @@ import { expect, test } from '@playwright/test';
  * So the first test below is the issue's sentence executed: start at frame 1, press one key
  * per frame, arrive at the last one, and check the right frame was on screen at every step.
  */
-const HERE = dirname(fileURLToPath(import.meta.url));
+/*
+  THE PROGRAM THIS SUITE READS, from the bundle the application serves.
 
-function bundle() {
-  const path = join(
-    HERE,
-    '..',
-    '..',
-    '..',
-    'web',
-    'app',
-    'src',
-    'lib',
-    'content',
-    'fixtures',
-    'book-p01.bundle.json',
-  );
-  const parsed = JSON.parse(readFileSync(path, 'utf8'));
-  const unit = parsed?.units?.[0];
-  if (!parsed?.track?.id || !unit?.id || !Array.isArray(unit.steps)) {
-    throw new Error(
-      `${path} no longer has the shape this suite reads. Fixture and spec must move together.`,
-    );
-  }
-  return {
-    track: parsed.track.id as string,
-    languages: parsed.track.languages as string[],
-    unit: unit.id as string,
-    steps: unit.steps as { n: number; body: Record<string, string> }[],
-  };
-}
+  F01 by name rather than "the first unit", because the assertions below are about a
+  reader moving through a whole program and F01 is the one every reader opens first — and
+  because `units[0]` would silently become a different program the day the manifest's
+  order changes, which is a suite testing something else without saying so.
 
-const { track, languages, unit, steps } = bundle();
-const at = (language: string, n: number): string => `/read/${track}/${unit}/${language}/${n}`;
+  `uniqueProbeIn` rather than the body itself: a real frame is Markdown with KaTeX in it
+  and none of that source string is on the rendered page. See specs/support/bundle.ts.
+*/
+const unitId = 'F01';
+const unit = unitNamed(unitId);
+const steps = unit.steps;
+
+const at = (language: string, n: number): string =>
+  `/read/${track}/${unitId}/${language}/${n}`;
 
 /**
  * Open a frame and wait until the keyboard path is actually live.
@@ -79,6 +61,29 @@ async function openReady(
   n: number,
 ): Promise<void> {
   await page.goto(at(language, n));
+  await keysReady(page);
+}
+
+/**
+ * Wait until the page's keyboard handler has bound, before pressing one of its keys.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE SAME WAIT `openReady` DOES, BUT AFTER A CLIENT-SIDE NAVIGATION — AND THE ABSENCE OF
+ * IT COST TWO MINUTES PER RUN AND READ LIKE A BROKEN KEY.
+ *
+ * `waitForURL` resolves on `load`, which is before React has hydrated the island that
+ * listens for the arrow keys. A press in that window reaches a page with no handler on it
+ * and is simply lost — and the test then waits out its whole budget for a navigation that
+ * was never going to happen, reporting the wait rather than the press.
+ *
+ * Measured rather than reasoned about: pressing `←` on the summary immediately after
+ * arriving there times out, and pressing it after this wait navigates in under a second.
+ * The product is right and the suite was wrong — this file's own header says the page
+ * "cannot promise a shortcut that is not live, and this suite cannot press one", which is
+ * exactly the rule these two presses were skipping.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+async function keysReady(page: import('@playwright/test').Page): Promise<void> {
   await expect(
     page.locator('[data-frame-keys="on"]'),
     'the keyboard handler never attached, so nothing below would be pressing anything',
@@ -90,7 +95,7 @@ test.describe('reading ergonomics', () => {
     expect(steps.length, 'a one-frame program would make this test vacuous').toBeGreaterThan(1);
 
     await openReady(page, 'en', 1);
-    await expect(page.locator('body')).toContainText(steps[0]!.body.en!);
+    await expect(page.locator('body')).toContainText(uniqueProbeIn(unit, 1, 'en'));
 
     // One key per frame, from the top of the document, with nothing focused. That is the
     // whole claim: no Tab, no mouse, no hunting for the control.
@@ -100,15 +105,23 @@ test.describe('reading ergonomics', () => {
       await expect(
         page.locator('body'),
         `pressing forward from frame ${n - 1} did not produce frame ${n}`,
-      ).toContainText(steps[n - 1]!.body.en!);
+      ).toContainText(uniqueProbeIn(unit, n, 'en'));
     }
 
-    // And the end is an end: the last frame says so rather than offering a control that
-    // goes nowhere, and a further press changes nothing.
-    const wasAt = page.url();
+    // And the end HANDS OFF rather than being a wall. It used to be one: `→` on the last
+    // frame did nothing, which is a defensible answer to "there is no frame 46" and a poor
+    // one to "I have finished this program". The summary is what comes next, so the same
+    // key opens it — and a reader who read the whole program with one finger never has to
+    // find a mouse to leave it.
     await page.keyboard.press('ArrowRight');
-    await page.waitForTimeout(400);
-    expect(page.url(), 'the last frame advanced to something').toBe(wasAt);
+    await page.waitForURL(`**/read/${track}/${unitId}/en/summary`);
+
+    // Symmetric, or a reader who arrived by `→` is stranded on a screen whose own key map
+    // promises `← back`. The wait is not a flake guard: the summary is a different page
+    // with its own island, and pressing before it binds is pressing at nothing.
+    await keysReady(page);
+    await page.keyboard.press('ArrowLeft');
+    await page.waitForURL(`**${at('en', steps.length)}`);
   });
 
   test('and back again, one frame at a time @core', async ({ page }) => {
@@ -117,7 +130,7 @@ test.describe('reading ergonomics', () => {
       await page.keyboard.press('ArrowLeft');
       await page.waitForURL(`**${at('en', n)}`);
     }
-    await expect(page.locator('body')).toContainText(steps[0]!.body.en!);
+    await expect(page.locator('body')).toContainText(uniqueProbeIn(unit, 1, 'en'));
 
     // Frame 1 has nowhere to go back to, and the key does nothing rather than wrapping to
     // the end of the program — which is the shape of "nothing happened" a reader can trust.
@@ -191,7 +204,15 @@ test.describe('reading ergonomics', () => {
     const said: Record<string, string> = {};
     for (const language of languages) {
       await openReady(page, language, 1);
-      const hint = page.locator(`[lang="${language}"]`).filter({ hasText: '→' }).last();
+      // BY ITS OWN HOOK, and that is a change this suite had to make rather than chose.
+      // The locator used to be "the last element carrying this language that contains an
+      // arrow", which worked while the hint was the only such thing on the page. The foot
+      // now carries a `Keys` disclosure holding the same arrows, and it is always visible
+      // — so the old locator would have quietly moved to an element that cannot fail the
+      // visibility assertion below, and this test would have gone on passing while testing
+      // nothing. See frame-view.tsx for why the hook is a `data-testid`.
+      const hint = page.getByTestId('frame-keys-hint');
+      await expect(hint, `the hint is not one element on the ${language} frame`).toHaveCount(1);
       // VISIBLE, not merely present: the hint is hidden until the shortcut is live, so
       // `toHaveCount(1)` alone would pass on a page that never promises anything a reader
       // can see.
@@ -242,16 +263,17 @@ test.describe('reading ergonomics', () => {
     // it: without that this test would be measuring a fresh document and reporting a
     // reassuring zero for the wrong reason.
     // ──────────────────────────────────────────────────────────────────────────────────
-    // FIXED IN PASSING, because `pnpm typecheck` in this package did not pass and an entry
-    // point that fails is the "documentation that lies" this package's own README objects to.
-    // The line here was `steps.findIndex((step, index) => index > 0 && steps[index])` — and
-    // `steps[index]` IS `step`, so the predicate reduced to `index > 0` and the search always
-    // answered 1. It was a guard on the fixture's length wearing a search's clothes, and its
-    // result was never read. Written as the guard it is — and against THREE, because the
-    // assertion at the foot of this test reads `steps[2]`, which two frames do not have.
-    expect(steps.length, 'this test reads steps[2], so the fixture needs three frames').toBeGreaterThan(2);
+    // AND IT IS MEASURED ON A FRAME THAT CARRIES DISPLAY MATHS, which the fixture this
+    // suite used to read had none of. A KaTeX subtree is the one thing on these pages whose
+    // height depends on a font file arriving, so measuring the reveal on a paragraph of
+    // plain prose would report a reassuring zero about the case that cannot shift. The
+    // frame is chosen from the served bundle rather than written down, so it stays a
+    // maths-heavy frame when the book renumbers itself.
+    const heavy = steps.find((step) => step.n > 1 && (step.body.en ?? '').includes('$$'));
+    if (!heavy) throw new Error(`${unitId} has no display maths, so this test measures nothing`);
+    const before = heavy.n - 1;
 
-    await page.goto(at('en', 2));
+    await page.goto(at('en', before));
     await page.evaluate(() => {
       const scope = window as unknown as { __shift: number };
       scope.__shift = 0;
@@ -265,9 +287,9 @@ test.describe('reading ergonomics', () => {
       }).observe({ type: 'layout-shift', buffered: true });
     });
 
-    await page.locator(`a[href="${at('en', 3)}"]`).click();
-    await page.waitForURL(`**${at('en', 3)}`);
-    await expect(page.locator('body')).toContainText(steps[2]!.body.en!);
+    await page.locator(`a[href="${at('en', heavy.n)}"]`).click();
+    await page.waitForURL(`**${at('en', heavy.n)}`);
+    await expect(page.locator('body')).toContainText(uniqueProbeIn(unit, heavy.n, 'en'));
     await page.waitForTimeout(700);
 
     const shift = await page.evaluate(

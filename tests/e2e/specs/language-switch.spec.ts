@@ -1,8 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { expect, test } from '@playwright/test';
+
+import { languages, track, uniqueProbeIn, unitNamed } from './support/bundle.ts';
 
 /**
  * JOURNEY — reading the same frame in the other edition.
@@ -25,39 +23,11 @@ import { expect, test } from '@playwright/test';
  * controls stop following the edition. A spec asserting "Pokaż odpowiedź" would be a second
  * copy of a string that has a source, drifting the first time somebody reworded it.
  */
-const HERE = dirname(fileURLToPath(import.meta.url));
-
-function bundle() {
-  const path = join(
-    HERE,
-    '..',
-    '..',
-    '..',
-    'web',
-    'app',
-    'src',
-    'lib',
-    'content',
-    'fixtures',
-    'book-p01.bundle.json',
-  );
-  const parsed = JSON.parse(readFileSync(path, 'utf8'));
-  const unit = parsed?.units?.[0];
-  if (!parsed?.track?.id || !unit?.id || !Array.isArray(unit.steps)) {
-    throw new Error(
-      `${path} no longer has the shape this suite reads. Fixture and spec must move together.`,
-    );
-  }
-  return {
-    track: parsed.track.id as string,
-    languages: parsed.track.languages as string[],
-    unit: unit.id as string,
-    unitTitles: unit.titles as Record<string, string>,
-    steps: unit.steps as { n: number; body: Record<string, string> }[],
-  };
-}
-
-const { track, languages, unit, unitTitles, steps } = bundle();
+/* F01 from the served bundle — see specs/support/bundle.ts. */
+const unit = 'F01';
+const program = unitNamed(unit);
+const unitTitles = program.titles;
+const steps = program.steps;
 
 const contentsAt = (language: string): string => `/read/${track}/${unit}/${language}`;
 const frameAt = (language: string, n: number): string => `${contentsAt(language)}/${n}`;
@@ -78,20 +48,20 @@ test.describe('the language switch', () => {
     expect(n, 'the fixture needs a frame that is not the first').toBeGreaterThan(1);
 
     await page.goto(frameAt(first, n));
-    await expect(page.locator('body')).toContainText(steps[n - 1]!.body[first]!);
+    await expect(page.locator('body')).toContainText(uniqueProbeIn(program, n, first));
 
     await page.locator(`a[href="${frameAt(second, n)}"]`).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt(second, n)}$`));
     await expect(
       page.locator('body'),
       'the switch did not land on the same frame in the other edition',
-    ).toContainText(steps[n - 1]!.body[second]!);
+    ).toContainText(uniqueProbeIn(program, n, second));
 
     // And back, to the same place. A switch that is not its own inverse is a switch that
     // loses the position on the second press rather than the first.
     await page.locator(`a[href="${frameAt(first, n)}"]`).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt(first, n)}$`));
-    await expect(page.locator('body')).toContainText(steps[n - 1]!.body[first]!);
+    await expect(page.locator('body')).toContainText(uniqueProbeIn(program, n, first));
   });
 
   test('switching on a contents page keeps the program @core', async ({ page }) => {

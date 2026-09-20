@@ -28,8 +28,8 @@ something is in the reader loop at all.
 | `/` | the landing page: every program as a tile, and the edition switch | nothing |
 | `/about` | what the product is, the anti-goal, the loop, the integration panel | nothing |
 | `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a navigation | nothing |
-| `/read/<track>/<unit>/<lang>/lab/<id>/<step>` | the same frame with the lab pane beside it | nothing |
-| `/lab/<id>` | the book's exercises under Pyodide, in this tab | nothing |
+| `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, and the way into the next one | nothing |
+| `/lab/<id>` | the book's exercises under Pyodide — reached from P01's summary only, and on its way out ([ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md)) | nothing |
 | `/login` | a form that posts credentials to this app's own BFF | an identity service |
 | `/account` | the reader's own progress, export and deletion | an account |
 | `/instrument` | the author's view: frames ranked by how badly the book is doing | an account |
@@ -135,72 +135,85 @@ page depends on it.
 
 ### `/read/<track>/<unit>/<lang>/<step>` — one frame
 
-`web/app/src/app/read/[track]/[unit]/[lang]/[step]/page.tsx`. A Server Component with no client
-boundary, which is what makes the answer **absent rather than hidden**: the reveal is a
-navigation to `n + 1`, so the answer to the frame you are on is rendered by the request for the
-*next* one and by nothing before it. `prefetch={false}` on that one link is part of the same
-property and is the half that is easy to lose.
+`web/app/src/app/read/[track]/[unit]/[lang]/[step]/page.tsx`. A Server Component that renders
+the frame, with three client islands on it and no client boundary around the frame itself —
+which is what makes the answer **absent rather than hidden**: the reveal is a navigation to
+`n + 1`, so the answer to the frame you are on is rendered by the request for the *next* one
+and by nothing before it. `prefetch={false}` on that one link is part of the same property and
+is the half that is easy to lose.
 
 The URL is the position, so it survives a reload with no session. `/read/` is in the
-middleware's public-prefix list.
+middleware's public-prefix list, and so is `/katex/`, without which every font request from a
+reader with no session redirects to `/login` and the system-font fallback hides the break.
 
-`.../lab/<id>/<step>` is the same page with the lab pane beside it — requirement 1.5, and
-the same `FrameView` with one extra prop: the prefix its reveal, its back link, its keyboard
-shortcut and its edition switch are built from. The lab sits ABOVE the step in the path so
-that turning a frame changes a segment under the layout, which is what keeps the pane
-mounted and the reader's exercise file with it; below the step both URLs render the same two
-components and every reveal discards the editor. The frame arrives at the layout as
-`children`, already rendered and still one step, so the absence above is a property of this
-route too rather than a claim carried over — `specs/frame-and-lab.spec.ts` asserts it again
-over the markup, because two components meeting is where it would be lost.
+**The body is the book's own Markdown and KaTeX**, rendered on the server through an
+allow-list that throws on anything it does not know — tables, code fences, the six admonition
+kinds, 21 714 maths spans. [ADR-0037](../adr/0037-the-books-prose-is-rendered-not-interpolated.md).
 
-#### On a phone the pane goes below the frame, and does not become a tab
+#### One place row, and the rest of the chrome is gone
 
-**This is the decision #54 was opened to take, and it is written here rather than left in a
-stylesheet because it is a decision about the product.** Requirement 1.5 had said *below* since
-it was written; an external proposal for this layout said **tabs on a phone, or nothing at
-all**. Those are different products on a small screen, so one of them had to win and the
-reason had to be recorded. **Below wins, 1.5's wording stands, and it was not close.**
+`F01 · <title>  ›  <section>    English · polski    [12] / 45`. It replaced a crumb chain, a
+language row with its own label, a rule-and-badge row and a foot count — four things saying
+where the reader is in four ways, around one question. The frame number **is** an input: type
+a number, press Enter, arrive. `→`/`←` move; `g` focuses the jumper; `Enter` puts the caret in
+the answer line; `Ctrl/⌘+Enter` commits and reveals; `Esc` returns to reading. Every segment
+of the one-line hint is gated on the island that implements it, and while a field has focus
+the line says what is true *there*, because the arrows are dead inside a text field.
 
-Three things decided it, in this order.
+The row is a `<div>`. It must not be a `<nav>` — `language-switch.spec.ts` counts navigations
+containing a `[lang]` descendant and expects one — and it was a `<p>`, which **cannot contain
+a `<nav>`**, so hydration failed on every frame page in the book until it was measured.
+`hydration.spec.ts` is the guard. [ADR-0041](../adr/0041-the-reading-surface-shows-position-and-never-progress.md).
 
-1. **A tab hides the frame, and 1.5's last clause forbids exactly that** — *it never covers
-   the frame a reader is working from*. Reading that clause as being only about `z-index` is
-   reading it as a rule about CSS rather than about a reader: a reader whose frame is behind
-   an inactive tab cannot see the question they are answering, and the only way back is a
-   control the pane owns. The clause is about what is on screen, and tabs make the two halves
-   mutually exclusive by construction.
-2. **The stacked layout already fits 360 px, so tabs would buy nothing.** Measured against the
-   fixture bundle at 360x640, in both editions: `scrollWidth` equals `clientWidth` and no
-   element's right edge passes the viewport, so nothing scrolls sideways; the frame occupies
-   the first 525 to 758 px, which is about one screen; and the reveal lands around y=304 —
-   above the fold, and above the pane in source order, so the pane has nothing it can push.
-   The cost of stacking is scroll distance, and the remedy for scroll distance is a link.
-3. **Tabs would cost this route its shape.** The frame is a sibling of the pane rather than a
-   child of it so that its markup stays out of a Client Component's props, which is the one
-   thing on this page serialised into the document for hydration; a tab container is exactly
-   that wrapper. The CSS-only alternatives avoid the client boundary and buy the other half
-   of the problem — the inactive panel is `display: none`, so find-in-page stops finding the
-   frame, and a `:target` fragment ends up competing with the URL for the job of saying where
-   the reader is.
+#### The dotted row is the answer line, and that reverses what this document used to say
 
-**What stacking costs, and the one control that pays for it.** The two halves are one above
-the other, so the editor opens about 1,390 px down and the page runs to about 2,800: a reader
-at the foot of the checks is some four screens below the question. The foot of the pane
-therefore carries **one link back to the frame**, below the two-column breakpoint only, and
-`frame-beside-lab.tsx` renders it outside `LabPane` because it is navigation between the two
-halves rather than something the lab contains. **A sticky version was rejected**: it would be
-one tap from anywhere instead of one tap from the end, and it would spend the property that
-makes the last clause free — two grid tracks with nothing positioned, floated or given a
-`z-index` cannot overlap, and that is a guarantee rather than a promise somebody keeps.
+It said the row carries **no input**, "a decision rather than an omission". It is now the
+place the reader writes, because the book's method is one sentence — *write your answer down,
+on paper, and only then uncover* — and the product asked the reader to commit and gave them
+nowhere to do it. #58 is resolved in the opposite direction to its own draft recommendation:
+certainty was answering the wrong question. The field is the commitment device; whether a
+verdict can be computed decides only whether one sentence appears beside it on the next frame.
 
-`specs/narrow-screen.spec.ts` holds all of it at 360 px, and the two assertions a reader
-would feel — the frame becoming unreachable, and the page scrolling sideways — are `@smoke`
-so that the run which gates a merge is the one that sees them.
+The machine may say **matches the book** and may never say anything else. A verdict is given
+only where the book's **whole** answer is one number: 85 frames of 1 036, which is the
+hand-reviewed list in `lib/sheet/verdictable.json`. That is not the same quantity as
+`number.ts`'s 11%, which counts answers that merely *open* with a number — `$x \ge 5$` is one
+of those, and a reader who types `5` at it has not matched anything. For the other nine in ten
+the reader's own line is shown beside the book's and the comparison is by eye, which is the
+paper method.
+[ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md).
 
-The dotted row under the question carries **no input**, and that is a decision rather than an
-omission — see #48, which records what that costs the instrument, and #58, which is where it is
-argued.
+Under the line, two disclosures, both closed on arrival and never opened by the page:
+**Working**, a pad whose lines evaluate
+([ADR-0042](../adr/0042-the-evaluator-is-a-calculator-not-a-cas.md)), and **Sketch**, a canvas
+([ADR-0043](../adr/0043-a-sketch-is-strokes-and-the-pane-never-opens-itself.md)). Nothing above
+the reveal grows after paint, which is why neither remembers having been open and why the
+sketch's *Show my sketch* is decided from a synchronous flag rather than from IndexedDB.
+
+#### The lab pane is not on this route any more
+
+`.../lab/<id>/<step>` is deleted, with `frame-beside-lab.tsx`, the check offer on every frame,
+and `specs/frame-and-lab.spec.ts` and `specs/lab-from-frame.spec.ts`. The owner's instruction
+was that the lab must stop being Python; the measurements behind it — one program of
+forty-seven, 6.4 MB and two seconds on every visit, and effectively no answer in the book that
+is a Python one-liner — are in
+[ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md), which also carries the
+deletion checklist for the console that remains.
+
+**What #54 decided is inherited rather than lost.** That issue's ruling was *below, never a
+tab*, and its reasoning was that a tab hides the frame a reader is working from, that nothing
+positioned, floated or given a `z-index` cannot overlap by construction, and that a guarantee
+beats a promise somebody keeps. The worksheet is built on exactly that: one column, source
+order, nothing sticky, `touch-action: none` on the canvas **alone** so that a finger drawing
+does not scroll the page and a finger beside it still can.
+
+**What it cost is now smaller and is still a cost.** The old stacked route put the editor about
+1 390 px down and ran to 2 800. The worksheet's own honest figure is one scroll: measured on a
+cue frame following a cue frame — the stack that is the book's answer, the reader's own line,
+the body, the answer line, the two disclosures and the reveal — the median such frame puts the
+reveal about one screen down at 640 px. That is the accepted cost and `specs/narrow-screen.spec.ts`
+asserts the source order, the absence of anything positioned and that the canvas does not
+capture page scroll, rather than asserting a fold it cannot honestly claim.
 
 ### `/lab/<id>` — the exercises
 
@@ -217,12 +230,21 @@ The stub is fetched from this origin, the checks are read out of the book's own 
 at boot rather than copied here, and a failure names the frames to re-read and never the
 solution.
 
-**Beside the frame it is `/read/<track>/<unit>/<lang>/lab/<id>/<step>`**, which is
-requirement 1.5's wide screen (#53). It renders `<LabPane>` unchanged, from a layout that
-also renders the frame; #54 settled the narrow screen — the pane goes **below**, not into a
-tab, and the argument is above under *On a phone the pane goes below the frame* — and #55 is
-the control on a frame that carries a `check`, which is what will send a reader there without
-typing a URL.
+**It is no longer beside a frame.** `/read/<track>/<unit>/<lang>/lab/<id>/<step>` is deleted
+and so is the check offer that led to it; #53, #54 and #55 are discharged with it. This page
+is reached from one line on P01's summary screen and from nowhere else on the reading
+surface, which is the only place the word Python now appears to a reader. What #54 settled —
+below, never a tab, nothing positioned — is inherited by the worksheet rather than lost, and
+is asserted at 360 px against the canvas in `specs/narrow-screen.spec.ts`.
+
+<!-- Superseded text, kept because the reasoning behind #53-#55 is still worth reading:
+the pane rendered from a layout that also rendered the frame, so turning a frame changed a
+segment under the layout and the reader's exercise file survived the reveal. That property
+is what a composed route buys and it is what was given up. -->
+
+#55 would have put a control on every frame carrying a `check`, so a reader reached this
+page without typing a URL. It is not built and will not be: the control it describes is the
+check offer that ADR-0040 removed.
 
 ### `/account` — the reader's own record
 
@@ -236,6 +258,18 @@ Frames ranked worst first, each carrying its own interval, a frame's place decid
 rather than by one failing check. *early, not wrong* appears beside the number on every row
 whose interval is not disjoint from the row below it. Session-gated, and there is no per-reader
 view on it — by architectural absence rather than by policy.
+
+**Two instruments reach it now, and the screen says which produced each cell.** A lab check
+asks whether the reader's code satisfied an assertion; a worksheet answer asks whether the
+number they wrote before the reveal is the number the book prints. They coincide on eleven
+frames of P01 and they do not measure the same thing, so the word is on the row rather than in
+a legend. The index lists the pinned bundle's units rather than the units with labs — a
+worksheet answer is reported from any program, so a list built from the labs would have shown
+one and withheld forty-six. Most of those tables are empty today, which is said rather than
+hidden: an author who cannot tell *nothing here* from *not measured here* is worse off than one
+reading a zero. And a worksheet frame sits under **no teaching score** permanently rather than
+thinly — an answer written before a reveal belongs to that frame and is never used at a later
+one, so there is no downstream for it to have ([ADR-0045](../adr/0045-a-worksheet-answer-is-one-cell-and-a-blank-fails-it.md)).
 
 ### What is behind them
 
@@ -346,10 +380,10 @@ written.
 | 100 | probe | #56 | Does a canonical form give a stable digest | — |
 | 110 | blocked | #57 | How many of the book's answers are checkable at all | — |
 | 120 | decision | #58 | Does a frame accept the reader's answer (a new ADR) | — |
-| 130 | feature | #59 | Schema v2: the answer model | — |
+| 130 | feature | #59 | Schema v2 — **defined, and it is not the answer model.** #58 was resolved so that the answer field needs no schema change at all, so what v2 carries instead is the two things a v1 bundle cannot render: a Quiz route's question and answer (370 routes carry neither), and the book's third stage (395 Test exercises and 376 Further problems per edition). Nothing renders from it until a compiler emits one; the request is in `docs/architecture/CONTENT-SCHEMA-V2-REQUEST.md` | [ADR-0046](../adr/0046-schema-2-carries-the-books-third-stage.md) |
 | 140 | feature | #60 | The answer field, and a verdict computed in the browser | — |
-| 150 | feature | #61 | The answer verdict reaches the existing tally | — |
-| 160 | feature | #62 | The counter-metric: revealed without answering | — |
+| 150 | feature | #61 | The answer verdict reaches the existing tally | [ADR-0045](../adr/0045-a-worksheet-answer-is-one-cell-and-a-blank-fails-it.md) |
+| 160 | feature | #62 | The counter-metric: revealed without answering — **folded into 150 rather than built.** A cell of its own could only ever carry `passed: false`, so its rate was 0% by construction, and it pooled into the first-attempt measure on the eleven frames of P01 where a lab check and a cue frame coincide. A blank now fails the same cell a wrong answer fails. What is genuinely lost — telling a give-up from a miss — wants a field outside the score, and is owed | [ADR-0045](../adr/0045-a-worksheet-answer-is-one-cell-and-a-blank-fails-it.md) §3 |
 | 170 | infra | #63 | Postgres and `AbOvo.Api` in the e2e job | — |
 | 180 | testing | #64 | A spec driving the proxy with a real bearer to a real API | — |
 | 190 | manual | #65 | Create the Fly deploy token | — |
@@ -407,7 +441,7 @@ the largest thing that needs no backend and no content bundle.*
 | 1.2 | **Editor and run control.** Plain text editing, monospace, tab handling, a visible Run. No autocomplete, no language server, no AI assistance ([ADR-0010](../adr/0010-no-language-model-in-the-loop.md)). | A reader can type a solution, run it, and see stdout and the traceback unedited. |
 | 1.3 | **Check results.** Per check: pass, fail, or `todo` for a stub. A failure names **the frames to re-read**, never the solution. | The message is the covered answer box. A check that passes on an empty stub is a defect, and the engine is watched failing on stubs before it is believed. |
 | 1.4 | **Exercise state is local.** The reader's code is theirs; it is kept in the browser and sent nowhere. | Nothing leaves the origin. The colophon's promise stays true with the pane open. |
-| 1.5 | **The pane's relationship to the frame.** It sits beside the reading column on a wide screen and below it on a narrow one; it never covers the frame a reader is working from. Both are built: `/read/<track>/<unit>/<lang>/lab/<id>/<step>`, two grid tracks that divide at 80 rem (#53), with the frame first in source order at every width and the pane stacked under it below that (#54). **Below rather than tabbed was the open question and it is settled** — a tab hides the frame, which the last clause above forbids; the argument and the 360 px measurements are under *On a phone the pane goes below the frame*. | Usable at 360 px without the frame becoming unreachable. Measured: nothing scrolls sideways in either edition, the reveal sits above the pane and above the fold, and the foot of the pane links back to the frame. `specs/narrow-screen.spec.ts`. |
+| 1.5 | ~~**The pane's relationship to the frame.** It sits beside the reading column on a wide screen and below it on a narrow one; it never covers the frame a reader is working from.~~ **Superseded by [ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md):** the lab is no longer beside a frame at all, and the composed route, the check offer and their specs are deleted. The requirement's *reasoning* survives it and was the right reasoning — a tab hides the frame, and two tracks with nothing positioned, floated or given a `z-index` cannot overlap by construction. The worksheet that replaced the pane is built on exactly that. | Discharged. What the clause protects is now asserted against the worksheet and the canvas at 360 px: nothing scrolls sideways, nothing is positioned or floated, and `touch-action: none` is on the canvas and on no ancestor of it, so a finger can draw and can still scroll past. `specs/narrow-screen.spec.ts`. |
 
 ### Phase 2 — content schema and the frame view
 

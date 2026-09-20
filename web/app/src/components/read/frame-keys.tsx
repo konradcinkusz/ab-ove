@@ -8,6 +8,13 @@ export interface FrameKeysProps {
   readonly base: string;
   /** How many steps this unit has, so the ends of the program are ends. */
   readonly last: number;
+  /**
+   * Where `→` on the LAST frame goes, instead of doing nothing — `/summary`, when the
+   * component rendering this is on a program's final step. Absent everywhere else, so the
+   * one place this program's own ceiling stops being a wall is the one place a reader has
+   * actually finished the program.
+   */
+  readonly after?: string;
 }
 
 /**
@@ -49,8 +56,17 @@ export interface FrameKeysProps {
  * tabbing to anything: focus lands on `<body>` after a soft navigation (measured), so a
  * handler on any focusable element would need three tabs first, which is the state this
  * component exists to replace.
+ *
+ * `g` FOCUSES THE FRAME JUMPER RATHER THAN NAVIGATING ANYTHING ITSELF. It is the one letter
+ * key this handler recognises, on the reasoning `place-row.tsx`'s own header gives for why
+ * the jumper is one Tab from the top for a reader who never learns it: `g` is what every
+ * reading application a reader has met already uses to "go to", so a single guarded letter
+ * costs nothing that Space or the arrows would. It reaches the input by DOM id rather than
+ * by any prop this component holds, because `frame-jumper.tsx` is an independently-mounted
+ * Client Component and a `ref` cannot cross that boundary — the id is the one thing both
+ * sides can agree on without either one holding a reference to the other.
  */
-export function FrameKeys({ base, last }: FrameKeysProps): null {
+export function FrameKeys({ base, last, after }: FrameKeysProps): null {
   const router = useRouter();
 
   useEffect(() => {
@@ -90,6 +106,14 @@ export function FrameKeys({ base, last }: FrameKeysProps): null {
       if (target?.isContentEditable) return;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
 
+      if (event.key === 'g') {
+        const jumper = document.getElementById('frame-jumper');
+        if (!jumper) return; // Not mounted yet, or not on this screen — do nothing.
+        event.preventDefault();
+        jumper.focus();
+        return;
+      }
+
       const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
       if (step === 0) return;
 
@@ -98,12 +122,18 @@ export function FrameKeys({ base, last }: FrameKeysProps): null {
       if (!Number.isInteger(here)) return;
 
       const to = here + step;
-      // The ends of the program are ends: the key does nothing rather than wrapping round,
-      // which is the shape of "nothing happened" a reader can trust.
-      if (to < 1 || to > last) return;
+      if (to < 1) return; // The start of the program is a start.
 
-      // Only once we are certain we are acting: past the last frame ArrowRight must still
-      // do whatever the browser would have done.
+      if (to > last) {
+        // The end of the program used to be a wall; now `→` opens the one thing past it.
+        // Still nothing on `←`, and still nothing at all when nowhere has been declared —
+        // a program's own summary route may not exist yet on every caller of this component.
+        if (!after) return;
+        event.preventDefault();
+        router.push(after);
+        return;
+      }
+
       event.preventDefault();
       router.push(`${base}/${to}`);
     };
@@ -113,7 +143,7 @@ export function FrameKeys({ base, last }: FrameKeysProps): null {
       document.removeEventListener('keydown', onKeyDown);
       delete document.documentElement.dataset.frameKeys;
     };
-  }, [base, last, router]);
+  }, [base, last, after, router]);
 
   return null;
 }

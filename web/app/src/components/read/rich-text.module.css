@@ -1,0 +1,125 @@
+/*
+ * The book's own shapes: paragraphs, tables, admonitions, code, KaTeX — everything
+ * `rich-text.tsx`'s allow-list can produce. Nothing here is a font choice for its own sake;
+ * the body's serif and the code/maths mono/text split already exist in `frame-view.module.css`
+ * and `globals.css`, and this file extends that vocabulary rather than starting a second one.
+ */
+
+.prose > * + * {
+  margin-top: 1.1em;
+}
+
+.prose > *:first-child {
+  margin-top: 0;
+}
+
+.prose > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Admonitions — the book's six, one visual grammar (CLAUDE.md: "two box treatments"). Trap
+   and Warning are the pair a reader must stop at; the rest are read in passing. */
+.admonition {
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  padding: 0.9rem 1.1rem;
+}
+
+.admonition[data-kind='trap'],
+.admonition[data-kind='warning'] {
+  background: var(--degraded-soft);
+  border-left-color: var(--degraded);
+}
+
+.admonitionTitle {
+  font-weight: 700;
+  margin: 0 0 0.4em;
+}
+
+.blockquote {
+  border-left: 3px solid var(--rule);
+  color: var(--ink-soft);
+  margin: 0;
+  padding-left: 1rem;
+}
+
+/* Code — fenced blocks and inline spans both take the monospace face; a fenced block gets
+   its own background so it reads as something to copy rather than as emphasised prose. */
+.code {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  font-size: 0.9em;
+  overflow-x: auto;
+  padding: 0.75rem 1rem;
+}
+
+.code code {
+  font-family: var(--font-mono);
+}
+
+.list {
+  margin: 0;
+  padding-left: 1.4em;
+}
+
+.list li + li {
+  margin-top: 0.35em;
+}
+
+.hr {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 0;
+}
+
+/* KaTeX sizes its display maths to its own content; this keeps a wide formula from forcing
+   the page wider than the measure rather than scrolling like a table does — a formula reads
+   worse cut off than compressed by a hair, which `overflow-x` on the wrapper still allows
+   if it ever needs to. */
+.prose :global(.katex-display) {
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Tables scroll inside the measure rather than widening the page — CLAUDE.md's own "display
+   maths and tables scroll inside the 34rem measure" rule, carried over from the book. */
+.tableScroll {
+  overflow-x: auto;
+}
+
+.table {
+  border-collapse: collapse;
+  font-size: 0.95em;
+  width: 100%;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid var(--rule);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  vertical-align: baseline;
+}
+
+.table th {
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+/* The reader's own written line, and the book's answer when it sits beside it — set as
+   typed rather than as typeset prose, so the eye does not mistake one for a rival of the
+   other. Maths inside it still renders; only the surrounding text changes face. */
+.typewritten {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+
+.typewritten p {
+  margin: 0;
+}
+
+.typewritten p + p {
+  margin-top: 0.6em;
+}

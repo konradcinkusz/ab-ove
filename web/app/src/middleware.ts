@@ -115,6 +115,11 @@ const PUBLIC_PREFIXES: readonly string[] = [
   // and it belongs in the list a reviewer greps for product decisions.
   '/book/', // the fetched book content, pinned — web/content/book.lock.json
   '/pyodide/', // the Python runtime, vendored and served from our own origin (FRONTEND-BFF §1)
+  // And the maths. Same class as the two above and a worse failure than either: KaTeX falls
+  // back to system fonts when its faces 307 to /login, so the page renders, nothing errors,
+  // and the maths is merely a bit wrong — where the lab at least sits visibly on "loading
+  // Python…" for ever. scripts/prepare-katex-assets.mjs stages these.
+  '/katex/',
 ];
 
 /**

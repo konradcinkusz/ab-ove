@@ -1,0 +1,352 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/konradcinkusz/ab-ove/blob/main/web/app/src/lib/content/content-schema.v2.json",
+  "title": "ab-ovo content bundle, schema version 2",
+  "$comment": [
+    "VERSION 2 IS VERSION 1 PLUS THE BOOK'S THIRD STAGE.",
+    "",
+    "The book teaches with worked answers, elicits in frames, and then asks the reader to",
+    "solve alone. That last stage has no representation in v1 at all, so the application's",
+    "summary screen names it in one apologetic sentence, and the Quiz -- the book's own entry",
+    "instrument -- cannot be rendered from a v1 bundle because its 370 routes carry no",
+    "question text.",
+    "",
+    "EVERY FIELD HERE WAS ADDED AGAINST A COUNT RATHER THAN A SKETCH, and three fields that",
+    "were proposed are deliberately absent for the same reason. The measurements are in the",
+    "$comment on each definition and the reasoning is ADR-0046.",
+    "",
+    "THE CONTRACT BETWEEN N CONTENT COMPILERS AND ONE APPLICATION.",
+    "",
+    "This repository owns the schema; each track owns its own compiler and its own content",
+    "repository (book issue #239 §6). The book's compiler is one producer and a Python",
+    "track's compiler will be another, so nothing in here may assume the content is a book",
+    "of frames — the minimum unit is a title and a body, and the Stroud mechanics",
+    "(question, covered answer, next-frame cue) are ONE step kind rather than the shape of",
+    "a step.",
+    "",
+    "It is JSON Schema rather than a TypeScript type because the first producer is Python.",
+    "A contract the producer cannot check is a contract the producer discovers by having a",
+    "bundle rejected, and #239 §1 requires the opposite: 'The compiler REFUSES rather than",
+    "degrades.' It needs something to refuse against before it attaches a bundle to a",
+    "release.",
+    "",
+    "validate.ts enforces this document by READING it rather than by restating it, so the",
+    "two cannot drift — and it refuses outright a schema using a keyword it does not",
+    "implement, because a validator that silently ignores a constraint is indistinguishable",
+    "from one that passes.",
+    "",
+    "WHAT JSON SCHEMA CANNOT SAY, and validate.ts therefore also checks: that a cue is",
+    "followed by an answer and an answer is preceded by a cue; that steps are contiguous",
+    "from 1; that every range endpoint and every section anchor names a step that exists;",
+    "that every declared language is present in every text. Each of those is a defect the",
+    "book's own gates were written after shipping — a Quiz route to frames 91-93 of a",
+    "48-frame program passed every check it had."
+  ],
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "track",
+    "tag",
+    "units"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "$comment": "A v1 bundle is still valid and is still validated against the v1 document, which is why there are two files rather than one with conditionals in it. This application reads both; a third version is refused rather than rendered in part.",
+      "const": 2
+    },
+    "tag": {
+      "$comment": "The content tag. The application pins (track, tag) PAIRS, never a tag alone (#239 §6), and phase 4 records outcomes against a frame IN A BUNDLE VERSION so a rate never averages a reader's experience of two different texts.",
+      "type": "string",
+      "minLength": 1
+    },
+    "track": {
+      "type": "object",
+      "required": [
+        "id",
+        "titles",
+        "languages"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "titles": {
+          "$ref": "#/$defs/text"
+        },
+        "languages": {
+          "$comment": "Every language this track claims. Every text in the bundle must carry every one of them — a half-translated bundle renders a blank where a reader expected prose.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z]{2}$"
+          }
+        }
+      }
+    },
+    "units": {
+      "$comment": "Ordered. A unit is the navigable thing — a program here, a lesson elsewhere.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/unit"
+      }
+    },
+    "labs": {
+      "$comment": "Optional: a track may have no runnable exercises at all. Each entry is a reference, never the exercise text — the lab engine is fetched from the track's own repository and its layout is load-bearing.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/lab"
+      }
+    }
+  },
+  "$defs": {
+    "text": {
+      "$comment": "A string per language code. Checked against track.languages by validate.ts, which JSON Schema cannot do because the key set is data.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9]+([A-Za-z0-9_-]*[A-Za-z0-9])?$"
+    },
+    "unit": {
+      "type": "object",
+      "required": [
+        "id",
+        "titles",
+        "steps"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "titles": {
+          "$ref": "#/$defs/text"
+        },
+        "sections": {
+          "$comment": "HEADINGS, NOT A LEVEL OF THE TREE. The book navigates by unit and step and never by section — 'every Summary back-reference, every Quiz route and every cross-reference in the book names a program and a frame'. Modelling sections as a container would put a level in the schema that nothing addresses. ONE RULE HERE IS NOT EXPRESSIBLE IN JSON SCHEMA and validate.ts carries it instead: firstStep must ascend strictly across this array, because a heading's span ends where the next heading begins and nothing else says where it stops. Steps before the first section's firstStep are legitimate — an opener under no heading.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "titles",
+              "firstStep"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/id"
+              },
+              "titles": {
+                "$ref": "#/$defs/text"
+              },
+              "firstStep": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "routes": {
+          "$comment": "A Quiz item, an outcome, a Summary bracket: anything that sends a reader back to a span of steps. One shape for all of them, because the failure they share is an endpoint that does not exist.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/route"
+          }
+        },
+        "part": {
+          "$ref": "#/$defs/part"
+        },
+        "exercises": {
+          "$comment": "Ordered by `n` within each kind; checkStructure holds that, as it holds the sections' ascent, because neither is expressible here.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/exercise"
+          }
+        }
+      }
+    },
+    "step": {
+      "$comment": "THE MINIMUM UNIT IS title + body (#239 §6). Everything else is a property of one kind of step. A track with no frames renders from title and body alone rather than faking a question nobody asked.",
+      "type": "object",
+      "required": [
+        "n",
+        "kind",
+        "body"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "kind": {
+          "enum": [
+            "frame",
+            "prose"
+          ]
+        },
+        "section": {
+          "$ref": "#/$defs/id"
+        },
+        "titles": {
+          "$ref": "#/$defs/text"
+        },
+        "body": {
+          "$ref": "#/$defs/text"
+        },
+        "answer": {
+          "$comment": "THE OPENING OF THIS STEP, WHICH ANSWERS THE PREVIOUS ONE. That is the book's own mechanic — '\\ans{} opens a frame with the previous frame's answer' — and reproducing it rather than inventing a parallel one is what makes the answer ABSENT from the DOM before a reveal rather than merely hidden: deliver one step at a time and the next step's opening has not been sent yet.",
+          "$ref": "#/$defs/text"
+        },
+        "cue": {
+          "$comment": "'The next step opens with an answer.' True if and only if step n+1 carries one, which validate.ts checks in both directions — the book's C16, whose whole reason for existing is that a cue dropped from both editions at once is invisible to every check that compares them.",
+          "type": "boolean"
+        },
+        "check": {
+          "$comment": "The optional check of #239 §6's minimum unit. A reference into labs[], never an exercise body.",
+          "type": "object",
+          "required": [
+            "lab",
+            "exercise"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "lab": {
+              "$ref": "#/$defs/id"
+            },
+            "exercise": {
+              "$ref": "#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    "route": {
+      "type": "object",
+      "required": [
+        "kind",
+        "from",
+        "to"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "quiz",
+            "outcome",
+            "summary"
+          ]
+        },
+        "labels": {
+          "$ref": "#/$defs/text"
+        },
+        "from": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "to": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "answer": {
+          "$comment": "Appendix A's answer to this question. In the bundle always; on the question's own page never -- which is a route rather than an omission, as it is for a frame.",
+          "$ref": "#/$defs/text"
+        }
+      },
+      "$comment": "A QUIZ ROUTE CARRIES ITS QUESTION AND ITS ANSWER IN v2, AND CARRIED NEITHER IN v1. Measured on the served bundle: all 279 outcome routes and all 763 summary routes have labels, and all 370 quiz routes have none -- so the one instrument the book asks a reader to use BEFORE reading a program is the one thing a v1 bundle cannot render. labels and answer stay OPTIONAL in this document and are required for kind: quiz by checkStructure, because this validator implements no if/then and a conditional written in a keyword it ignores is a rule that silently does nothing."
+    },
+    "lab": {
+      "type": "object",
+      "required": [
+        "id",
+        "runtime",
+        "exercises"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "runtime": {
+          "$comment": "#239 §6: the track manifest names the runtime each lab needs, so the application loads numpy only for the labs that say so and the cost is a decision rather than a default. A VALUE HERE IS NOT FREE, and a compiler author should know before emitting one: the application serves the Python runtime from its own origin and nothing else (UI-UX.md rule 4), so a runtime whose wheels are not staged there is refused at build time rather than fetched from a CDN at read time. Today that means \"numpy\" would be rejected — see ADR-0032 and web/app/src/lib/content/runtime-assets.ts, which names the files and what taking the decision would involve.",
+          "enum": [
+            "stdlib",
+            "numpy"
+          ]
+        },
+        "exercises": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        }
+      }
+    },
+    "part": {
+      "$comment": "THE PART A UNIT BELONGS TO, and optional because it is a property of THIS book rather than of a track. The book has nine; a Python track may have none, and inventing one to fill the field would put a heading in a contents page that is in no edition. It carries no step range on purpose: a part's span is the units that name it, and a range stated separately is a second source for one fact -- which is exactly the defect the book's own check_structure.py --parts exists to catch, after seven of the nine ranges printed in its introduction were found wrong in both editions.",
+      "type": "object",
+      "required": [
+        "id",
+        "titles"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "titles": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "exercise": {
+      "$comment": "THE THIRD STAGE: 395 Test exercises and 376 Further problems per edition, identical counts in English and Polish. TWO DECISIONS HERE ARE MEASUREMENTS AND NOT PREFERENCES. There is no `teaches` frame range, in the manner of a Quiz route, because the book's 47 programs contain ZERO exercise blocks carrying one -- it would be a field no compiler could fill and every reader of this schema would wonder what fills it. And `answer` is REQUIRED rather than optional, because all 771 per edition carry one: a universally present field made optional is a field that can go missing with nothing noticing, and the answer is the whole of what the book's Appendix A is. Keeping it off the question's own page is the ROUTE's job, exactly as it is for step.answer, not the schema's.",
+      "type": "object",
+      "required": [
+        "kind",
+        "n",
+        "body",
+        "answer"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$comment": "Test exercises are the book's scored instrument and Further problems are not. They are otherwise the same shape, so the distinction is the reader's rather than the renderer's, and it is data rather than two arrays.",
+          "enum": [
+            "test",
+            "further"
+          ]
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "body": {
+          "$ref": "#/$defs/text"
+        },
+        "answer": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    }
+  }
+}

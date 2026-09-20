@@ -118,6 +118,11 @@ docs/papers/*.pdf
 __pycache__/
 *.pyc
 
+## The compiled content bundle — book.lock.json's `contentBundle`. Same rule, one file
+## instead of eight: it is compiled by scripts/fetch-book-content.sh from the book's own
+## programs/{en,pl} at the pinned revision, and nothing under it is authored here either.
+/web/content/bundle/
+
 ## ── Visual Studio IDE state. .vs/ is one developer's machine: the solution's .suo,
 ## the window layout, the design-time build cache and the Copilot semantic index —
 ## binary, rewritten on every keystroke, and meaningless in anyone else's checkout.

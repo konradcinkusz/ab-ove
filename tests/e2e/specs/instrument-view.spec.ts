@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { served, track } from './support/bundle.js';
+
 /**
  * JOURNEY — the author's view, and the promise it must not break.
  *
@@ -183,5 +185,28 @@ test.describe('the author’s view ranks frames and names no reader', () => {
     // the email — `/api/auth/session` returns it — so a view that greeted them by name would
     // be one query away from a view that ranked them.
     await expect(page.getByRole('main')).not.toContainText('reader@example.test');
+
+    /*
+      ───────────────────────────────────────────────────────────────────────
+      EVERY UNIT, NOT EVERY UNIT WITH A LAB. This list used to be built from `LABS`, on the
+      reasoning that a cell exists because a reader ran a check and a check exists because a
+      lab does. The worksheet made that false: an answer is reported from any program's
+      reveal, so an index built from the labs would offer one link and silently withhold the
+      other forty-six units' data (ADR-0045 §6).
+
+      Asserted against the served bundle rather than a number, because 47 is a property of
+      the pin and moves when it does.
+      ───────────────────────────────────────────────────────────────────────
+    */
+    const units = page.getByRole('list', { name: /units with measured frames/i }).getByRole('listitem');
+    await expect(units).toHaveCount(served.units.length);
+    expect(served.units.length, 'a one-unit bundle would make the assertion above vacuous').toBeGreaterThan(1);
+
+    // A unit with no lab, named explicitly: the whole of what changed is that these appear.
+    const noLab = served.units.find((unit) => unit.id !== 'P01')!;
+    await expect(
+      page.locator(`a[href="/instrument/${track}/${noLab.id}"]`),
+      'a unit with no lab is missing from the index the worksheet now feeds',
+    ).toHaveCount(1);
   });
 });

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { track, unitNamed } from './support/bundle.ts';
+
 /**
  * JOURNEY 1b — the landing page is the programs, and one click reaches one of them.
  *
@@ -23,16 +25,28 @@ import { expect, test } from '@playwright/test';
  * where the same grid is asserted with the API unreachable.
  *
  * LOCATORS. Role plus accessible name, then text — preferences 1 and 2 of
- * E2E-ACCEPTANCE-TESTING.md §3. The fixture this suite runs against publishes one track and
- * one program, P01, in two editions; a second program changes counts and not one locator
- * below, because every one of them names what it is looking for.
+ * E2E-ACCEPTANCE-TESTING.md §3. Every locator below names what it is looking for, so a
+ * bundle with forty-seven programs in it rather than one changes counts and not locators.
  */
 
-/** The fixture's one program, in both editions. Named once so a re-titled fixture is one edit. */
+/*
+ * P01'S TITLE IS READ FROM THE SERVED BUNDLE, AND IT USED TO BE TYPED HERE.
+ *
+ * It was `How a computer stores a number` — which is the FIXTURE's P01, and the fixture is
+ * not the book. The moment the application started serving the real forty-seven programs
+ * this file was asserting against a title nothing publishes: P01 is `Floating point: what
+ * the machine actually computes`, and two tests failed on a link that does not exist.
+ *
+ * Replacing one literal with the other would buy one green run and the same failure at the
+ * next re-title, silently, because nothing compares a string in a spec with the book. So
+ * the title comes from the bundle the application is serving — see specs/support/bundle.ts,
+ * which is where this suite's expected strings live for exactly this reason.
+ */
+const p01 = unitNamed('P01');
 const P01 = {
-  en: 'How a computer stores a number',
-  pl: 'Jak komputer przechowuje liczbę',
-  href: { en: '/read/math-for-ai-engineers/P01/en', pl: '/read/math-for-ai-engineers/P01/pl' },
+  en: p01.titles['en']!,
+  pl: p01.titles['pl']!,
+  href: { en: `/read/${track}/P01/en`, pl: `/read/${track}/P01/pl` },
 };
 
 test.describe('landing page', () => {

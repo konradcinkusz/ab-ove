@@ -98,6 +98,22 @@
   color: var(--ink-faint);
 }
 
+/*
+  WHICH INSTRUMENT A CELL CAME FROM. Set as a word rather than a colour: an author reading
+  this list is being asked to keep two measures apart, and a legend they have to remember is
+  the wrong instrument for that -- it is also the only form that survives being printed, read
+  aloud, or looked at by somebody who cannot tell the two hues apart.
+*/
+.source {
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--ink-faint);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  padding: 0 0.3em;
+  text-transform: uppercase;
+}
+
 .cellRate {
   font-family: var(--font-mono);
   margin-left: auto;

@@ -52,16 +52,23 @@ the reader who skims gets nothing, and paper has no way to notice.
 This repository stands at **builds, tests green, images build**. There is no running
 instance of ab-ovo, at any address, for anybody.
 
-What exists is the scaffold, one thin vertical slice through it, and **the lab pane**: an
-API with a health endpoint and a service-info endpoint, a web app whose landing page is the
-index of programs and whose `/about` carries the argument and a live integration panel, a
-Playwright acceptance suite, four `fly.toml` files describing a
+What exists is **the reading surface, over the whole book**: all 47 programs in both
+editions, one frame a screen, with the book's own Markdown and maths; a place row that is
+the only chrome and whose frame number is a jumper; and a worksheet on every frame that asks
+for something — a line to answer on, a pad that evaluates arithmetic, a canvas to sketch on.
+Behind it: an API with a health endpoint and a service-info endpoint, a web app whose
+landing page is the index of programs and whose `/about` carries the argument and a live
+integration panel, a Playwright acceptance suite, four `fly.toml` files describing a
 topology that has never been applied, and the CI gates that would catch a regression in any
-of it. The domain model is still **one entity** — `ReaderProgress`, which arrived with
+of it.
+
+The domain model is still **one entity** — `ReaderProgress`, which arrived with
 synchronisation (#11) and is the only thing this estate stores about anybody. There are no
 frames and no exercises in any database, because the frames are a content bundle the reader
-fetches and the lab runs in the browser; entities invented ahead of the ticket that needs
-them are code the first real ticket deletes (INIT-GENERIC-TEMPLATE.md §12).
+fetches; and nothing a reader writes on a frame is stored anywhere but their own browser
+([ADR-0039](docs/adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)). Entities
+invented ahead of the ticket that needs them are code the first real ticket deletes
+(INIT-GENERIC-TEMPLATE.md §12).
 
 That sentence used to read "there is deliberately no domain model yet — no frames, no
 progress, no exercises in the database". It had been false since #11, on the front page.
@@ -88,27 +95,24 @@ reader who opens the inspector finds the answer nowhere, and prefetching is off 
 on the wire either. Both halves are asserted, and both were watched failing before they were
 believed.
 
-**And the two halves of the loop now share a page.**
-`/read/<track>/<program>/<language>/lab/<lab>/<frame>` renders the frame and the lab pane
-side by side on a wide screen, in two grid tracks rather than an overlay, so the pane cannot
-cover the frame the exercise is about. The frame reaches the composition already rendered,
-as one step, so nothing above changes: the answer is still absent and the reveal is still a
-navigation with prefetching off, asserted again on the composed route because two components
-meeting is where such a property is lost. What is left of it is the narrow screen.
+**The lab left the reader loop.** `/read/<track>/<program>/<language>/lab/<lab>/<frame>`
+rendered the frame and the lab pane side by side, and it is deleted along with the check
+offer that led to it. The reason is the owner's and it is short: a reader of a mathematics
+book should not have to write Python to answer a frame, and measured across the book's 1 036
+answers, effectively none of them is a Python one-liner. What a reader gets instead is a
+worksheet on every frame that asks for something — a line to answer on, a pad, a canvas —
+and what the composed route taught about narrow screens is inherited by it rather than lost
+([ADR-0040](docs/adr/0040-the-python-lab-leaves-the-reader-loop.md)).
 
-**And a frame that carries an exercise leads there.** A step may name one — the content
-schema calls it a `check`, "a reference into `labs[]`, never an exercise body" — and a frame
-that has one offers it by name, at the frame the reader is on and in the edition they are
-reading. A frame that has none offers nothing and says nothing. The lab and the exercise
-come out of that one reference, so nothing can send a reader to the right lab and the wrong
-exercise; a check naming a lab the bundle does not carry is refused by the validator, so the
-bundle does not load and no control is rendered to be dead.
-
-**Phase 2b is blocked and not by us.** The frame view is reading a **fixture** — four steps
-written for this repository and marked as such. The real content is the book's 47 programs
-as a versioned bundle on the book's own releases, and no such release exists yet. The
-schema, the loader, the view and the link from a frame to its exercise did not have to wait
-for it, and do not.
+**Phase 2b is unblocked, and not by a release.** The frame view read a **fixture** — four
+steps written for this repository — because the real content is the book's 47 programs as a
+versioned bundle and no release of the book carries one. It still does not. So the bundle is
+compiled here instead, from the book's tarball at a pinned commit, with the book's own
+compiler and its own cross-check; the application now serves all 47 programs, 1 873 frames
+and 21 714 maths spans. That is a deviation with a register row and an exit condition — the
+exit being the first release that carries a bundle
+([ADR-0038](docs/adr/0038-the-bundle-is-compiled-at-a-pinned-revision.md)). The fixture stays
+as the unit tier's control, because a test whose input is the thing under test proves less.
 
 The phase plan is in [docs/ux/UI-UX.md](docs/ux/UI-UX.md), ranked, so the first delivery
 session picks it up rather than re-deriving it.
@@ -305,13 +309,22 @@ this repository look the way they do.
 2. **Commit an answer before you turn over.** The commitment is the mechanism.
 3. **Reveal the next frame**, which opens with the answer. Compare, then carry on or go
    back one.
-4. **Work the computer exercises in the lab pane.** Python runs in your browser under
-   Pyodide; your code does not leave the machine
-   ([ADR-0007](docs/adr/0007-exercise-checks-are-python-in-the-browser.md)).
+4. **Work it out beside the frame if you need to.** A pad that evaluates a line of
+   arithmetic ([ADR-0042](docs/adr/0042-the-evaluator-is-a-calculator-not-a-cas.md)) and a
+   canvas to sketch on ([ADR-0043](docs/adr/0043-a-sketch-is-strokes-and-the-pane-never-opens-itself.md)).
+   Neither is a programming language, and nothing you write on a frame leaves your browser
+   ([ADR-0039](docs/adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
 
 None of those four steps talks to a server. Frames are served with the site as a versioned
-content bundle ([ADR-0008](docs/adr/0008-content-is-a-versioned-bundle.md)) and the lab runs
-client-side.
+content bundle ([ADR-0008](docs/adr/0008-content-is-a-versioned-bundle.md)), compiled from
+the book at a pinned revision
+([ADR-0038](docs/adr/0038-the-bundle-is-compiled-at-a-pinned-revision.md)), and everything
+the reader writes is local.
+
+The book's **Python exercises** are still here, at `/lab/p01`, reached from that program's
+summary screen. They are one program of forty-seven and they are on their way out —
+[ADR-0040](docs/adr/0040-the-python-lab-leaves-the-reader-loop.md) says why and carries the
+deletion checklist.
 
 **An account adds synchronisation and nothing else** — your place in the book following you
 between machines. It is not a gate on any of the four steps above, it is the last phase of

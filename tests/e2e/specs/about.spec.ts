@@ -109,7 +109,18 @@ test.describe('about page', () => {
     await expect(steps.nth(0)).toContainText('Read a frame.');
     await expect(steps.nth(1)).toContainText('Commit an answer before you turn over.');
     await expect(steps.nth(2)).toContainText('Reveal the next frame, which opens with the answer.');
-    await expect(steps.nth(3)).toContainText('work them in the lab pane');
+    await expect(steps.nth(3)).toContainText('nothing in the loop asks you to write code');
+
+    /*
+      THIS ASSERTION USED TO READ `'work them in the lab pane'`, and it changed because the
+      product did: the Python lab is no longer a step in the reader loop. What a frame asks
+      for is a number, a word or a line of working, and a first screen that tells a reader
+      otherwise loses the readers who do not write code — which is most of them, since the
+      book's own front matter assumes no more than school arithmetic.
+
+      Asserted on the CLAUSE rather than on the whole sentence: the sentence around it is
+      editorial and will be reworded, and the promise is not.
+    */
   });
 
   test('promises the reader loop needs no account and no backend @core', async ({ page }) => {

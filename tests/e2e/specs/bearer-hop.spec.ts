@@ -566,8 +566,14 @@ test.describe('a refusal from the API reaches the reader as a sentence', () => {
     await signIn(page, READER);
 
     // Reached the way a reader reaches it, so the link the index offers is part of the claim.
+    //
+    // BY THE UNIT ID, WHICH IS WHAT THE INDEX NOW OFFERS. It read `Program P1` while the list
+    // was built from `LABS`; it is built from the pinned bundle's units since the worksheet
+    // began reporting from every program (ADR-0045 section 6), so the link is the id. Named
+    // off `UNIT` rather than spelled again, because the next line already asserts the heading
+    // against it and the two must be the same unit or this test proves nothing about the hop.
     await page.goto('/instrument');
-    await page.getByRole('link', { name: 'Program P1' }).click();
+    await page.getByRole('link', { name: UNIT, exact: true }).click();
     await expect(page.getByRole('heading', { level: 1 })).toContainText(UNIT);
 
     const main = page.getByRole('main');
