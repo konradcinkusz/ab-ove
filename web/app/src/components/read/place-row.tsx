@@ -1,11 +1,12 @@
 import Link from 'next/link';
 
+import { LanguageChoice } from '@/components/language/language-choice';
 import type { SectionSpan } from '@/lib/content/bundle';
 import type { Section } from '@/lib/content/schema';
 import type { Chrome } from '@/lib/i18n/chrome';
+import { editionHrefs } from '@/lib/language/hrefs';
 
 import { FrameJumper } from './frame-jumper.tsx';
-import { LanguageSwitch } from './language-switch.tsx';
 import styles from './place-row.module.css';
 import { RichInline } from './rich-text.tsx';
 
@@ -52,10 +53,12 @@ export interface PlaceRowProps {
  * IT IS A `<div>`, AND IT IS NOT A `<nav>` — two separate decisions, one of which was got
  * wrong first and broke every frame page in the book.
  *
- * Not a `<nav>`: `language-switch.spec.ts` locates the switch by
+ * Not a `<nav>`: `language-choice.spec.ts` locates the control by
  * `page.getByRole('navigation').filter({ has: page.locator('[lang=pl]') })` and asserts
  * `toHaveCount(1)`, so a second `<nav>` containing a `[lang]` descendant would make the
- * switch ambiguous. That reasoning stands. This row HOLDS a `<nav>`; it is not one.
+ * control ambiguous. That reasoning stands, and ADR-0052 sharpened it: there is now exactly
+ * one language control per screen in the whole product, so the count is a property of the
+ * design and not only of this row. This row HOLDS that `<nav>`; it is not one.
  *
  * THE FIRST DRAFT CONCLUDED FROM THAT THAT IT SHOULD BE A `<p>`, AND `<p>` CANNOT CONTAIN
  * A `<nav>`. The HTML parser closes an open `<p>` when it meets flow content that may not
@@ -206,9 +209,14 @@ export function PlaceRow({
       </div>
 
       <span className={styles.controls}>
-        <LanguageSwitch
+        {/*
+          THE LANGUAGE CONTROL — this screen's only one, at the top of it (ADR-0052). The
+          href is the same path with one segment changed, so switching at frame 31 lands on
+          frame 31; the click is what makes the choice stick for every screen after this one.
+        */}
+        <LanguageChoice
           current={language}
-          hrefFor={(other) => `${contentsHrefFor(other)}/${current}`}
+          hrefs={editionHrefs(trackLanguages, (other) => `${contentsHrefFor(other)}/${current}`)}
           label={chrome.languageLabel}
           labelLanguage={chrome.language}
           languages={trackLanguages}

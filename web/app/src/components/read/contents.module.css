@@ -41,6 +41,33 @@
   color: inherit;
 }
 
+/*
+ * The left-hand group of the crumb row: the way back, and the language control beside it
+ * (ADR-0052). Its own flex container so the two sit on one line and wrap together on a
+ * narrow screen, rather than the control being pushed to the row's far end where
+ * `justify-content: space-between` would put a third child.
+ *
+ * `baseline` rather than `center`, matching the row it is in: the control's type is the
+ * crumb's, and two flex contexts aligning their children differently is what makes a row of
+ * small text look like two rows of it.
+ */
+.crumbSide {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+/*
+ * The control's own links are the accent colour by default; inside the crumb they are the
+ * crumb's. The row is chrome and a language name in it is not a call to action — the reader
+ * reaching for it already knows where it is, because it is in the same corner of every
+ * screen in the product.
+ */
+.crumbSide nav a {
+  color: inherit;
+}
+
 .heading {
   border-top: 1px solid var(--rule);
   color: var(--ink-faint);

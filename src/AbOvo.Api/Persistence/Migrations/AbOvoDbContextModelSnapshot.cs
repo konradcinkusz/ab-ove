@@ -59,6 +59,25 @@ namespace AbOvo.Api.Persistence.Migrations
                     b.ToTable("FrameOutcomes");
                 });
 
+            modelBuilder.Entity("AbOvo.Api.Persistence.ReaderPreference", b =>
+                {
+                    b.Property<string>("Subject")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Subject");
+
+                    b.ToTable("ReaderPreferences");
+                });
+
             modelBuilder.Entity("AbOvo.Api.Persistence.ReaderProgress", b =>
                 {
                     b.Property<string>("Subject")

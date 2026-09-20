@@ -1,11 +1,16 @@
 %% Deletion: what goes, what stays, and what no deletion can reach.
 %% ONE DIAGRAM PER FILE. ASCII ONLY.
 
-%% THE PROGRESS GOES FIRST, AND THE SCREEN SAYS WHAT IT CANNOT REACH (ADR-0021). Because an
-%% outcome carries no reader, nothing can find the rows that were yours -- so a contribution
-%% already folded into a rate cannot be retracted. That is the cost of the architectural
-%% absence that makes a per-reader score unbuildable, and the reader is told it rather than
-%% left to assume the opposite.
+%% EVERY READER-SCOPED ROW GOES FIRST, AND THE SCREEN SAYS WHAT IT CANNOT REACH (ADR-0021).
+%% The order is about the SUBJECT: once the identity service has marked the account, nobody
+%% can sign in as that subject again, so anything still filed under it in apidb is
+%% unreachable by any reader for ever. That is true of the chosen edition (ADR-0052) exactly
+%% as it is of the place, which is why both go before the account rather than after.
+
+%% AND BECAUSE AN OUTCOME CARRIES NO READER, nothing can find the rows that were yours -- so
+%% a contribution already folded into a rate cannot be retracted. That is the cost of the
+%% architectural absence that makes a per-reader score unbuildable, and the reader is told it
+%% rather than left to assume the opposite.
 
 %% THE IDENTITY SERVICE MARKS AND SCHEDULES RATHER THAN ERASES. This repository does not own
 %% authdb and does not claim on its behalf; the screen says what the identity service does,
@@ -16,12 +21,12 @@
 
 flowchart TD
   ASK["The reader asks<br/>on /account"]
-  P1["1. DELETE /api/v1/progress<br/>the reader's own rows, gone"]
+  P1["1. DELETE /api/v1/progress<br/>and /api/v1/preferences/language<br/>the reader's own rows, gone"]
   P2["2. The identity service<br/>marks and schedules"]
   P3["3. Local state cleared<br/>position, worksheet, consent"]
   DONE["/account/deleted<br/>says what happened"]
 
-  GONE["What goes<br/>ReaderProgress rows,<br/>the local copy,<br/>the account"]
+  GONE["What goes<br/>ReaderProgress and<br/>ReaderPreference rows,<br/>the local copy,<br/>the account"]
   STAYS["What stays<br/>anonymous tallies already<br/>folded into a rate"]
   CANNOT["What nothing can reach<br/>a FrameOutcome has no reader,<br/>so no query can find yours"]
 

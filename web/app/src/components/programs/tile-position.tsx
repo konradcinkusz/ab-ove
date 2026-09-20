@@ -19,7 +19,7 @@ export interface TilePositionProps {
    * An id read off the manifest by `unitBefore`, never an id with one taken off it.
    */
   readonly previous: string | undefined;
-  /** The chrome's own language — the index has no reader edition (ADR-0015). */
+  /** The index's edition, which the chrome follows (ADR-0016, unconditional since ADR-0052). */
   readonly language: string;
 }
 

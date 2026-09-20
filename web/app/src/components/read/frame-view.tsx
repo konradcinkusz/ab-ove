@@ -362,7 +362,7 @@ export function FrameView({
           rather than any element containing an arrow, because the foot's key map contains
           the same arrows and is always visible where this one is hidden until the handler
           attaches. Locating it by its words would be a second copy of the string under
-          test, which is exactly what specs/language-switch.spec.ts refuses to do.
+          test, which is exactly what specs/language-choice.spec.ts refuses to do.
         */
         data-testid="frame-keys-hint"
         lang={chrome.language}

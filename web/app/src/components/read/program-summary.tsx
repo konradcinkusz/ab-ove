@@ -1,15 +1,16 @@
 import Link from 'next/link';
 
 import { ConsentControl } from '@/components/consent/consent-control';
+import { LanguageChoice } from '@/components/language/language-choice';
 import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { say, unitBefore } from '@/lib/content/bundle';
 import type { Bundle, Route, Unit } from '@/lib/content/schema';
 import { chromeFor } from '@/lib/i18n/chrome';
+import { editionHrefs } from '@/lib/language/hrefs';
 import { labFor } from '@/lib/lab/protocol';
 
 import styles from './contents.module.css';
 import { KeysDetails } from './keys-details.tsx';
-import { LanguageSwitch } from './language-switch.tsx';
 import { ProgramGate } from './program-gate.tsx';
 import summaryStyles from './program-summary.module.css';
 import { RichInline } from './rich-text.tsx';
@@ -115,22 +116,28 @@ export function ProgramSummary({
         ────────────────────────────────────────────────────────────────────────────────
       */}
 
-      <p className={styles.crumb} lang={chrome.language}>
-        <span>
-          <Link href={contentsAt}>{unit.id}</Link>
-          {' · '}
-          <Link href="/">{chrome.programs}</Link>
+      {/* A `<div>` and not a `<p>`: the control is a `<nav>` — `program-contents.tsx` says why. */}
+      <div className={styles.crumb} lang={chrome.language}>
+        <span className={styles.crumbSide}>
+          <span>
+            <Link href={contentsAt}>{unit.id}</Link>
+            {' · '}
+            <Link href="/">{chrome.programs}</Link>
+          </span>
+          {/* THE language control for this screen, at the top of it (ADR-0052). */}
+          <LanguageChoice
+            current={language}
+            hrefs={editionHrefs(
+              bundle.track.languages,
+              (other) => `/read/${track}/${unit.id}/${other}/summary`,
+            )}
+            label={chrome.languageLabel}
+            labelLanguage={chrome.language}
+            languages={bundle.track.languages}
+          />
         </span>
         <Link href={at(unit.steps.length)}>{chrome.backToLastFrame}</Link>
-      </p>
-
-      <LanguageSwitch
-        current={language}
-        hrefFor={(other) => `/read/${track}/${unit.id}/${other}/summary`}
-        label={chrome.languageLabel}
-        labelLanguage={chrome.language}
-        languages={bundle.track.languages}
-      />
+      </div>
 
       <h1 className={styles.programTitle}>
         <RichInline language={language} text={say(unit.titles, language)} />

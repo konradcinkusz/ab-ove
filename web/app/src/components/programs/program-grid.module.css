@@ -44,6 +44,7 @@
   color: var(--ink-faint);
 }
 
+/* The destinations, the theme, and the controls that are about this reader. */
 .chrome {
   align-items: baseline;
   color: var(--ink-faint);
@@ -54,13 +55,16 @@
   gap: 0.5rem 1.25rem;
 }
 
+
 .chromeLink {
   color: inherit;
 }
 
 /*
- * The section label and the edition switch share a line, and the switch is at the end of it
- * because it qualifies the grid below rather than introducing it.
+ * The section label and this page's one language control, sharing a line. The control is at
+ * the far end because it qualifies the grid below rather than introducing it — and it is in
+ * THIS row rather than the masthead because this one is rendered whole on the server, where
+ * the masthead's right-hand end grows after hydration (the component says what that cost).
  */
 .headingRow {
   align-items: baseline;
@@ -79,27 +83,6 @@
   letter-spacing: 0.1em;
   margin: 0;
   text-transform: uppercase;
-}
-
-.editions {
-  display: flex;
-  font-family: var(--font-ui);
-  font-size: 0.8125rem;
-  gap: 0.875rem;
-}
-
-.edition {
-  color: var(--ink-faint);
-  /* A finger's worth of target on a line of small type — place-row.module.css says why. */
-  margin: -0.75rem -0.375rem;
-  padding: 0.75rem 0.375rem;
-  text-decoration: none;
-}
-
-.edition:hover,
-.edition:focus-visible {
-  color: var(--accent);
-  text-decoration: underline;
 }
 
 /*
@@ -146,11 +129,6 @@
   font-weight: 500;
   line-height: 1.35;
   margin: 0;
-}
-
-.trackTitle + .trackTitle {
-  color: var(--ink-soft);
-  margin-top: 0.125rem;
 }
 
 /*
@@ -242,6 +220,11 @@
   content: '\00a0';
 }
 
+/*
+ * One title, since ADR-0052 made the index render one edition. It stays a grid rather than
+ * becoming a bare inline element because the tile's own rows are laid out against it, and a
+ * second title is one line away should a track ever want both back.
+ */
 .titles {
   display: grid;
   gap: 0.25rem;
@@ -263,11 +246,6 @@ a.title:focus-visible {
   text-decoration: underline;
 }
 
-.title + .title {
-  color: var(--ink-soft);
-  font-size: 0.9375rem;
-}
-
 /*
  * A program that is not open yet: the title still reads — the index is the book's table of
  * contents and a reader may see what is in it — in the register the tile's own id and
@@ -282,13 +260,16 @@ a.title:focus-visible {
 /*
  * THE WHOLE TILE IS THE TARGET, BUT ONLY WHEN THERE IS ONE TARGET.
  *
- * `:only-child` is the whole condition and it is not a trick: a tile shows one title when
- * the reader has chosen an edition and two when they have not, and a tile with two links in
- * it cannot have a single click target without one of the two editions quietly winning —
- * which is the editorial pick ADR-0015 refused and ADR-0036 kept refusing.
+ * `:only-child` told the two states apart back when a tile carried one title for a reader
+ * who had chosen an edition and two for a reader who had not — a tile with two links in it
+ * cannot have a single click target without one of the two editions quietly winning, which
+ * is the editorial pick ADR-0015 refused. Since ADR-0052 there is always exactly one, so the
+ * selector always matches; it is kept rather than simplified away because it is the thing
+ * that makes the overlay impossible to introduce by accident beside a second link. A tile
+ * that ever grows one again loses the whole-tile target instead of picking for the reader.
  *
  * Expressing it in CSS rather than as a class the component sets means the two states
- * cannot disagree: the markup says how many editions this tile offers, and the rule follows
+ * cannot disagree: the markup says how many entries this tile offers, and the rule follows
  * from that rather than from a second decision made next to it. `a.` joins the condition
  * for the same reason — a shut tile's title is a `<span>` and an only child too, and a
  * stretched overlay over no link is a tile-sized target that does nothing (ADR-0051).

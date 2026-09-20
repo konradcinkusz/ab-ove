@@ -313,7 +313,7 @@ test.describe('reading ergonomics', () => {
 
   test('the shortcut is told to the reader, in their own edition @core', async ({ page }) => {
     // A keyboard path nobody is told about is not an ergonomic feature, it is a secret. The
-    // assertion is relational and needs no copy of either string — see language-switch.spec.
+    // assertion is relational and needs no copy of either string — see language-choice.spec.
     const said: Record<string, string> = {};
     for (const language of languages) {
       await openReady(page, language, 1);

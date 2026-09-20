@@ -1,19 +1,23 @@
 import Link from 'next/link';
 
+import { LanguageChoice } from '@/components/language/language-choice';
 import { say } from '@/lib/content/bundle';
+import { editionsOffered } from '@/lib/content/chosen-edition';
 import type { Bundle } from '@/lib/content/schema';
-import { FALLBACK_LANGUAGE, chromeFor, endonym } from '@/lib/i18n/chrome';
-import { indexHref } from '@/lib/index-href';
+import { chromeFor, endonym } from '@/lib/i18n/chrome';
+import { coursesHref, indexHref } from '@/lib/index-href';
+import { editionHrefs } from '@/lib/language/hrefs';
 
 import styles from './course-list.module.css';
 
 export interface CourseListProps {
   readonly bundles: readonly Bundle[];
   /**
-   * The edition the reader asked for, or `undefined` for the page that picks neither —
-   * resolved by `chosenEdition`, the same rule the index applies.
+   * The edition to render. Always a language since ADR-0052 — what the URL asked for, else
+   * what this browser remembers, else English — resolved by `chosenEdition`, the same rule
+   * the index applies.
    */
-  readonly chosen: string | undefined;
+  readonly chosen: string;
 }
 
 /**
@@ -29,20 +33,29 @@ export interface CourseListProps {
  * title, a length and a set of editions, which a row of links cannot say and a reader
  * deciding between two courses needs.
  *
- * IT MAKES NO FETCH, READS NO COOKIE AND NEEDS NO BACKEND, like the index it leads to
- * (ADR-0004). Everything here is in the bundles compiled into the app.
+ * IT MAKES NO FETCH AND NEEDS NO BACKEND, like the index it leads to (ADR-0004). Everything
+ * here is in the bundles compiled into the app. The route that renders it reads one cookie,
+ * this origin's own, which is where the reader's remembered edition lives (ADR-0052) — no
+ * request, and nothing this component knows about.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * ONE LINK PER COURSE, CARRYING EVERY TITLE IT HAS, and that is the one place this page does
- * not copy the index's tiles. A tile's title is a link into the READING route, where a
- * language is part of the address, so a tile with two editions has two links by necessity.
- * A course's link is into the index, which needs no language at all — so both titles go
- * inside one anchor and the reader chooses a course without being made to choose an edition
- * on the way. That is ADR-0015's refusal held at one more door; the edition switch on the
- * page this opens is where an edition is chosen, and it still lights nothing until it is.
+ * ONE LINK PER COURSE, CARRYING ITS TITLE IN THE READER'S EDITION.
+ *
+ * It carried every title it had, in one anchor, so that choosing a course did not make a
+ * reader choose an edition on the way — which was ADR-0015's refusal held at one more door.
+ * ADR-0052 removed the thing that refusal was protecting: there is always a reader edition
+ * now, chosen or defaulted to, so a second title beside the first would be this page asking
+ * a question the control at the top of it has already answered. A course this deployment
+ * does not publish in that edition shows the title it does have, which is the same fallback
+ * the index's tiles make.
+ *
+ * The `· English · polski` on the meta line is what still tells a reader looking at an
+ * English title that the course exists in Polish too, and it is listed WHATEVER they chose,
+ * because it is the course's property rather than the page's state.
  */
 export function CourseList({ bundles, chosen }: CourseListProps): React.JSX.Element {
-  const chrome = chromeFor(chosen ?? FALLBACK_LANGUAGE);
+  const chrome = chromeFor(chosen);
+  const editions = editionsOffered(bundles);
 
   return (
     <main className={styles.page} lang={chrome.language}>
@@ -53,19 +66,34 @@ export function CourseList({ bundles, chosen }: CourseListProps): React.JSX.Elem
           </Link>
         </p>
         {/*
-          The way back, and it is the whole index rather than a course: a reader who opened
-          this page has not said which course they want, and *← Programs* is the label the
-          reading surface already uses for the same destination. The chosen edition rides
-          along, because leaving this page must not undo the choice that got here.
+          A `<div>` holding two navigations rather than one `<nav>` holding another: the
+          language control is a navigation of its own, and nesting them makes both ambiguous
+          — to a screen reader listing landmarks, and to `language-choice.spec.ts`, which
+          counts them. `program-grid.tsx` carries the same shape for the same reason.
+
+          The way back is the whole index rather than a course: a reader who opened this page
+          has not said which course they want, and *← Programs* is the label the reading
+          surface already uses for the same destination. The chosen edition rides along,
+          because leaving this page must not undo the choice that got here.
         */}
-        <nav className={styles.chrome} aria-label={chrome.courses}>
-          <Link className={styles.chromeLink} href={indexHref({ edition: chosen })}>
-            {chrome.programsCrumb}
-          </Link>
-          <Link className={styles.chromeLink} href="/about">
-            {chrome.about}
-          </Link>
-        </nav>
+        <div className={styles.chrome}>
+          {/* THE language control for this screen, at the top of it (ADR-0052). */}
+          <LanguageChoice
+            current={chosen}
+            hrefs={editionHrefs(editions, (other) => coursesHref(other))}
+            label={chrome.languageLabel}
+            labelLanguage={chrome.language}
+            languages={editions}
+          />
+          <nav className={styles.chromeLinks} aria-label={chrome.courses}>
+            <Link className={styles.chromeLink} href={indexHref({ edition: chosen })}>
+              {chrome.programsCrumb}
+            </Link>
+            <Link className={styles.chromeLink} href="/about">
+              {chrome.about}
+            </Link>
+          </nav>
+        </div>
       </header>
 
       <h1 className={styles.heading}>{chrome.courses}</h1>
@@ -73,13 +101,13 @@ export function CourseList({ bundles, chosen }: CourseListProps): React.JSX.Elem
 
       <ul className={styles.list}>
         {bundles.map((bundle) => {
-          // The editions this course has, narrowed to the chosen one if it publishes it. Read
-          // from the COURSE rather than from the reader's choice, so a course that is not
-          // published in the chosen edition shows the titles it does have instead of none.
-          const offered = chosen
-            ? bundle.track.languages.filter((language) => language === chosen)
-            : bundle.track.languages;
-          const titles = offered.length > 0 ? offered : bundle.track.languages;
+          // The edition this course's title is shown in. Read from the COURSE rather than
+          // from the reader's choice, so a course that is not published in the chosen edition
+          // shows the title it does have instead of none — the bundle's declared order, not
+          // this application's opinion.
+          const shown = bundle.track.languages.includes(chosen)
+            ? chosen
+            : (bundle.track.languages[0] ?? chosen);
 
           /*
             What the course is, as three measured facts and no adjective: how many programs,
@@ -101,11 +129,9 @@ export function CourseList({ bundles, chosen }: CourseListProps): React.JSX.Elem
                 className={styles.into}
                 href={indexHref({ track: bundle.track.id, edition: chosen })}
               >
-                {titles.map((language) => (
-                  <span className={styles.title} key={language} lang={language}>
-                    {say(bundle.track.titles, language)}
-                  </span>
-                ))}
+                <span className={styles.title} lang={shown}>
+                  {say(bundle.track.titles, shown)}
+                </span>
               </Link>
               <p className={styles.meta}>{meta}</p>
             </li>

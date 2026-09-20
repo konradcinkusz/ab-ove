@@ -87,11 +87,14 @@ async function shoot(page: Page, name: string, fullPage = true): Promise<void> {
 }
 
 test.describe('@screenshots the documentation set', () => {
-  test('the landing page, in each edition and in both', async ({ page }) => {
-    await ready(page, '/');
-    await expect(page.getByRole('link', { name: new RegExp(unit.titles['en'] ?? UNIT, 'i') }).first()).toBeVisible();
-    await shoot(page, 'landing-both-editions');
-
+  test('the landing page, in each edition', async ({ page }) => {
+    /*
+      `landing-both-editions` STOOD HERE AND HAS NOTHING LEFT TO CAPTURE. It photographed
+      the state a reader arrived in when no edition had been chosen — every tile carrying a
+      title per edition — and ADR-0052 removed that state: `/` now opens in the reader's own
+      edition, English until they say otherwise. A capture of a bare `/` would be
+      `landing-english` under a second name.
+    */
     await ready(page, '/?lang=en');
     await expect(page.getByRole('link', { name: new RegExp(unit.titles['en'] ?? UNIT, 'i') }).first()).toBeVisible();
     await shoot(page, 'landing-english');
