@@ -186,13 +186,23 @@ real answer and passes through unchanged.
 **That contract is prose, and prose is a request.** ADR-0009 draws the line this estate
 works to — *"an anti-goal that exists only as prose is a request; one the architecture
 cannot express is a rule."* No gate can decide whether the answer that arrived is the
-reader's, because the model fills the argument. So two things sit under it: the server
-instructions state the method before any tool is called, and `submit_answer` **echoes back
-what it recorded**, so a reader who was answered *for* can see that they were. That is a
-narrowing, not a fix, and it is the honest limit of this design.
+reader's, because the model fills the argument. Two things sit under it, and they are not
+the same shape of thing: the server instructions state the method before any tool is
+called, which is still prose; and, where the host supports it, MCP elicitation puts the
+argument in front of the reader directly and records what comes back from *that* instead —
+which is the gate the paragraph above says nothing can be, on the one transport where a
+form can stand between the model's claim and the record.
+[ADR-0054](../adr/0054-submit-answer-elicits-the-reader-before-it-trusts-the-argument.md) is
+that decision.
+
+**On a host that does not support elicitation, the limit is exactly what it was.**
+`submit_answer` **echoes back what it recorded**, so a reader who was answered *for* can see
+that they were — a narrowing, not a fix, and the honest floor under every host regardless of
+what it can ask its reader directly.
 
 `ANSWER_CONTRACT` and `SERVER_INSTRUCTIONS` are constants asserted by the unit tier — the
-nearest thing a prose contract can have to a gate.
+nearest thing a prose contract can have to a gate, and still the whole of the protection on
+a host with no elicitation to fall through to.
 
 ---
 
@@ -254,28 +264,22 @@ would be a second, unguarded door past a guard that would still be green.
 
 ---
 
-## 6. `@ab-ovo/web-kit` — the exit condition
+## 6. `@ab-ovo/web-kit` — the exit condition, discharged
 
-The root `web/package.json` already records the rule: *"The @ab-ovo/web-kit package of §7 is
-deliberately NOT here yet: the kit is what stops two apps diverging, so it is created when
-the SECOND app arrives."*
+This section used to record why the kit was not created yet and what would trigger it. The
+trigger fired — `reveal.ts` took a second import from `@ab-ovo/app` beside `content.ts`'s
+existing one — and
+[ADR-0053](../adr/0053-the-web-kit-package-is-extracted-on-its-own-exit-condition.md) is the
+record of the extraction itself: what moved (`bundle.ts`, `schema.ts`, `validate.ts`,
+`have-bundle.ts`), what stayed in `@ab-ovo/app` and why, and what verified that nothing's
+behaviour changed.
 
-**This is the second app, and the kit is not created here.** That is scope, not
-disagreement: the content library is imported by app code, by
-`web/app/scripts/prepare-lab-assets.mjs` (ADR-0032) and by the unit tier, so moving it is a
-refactor with its own diff and its own review.
-
-What is done instead is to make that refactor cheap and to make skipping it visible:
-**exactly one file reaches across the boundary at run time**, `web/mcp/src/content.ts`,
-which re-exports what this package uses. The extraction redirects the specifiers in that
-file and touches nothing else here. (`reveal.ts` and its test import the schema's *types*
-from the application directly — erased at run time, and the one crossing the sentence above
-does not count; a kit would take those specifiers with it.)
-
-**Exit condition:** the kit is extracted before a third consumer of the content library
-exists, or before anything in `web/mcp` needs a second import from `@ab-ovo/app` — whichever
-comes first. A second crossing is the point at which "one file" stops being true and the
-divergence the kit exists to prevent has somewhere to start.
+**What is true now, for a reader of this file rather than of the ADR:** this package depends
+on `@ab-ovo/web-kit` as an ordinary workspace package. `content.ts` still exists and still
+does real work — `BundleSource`, `ContentUnavailable`, `fixtureBundles()` — but its
+specifiers at the top now name `@ab-ovo/web-kit` rather than a relative path three
+directories up, and `reveal.ts` / `reveal.test.ts` import their types from the same place.
+Nothing else in this package reaches into `@ab-ovo/app` any more, and nothing needs to.
 
 ---
 

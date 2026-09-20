@@ -21,7 +21,7 @@ The whole set is fast enough that guessing which part your change affects is not
 
 **The fetch is first for a reason.** `web/content/` is derived rather than committed, and the
 tests that assert against the whole book would otherwise skip silently — a green tick over an
-assertion nobody made. `web/app/src/lib/content/have-bundle.ts` refuses to load at all when
+assertion nobody made. `web/web-kit/src/have-bundle.ts` refuses to load at all when
 the bundle is missing and `CI` is set, so the honest outcome in a pipeline is red rather than
 a skip.
 

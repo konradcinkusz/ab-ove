@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
+import { say, type Bundle } from '@ab-ovo/web-kit';
+
 import { LanguageChoice } from '@/components/language/language-choice';
-import { say } from '@/lib/content/bundle';
 import { editionsOffered } from '@/lib/content/chosen-edition';
-import type { Bundle } from '@/lib/content/schema';
 import { chromeFor, endonym } from '@/lib/i18n/chrome';
 import { coursesHref, indexHref } from '@/lib/index-href';
 import { editionHrefs } from '@/lib/language/hrefs';

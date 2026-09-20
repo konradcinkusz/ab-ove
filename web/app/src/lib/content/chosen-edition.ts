@@ -1,6 +1,6 @@
 import { resolvedEdition } from '../language/store.ts';
 
-import type { Bundle } from './schema.ts';
+import type { Bundle } from '@ab-ovo/web-kit';
 
 /**
  * Which edition the index is showing.

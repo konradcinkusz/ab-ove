@@ -1,16 +1,15 @@
 {
   "//": [
     "FRONTEND-BFF.md §7 — a member of the workspace above, which owns the only lockfile.",
-    "THIS IS THE SECOND APP, and the root package.json says what that triggers: '@ab-ovo/",
-    "web-kit ... is created when the SECOND app arrives.' It is NOT created here, and the",
-    "reason is scope rather than disagreement: the content library this server reuses lives",
-    "in @ab-ovo/app and is imported by app code, by scripts/prepare-lab-assets.mjs and by",
-    "the unit tier, so moving it is a refactor with its own diff and its own review. Until",
-    "it happens, exactly one file here reaches across the boundary — src/content.ts — so",
-    "the extraction is one import to redirect rather than a search. See the exit condition",
-    "in docs/architecture/MCP-SERVER-SKETCH.md §6.",
+    "THIS IS THE SECOND APP, and the root package.json used to say what that would",
+    "trigger: '@ab-ovo/web-kit ... is created when the SECOND app arrives.' It has been",
+    "created — see web/web-kit/package.json — and src/content.ts's imports were redirected",
+    "to it in the same commit, exactly the 'one import to redirect rather than a search'",
+    "its own header predicted. See docs/architecture/MCP-SERVER-SKETCH.md §6, updated",
+    "alongside this file rather than left describing a trigger that already fired.",
     "",
-    "No runtime dependency but the MCP SDK. The gate this server exists to hold is pure",
+    "Two runtime dependencies now: the MCP SDK, and @ab-ovo/web-kit for the loader, the",
+    "schema types and the validator. The gate this server exists to hold is still pure",
     "TypeScript in src/reveal.ts with no imports at all, so the thing most worth testing",
     "needs no install to test (P13: test at the layer with the logic)."
   ],
@@ -49,6 +48,7 @@
     "start": "node bin/ab-ovo-mcp.mjs"
   },
   "dependencies": {
+    "@ab-ovo/web-kit": "workspace:*",
     "@modelcontextprotocol/sdk": "1.30.0"
   },
   "devDependencies": {

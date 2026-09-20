@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { tagFor } from '@ab-ovo/web-kit';
+
 import { RateRanking } from '@/components/instrument/rate-ranking';
-import { tagFor } from '@/lib/content/bundle';
 
 import styles from '../../instrument.module.css';
 

@@ -1,8 +1,8 @@
 import Link from 'next/link';
 
+import { say, sectionSpans, unitBefore, type Bundle, type Step, type Unit } from '@ab-ovo/web-kit';
+
 import { ThemeSwitch } from '@/components/theme/theme-switch';
-import { say, sectionSpans, unitBefore } from '@/lib/content/bundle';
-import type { Bundle, Step, Unit } from '@/lib/content/schema';
 import { HINT_STATES, chromeFor } from '@/lib/i18n/chrome';
 import { bookNumberOf } from '@/lib/sheet/number';
 

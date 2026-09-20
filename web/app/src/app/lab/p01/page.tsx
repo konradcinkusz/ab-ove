@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 
+import { tagFor } from '@ab-ovo/web-kit';
+
 import { LabPane } from '@/components/lab/lab-pane';
-import { tagFor } from '@/lib/content/bundle';
 import { P01 } from '@/lib/lab/protocol';
 
 /**

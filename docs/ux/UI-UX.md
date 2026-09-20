@@ -109,7 +109,7 @@ Its parts, in order:
    the language control carries the chosen course, and the sign-in return address carries
    both, so neither choice can undo the other (ADR-0048).
 4. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
-   the parts themselves once a bundle carries them (`groupsOf`, in `lib/content/bundle.ts`,
+   the parts themselves once a bundle carries them (`groupsOf`, in `@ab-ovo/web-kit`'s `bundle.ts`,
    which the MCP server's `list_programs` shares, so the two surfaces divide the book one
    way). Each run is headed at level three, under the track's title. One tile per program,
    carrying the program's id, its title in the reader's edition, and how many frames and

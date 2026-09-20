@@ -75,7 +75,7 @@ function summaryOf(output: string): string | null {
 /**
  * @param bundleTag The content tag the reader's frames are pinned at, or `undefined` for a
  *   track this build does not pin — in which case the run is not reported at all. See
- *   `tagFor` in lib/content/bundle.ts: an unversioned tally is worse than no tally.
+ *   `tagFor` in @ab-ovo/web-kit's bundle.ts: an unversioned tally is worse than no tally.
  */
 export function useLabRuntime(lab: LabDescriptor, bundleTag?: string): LabRuntime {
   const [status, setStatus] = useState<RuntimeStatus>('loading');

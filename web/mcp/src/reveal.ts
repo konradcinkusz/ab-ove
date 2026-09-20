@@ -27,7 +27,7 @@
  * a server to assert it would be an acceptance test doing a unit's job, and would be the
  * first thing skipped when it got slow.
  */
-import type { Step, Unit } from '../../app/src/lib/content/schema.ts';
+import type { Step, Unit } from '@ab-ovo/web-kit';
 
 /**
  * Where one reader is in one program.

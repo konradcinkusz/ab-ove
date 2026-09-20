@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
+import { say, sectionSpans, unitBefore, type Bundle, type Unit } from '@ab-ovo/web-kit';
+
 import { LanguageChoice } from '@/components/language/language-choice';
 import { ThemeSwitch } from '@/components/theme/theme-switch';
-import { say, sectionSpans, unitBefore } from '@/lib/content/bundle';
-import type { Bundle, Unit } from '@/lib/content/schema';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
 

@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 
-import { clearAnswerHere, clearEverything, useAnySheet, useSheet } from '@/lib/sheet/client';
+import { clearAnswerHere, clearEverything, exportNotebook, useAnySheet, useSheet } from '@/lib/sheet/client';
 
 import { useTwoStep } from './use-two-step.ts';
 import styles from './worksheet.module.css';
@@ -93,6 +93,50 @@ export function ClearWorksheets({
   return (
     <button className={styles.clear} lang={language} onClick={press} type="button">
       {armed ? confirmLabel : label}
+    </button>
+  );
+}
+
+export interface ExportWorksheetsProps {
+  readonly language: string;
+  readonly label: string;
+}
+
+/**
+ * Every worksheet in this browser, as one Markdown file the reader's own browser hands to
+ * their own download folder. `lib/sheet/export.ts` carries the reasoning (ADR-0055); this
+ * component is wiring, on `clearAnswerHere`'s own reasoning for why the module that reads
+ * `window` is not the module that decides what belongs in the file.
+ *
+ * ONE PRESS, NOT TWO. `useTwoStep` guards a press that destroys something; this one creates
+ * a file and touches no stored record, so the confirm step `ClearWorksheets` needs would be
+ * asking permission for an action that has no cost to undo.
+ *
+ * Gated on the same `useAnySheet` boolean as `ClearWorksheets`, and rendered BEFORE it in the
+ * row: offering a way to keep a copy before offering a way to erase everything is the order a
+ * reader would want them in, not an accident of where either was added.
+ */
+export function ExportWorksheets({ language, label }: ExportWorksheetsProps): React.JSX.Element | null {
+  const present = useAnySheet();
+
+  const act = useCallback(() => {
+    const blob = new Blob([exportNotebook()], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    try {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `ab-ovo-notebook-${new Date().toISOString().slice(0, 10)}.md`;
+      link.click();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }, []);
+
+  if (!present) return null;
+
+  return (
+    <button className={styles.quiet} lang={language} onClick={act} type="button">
+      {label}
     </button>
   );
 }

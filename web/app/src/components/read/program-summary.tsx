@@ -1,10 +1,10 @@
 import Link from 'next/link';
 
+import { say, unitBefore, type Bundle, type Route, type Unit } from '@ab-ovo/web-kit';
+
 import { ConsentControl } from '@/components/consent/consent-control';
 import { LanguageChoice } from '@/components/language/language-choice';
 import { ThemeSwitch } from '@/components/theme/theme-switch';
-import { say, unitBefore } from '@/lib/content/bundle';
-import type { Bundle, Route, Unit } from '@/lib/content/schema';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
 import { labFor } from '@/lib/lab/protocol';

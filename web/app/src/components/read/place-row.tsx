@@ -1,8 +1,8 @@
 import Link from 'next/link';
 
+import type { Section, SectionSpan } from '@ab-ovo/web-kit';
+
 import { LanguageChoice } from '@/components/language/language-choice';
-import type { SectionSpan } from '@/lib/content/bundle';
-import type { Section } from '@/lib/content/schema';
 import type { Chrome } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
 

@@ -226,6 +226,85 @@ test('an empty answer to a step that asks is refused with a sentence aimed at th
   assert.equal(cursor?.step, 2, 'a refused submit must not move the reader');
 });
 
+test('an elicited answer overrules whatever the model sent as the argument', async () => {
+  const d = deps();
+  await atTheFirstQuestion(d);
+
+  const calls: { step: number; proposed: string }[] = [];
+  const elicited = {
+    ...d,
+    elicit: async (step: number, proposed: string) => {
+      calls.push({ step, proposed });
+      return { kind: 'confirmed' as const, answer: 'what the reader actually typed' };
+    },
+  };
+
+  const result = await handle(
+    'submit_answer',
+    { track: TRACK, unit: UNIT, step: 2, answer: 'a guess the assistant composed' },
+    elicited,
+  );
+  assert.ok(result.text.includes('what the reader actually typed'));
+  assert.ok(!result.text.includes('a guess the assistant composed'));
+  assert.match(result.text, /confirmed directly with the reader/);
+  assert.deepEqual(calls, [{ step: 2, proposed: 'a guess the assistant composed' }]);
+});
+
+test('elicitation can supply an answer the model never sent at all', async () => {
+  const d = deps();
+  await atTheFirstQuestion(d);
+
+  const elicited = {
+    ...d,
+    elicit: async () => ({ kind: 'confirmed' as const, answer: 'typed straight into the form' }),
+  };
+
+  const result = await handle('submit_answer', { track: TRACK, unit: UNIT, step: 2 }, elicited);
+  assert.ok(!result.isError, result.text);
+  assert.ok(result.text.includes('typed straight into the form'));
+  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 3);
+});
+
+test('a declined elicitation records nothing and does not move the reader', async () => {
+  const d = deps();
+  await atTheFirstQuestion(d);
+
+  const elicited = { ...d, elicit: async () => ({ kind: 'declined' as const }) };
+  const result = await handle(
+    'submit_answer',
+    { track: TRACK, unit: UNIT, step: 2, answer: 'x' },
+    elicited,
+  );
+  assert.ok(!result.isError, 'a decline is the method working, not a fault');
+  assert.match(result.text, /declined or cancelled/);
+  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 2, 'a declined confirmation must not move the reader');
+});
+
+test('elicitation reported unavailable falls back to the argument, unchanged', async () => {
+  const d = deps();
+  await atTheFirstQuestion(d);
+
+  const elicited = { ...d, elicit: async () => ({ kind: 'unavailable' as const }) };
+  const written = 'trusted because the host cannot elicit';
+  const result = await handle(
+    'submit_answer',
+    { track: TRACK, unit: UNIT, step: 2, answer: written },
+    elicited,
+  );
+  assert.ok(result.text.includes(written));
+  assert.ok(!result.text.includes('confirmed directly with the reader'));
+});
+
+test('elicitation is never attempted on a step that asks nothing', async () => {
+  const d = deps();
+  await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
+
+  let calls = 0;
+  const elicited = { ...d, elicit: async () => { calls += 1; return { kind: 'unavailable' as const }; } };
+  await handle('submit_answer', { track: TRACK, unit: UNIT, step: 1 }, elicited);
+  assert.equal(calls, 0, 'nothing was asked, so there is nothing to confirm');
+});
+
 test('a step that asks nothing needs no answer, and says nothing was recorded', async () => {
   // The book's teaching frames. The first version demanded a non-empty answer here too,
   // so the assistant invented a word or put a question to the reader that nobody asked.

@@ -2,6 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from 'react';
 
+import { allSheets, notebookMarkdown } from './export.ts';
 import {
   type FrameRef,
   type Sheet,
@@ -197,4 +198,13 @@ export function clearEverything(): void {
   clearAllSheets(slot());
   announce();
   announceSheetChange();
+}
+
+/**
+ * The whole notebook, as text ready to become a file. Reads directly rather than through
+ * `useAnySheet`'s cache, on the same reasoning `readHere` already has: a one-off read for
+ * an action a reader just took, not a value a component renders every frame.
+ */
+export function exportNotebook(): string {
+  return notebookMarkdown(allSheets(slot()), new Date());
 }

@@ -30,7 +30,7 @@
  * question in the next. The tag has to be stored so a stale sheet can be recognised.
  *
  * Putting it in the KEY would recognise it by orphaning it. The interim pin is
- * `dev-<sha12>` (see `lib/content/bundle.ts`), so a typo fix in P30 changes the tag for
+ * `dev-<sha12>` (see `@ab-ovo/web-kit`'s `bundle.ts`), so a typo fix in P30 changes the tag for
  * every program — and every reader's notes in all 47 would silently become unreachable
  * while still occupying storage. In the record, a stale sheet is SHOWN with a quiet line
  * saying which edition it was written against, and the reader decides. `lib/progress`'s
@@ -344,12 +344,14 @@ export function clearSheet(slot: Slot | undefined, frame: FrameRef): void {
  *
  * `localStorage` is enumerable by any script on this origin, so no module can make a
  * scatter of keys private and saying otherwise would be a claim this code cannot keep.
- * What IS true is narrower and worth stating: the only two functions in `lib/sheet` that
+ * What IS true is narrower and worth stating: the only two functions IN THIS FILE that
  * walk the store are this one and `hasAnySheet`, and NEITHER HANDS A CALLER A LIST OF
- * FRAMES OR A COUNT OF THEM — one returns nothing and the other returns a boolean. So
- * there is no path in this application from "a reader's worksheets" to a number, which is
- * the property ADR-0009 §1 is about; the real guards are that nothing here is synced,
- * aggregated or sent.
+ * FRAMES OR A COUNT OF THEM — one returns nothing and the other returns a boolean.
+ * `export.ts`'s `allSheets` is the one function anywhere in `lib/sheet` that does hand back
+ * a list, built for exactly one job (ADR-0055) — the property ADR-0009 §1 needs is not
+ * "nobody ever enumerates", it is that nothing here is synced, aggregated, ranked or fed to
+ * the instrument, and a document handed to the reader's own download folder is none of
+ * those.
  *
  * `void` rather than "how many were removed", and that is the same rule applied to this
  * function's own signature. A count would be honest, useful for a confirmation line, and a

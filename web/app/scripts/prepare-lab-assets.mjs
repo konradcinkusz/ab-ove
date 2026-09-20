@@ -53,7 +53,7 @@ import { fileURLToPath } from 'node:url';
  * where "which bundles does this application serve" is written down, and a script that
  * answered it separately would be right until the day the two disagreed.
  */
-import { allBundles } from '../src/lib/content/bundle.ts';
+import { allBundles } from '@ab-ovo/web-kit';
 import {
   declaredRuntimes,
   unservedWheels,

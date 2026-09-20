@@ -164,6 +164,35 @@
 }
 
 /*
+ * A control that reads as prose because nothing it does is destructive — `resume.module.css`'s
+ * `.forget` has the identical declarations for the identical reason, and the two are not
+ * merged only because nothing here imports that module. No `--degraded` on hover: that colour
+ * is `.clear`'s own signal that a press destroys something, and this press never does.
+ */
+.quiet {
+  background: none;
+  border: 0;
+  color: var(--ink-faint);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.quiet:hover,
+.quiet:focus-visible {
+  color: var(--ink);
+  text-decoration-style: solid;
+}
+
+@media print {
+  .quiet {
+    display: none;
+  }
+}
+
+/*
  * ────────────────────────────────────────────────────────────────────────────────────────
  * THE WORKING PAD — a scrap of paper that can add up, and the whole of what replaced a
  * Python runtime in the reader loop.

@@ -10,8 +10,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import type { Bundle } from '@ab-ovo/web-kit';
+
 import { chosenTrack, shownBundles, tracksOffered } from './chosen-track.ts';
-import type { Bundle } from './schema.ts';
 
 /**
  * Two courses, since one course cannot fail a narrowing test: `shownBundles` returning its

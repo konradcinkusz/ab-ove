@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
+import { bundleFor, languageIn, say, stepIn, unitIn } from '@ab-ovo/web-kit';
+
 import { FrameView } from '@/components/read/frame-view';
-import { bundleFor, languageIn, say, stepIn, unitIn } from '@/lib/content/bundle';
 
 /**
  * One frame of one program, in one language.

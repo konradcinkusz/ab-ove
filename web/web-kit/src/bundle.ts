@@ -34,7 +34,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 
-import lock from '../../../../content/book.lock.json' with { type: 'json' };
+import lock from '../../content/book.lock.json' with { type: 'json' };
 
 import type { Bundle, ContentPin, Part, Section, Step, Unit } from './schema.ts';
 import { validateBundle } from './validate.ts';
@@ -106,10 +106,11 @@ export function tagFor(track: string): string | undefined {
  * chunk's own synthetic location once webpack has rewritten the module graph, not this
  * file's location on disk — so a path computed from it is only reliable in a dev server
  * that runs the source directly, and silently wrong in a build. `process.cwd()` fails the
- * other way: it is `web/app` under `next dev` (started inside the app package) and `/app`
- * under the Docker image's `CMD ["node", "app/server.js"]` run from `WORKDIR /app` — a
- * DIFFERENT relative distance to `web/content/bundle/` in each of the two environments this
- * application actually runs in, and neither guess is safe to prefer over the other.
+ * other way: it is `web/<package>` under `next dev` / a sibling package's own `node --test`
+ * (started inside that package) and `/app` under the Docker image's
+ * `CMD ["node", "app/server.js"]` run from `WORKDIR /app` — a DIFFERENT relative distance to
+ * `web/content/bundle/` in each of the environments this function's callers actually run in,
+ * and neither guess is safe to prefer over the other.
  *
  * The candidates below are every shape those environments are known to produce, tried in
  * order and validated with a plain existence check rather than assumed — `AB_OVO_CONTENT_BUNDLE`
@@ -128,7 +129,10 @@ function candidateBundlePaths(destination: string): readonly string[] {
   // `web/` is what keeps that arithmetic to one `join` per candidate instead of three.
   return [
     override,
-    // `next dev` / `next build` / `node --test`, run with cwd = web/app.
+    // `next dev` / `next build` / a package's own `node --test`, run with cwd = one of
+    // web/'s direct children — `app`, `mcp` or this package itself. `cwd/..` lands on
+    // `web/` from any of them, which is what makes this one candidate serve every sibling
+    // rather than one written per consumer.
     `${process.cwd()}/../${destination}/${filename}`,
     // The Docker runner: WORKDIR /app, and the runner stage COPYs web/content/ to ./content
     // (see web/app/Dockerfile) — cwd = /app, and content/ is a direct child of it there.

@@ -160,22 +160,28 @@ test('clearing everything clears every sheet and nothing else', () => {
   assert.deepEqual(Object.keys(slot.data).sort(), ['ab-ovo:progress:v1', 'unrelated']);
 });
 
-test('NOTHING ELSE IN lib/sheet WALKS THE STORE — a convention, held here', () => {
+test('ONLY store.ts AND export.ts WALK THE STORE — a convention, held here', () => {
   /*
     ──────────────────────────────────────────────────────────────────────────────────────
     `localStorage` is enumerable by any script on this origin, so no module can make a
     scatter of keys private and claiming otherwise would be a promise this code cannot
     keep. What can be kept is narrower: there is no path in this application from "a
-    reader's worksheets" to a list or a count, because only `store.ts` walks the store and
-    the two functions there that do return nothing and a boolean.
+    reader's worksheets" to somewhere ELSE can read them — synced, aggregated, ranked, or
+    fed to the instrument (ADR-0009 §1). `store.ts`'s own two walking functions return
+    nothing and a boolean; `export.ts`'s `allSheets` is the one sanctioned exception, built
+    for exactly one job — a document this browser hands to this reader's own download
+    folder — and ADR-0055 is the record of why that stays inside the rule while a third,
+    unplanned walker would not.
 
-    This test is what makes that a rule rather than a description. It reads the directory.
+    This test is what makes "only these two" a rule rather than a description. It reads
+    the directory.
     ──────────────────────────────────────────────────────────────────────────────────────
   */
+  const ALLOWED = new Set(['store.ts', 'export.ts']);
   const here = dirname(fileURLToPath(import.meta.url));
   const offenders: string[] = [];
   for (const name of readdirSync(here)) {
-    if (!name.endsWith('.ts') || name === 'store.ts' || name.endsWith('.test.ts')) continue;
+    if (!name.endsWith('.ts') || ALLOWED.has(name) || name.endsWith('.test.ts')) continue;
     const source = readFileSync(join(here, name), 'utf8');
     if (/\.key\(|Object\.keys\(\s*(?:window\.)?localStorage|localStorage\.length/.test(source)) {
       offenders.push(name);
@@ -184,7 +190,7 @@ test('NOTHING ELSE IN lib/sheet WALKS THE STORE — a convention, held here', ()
   assert.deepEqual(
     offenders,
     [],
-    'a module in lib/sheet other than store.ts enumerates browser storage',
+    'a module in lib/sheet other than store.ts or export.ts enumerates browser storage',
   );
 });
 

@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
+import { bundleFor, languageIn, say, unitIn } from '@ab-ovo/web-kit';
+
 import { ProgramSummary } from '@/components/read/program-summary';
-import { bundleFor, languageIn, say, unitIn } from '@/lib/content/bundle';
 
 /**
  * A program's return index — the Summary and the outcomes — reached from its last frame.

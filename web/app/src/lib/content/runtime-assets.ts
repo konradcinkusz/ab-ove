@@ -48,7 +48,7 @@
  * validator to read a directory would also put a filesystem call in the render path, since
  * `bundleFor()` validates per process on a request.
  */
-import type { Bundle, Lab } from './schema.ts';
+import type { Bundle, Lab } from '@ab-ovo/web-kit';
 
 /** The runtimes `content-schema.v1.json` lets a lab declare. */
 export type Runtime = Lab['runtime'];
