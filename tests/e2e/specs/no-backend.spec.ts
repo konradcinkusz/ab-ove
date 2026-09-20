@@ -37,7 +37,7 @@ import { served, track } from './support/bundle.ts';
   A literal in a spec has no source, so nothing notices when the content moves —
   see specs/support/bundle.ts.
 
-  THE FIRST PROGRAM RATHER THAN P01, since ADR-0049. This file's reader has no account, no
+  THE FIRST PROGRAM RATHER THAN P01, since ADR-0051. This file's reader has no account, no
   backend and — the part that is new — no record either, so the program that is one click
   from the index is the first one of the track. Asserting P01 would have needed a seeded
   record, and a seeded record is a thing this suite must never need: what it is about is a

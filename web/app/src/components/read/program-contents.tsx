@@ -70,7 +70,7 @@ export function ProgramContents({
 
   const index = bundle.units.findIndex((candidate) => candidate.id === unit.id);
   // Through `unitBefore` rather than `index - 1`, so the gate and this foot read the
-  // book's order out of one function (ADR-0049). The forward neighbour has no such
+  // book's order out of one function (ADR-0051). The forward neighbour has no such
   // sharer and stays here.
   const previousUnit = unitBefore(bundle, unit.id);
   const nextUnit = index >= 0 ? bundle.units[index + 1] : undefined;
@@ -79,7 +79,7 @@ export function ProgramContents({
     <main className={styles.page} lang={language}>
       {/*
         A reader who has not reached this program is returned to the index, where the tile
-        says which program opens it (ADR-0049). It renders nothing and cannot run on the
+        says which program opens it (ADR-0051). It renders nothing and cannot run on the
         server, which is why the page below it is written as though every reader belongs
         here — see `program-gate.tsx` for why that is the product rather than a shortcut.
       */}

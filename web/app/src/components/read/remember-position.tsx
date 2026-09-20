@@ -11,7 +11,7 @@ export interface RememberPositionProps {
   readonly language: string;
   readonly step: number;
   /**
-   * The program the book puts before this one, or `undefined` for the first (ADR-0049).
+   * The program the book puts before this one, or `undefined` for the first (ADR-0051).
    * A fifth identifier, and the boundary below is unchanged: it is an id, not a step.
    */
   readonly previous: string | undefined;
@@ -40,7 +40,7 @@ export interface RememberPositionProps {
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * IT DOES NOT RECORD A PLACE IN A PROGRAM THE READER MAY NOT BE IN, AND THAT IS THE HOLE
- * ADR-0049 WOULD OTHERWISE HAVE.
+ * ADR-0051 WOULD OTHERWISE HAVE.
  *
  * Arriving is the event, so a deep link into a shut program would arrive, be recorded, and
  * — because a place in a program is one of the three things that OPENS it — unlock it on

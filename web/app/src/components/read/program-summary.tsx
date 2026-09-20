@@ -75,7 +75,7 @@ export function ProgramSummary({
   return (
     <main className={styles.page} lang={language}>
       {/*
-        The same gate the frames and the contents carry (ADR-0049): this screen is inside a
+        The same gate the frames and the contents carry (ADR-0051): this screen is inside a
         program, so a reader who has not reached the program has not reached its return
         index either. It is the only one of the three that records nothing, so there is
         nothing here for the gate to have to undo.

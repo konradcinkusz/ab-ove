@@ -115,7 +115,7 @@ Its parts, in order:
    the page to exactly one.
 
    **A tile the reader has not reached yet carries no link**
-   ([ADR-0049](../adr/0049-a-program-opens-when-the-one-before-it-has-been-opened.md)). A
+   ([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)). A
    program opens when the reader has any place in the one before it — the first program of
    the track is always open, and so is any program they already have a place in — and until
    then the same slot that would say `at frame 12` says `opens after P06` instead. The id,
@@ -263,7 +263,7 @@ same element, same class — so the page moves by nothing when the record is rea
 frame 1* appears only beside a *Continue*, so the page has exactly one link to the reader's
 frame and always one to the first. The foot carries the two neighbouring programs and the
 key map — and **the next one only once this program has been opened**
-([ADR-0049](../adr/0049-a-program-opens-when-the-one-before-it-has-been-opened.md)): a
+([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)): a
 `F03 →` that led somewhere the reader would be sent back from is a control that is reliably
 refused. **The page itself is gated on the same rule.** A reader who has not reached this
 program is returned to the index, at the tile that says which program opens it. It happens
