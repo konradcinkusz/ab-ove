@@ -1,0 +1,37 @@
+%% From something a reader did to a row in the ledger: the instrument's write path.
+%% ONE DIAGRAM PER FILE. ASCII ONLY.
+
+%% A TALLY IS A COUNT AGAINST A FRAME, NOT A RECORD OF A RUN (ADR-0023). The row carries a
+%% bundle tag, a unit, a step, a check, an attempt number and a verdict -- and one other
+%% column, Count. There is no identifier and no timestamp: a few dozen rows whose times ran
+%% consecutively over one program reconstruct a session without naming anybody.
+
+%% THE ENDPOINT TAKES NO TOKEN. A reader with no account contributes on the same terms as
+%% one who signed in, and the service could not tell them apart if it wanted to. An
+%% instrument that required a token would measure the book as experienced by account
+%% holders and call it the book.
+
+%% THE ATTEMPT NUMBER IS THE BROWSER'S OWN COUNT AND THE SERVICE CANNOT VERIFY IT
+%% (ADR-0023 section 3). That is the second reason to read 'first time' as narrower than
+%% its name.
+
+flowchart LR
+  READER["The reader<br/>answers a frame,<br/>or runs a lab check"]
+  CONSENT{"Consent given?<br/>three-valued,<br/>local, versioned"}
+  NOTHING(["Nothing is sent.<br/>This is the default"])
+  REPORT["report.ts<br/>verdicts for one run"]
+  POST["POST /api/v1/outcomes<br/>no token, rate limited"]
+  ROW[("FrameOutcome<br/>BundleTag, Unit, Step,<br/>Check, Attempt, Verdict<br/>+ Count")]
+  RATE["GET /api/v1/admin/rates/track/unit<br/>a rate and its interval,<br/>one value over one cell"]
+  VIEW["/instrument/track/unit<br/>the author's view"]
+
+  READER --> CONSENT
+  CONSENT -->|"not yet, or no"| NOTHING
+  CONSENT -->|"yes"| REPORT
+  REPORT --> POST
+  POST --> ROW
+  ROW --> RATE
+  RATE --> VIEW
+
+  NOID(["No reader identifier.<br/>No timestamp.<br/>Both absent on purpose"])
+  ROW -.-> NOID

@@ -43,7 +43,7 @@ assignees: ''
   not.
 -->
 
-```
+```text
 paste the exception, the log line, or the console output
 ```
 

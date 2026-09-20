@@ -15,6 +15,17 @@ by tier, plus worked recipes for the common partial operations." That is what §
 | `fetch-book-content.sh` | the book's lab engine at the pinned revision, a digest checked per file | bash, curl, python3 |
 | `scan-secrets.sh` | the local secret scan; `--complete` is the widest one there is | bash, gitleaks |
 | `hooks/pre-commit` | blocks a commit whose staged content looks like a secret | bash, gitleaks |
+| `check-links.mjs` | every relative link in every tracked Markdown file resolves | node |
+| `check-diagrams.mjs` | every diagram's three copies agree, and every one has a twin in the other language | node |
+| `check-doc-parity.mjs` | both halves of every bilingual document exist, and neither was edited alone | node, git |
+| `render-diagrams.mjs` | every `.mmd` to vector PDF, for the LaTeX editions | node, `npm ci` first |
+
+**The last four are the documentation's gates rather than the estate's plumbing**, which is
+why they take no arguments beyond a base ref and why none of them is in `setup.sh`. They are
+run together by `npm run lint:docs` from the repository root — the root `package.json`,
+deliberately not a member of the `web/` pnpm workspace — and by
+`.github/workflows/docs.yml` on every pull request that touches a document.
+`docs/how-to/build-the-documentation.md` is the full account.
 
 **Both setup scripts exist on purpose.** A generation instruction that only works on one
 platform fails at step one of onboarding — and here the step that would fail is the one
@@ -75,11 +86,11 @@ gets found by pasting it into a search box.
 
 ### The secret's journey, once
 
-```
+```text
 local store  ->  AppHost parameter  ->  environment variable  ->  config key
 ```
 
-```
+```text
 dotnet user-secrets set          builder.AddParameter(       .WithEnvironment(        configuration[
   "Parameters:auth-signing-key"    "auth-signing-key",         "Jwt__PrivateKeyPem",    "Jwt:PrivateKeyPem"]
   --project src/AbOvo.AppHost      secret: true)               authSigningKey)

@@ -1,0 +1,36 @@
+%% Jedyny ekran, który cokolwiek sortuje, i liczba, którą drukuje obok tej listy.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% SORTOWANIE WYBIERA TO OSZACOWANIE, KTÓRE SZUM POPCHNĄŁ NAJDALEJ. Skrajna z m jednakowo
+%% dobrych komórek leży poza prawdą o oczekiwane maksimum m zmiennych normalnych. To jest
+%% arytmetyka samej książki, z programu P27, i potrzebuje funkcji błędu, której .NET nie ma
+%% - dlatego src/AbOvo.Api/Instrument/Normal.cs implementuje własną, z Math.Sqrt jako
+%% kontrolą w tej samej sondzie.
+
+%% "EARLY, NOT WRONG", TYMI SŁOWAMI. Przy każdym wierszu, którego przedział nie jest
+%% rozłączny z wierszem poniżej, ekran to mówi, bo autor czytający wczesną listę jak werdykt
+%% przepisze ramkę, która była w porządku, a zostawi tę, która nie była. Na cienkich danych
+%% to jest każdy wiersz, co jest poprawne i czym wczesna lista właśnie jest.
+
+%% SŁOWO STOI PRZY WIERSZU, A NIE W LEGENDZIE. Na ten ekran docierają dwa instrumenty -
+%% sprawdzenie laboratoryjne pyta, czy kod czytelnika spełnił asercję, a odpowiedź z arkusza
+%% pyta, czy liczba zapisana przed odsłonięciem jest liczbą, którą drukuje książka - i nie
+%% mierzą tego samego.
+
+flowchart TD
+  CELLS["Komórki jednego programu<br/>wskaźnik i przedział<br/>na sprawdzenie i podejście"]
+  FRAMES["Ramki z oceną dydaktyczną"]
+  SORT["rankFrames<br/>najgorsza mieszanka pierwsza;<br/>komórki w ramce<br/>najgorsze pierwsze"]
+  PAIR{"Czy przedział tego wiersza<br/>jest rozłączny z wierszem<br/>poniżej?"}
+  QUIET["Wiersz stoi<br/>sam za siebie"]
+  EARLY["'early, not wrong'<br/>obok liczby"]
+  UNSCORED["Ramki bez oceny<br/>wymienione osobno:<br/>niezmierzone to nie zero"]
+  HEAD["Nad listą liczba:<br/>o ile pierwszy wiersz<br/>ma przestrzelić"]
+
+  CELLS --> SORT
+  FRAMES --> SORT
+  SORT --> PAIR
+  PAIR -->|"tak"| QUIET
+  PAIR -->|"nie"| EARLY
+  SORT --> UNSCORED
+  SORT --> HEAD

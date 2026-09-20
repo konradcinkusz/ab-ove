@@ -1,0 +1,46 @@
+%% Jak ta dokumentacja jest sprawdzana i jak jest budowana.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% SPRAWDZENIA BIEGNĄ NA KAŻDYM PULL REQUEŚCIE; BUILD BIEGNIE, GDY KTOŚ O NIEGO POPROSI.
+%% Dokument bez własnego rytmu wydań nie powinien udawać, że go ma, więc job z PDF-ami jest
+%% workflow_dispatch i niczym więcej - podczas gdy job lintujący, który potrafi powiedzieć
+%% autorowi o zepsutym odnośniku przed recenzentem, biegnie na tym pull requeście, który go
+%% zepsuł.
+
+%% KAŻDY DIAGRAM ŻYJE DWA RAZY CELOWO: w treści docs/DIAGRAMS.md i docs/DIAGRAMS.pl.md, bo
+%% tylko tę formę renderuje GitHub, oraz jako samodzielny .mmd, bo to ta forma renderuje się
+%% do PDF-a i daje się otworzyć osobno. Dwie kopie czegokolwiek to powierzchnia rozjazdu,
+%% więc trzyma je co do bajtu sprawdzenie, a nie konwencja prosząca ludzi o pamięć.
+
+%% NIC WYGENEROWANEGO NIE JEST COMMITOWANE poza zrzutami ekranu, a te są commitowane z
+%% jednego powodu: dokument na GitHubie nie wyrenderuje obrazka, który jest tylko artefaktem
+%% builda.
+
+flowchart TD
+  SRC["docs/*.md i docs/*.pl.md<br/>docs/diagrams/*.mmd"]
+
+  subgraph lint["docs.yml - na każdym pull requeście"]
+    MD["markdownlint"]
+    LINKS["check-links.mjs<br/>każdy względny odnośnik istnieje"]
+    DIAG["check-diagrams.mjs<br/>treść i .mmd się zgadzają,<br/>w obu językach"]
+    PARITY["check-doc-parity.mjs<br/>obie połowy istnieją,<br/>i żadnej nie ruszono samej"]
+  end
+
+  subgraph build["docs.yml - na workflow_dispatch"]
+    RENDER["render-diagrams.mjs<br/>mmdc, do wektorowego PDF-a"]
+    TEX["latex-action<br/>edycja angielska i polska"]
+    SHOTS["screenshots.spec.ts<br/>Playwright, przeciw buildowi<br/>produkcyjnemu"]
+    ART["Jeden artefakt przebiegu<br/>PDF-y, wyrenderowane diagramy,<br/>zrzuty ekranu"]
+  end
+
+  GH["GitHub renderuje Markdown<br/>i Mermaid bez żadnego<br/>kroku builda"]
+
+  SRC --> MD
+  SRC --> LINKS
+  SRC --> DIAG
+  SRC --> PARITY
+  SRC --> GH
+  SRC --> RENDER
+  RENDER --> TEX
+  TEX --> ART
+  SHOTS --> ART

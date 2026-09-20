@@ -1,0 +1,43 @@
+%% The solution layout: four .NET projects, one pnpm workspace, and what may reference what.
+%% ONE DIAGRAM PER FILE. ASCII ONLY. See a1-system-context.mmd for why no comment line here
+%% is a bare %% marker.
+
+%% THE ARROWS ARE PROJECT REFERENCES, AND THE ABSENT ONES ARE THE POINT. The shared kernel
+%% (AbOvo.ServiceDefaults) has no arrow leaving it, because P2 makes it plumbing only and
+%% tests/AbOvo.Api.Tests/ArchitectureTests.cs refuses a reference from it to AbOvo.Api or
+%% AbOvo.Contracts. A .Core library that began as shared plumbing and ended as a shared
+%% domain has already been paid for twice in this estate.
+
+%% AbOvo.AppHost IS DEVELOPMENT ONLY (P1). It composes the system on a laptop; it is not
+%% the deployed topology, which is flyio/*.fly.toml and has never been applied.
+
+flowchart TD
+  subgraph dotnet["AbOvo.sln"]
+    APPHOST["AbOvo.AppHost<br/>development composition root<br/>postgres, authservice, api, web"]
+    API["AbOvo.Api<br/>minimal API, EF Core<br/>Program.cs is a manifest"]
+    CONTRACTS["AbOvo.Contracts<br/>request and response records<br/>no behaviour"]
+    KERNEL["AbOvo.ServiceDefaults<br/>the shared kernel<br/>auth, CORS, rate limits,<br/>health, OpenAPI, migrations"]
+    TESTS["AbOvo.Api.Tests<br/>unit, in-memory integration,<br/>architecture rules"]
+  end
+
+  subgraph node["web/ - one pnpm workspace"]
+    APP["@ab-ovo/app<br/>Next.js pages and the BFF"]
+    MCP["web/mcp<br/>a server over the same bundle"]
+  end
+
+  subgraph accept["tests/e2e"]
+    E2E["Playwright<br/>drives a production build"]
+  end
+
+  APPHOST --> API
+  API --> CONTRACTS
+  API --> KERNEL
+  TESTS --> API
+  TESTS --> KERNEL
+  APP --> MCP
+  E2E -.->|"over HTTP, no source reference"| APP
+
+  KERNEL -.->|"refused by ArchitectureTests"| API
+  KERNEL -.->|"refused by ArchitectureTests"| CONTRACTS
+
+  linkStyle 7,8 stroke:#b45309,stroke-dasharray: 4 4;

@@ -1,0 +1,48 @@
+%% Two queries the persistence layer refuses, and the different reason each one has.
+%% ONE DIAGRAM PER FILE. ASCII ONLY.
+
+%% THEY ARE MIRROR IMAGES AND NOT THE SAME RULE WITH A DIFFERENT COLUMN ON IT.
+%% ReaderScopedQueries refuses a query that spans READERS, because a per-reader score is
+%% being made unbuildable (ADR-0009, ADR-0020). BundlePinnedQueries refuses a query that
+%% spans TEXTS, because an average over two wordings of a frame is meaningless rather than
+%% forbidden (ADR-0024) -- it would make the ledger lie about a frame somebody has already
+%% fixed.
+
+%% EACH WAS WATCHED REFUSING SOMETHING BEFORE IT WAS BELIEVED, and one of them refused
+%% something nobody planted: three of the outcome store's own tests read it without pinning
+%% a tag.
+
+%% THE REFUSAL HAPPENS BEFORE EF COMPILES THE QUERY, which is what makes it a rule rather
+%% than a review comment.
+
+flowchart TD
+  Q1["A query over ReaderProgress"]
+  G1{"Does it pin<br/>exactly one reader?"}
+  R1["Runs"]
+  X1["Refused at run time,<br/>before EF compiles it"]
+
+  Q2["A query over FrameOutcome"]
+  G2{"Does it pin<br/>exactly one bundle tag?"}
+  R2["Runs"]
+  X2["Refused at run time,<br/>before EF compiles it"]
+
+  Q1 --> G1
+  G1 -->|"yes"| R1
+  G1 -->|"no"| X1
+  Q2 --> G2
+  G2 -->|"yes"| R2
+  G2 -->|"no"| X2
+
+  W1["Because a per-reader score<br/>must be unbuildable"]
+  W2["Because an average over two<br/>wordings of a frame is<br/>meaningless"]
+  X1 --- W1
+  X2 --- W2
+
+  K1["Closed column list:<br/>an outcome, a duration or<br/>a count of attempts<br/>breaks the build"]
+  K2["Closed column list:<br/>Count is the only column<br/>outside the key"]
+  I1["Every key and index<br/>leads with the reader"]
+  I2["Every key and index<br/>leads with the bundle tag"]
+  R1 --- K1
+  R1 --- I1
+  R2 --- K2
+  R2 --- I2

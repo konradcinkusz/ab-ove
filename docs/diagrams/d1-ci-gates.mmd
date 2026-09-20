@@ -1,0 +1,47 @@
+%% The gates a change passes before it can merge, and what each one refuses.
+%% ONE DIAGRAM PER FILE. ASCII ONLY.
+
+%% A CHECK DOES NOT EXIST BECAUSE A CONFIG FILE EXISTS. A lint configuration in the tree
+%% proves nothing about whether any job runs it; .github/workflows/ is the answer, and this
+%% diagram is drawn from those files.
+
+%% THE ACCEPTANCE JOB FAILS WHEN THE SUITE IS ABSENT RATHER THAN SKIPPING
+%% (E2E-ACCEPTANCE-TESTING.md section 2). A green run that tested nothing is the failure the
+%% suite exists to prevent, which is why a red guard is never 'fixed' by making it
+%% conditional.
+
+%% THE BOOK IS FETCHED BEFORE THE UNIT TIER, IN EVERY JOB THAT NEEDS IT. web/content/ is
+%% derived rather than committed, and the tests that assert against all 47 programs would
+%% otherwise skip silently -- a green tick over an assertion nobody made.
+
+flowchart TD
+  PR["A pull request"]
+
+  subgraph ci["ci.yml"]
+    DOTNET["dotnet build + test<br/>warnings are errors;<br/>unit, in-memory integration,<br/>architecture rules"]
+    KERNEL["kernel size<br/>a ceiling on code lines<br/>in the shared kernel"]
+    WEB["web lint + build<br/>eslint, tsc over every<br/>workspace member,<br/>unit tier, production build"]
+    E2E["e2e<br/>Playwright against a real<br/>Postgres and a real<br/>AbOvo.Api"]
+  end
+
+  SCAN["secret-scan.yml<br/>gitleaks"]
+  CODEQL["codeql.yml<br/>SAST and dependency audit"]
+  PAGES["pages.yml<br/>refuses to publish a page<br/>that would make a request"]
+
+  MERGE(["Mergeable"])
+
+  PR --> DOTNET
+  PR --> KERNEL
+  PR --> WEB
+  PR --> SCAN
+  PR --> CODEQL
+  PR --> PAGES
+  WEB --> E2E
+
+  DOTNET --> MERGE
+  KERNEL --> MERGE
+  WEB --> MERGE
+  E2E --> MERGE
+  SCAN --> MERGE
+  CODEQL --> MERGE
+  PAGES --> MERGE

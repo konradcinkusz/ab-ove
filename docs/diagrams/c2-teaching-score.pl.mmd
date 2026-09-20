@@ -1,0 +1,41 @@
+%% Ocena dydaktyczna: jedna ważona mieszanka i dlaczego jednej jej połowy nie da się podbić.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% WAGI SĄ W KODZIE I UZASADNIENIE TEŻ: src/AbOvo.Api/Instrument/Weights.cs niesie przy
+%% każdej mierze łańcuch Because, a Teaching.cs je miesza. Miara, którą da się naciskać, ma
+%% celowo mniejszy udział.
+
+%% ZAMODELUJ ROZDAWANIE ODPOWIEDZI, A MIESZANKA SPADNIE. Rozdaj odpowiedź ramki, a
+%% poprawność za pierwszym razem rośnie natychmiast; sprawdzenia opierające się na tej ramce
+%% ORAZ na późniejszej nie mogą wzrosnąć tak samo, bo czytelnik musi tę ramkę nadal mieć,
+%% gdy do nich dotrze. To jest test, a nie deklaracja, i widziano, jak czerwienieje przy
+%% zamienionych wagach.
+
+%% MIARA ODLEGŁA JEST WŁASNĄ STRUKTURĄ KSIĄŻKI, a nie krawędzią wymyśloną przez produkt:
+%% docstring sprawdzenia nazywa ramki, na których ono stoi, więc sprawdzenie pojawiające się
+%% pod kilkoma ramkami potrzebuje ich wszystkich naraz.
+
+%% RAMKA, KTÓREJ ŻADNE SPRAWDZENIE NIE NIESIE DALEJ, NIE DOSTAJE OCENY W OGÓLE, NIGDY ZERA.
+%% Zero czyta się jako "czytelnicy nie potrafili użyć tej ramki później", co jest
+%% przeciwieństwem "nikt jeszcze nie pytał", i wysortowałoby ją na szczyt listy, na której
+%% ktoś działa.
+
+flowchart TD
+  FA["Pierwsze podejście<br/>czy czytelnik trafił<br/>za pierwszym razem"]
+  DS["Miara odległa<br/>czy sprawdzenia potrzebujące<br/>tej ramki później nadal przechodzą"]
+  W1["waga 0,35<br/>Pressurable: true"]
+  W2["waga 0,65<br/>Pressurable: false"]
+  BLEND["Teaching.Of<br/>ważona mieszanka<br/>procentu i połowy przedziału"]
+  SCORE["Ocena dydaktyczna ramki<br/>wraz z przedziałem"]
+  GIVEAWAY["Autor rozdaje<br/>odpowiedź"]
+  UP["Pierwsze podejście: w górę"]
+  DOWN["Miara odległa: w dół"]
+  NET["Mieszanka spada"]
+  NONE(["Żadne sprawdzenie nie niesie<br/>tej ramki dalej:<br/>brak oceny w ogóle,<br/>nigdy zero"])
+
+  FA --> W1 --> BLEND
+  DS --> W2 --> BLEND
+  BLEND --> SCORE
+  GIVEAWAY --> UP --> NET
+  GIVEAWAY --> DOWN --> NET
+  DS -.-> NONE

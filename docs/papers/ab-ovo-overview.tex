@@ -33,6 +33,18 @@
 %  packages only, and no character outside ASCII. The book it describes sets Polish
 %  alongside English; if a future revision of this paper quotes any of it, that revision
 %  needs one of the Unicode engines and should say so here.
+%
+%  THERE IS A POLISH EDITION OF THIS PAPER, ab-ovo-overview.pl.tex. It is a sibling rather
+%  than a translation layer: same directory, same build, one visible difference in the name.
+%  It carries babel[polish] for hyphenation, includes the Polish renderings of the same
+%  diagrams, and matches the vocabulary web/app/src/lib/i18n/chrome.ts already uses, so that
+%  one concept does not acquire two Polish names inside one estate.
+%
+%  THE FIGURES ARE RENDERED, NOT DRAWN HERE. Each one is a Mermaid diagram whose source is
+%  docs/diagrams/<id>-<slug>.mmd -- the same source docs/DIAGRAMS.md renders on GitHub, kept
+%  identical by scripts/check-diagrams.mjs. Redrawing them in TikZ would be two sources of
+%  truth for one picture. Run `node scripts/render-diagrams.mjs` BEFORE latexmk; the
+%  workflow does, and without it the build dies on the first \includegraphics.
 % =====================================================================================
 
 \documentclass[11pt,a4paper]{article}
@@ -41,6 +53,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[a4paper,margin=28mm]{geometry}
 \usepackage{booktabs}
+\usepackage{graphicx}
 \usepackage{enumitem}
 \usepackage{parskip}
 \usepackage[hidelinks]{hyperref}
@@ -62,7 +75,8 @@ English and Polish, together with that book's computer exercises. This document 
 project overview: what the system is, what it deliberately is not, what exists in the
 repository today, and what is planned. It is not a research paper and reports no result.
 Every statement in it is drawn from the repository's markdown documentation, which is the
-source of truth; where the two disagree, the markdown is right.
+source of truth; where the two disagree, the markdown is right. Its figures are the
+repository's own diagrams, rendered from the same sources GitHub renders.
 \end{abstract}
 
 \section{What ab-ovo is}
@@ -73,13 +87,28 @@ with the answer they were supposed to have written. A reader who skims gets noth
 that structure, and a printed page has no way to notice.
 
 ab-ovo is the software that does notice. A reader reads a frame, commits an answer, and
-reveals the next frame, which opens with the answer; where a program carries computer
-exercises, they are worked in a lab pane in which Python runs in the reader's own browser.
+reveals the next frame, which opens with the answer. The reveal is a navigation rather than
+a toggle, so the answer to the frame on screen is rendered by the request for the next one
+and by nothing before it: it is absent from the document rather than hidden in it, and a
+reader who opens the inspector finds nothing. Where a frame asks for something, a worksheet
+sits below it --- a line to answer on, a pad that evaluates arithmetic, a canvas to sketch
+on --- and all three are optional and local to the reader's browser. The book's computer
+exercises are worked in a separate lab pane, in which Python runs in the reader's own
+browser; they left the reading loop deliberately, because a reader of a mathematics book
+should not have to write code to answer a frame.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.78\linewidth]{../diagrams/rendered/b1-reader-loop.pdf}
+\caption{The reader loop. Every box runs with no account and no backend; the two dotted
+edges leaving it are the only places a server appears, and neither is on the path.}
+\end{figure}
 
 The product's first requirement constrains everything else in this document: \textbf{the
 reader loop works with no account and no backend.} Frames are served with the site as a
-versioned content bundle and the exercises run client-side. An account adds synchronisation
-of progress between machines, and nothing else.
+versioned content bundle, the exercises run client-side, and nothing a reader writes on a
+frame is stored anywhere but their own browser. An account adds synchronisation of the
+reader's place between machines, and nothing else.
 
 \section{What it deliberately is not}
 
@@ -96,8 +125,23 @@ The useful question it answers is \emph{where is this book wasting the reader's 
 \emph{which reader is worst}. Concretely, and in a form that a search of the code can
 falsify: there is no per-reader view and adding one is not planned; there is no endpoint
 whose route or query parameter names a person; and there is no table from which a per-reader
-score could be built, because the aggregate store holds no reader identity at all. Outcomes
-are recorded against a frame in a bundle version, an attempt and a check run.
+score could be built. Outcomes are recorded against a frame in a bundle version, an attempt
+and a check run --- the artifact, never the person --- and the outcome row carries no
+identifier and no timestamp, because rows whose times run consecutively over one program
+reconstruct a session without naming anybody.
+
+The reader's place in the book is the one thing this estate stores about a person, and it
+says where they are and never how they did. Three mechanical rules hold each table rather
+than a promise: a closed column list, so a measure of a reader breaks the build; every key
+and index leading with the reader on one table and with the bundle version on the other; and
+a query that does not pin exactly one of those refused at run time, before the ORM compiles
+it. Each was watched refusing something before it was believed.
+
+The reader is also told what the absence costs them, which is the half an architectural
+absence cannot deliver on its own: because an outcome carries no reader, nothing can find
+the rows that were theirs, so deleting an account cannot retract a contribution already
+folded into a rate. The deletion screen says exactly that, beside what the deletion does
+remove.
 
 Two further refusals are recorded as decisions rather than left as preferences. No language
 model is called anywhere in the reader loop: the comparison against the next frame is the
@@ -111,11 +155,16 @@ The repository stands at \emph{builds, tests green, images build}. There is no r
 instance, at any address, for anybody. Four \code{fly.toml} files describe a topology that
 has never been applied, and neither container image has ever been published.
 
-There is also, deliberately, \textbf{no domain model}: the persistence context declares no
-entity and there are no migrations. The mechanism around it --- provider selection, retry,
-migration after the listener starts, the health check --- is wired and proven by tests. The
-first entities arrive with the first ticket that needs them, because entities invented ahead
-of that ticket are code the ticket deletes.
+What exists is the reading surface over the whole book: every program in both editions, one
+frame a screen, with the book's own prose and mathematics; a place row that is the only
+chrome and whose frame number is a jumper; and a worksheet on every frame that asks for
+something. Behind it: an API, a web application whose landing page is the index of programs,
+a Playwright acceptance suite, and the CI gates that would catch a regression in any of it.
+
+The domain model is small and it arrived late on purpose. Entities invented ahead of the
+ticket that needs them are code the first real ticket deletes, so the persistence context
+held none until synchronisation needed one. It now holds the reader's place in the book, and
+the tally of outcomes against a frame --- and nothing else.
 
 \section{The shape of the repository}
 
@@ -139,12 +188,23 @@ of that ticket are code the ticket deletes.
 \end{tabular}
 \end{table}
 
-The HTTP surface that exists today is three endpoints: a readiness endpoint reporting the
-state of every optional integration, a liveness endpoint carrying only liveness-tagged
-checks, and one public endpoint describing the deployment. The authenticated and
-administrative route groups are declared in the composition root and carry nothing yet ---
-written down before the first endpoint arrives, because a group that does not exist cannot
-be seen to be missing.
+The HTTP surface is organised by authorization rather than by feature, and the composition
+root reads as a manifest of it. A public group carries readiness, liveness and a service-info
+endpoint describing the deployment. An authenticated group carries the reader's own place in
+the book, including its deletion. An administrative group carries the rates the author's view
+reads. A fourth group is not a fourth member of that triad: it carries the one anonymous
+write --- an outcome --- because consent is not an account and an instrument that required a
+token would measure the book as experienced by account-holders and call it the book. It takes
+the explicit rate limit the authenticated group takes rather than falling through to the
+global one, since a probe that gets rate-limited takes a machine out of rotation.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.92\linewidth]{../diagrams/rendered/a3-one-origin.pdf}
+\caption{Every request the browser is allowed to make. The two arrows drawn because they
+must not exist are the rule: the browser talks to the web application's own origin and to
+nothing else, which is why no CORS is configured on the frontend's account.}
+\end{figure}
 
 \section{Architecture, and where it departs from the constitution}
 
@@ -162,27 +222,34 @@ compiled into any artifact: the frontend reads its configuration at request time
 image serves every environment.
 
 That document also carries a \textbf{deviation register}, in which every row has a date, a
-reason and an exit condition. Five deviations are recorded at the time of writing: dependency
-version automation declared and switched off; a size gate counting code lines rather than raw
-lines, so that a principle requiring reasoning in comments does not spend the budget of a
-principle capping size; Python in the browser, which the standards do not evidence; a
-repository name that is a typo and a system name that is not; and one Aspire API marked
-evaluation-only, used in a development-only file.
+reason and an exit condition. What is recorded there today: dependency version automation
+declared and switched off; a size gate counting code lines rather than raw lines, so that a
+principle requiring reasoning in comments does not spend the budget of a principle capping
+size; Python in the browser, which the standards do not evidence; a repository name that is a
+typo and a system name that is not; one Aspire API marked evaluation-only, used in a
+development-only file; a secret-scan mirror script that is not one-to-one with its CI job; and
+a content bundle compiled here from the book at a pinned revision, because no release of the
+book carries one yet. That last exit condition is the plainest in the register: the first
+release that carries a bundle.
 
 A deviation with no exit condition is a drift rather than a decision, which is why the
 column exists.
 
 \section{The plan}
 
-Five phases, ranked in \code{docs/ux/UI-UX.md} so that the first delivery session picks up a
-decision rather than re-deriving one.
+Five phases, ranked in \code{docs/ux/UI-UX.md} so that a delivery session picks up a decision
+rather than re-deriving one. The earlier phases have landed; the list is kept in its original
+order because the reasoning for the order is the useful part of it.
 
 \begin{enumerate}[leftmargin=2em,itemsep=2pt]
   \item \textbf{The lab pane.} The exercises, in the browser. The largest piece that needs
         neither a backend nor the content bundle, which is why it is first.
-  \item \textbf{The content schema and the frame view.} Its first half proceeds against a
-        fixture; its second half is \emph{blocked} on the book publishing a content bundle,
-        which is the plan's only external dependency.
+  \item \textbf{The content schema and the frame view.} Its second half was \emph{blocked} on
+        the book publishing a content bundle --- the plan's only external dependency --- and
+        was unblocked by compiling one here instead, at a pinned revision, with the book's own
+        compiler and its own cross-check. That is a deviation with an exit condition rather
+        than a resolution of the dependency. The fixture written for the first half stays, as
+        the unit tier's control: a test whose input is the thing under test proves less.
   \item \textbf{Progress and accounts.} Local progress first; an account synchronises it.
   \item \textbf{The instrument.} Opt-in, versioned consent; outcomes against artifacts; every
         rate carrying its interval.
@@ -193,13 +260,21 @@ decision rather than re-deriving one.
 \section{Where the documents are}
 
 \begin{description}[leftmargin=0pt,itemsep=1pt]
+  \item[\code{docs/START-HERE.md}] The front door, in English and Polish: which of the four
+        kinds of document you need, and where it is.
   \item[\code{README.md}] What the system is, how to run it in one command, and the
         anti-goals, stated before the features.
   \item[\code{docs/architecture/00-ARCHITECTURE.md}] The principle-by-principle walk, the
         deviation register, and the known gaps.
   \item[\code{docs/adr/}] The decisions, one file each, with what they cost.
   \item[\code{docs/ux/UI-UX.md}] The screens as scaffolded, and the ranked backlog.
-  \item[\code{docs/diagrams/}] The system topology and the reader loop.
+  \item[\code{docs/DIAGRAMS.md}] The whole system as diagrams, in four parts, in English and
+        Polish. Each one exists inline --- the only form GitHub renders --- and as a
+        standalone \code{.mmd} that this paper's figures are rendered from.
+  \item[\code{docs/SCREENSHOTS.md}] The product screen by screen, in English and Polish,
+        captured from a production build by the acceptance suite.
+  \item[\code{docs/tutorials/}, \code{docs/how-to/}] Bilingual throughout: the lessons for a
+        first run, and the recipes for a task already understood.
   \item[\code{AGENTS.md}, \code{CONTRIBUTING.md}, \code{SECURITY.md}] Working in the
         repository, and what to do when a secret lands in history.
 \end{description}

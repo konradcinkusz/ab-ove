@@ -1,0 +1,46 @@
+%% Dwa zapytania, których warstwa trwałości odmawia, i inny powód każdego z nich.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% SĄ SWOIMI LUSTRZANYMI ODBICIAMI, A NIE TĄ SAMĄ REGUŁĄ Z INNĄ KOLUMNĄ.
+%% ReaderScopedQueries odmawia zapytania obejmującego wielu CZYTELNIKÓW, bo ocena
+%% pojedynczego czytelnika ma być nie do zbudowania (ADR-0009, ADR-0020).
+%% BundlePinnedQueries odmawia zapytania obejmującego wiele TEKSTÓW, bo średnia po dwóch
+%% brzmieniach ramki jest bez sensu, a nie zakazana (ADR-0024) - kazałaby rejestrowi kłamać
+%% o ramce, którą ktoś już poprawił.
+
+%% KAŻDĄ WIDZIANO, JAK CZEGOŚ ODMAWIA, ZANIM W NIĄ UWIERZONO, a jedna odmówiła czegoś, czego
+%% nikt nie podłożył: trzy testy samego magazynu wyników czytały go bez przypiętej wersji.
+
+%% ODMOWA PADA, ZANIM EF SKOMPILUJE ZAPYTANIE, co czyni ją regułą, a nie uwagą z przeglądu.
+
+flowchart TD
+  Q1["Zapytanie po ReaderProgress"]
+  G1{"Czy przypina<br/>dokładnie jednego czytelnika?"}
+  R1["Wykonuje się"]
+  X1["Odmowa w czasie działania,<br/>zanim EF je skompiluje"]
+
+  Q2["Zapytanie po FrameOutcome"]
+  G2{"Czy przypina<br/>dokładnie jedną wersję paczki?"}
+  R2["Wykonuje się"]
+  X2["Odmowa w czasie działania,<br/>zanim EF je skompiluje"]
+
+  Q1 --> G1
+  G1 -->|"tak"| R1
+  G1 -->|"nie"| X1
+  Q2 --> G2
+  G2 -->|"tak"| R2
+  G2 -->|"nie"| X2
+
+  W1["Bo ocena pojedynczego czytelnika<br/>ma być nie do zbudowania"]
+  W2["Bo średnia po dwóch<br/>brzmieniach ramki<br/>jest bez sensu"]
+  X1 --- W1
+  X2 --- W2
+
+  K1["Zamknięta lista kolumn:<br/>wynik, czas trwania albo<br/>liczba podejść<br/>psują build"]
+  K2["Zamknięta lista kolumn:<br/>Count jest jedyną kolumną<br/>poza kluczem"]
+  I1["Każdy klucz i indeks<br/>zaczyna się od czytelnika"]
+  I2["Każdy klucz i indeks<br/>zaczyna się od wersji paczki"]
+  R1 --- K1
+  R1 --- I1
+  R2 --- K2
+  R2 --- I2

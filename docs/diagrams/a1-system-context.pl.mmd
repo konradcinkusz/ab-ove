@@ -1,0 +1,55 @@
+%% Topologia systemu ab-ovo.
+%% JEDEN DIAGRAM NA PLIK. UTF-8, z polskimi znakami: reguła "tylko ASCII" obowiązuje w
+%% edycji angielskiej, bo tamten plik trafia dosłownie do angielskiego papieru. Polska
+%% edycja jest składana z babel [polish] i inputenc [utf8], więc diakrytyki są tam poprawne,
+%% a tekst bez nich byłby po prostu złą polszczyzną.
+%% UWAGA O STYLU KOMENTARZY: każdy wiersz komentarza niesie tekst po znaczniku %%. Mermaid
+%% usuwa komentarz wyrażeniem, które wymaga co najmniej jednego znaku po znaczniku, więc
+%% samotny %% PRZETRWA usuwanie, sklei się z następnym wierszem i diagram nie sparsuje się
+%% w wierszu 1. Do odstępów używaj pustego wiersza, nigdy samotnego znacznika.
+
+%% CO TO RYSUJE. Przerywane ramki to aplikacje Fly, KTÓRE NIE ISTNIEJĄ: nic nie jest
+%% wdrożone. flyio/*.fly.toml je opisuje i nigdy nie został zastosowany. Dziś działa
+%% src/AbOvo.AppHost, który jest WYŁĄCZNIE ŚRODOWISKIEM DEWELOPERSKIM i nie jest topologią
+%% produkcyjną (P1).
+
+%% Jedyna krawędź, której tu nie ma, jest sednem obrazka: przeglądarka nie ma strzałki do
+%% API ani do authservice. Rozmawia z własnym originem aplikacji webowej i z niczym więcej
+%% (FRONTEND-BFF.md sekcja 1) - dlatego ten majątek nie potrzebuje CORS po stronie
+%% frontendu, i dlatego potrzeba CORS oznaczałaby, że reguła została już złamana.
+
+flowchart LR
+  subgraph browser["Przeglądarka czytelnika"]
+    UI["Strony Next.js<br/>ramki, panel laboratorium"]
+    PYO["Pyodide<br/>sprawdzenia ćwiczeń działają tutaj<br/>kod czytelnika nigdzie nie wychodzi"]
+  end
+
+  subgraph web["ab-ovo-web-dev :3000"]
+    BFF["Backend for frontend<br/>/api/config<br/>/api/auth/login<br/>/api/auth/session<br/>/api/proxy/*"]
+  end
+
+  subgraph api["ab-ovo-api-dev :8080"]
+    SVC["AbOvo.Api<br/>/health  /alive  /api/v1/info<br/>weryfikuje RS256, nie wydaje nic"]
+  end
+
+  subgraph auth["ab-ovo-authservice-dev"]
+    AS["authservice v0.3.1<br/>zewnętrzny opublikowany obraz<br/>/.well-known/jwks.json"]
+  end
+
+  subgraph pg["ab-ovo-postgres"]
+    APIDB[("apidb<br/>należy do AbOvo.Api")]
+    AUTHDB[("authdb<br/>należy do authservice")]
+  end
+
+  UI -->|"wyłącznie ten sam origin"| BFF
+  UI -.->|"ładowane raz, leniwie"| PYO
+
+  BFF -->|"po stronie serwera, wstrzykuje bearer"| SVC
+  BFF -->|"weryfikuje token, jose i zdalny JWKS"| AS
+
+  SVC -->|"JWKS, w żądaniu"| AS
+  SVC -->|"6PN, .internal:5432"| APIDB
+  AS -->|"6PN, .internal:5432"| AUTHDB
+
+  classDef notdeployed stroke-dasharray: 5 5;
+  class web,api,auth,pg notdeployed;

@@ -26,7 +26,7 @@
   indistinguishable from one that was.
 -->
 
-```
+```text
 paste the command and its output
 ```
 

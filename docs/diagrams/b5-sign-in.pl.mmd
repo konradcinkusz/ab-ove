@@ -1,0 +1,46 @@
+%% Logowanie: hasło, drugi składnik i sesja, której dokument nigdy nie trzyma.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% TOKENÓW NIGDY NIE MA W DOKUMENCIE (ADR-0018). Formularz wysyła POŚWIADCZENIA do własnego
+%% BFF tej aplikacji, który rozmawia z authservice po stronie serwera i ustawia ciasteczka
+%% HttpOnly. Alternatywa - wysłać je do serwisu tożsamości i oddać token stronie - kładzie
+%% bearer tam, gdzie czyta go document.cookie i każdy skrypt na stronie.
+
+%% WYZWANIE JEST CIASTECZKIEM, A KOD JEDYNĄ RZECZĄ, KTÓRĄ PODAJE CZYTELNIK (ADR-0029). Jest
+%% ograniczone jak ciasteczko sesji i bezużyteczne jako ono: nie uwierzytelni żądania, wygasa
+%% po około pięciu minutach, a wylogowanie je czyści. Ukryte pole formularza byłoby
+%% poświadczeniem, które przeżywa przywrócenie formularza i zrzuty ekranu.
+
+%% PARAMETR PRZEKIEROWANIA JEST PRZYJMOWANY WYŁĄCZNIE JAKO ŚCIEŻKA BEZWZGLĘDNA TEGO SAMEGO
+%% ORIGINU. Wartość zaczynająca się od dwóch ukośników albo niosąca schemat jest odrzucana:
+%% ten ciąg wybiera atakujący, a strona logowania, która za nim idzie, jest przekierowaniem
+%% phishingowym z nazwą tej witryny.
+
+%% BRAK SKONFIGUROWANEGO SERWISU TOŻSAMOŚCI JEST WSPIERANĄ KONFIGURACJĄ, NIE AWARIĄ (P8).
+%% Strona mówi to wprost, zamiast oferować przycisk, który nie może zadziałać.
+
+sequenceDiagram
+  autonumber
+  participant R as Czytelnik
+  participant P as strona /login
+  participant BFF as /api/auth/*
+  participant AS as authservice
+
+  R->>P: e-mail i hasło
+  P->>BFF: POST /api/auth/login<br/>poświadczenia, ten sam origin
+  BFF->>AS: logowanie, po stronie serwera
+
+  alt wymagany drugi składnik
+    AS-->>BFF: wyzwanie
+    BFF-->>P: ciasteczko HttpOnly z wyzwaniem<br/>około pięciu minut, to nie sesja
+    R->>P: sam kod i nic więcej
+    P->>BFF: POST /api/auth/2fa
+    BFF->>AS: kod i wyzwanie
+  end
+
+  AS-->>BFF: token dostępu i odświeżający
+  BFF-->>P: Set-Cookie HttpOnly<br/>sam status, w ciele żadnego tokenu
+  Note over P: przeglądarka nigdy nie trzyma bearera,<br/>localStorage też żadnego nie trzyma
+
+  R->>P: podąża za ?redirect=
+  Note over P: tylko ścieżka bezwzględna tego samego originu.<br/>Wartość zaczynająca się od dwóch ukośników<br/>albo niosąca schemat jest odrzucana

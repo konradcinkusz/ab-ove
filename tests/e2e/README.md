@@ -587,7 +587,7 @@ a machine-readable summary line have no useful accessible name — "the textarea
 Your code" would be a locator for the label rather than for the thing being driven — so seven
 ids carry that journey:
 
-```
+```text
 lab-status  lab-editor  lab-run  lab-reset  lab-output  lab-summary  lab-exercise-count
 ```
 
@@ -707,7 +707,7 @@ exposes.
 
 ## Files
 
-```
+```text
 tests/e2e/
   package.json                      scripts; every one is run by a CI context
   playwright.config.ts              base URL, layers, harness defaults, webServer

@@ -43,6 +43,7 @@
     "test:smoke": "playwright test --project=smoke",
     "test:full": "playwright test --project=core",
     "test:identity": "playwright test --project=identity",
+    "screenshots": "playwright test --project=screenshots",
     "test:headed": "playwright test --project=smoke --headed",
     "test:ui": "playwright test --ui",
     "report": "playwright show-report",

@@ -1,0 +1,35 @@
+%% Od tego, co czytelnik zrobił, do wiersza w rejestrze: droga zapisu instrumentu.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% ZLICZENIE JEST LICZNIKIEM PRZY RAMCE, NIE ZAPISEM PRZEBIEGU (ADR-0023). Wiersz niesie
+%% wersję paczki, program, krok, sprawdzenie, numer podejścia i werdykt - oraz jedną kolumnę
+%% poza tym, Count. Nie ma identyfikatora i nie ma znacznika czasu: kilkadziesiąt wierszy,
+%% których czasy biegną po kolei przez jeden program, odtwarza sesję, nikogo nie nazywając.
+
+%% ENDPOINT NIE PRZYJMUJE TOKENU. Czytelnik bez konta wnosi wkład na tych samych zasadach co
+%% zalogowany, a serwis nie odróżniłby ich, gdyby chciał. Instrument wymagający tokenu
+%% mierzyłby książkę doświadczaną przez posiadaczy kont i nazywał to książką.
+
+%% NUMER PODEJŚCIA JEST WŁASNYM LICZNIKIEM PRZEGLĄDARKI, A SERWIS NIE MOŻE GO ZWERYFIKOWAĆ
+%% (ADR-0023 sekcja 3). To drugi powód, by czytać "za pierwszym razem" węziej, niż brzmi.
+
+flowchart LR
+  READER["Czytelnik<br/>odpowiada na ramkę<br/>albo uruchamia sprawdzenie"]
+  CONSENT{"Czy jest zgoda?<br/>trójwartościowa,<br/>lokalna, wersjonowana"}
+  NOTHING(["Nic nie jest wysyłane.<br/>To jest stan domyślny"])
+  REPORT["report.ts<br/>werdykty jednego przebiegu"]
+  POST["POST /api/v1/outcomes<br/>bez tokenu, z limitem tempa"]
+  ROW[("FrameOutcome<br/>BundleTag, Unit, Step,<br/>Check, Attempt, Verdict<br/>+ Count")]
+  RATE["GET /api/v1/admin/rates/track/unit<br/>wskaźnik i jego przedział,<br/>jedna wartość na jedną komórkę"]
+  VIEW["/instrument/track/unit<br/>widok autora"]
+
+  READER --> CONSENT
+  CONSENT -->|"jeszcze nie, albo nie"| NOTHING
+  CONSENT -->|"tak"| REPORT
+  REPORT --> POST
+  POST --> ROW
+  ROW --> RATE
+  RATE --> VIEW
+
+  NOID(["Bez identyfikatora czytelnika.<br/>Bez znacznika czasu.<br/>Oba nieobecne celowo"])
+  ROW -.-> NOID

@@ -1,0 +1,40 @@
+%% The teaching score: one weighted blend, and why one half of it cannot be pushed on.
+%% ONE DIAGRAM PER FILE. ASCII ONLY.
+
+%% THE WEIGHTS ARE IN THE CODE AND SO IS THE REASONING: src/AbOvo.Api/Instrument/Weights.cs
+%% carries a Because string on each measure, and Teaching.cs blends them. The pressurable
+%% measure carries the smaller share, deliberately.
+
+%% MODEL THE GIVEAWAY AND THE BLEND FALLS. Give a frame's answer away and first-attempt
+%% correctness rises immediately; the checks that rest on this frame AND on a later one
+%% cannot rise the same way, because the reader has to still have the frame when they
+%% arrive. That is a test rather than an intention, and it was watched failing with the
+%% weights swapped.
+
+%% THE DOWNSTREAM MEASURE IS THE BOOK'S OWN STRUCTURE, not an edge this product invented: a
+%% check's docstring names the frames it rests on, so a check appearing under several frames
+%% needs all of them at once.
+
+%% A FRAME NO CHECK CARRIES FORWARD GETS NO SCORE AT ALL, NEVER A ZERO. A zero reads as
+%% 'readers could not use this frame later', which is the opposite of 'nobody has asked',
+%% and would sort it to the top of a list somebody acts on.
+
+flowchart TD
+  FA["First attempt<br/>did the reader get it<br/>right first time"]
+  DS["Downstream<br/>did the checks that need<br/>this frame later still pass"]
+  W1["weight 0.35<br/>Pressurable: true"]
+  W2["weight 0.65<br/>Pressurable: false"]
+  BLEND["Teaching.Of<br/>weighted blend of<br/>percent and half-width"]
+  SCORE["A frame's teaching score<br/>with its interval"]
+  GIVEAWAY["An author gives<br/>the answer away"]
+  UP["First attempt: up"]
+  DOWN["Downstream: down"]
+  NET["The blend falls"]
+  NONE(["No check carries<br/>this frame forward:<br/>no score at all,<br/>never a zero"])
+
+  FA --> W1 --> BLEND
+  DS --> W2 --> BLEND
+  BLEND --> SCORE
+  GIVEAWAY --> UP --> NET
+  GIVEAWAY --> DOWN --> NET
+  DS -.-> NONE

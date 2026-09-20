@@ -1,0 +1,37 @@
+%% One frame, and why the answer is absent from the page rather than hidden on it.
+%% ONE DIAGRAM PER FILE. ASCII ONLY.
+
+%% THIS IS THE PRODUCT'S WHOLE MECHANISM. A Stroud frame asks for something BEFORE it tells
+%% you anything, and the next frame opens with the answer you were supposed to have written.
+%% A reader who skims gets nothing, and paper has no way to notice.
+
+%% THE REVEAL IS A NAVIGATION, NOT A TOGGLE. The frame is a Server Component with no client
+%% boundary around it, so the answer to frame N is rendered by the REQUEST for frame N+1 and
+%% by nothing before it. A reader who opens the inspector finds it nowhere; prefetching is
+%% off, so it is not on the wire either. Both halves are asserted, and both were watched
+%% failing before they were believed.
+
+%% WHY NOT A DISCLOSURE WIDGET. Anything that renders the answer into the document and hides
+%% it with CSS or JavaScript is a hint the browser already has. The structural version costs
+%% a navigation and cannot be defeated.
+
+sequenceDiagram
+  autonumber
+  participant R as Reader
+  participant B as Browser
+  participant S as Next.js server
+  participant C as Compiled bundle
+
+  R->>B: open /read/track/unit/lang/N
+  B->>S: GET frame N
+  S->>C: step N
+  C-->>S: prompt for N, answer for N-1
+  S-->>B: HTML carrying N's prompt<br/>and N-1's answer
+  Note over B: N's answer is in no<br/>element, no attribute,<br/>no script, no prefetch
+  R->>B: write the answer down
+  R->>B: turn the frame
+  B->>S: GET frame N+1
+  S->>C: step N+1
+  C-->>S: prompt for N+1, answer for N
+  S-->>B: now, and only now, N's answer
+  R->>R: compare what you wrote<br/>with what the book says

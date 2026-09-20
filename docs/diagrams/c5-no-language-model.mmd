@@ -1,0 +1,37 @@
+%% What is deliberately not in the loop: no language model, no grader, no per-reader view.
+%% ONE DIAGRAM PER FILE. ASCII ONLY.
+
+%% NO LANGUAGE MODEL IS CALLED, ANYWHERE (ADR-0010). Not to mark an answer, not to explain a
+%% frame, not to generate a hint. A book of programmed learning works because the frame
+%% before yours prepared you for this one; a generated paraphrase is a different book, and a
+%% marker that is sometimes wrong in an unfalsifiable way is worse than one that says
+%% nothing.
+
+%% NOTHING GRADES THE COMPARISON. The next frame opens with the answer and the reader
+%% compares. Where the book's whole answer is one number the machine may say 'matches the
+%% book', and it never says anything else -- never 'wrong' (ADR-0039).
+
+%% THE ANTI-GOALS ARE CLAIMS ABOUT THE CODE, NOT INTENTIONS. Each one is false the moment
+%% somebody ships the thing it denies, which is what makes them worth writing down.
+
+flowchart LR
+  ANSWER["The reader's answer"]
+  BOOK["The book's answer,<br/>on the next frame"]
+  READER["The reader compares"]
+
+  ANSWER --> READER
+  BOOK --> READER
+
+  LLM(["A language model<br/>marking the answer"])
+  GRADE(["A score for<br/>the comparison"])
+  LEADER(["A leaderboard,<br/>a ranking,<br/>a per-reader score"])
+  ROUTE(["An API route or<br/>query parameter<br/>naming a person"])
+  SORT(["A per-author<br/>sort control"])
+
+  READER -.-> LLM
+  READER -.-> GRADE
+  READER -.-> LEADER
+  READER -.-> ROUTE
+  READER -.-> SORT
+
+  linkStyle 2,3,4,5,6 stroke:#b45309,stroke-dasharray: 4 4;

@@ -1,0 +1,40 @@
+%% Arkusz: co ramka daje czytelnikowi, który musi coś policzyć.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% TO ZASTĄPIŁO LABORATORIUM PYTHONA W PĘTLI CZYTELNIKA (ADR-0040). Zmierzone na
+%% odpowiedziach książki: praktycznie żadna z nich nie jest jednolinijkowcem w Pythonie,
+%% a proszenie czytelnika książki matematycznej o kod dosięgło jednego programu z
+%% czterdziestu siedmiu.
+
+%% WSZYSTKIE TRZY SĄ OPCJONALNE I WSZYSTKIE TRZY SĄ LOKALNE. Nic stąd nigdzie nie idzie, nic
+%% nie jest oceniane i nie jest wołany żaden model językowy (ADR-0010, ADR-0039). Notatnik
+%% jest kalkulatorem i celowo nie systemem algebry komputerowej (ADR-0042); płótno to
+%% pociągnięcia i nigdy nie otwiera się samo (ADR-0043).
+
+%% PUSTE POLE JEST BŁĘDNĄ ODPOWIEDZIĄ, NIE POMINIĘTĄ (ADR-0045): odpowiedź z arkusza to
+%% jedna komórka, a pusta komórka to czytelnik, który się nie zobowiązał.
+
+flowchart TD
+  FRAME["Ramka, która<br/>o coś prosi"]
+  LINE["Linia odpowiedzi<br/>jedna komórka, zobowiązanie"]
+  PAD["Notatnik<br/>liczy arytmetykę<br/>kalkulator, nie CAS"]
+  CANVAS["Płótno<br/>pociągnięcia, na szkic<br/>nigdy nie otwiera się samo"]
+  COMMIT["Odwróć ramkę"]
+  REVEAL["Kolejna ramka otwiera się<br/>odpowiedzią"]
+  MATCH{"Czy cała odpowiedź<br/>to jedna liczba?"}
+  SAYS["'zgadza się z książką'<br/>i nic poza tym -<br/>nigdy 'źle'"]
+  QUIET["Nie mówi nic.<br/>Porównanie<br/>jest nauczaniem"]
+  TALLY["Opcjonalnie, za zgodą:<br/>jedno zliczenie przy ramce"]
+
+  FRAME --> LINE
+  LINE -.->|"opcjonalnie, obok linii"| PAD
+  LINE -.->|"opcjonalnie, obok linii"| CANVAS
+  PAD -.-> LINE
+  CANVAS -.-> LINE
+  LINE --> COMMIT
+  COMMIT --> REVEAL
+  REVEAL --> MATCH
+  MATCH -->|"tak"| SAYS
+  MATCH -->|"nie"| QUIET
+  SAYS -.-> TALLY
+  QUIET -.-> TALLY

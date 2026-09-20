@@ -15,7 +15,7 @@ Four Fly apps, one per service — a Fly app is a name, a config, a set of secre
 IP, and machines within one app all run the same container, so two services never share
 one (§1).
 
-```
+```text
                     browser
                        │  https
                        ▼
@@ -246,7 +246,7 @@ Three health-check paths, three different reasons, none of them the default copi
 
 `state → auth → domain services → frontends` (§10):
 
-```
+```text
 ab-ovo-postgres  →  ab-ovo-authservice-dev  →  ab-ovo-api-dev  →  ab-ovo-web-dev
 ```
 

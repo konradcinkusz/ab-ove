@@ -107,6 +107,15 @@ AbOvo.slnx
 **/playwright-report/
 **/test-results/
 
+# The documentation tooling at the repository root — markdownlint, the link checker, the
+# Mermaid renderer. It is a Node package that happens to live beside a .NET solution, it
+# ships in no image, and nothing in src/ references it. Listing it costs a line and keeps
+# the rule above honest: `docs/` being excluded does not by itself exclude the tools that
+# lint it.
+/package.json
+/package-lock.json
+/.markdownlint-cli2.jsonc
+
 # ═════════════════════════════════════════════════════════════════════════════════════
 # 4. Secrets — REPO-BASELINE.md §2, P5
 # ═════════════════════════════════════════════════════════════════════════════════════

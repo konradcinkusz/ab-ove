@@ -1,0 +1,36 @@
+%% The one screen that ranks anything, and the number it prints beside the ranking.
+%% ONE DIAGRAM PER FILE. ASCII ONLY.
+
+%% SORTING SELECTS FOR WHICHEVER ESTIMATE THE NOISE PUSHED FURTHEST. The extreme of m
+%% equally-good cells sits beyond the truth by the expected maximum of m standard normals.
+%% That is the book's own arithmetic, from Program P27, and it needs an error function .NET
+%% does not have -- which is why src/AbOvo.Api/Instrument/Normal.cs implements one, with
+%% Math.Sqrt as the control in the same probe.
+
+%% EARLY, NOT WRONG, IN THOSE WORDS. Against every row whose interval is not disjoint from
+%% the row below it, the screen says so, because an author who reads an early list as a
+%% verdict rewrites a frame that was fine and leaves one that is not. On thin data that is
+%% every row, which is correct and is what an early list is.
+
+%% THE WORD IS ON THE ROW RATHER THAN IN A LEGEND. Two instruments reach this screen -- a
+%% lab check asks whether the reader's code satisfied an assertion, a worksheet answer asks
+%% whether the number they wrote before the reveal is the number the book prints -- and they
+%% do not measure the same thing.
+
+flowchart TD
+  CELLS["Cells for one unit<br/>a rate and its interval<br/>per check and attempt"]
+  FRAMES["Frames with a teaching score"]
+  SORT["rankFrames<br/>worst blended score first;<br/>cells inside a frame<br/>worst first"]
+  PAIR{"Is this row's interval<br/>disjoint from<br/>the row below it?"}
+  QUIET["The row stands<br/>on its own"]
+  EARLY["'early, not wrong'<br/>beside the number"]
+  UNSCORED["Unscored frames<br/>listed apart:<br/>not measured is not zero"]
+  HEAD["Above the list, a number:<br/>how far the top row is<br/>expected to overshoot"]
+
+  CELLS --> SORT
+  FRAMES --> SORT
+  SORT --> PAIR
+  PAIR -->|"yes"| QUIET
+  PAIR -->|"no"| EARLY
+  SORT --> UNSCORED
+  SORT --> HEAD

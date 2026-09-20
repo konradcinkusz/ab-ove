@@ -193,6 +193,25 @@ export default defineConfig({
     },
     {
       /**
+       * Screenshots — the pictures docs/SCREENSHOTS.md shows, captured from a real build.
+       *
+       * NOT A TEST LAYER, AND DELIBERATELY NOT IN ANY OF THE THREE ABOVE. It asserts that
+       * each screen is the screen it claims to be and then photographs it; it compares
+       * against no stored image, so a redesign does not turn it red, and it writes into the
+       * working tree, which the other projects never do. Folding it into `core` would mean
+       * every merge to main rewrote files under docs/ — a test suite with a side effect,
+       * which is the sort of thing that surprises somebody at the worst moment.
+       *
+       * It is not aspirational config either (TESTING-STRATEGY.md §9): the docs workflow
+       * runs it. If that workflow stops running it, this project is deleted rather than
+       * left here.
+       */
+      name: 'screenshots',
+      use: { ...devices['Desktop Chrome'] },
+      grep: /@screenshots/,
+    },
+    {
+      /**
        * Core regression — 20-30 minute budget, merge to main.
        * The charter's full protected-flow set, which includes the smoke set rather than
        * sitting beside it: a core run that skipped the critical path would report on
