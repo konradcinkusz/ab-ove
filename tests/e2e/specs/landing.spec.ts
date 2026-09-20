@@ -141,6 +141,13 @@ test.describe('landing page', () => {
     await expect(about).toBeVisible();
     await expect(about).toHaveAttribute('href', '/about');
 
+    // And the way to the other courses, which is in the same row and is the one link on this
+    // page that is not about the course below it (ADR-0048). `specs/courses.spec.ts` asserts
+    // what is on the other end.
+    const courses = page.getByRole('link', { name: 'Courses' });
+    await expect(courses).toBeVisible();
+    await expect(courses).toHaveAttribute('href', '/courses');
+
     /*
       Sign-in at the top of the first screen — the position this page was asked for.
 

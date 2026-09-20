@@ -2,10 +2,13 @@ import Link from 'next/link';
 
 import { AccountControl } from '@/components/account/account-control';
 import { ConsentControl } from '@/components/consent/consent-control';
+import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { groupsOf, say, sectionSpans } from '@/lib/content/bundle';
 import { editionsOffered } from '@/lib/content/chosen-edition';
+import { shownBundles } from '@/lib/content/chosen-track';
 import type { Bundle } from '@/lib/content/schema';
 import { FALLBACK_LANGUAGE, chromeFor, endonym } from '@/lib/i18n/chrome';
+import { coursesHref, indexHref } from '@/lib/index-href';
 
 import { ClearWorksheets } from '../read/clear-controls.tsx';
 import { ForgetProgress, ResumeLast, type Limits } from '../read/resume.tsx';
@@ -21,6 +24,12 @@ export interface ProgramGridProps {
    * to the same answer.
    */
   readonly chosen: string | undefined;
+  /**
+   * The course the reader narrowed to, or `undefined` for the index that shows every one.
+   * Resolved by `chosenTrack`, which collapses every way of naming a course this deployment
+   * does not serve into the same unnarrowed answer.
+   */
+  readonly chosenTrack: string | undefined;
 }
 
 /**
@@ -47,15 +56,38 @@ export interface ProgramGridProps {
  * The furniture follows the choice once there is one (ADR-0016), and is English until then.
  * That is not a third rule: ADR-0016 says the controls follow the reader's edition, and on
  * a page with no reader edition there is nothing to follow.
+ *
+ * AND THE COURSE IS CHOSEN THE SAME WAY, OR NOT AT ALL (ADR-0048).
+ *
+ * `chosenTrack` narrows this page to one course, and `undefined` shows every pinned one
+ * stacked — which is what this page has always done and reads correctly while there is one
+ * course. The choice is made on `/courses` rather than here: a switch with forty-seven tiles
+ * under each position is not a switch, and the courses page can say what each course contains
+ * where a row of links could only name them.
  */
-export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.Element {
+export function ProgramGrid({ bundles, chosen, chosenTrack }: ProgramGridProps): React.JSX.Element {
   const chrome = chromeFor(chosen ?? FALLBACK_LANGUAGE);
+
+  /*
+    The courses this page renders: the chosen one, or all of them. The narrowing is the only
+    thing it changes — every control below reads `bundles`, the whole pinned set, wherever
+    what it needs is a fact about the deployment rather than about what is on screen.
+  */
+  const courses = shownBundles(bundles, chosenTrack);
 
   /*
     How long each program is, so a reader whose stored place is past the end of a shortened
     program gets clamped rather than a 404 — and so a place in a program this index no
     longer lists produces no control at all. Identifiers and integers; the client boundary
     carries no content here either.
+
+    FROM EVERY PINNED COURSE, NOT FROM THE ONE ON SCREEN, and the difference is the resume
+    control. A reader's stored place can perfectly well be in a course they have just narrowed
+    away from; reading these limits off the narrowed set would delete *Continue at frame 12*
+    for exactly the returning reader ADR-0036 restored it for, and it would look like the
+    place had been forgotten rather than like the page had been filtered. A program the
+    CONTENT no longer has still produces no control, which is the clause above and is a
+    different thing entirely.
   */
   const limits: Limits = Object.fromEntries(
     bundles.flatMap((bundle) =>
@@ -66,12 +98,14 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
   /*
     Where sign-in should send the reader back to, QUERY AND ALL.
 
-    This is the page `account-control.tsx` warned about: its location is a path plus a
-    chosen edition, and the path alone would drop the edition on the way back from the form.
+    This is the page `account-control.tsx` warned about: its location is a path plus the
+    reader's choices, and the path alone would drop them on the way back from the form.
     Built here because the server already knows the answer, which is what keeps that control
     out of `useSearchParams()` and every other page that renders it statically rendered.
+    Both choices go in it since ADR-0048 — signing in from a narrowed index and coming back
+    to the unnarrowed one is the same defect as coming back to the wrong edition.
   */
-  const returnTo = chosen ? `/?lang=${encodeURIComponent(chosen)}` : '/';
+  const returnTo = indexHref({ track: chosenTrack, edition: chosen });
 
   return (
     <main className={styles.page} lang={chrome.language}>
@@ -89,9 +123,35 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
           reason it is at the END of the row rather than the start.
         */}
         <nav className={styles.chrome} aria-label={chrome.programs}>
+          {/*
+            THE COURSES, FIRST IN THE ROW AND BEFORE THE ARGUMENT (ADR-0048).
+
+            The two links that go somewhere else are together at the start, and the controls
+            that are about this reader follow them. It is offered whatever the deployment
+            pins — a page listing one course states what ab-ovo carries, where a SWITCH with
+            one position would be a control that cannot move. It carries the chosen edition
+            so the page it opens is in the language this one is in.
+          */}
+          <Link className={styles.chromeLink} href={coursesHref(chosen)}>
+            {chrome.courses}
+          </Link>
           <Link className={styles.chromeLink} href="/about">
             {chrome.about}
           </Link>
+          {/*
+            HOW A READER TURNS ON LIGHT MODE (ADR-0048), and the only control in this row
+            that is fully rendered on the server.
+
+            It sits after the one link that is always here and before everything that is
+            not, and that is placement rather than order of arrival: everything after it — the resume link, the two destructive controls, the account
+            — is read out of this browser and cannot exist in the first paint, so each of
+            them EXTENDS this line when it lands. A control that is in the markup from the
+            start belongs before them, where nothing can push it sideways.
+
+            It is three words of furniture and not a filled control, on `EditionSwitch`'s
+            reasoning below: a reader touches it once and then wants it out of the way.
+          */}
+          <ThemeSwitch language={chrome.language} />
           <ResumeLast language={chrome.language} limits={limits} />
           {/*
             THE TWO DESTRUCTIVE CONTROLS, AFTER THE RESUME LINK AND NOT BESIDE IT. Both are
@@ -114,15 +174,21 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
 
       <div className={styles.headingRow}>
         <h1 className={styles.heading}>{chrome.programs}</h1>
+        {/*
+          The editions of the courses ON SCREEN, not of every course pinned. A deployment whose
+          second course is English-only must not offer a Polish position on a page narrowed to
+          it: the switch would light a position whose page has nothing in it.
+        */}
         <EditionSwitch
           both={chrome.bothEditions}
           chosen={chosen}
-          editions={editionsOffered(bundles)}
+          editions={editionsOffered(courses)}
           label={chrome.languageLabel}
+          track={chosenTrack}
         />
       </div>
 
-      {bundles.map((bundle) => {
+      {courses.map((bundle) => {
         // The editions this track has, narrowed to the one chosen if there is one. Read from
         // the TRACK rather than from the switch, so a track that does not publish the chosen
         // edition shows the editions it does have instead of an empty tile.
@@ -139,11 +205,36 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
                   {say(bundle.track.titles, language)}
                 </h2>
               ))}
+              {/*
+                THE NARROWING, BOTH WAYS, BESIDE THE TITLE IT IS ABOUT.
+
+                Showing every course, this is the way into one — so the first screen of a
+                deployment carrying several is itself the way to one of them rather than a
+                list to scroll past. Narrowed, it is the way back out: the `?track=`
+                counterpart of the switch's *Both editions*, there for the reason ADR-0036
+                gives that position, because a reader who arrived on a link to one course
+                would otherwise have no way back to the rest except the URL.
+
+                One control in two states rather than two controls, and absent entirely
+                while there is one course — both of its labels would lead to the page the
+                reader is already on.
+              */}
+              {bundles.length > 1 ? (
+                <p className={styles.allCourses}>
+                  {chosenTrack ? (
+                    <Link href={indexHref({ edition: chosen })}>{chrome.allCourses}</Link>
+                  ) : (
+                    <Link href={indexHref({ track: bundle.track.id, edition: chosen })}>
+                      {chrome.onlyThisCourse}
+                    </Link>
+                  )}
+                </p>
+              ) : null}
             </div>
 
             {/*
               GROUPED, THE WAY PR4's INDEX WAS AND THE GRID FORGOT TO BE. `groupsOf` breaks
-              the programs where the book does — its parts once a bundle carries them, the
+              the programs where the course does — its parts once a bundle carries them, the
               id prefix until then — and a returning reader scans two headed runs rather
               than forty-seven tiles. The heading is the part's own title in each shown
               edition, or this application's word for the prefix; a prefix it has no word
@@ -246,17 +337,24 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
  * LINKS RATHER THAN BUTTONS, so the switch works with JavaScript off and each position is a
  * URL a reader can share. Each language is named in its own language (`endonym`), because
  * the reader reaching for this control is exactly the one who cannot read the current page.
+ *
+ * EVERY POSITION CARRIES THE CHOSEN COURSE (ADR-0048). The two narrowings are independent, so
+ * changing edition must not un-narrow the page: a switch that dropped `?track=` would
+ * answer "show me this in Polish" with every course on the platform, and the reader would
+ * have to find their way back to the one they were in.
  */
 function EditionSwitch({
   both,
   chosen,
   editions,
   label,
+  track,
 }: {
   readonly both: string;
   readonly chosen: string | undefined;
   readonly editions: readonly string[];
   readonly label: string;
+  readonly track: string | undefined;
 }): React.JSX.Element | null {
   // One edition is not a choice, and a switch offering it would be furniture that does
   // nothing. A track that publishes a second one makes this appear without a code change.
@@ -268,7 +366,7 @@ function EditionSwitch({
         <Link
           aria-current={language === chosen ? 'true' : undefined}
           className={styles.edition}
-          href={`/?lang=${encodeURIComponent(language)}`}
+          href={indexHref({ track, edition: language })}
           key={language}
           lang={language}
         >
@@ -281,7 +379,11 @@ function EditionSwitch({
         that turns into plain text when you are on it is one a reader has to re-learn.
         `aria-current` is what says which one is live, and it says it for this one too.
       */}
-      <Link aria-current={chosen ? undefined : 'true'} className={styles.edition} href="/">
+      <Link
+        aria-current={chosen ? undefined : 'true'}
+        className={styles.edition}
+        href={indexHref({ track })}
+      >
         {both}
       </Link>
     </nav>

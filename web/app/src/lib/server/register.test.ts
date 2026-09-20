@@ -12,11 +12,11 @@
  * WITH ONE EXCEPTION, AND IT IS THE INTERESTING ONE. The `errors`-as-an-object shape below
  * is NOT in that source: `[ApiController]` produces it from `RegisterRequest`'s annotations
  * before the action runs. It was captured by putting a real authservice v0.3.1 behind this
- * module — see ADR-0048, which records what was measured and when.
+ * module — see ADR-0049, which records what was measured and when.
  *
  * What none of this proves is that authservice still behaves this way tomorrow; the
  * acceptance suite's fixture agrees with this app by construction, and only a real one on
- * the day can say. ADR-0048 records that limit too.
+ * the day can say. ADR-0049 records that limit too.
  */
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';

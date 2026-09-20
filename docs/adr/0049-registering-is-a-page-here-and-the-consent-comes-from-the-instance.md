@@ -1,4 +1,4 @@
-# ADR-0048: Registering is a page in this app, and the consent versions come from the instance
+# ADR-0049: Registering is a page in this app, and the consent versions come from the instance
 
 ## Status
 

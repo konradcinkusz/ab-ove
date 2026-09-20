@@ -25,7 +25,8 @@ something is in the reader loop at all.
 
 | Route | What it is | Needs |
 | --- | --- | --- |
-| `/` | the landing page: every program as a tile, in the book's own runs, and the edition switch | nothing |
+| `/` | the landing page: every program as a tile, in the book's own runs, the edition switch, and the narrowing to one course | nothing |
+| `/courses` | the courses this deployment carries, each with its length and its editions, and the way into one ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) | nothing |
 | `/about` | what the product is, the anti-goal, the loop, the integration panel | nothing |
 | `/read/<track>/<unit>/<lang>` | a program's contents: its headings, and the filled way in — frame 1, or the reader's own place | nothing |
 | `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a navigation | nothing |
@@ -38,8 +39,15 @@ something is in the reader loop at all.
 | `/healthz` | the app's own liveness | nothing |
 | `/api/*` | the BFF: config, auth, session, and the one proxy to any backend | — |
 
-**The first five are the whole product for a reader who never signs in**, and that is a
+**The first six are the whole product for a reader who never signs in**, and that is a
 requirement rather than an accident.
+
+**A *course* is a whole work and a *program* is one of its forty-seven units.** The two
+words are minutes apart in the same chrome row, so they are worth separating once here: a
+course is what `PINS` pins and what `/courses` lists — its own content repository, its own
+compiled bundle, its own tag — and a program is what a reader works, a frame at a time, from
+the index. The content layer calls a course a *track*, which is the word in the schema, in
+`/read/<track>/<unit>/<lang>` and in the MCP tools, and which no screen says.
 
 **An address that is not a page gets a page of this product's.** `app/not-found.tsx` and
 `app/error.tsx` stand behind the two statuses the routes already answer: a frame number
@@ -67,8 +75,12 @@ navigation from a frame instead of two.
 
 Its parts, in order:
 
-1. **The top row** — the wordmark, a link to `/about`, the resume control, the two
-   destructive controls, and the account control, in that order. Everything but the first
+1. **The top row** — the wordmark, a link to `/courses`, a link to `/about`, the resume
+   control, the two destructive controls, and the account control, in that order. The two
+   links that lead somewhere else come first and the controls that are about this reader
+   follow them; *Courses* is offered whatever the deployment pins, because a page listing
+   one course states what ab-ovo carries where a switch with one position would be a
+   control that cannot move (ADR-0048). Everything but the first
    two is read from the browser and arrives after the first paint, so the row extends
    rather than the page moving (the constraint issue #7 put on the resume controls). The
    resume control — `F01 · Continue at frame 12` — is the index's one filled control: for
@@ -82,7 +94,14 @@ Its parts, in order:
 2. **The heading and the edition switch**, sharing a line. The switch has three positions —
    each edition, and *both* — and *both* is what a reader who has chosen nothing is looking
    at. A choice is `/?lang=<edition>`: visible, linkable, leaveable, and never inferred.
-3. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
+3. **The course's title**, at level two, in each shown edition — and beside it the one
+   control that narrows: *Only this course* on the index that is showing every one,
+   *All courses* on the index narrowed to one. It is absent entirely while the deployment
+   pins a single course, where both labels would lead to the page the reader is on. The
+   narrowing is `/?track=<id>`, beside `?lang=` and independent of it: every position of
+   the edition switch carries the chosen course, and the sign-in return address carries
+   both, so neither choice can undo the other (ADR-0048).
+4. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
    the parts themselves once a bundle carries them (`groupsOf`, in `lib/content/bundle.ts`,
    which the MCP server's `list_programs` shares, so the two surfaces divide the book one
    way). Each run is headed at level three, under the track's title. One tile per program,
@@ -94,13 +113,32 @@ Its parts, in order:
    progress** (ADR-0041): no fraction, no bar, nothing about how far, and not a link,
    because the way back into the frame is the resume control and `progress.spec.ts` holds
    the page to exactly one.
-4. **The consent invitation**, last, absent from the first paint, and an invitation rather
+5. **The consent invitation**, last, absent from the first paint, and an invitation rather
    than a gate — a reader who came to read reaches the programs first and the question
    afterwards. The same invitation is on a program's summary, below the list, where a
    reader has just finished the frames the instrument is about; one record, so an answer
    on either page is the answer on both (ADR-0022, Consequences).
 
 `/read` is a 308 to this page and the deep links under it do not move.
+
+### `/courses` — the courses this deployment carries
+
+`web/app/src/app/courses/page.tsx` over `components/programs/course-list.tsx`. A Server
+Component on the index's own terms: no fetch, no cookie, no backend, everything read from
+the bundles compiled into the app ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)).
+
+One entry per pinned course, carrying its title in each edition it is published in, and a
+line of measured facts under it — how many programs, how many frames across them, and the
+editions themselves, named in their own language. The whole entry is one link, into the
+index narrowed to that course, and **one link is the point**: a program tile has a link per
+edition because a frame's address contains its language, and a course's does not — so
+choosing a course says nothing about which edition the reader reads, and the switch on the
+page it opens still lights nothing until they choose. The chosen edition rides along on
+every link out, so opening this page and leaving it cannot undo the choice that got here.
+
+Its own chrome is the wordmark, *← Programs* and *About ab-ovo*. The way back is the whole
+index rather than a course: a reader who opened this page has not said which course they
+want.
 
 ### `/about` — the product's argument
 
@@ -161,7 +199,7 @@ Privacy versions that instance is configured with, so the page asks the instance
 (`GET /auth/consents/versions`), shows what it answers, and carries it in two hidden fields;
 the route asks again and forwards only versions that MATCH the ones the form carried. What
 the reader was shown is what gets recorded, or nothing is
-([ADR-0048](../adr/0048-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)).
+([ADR-0049](../adr/0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)).
 
 The outcomes are a closed set in this app's words, looked up from a code on the query string
 exactly as `/login`'s are. Three of them are separated because each is fixed somewhere
@@ -173,7 +211,7 @@ warning panel would tell a reader whose registration succeeded that it had faile
 
 **A registration grants no role**, which is a fact about authservice rather than a choice
 here, and it is why a local machine gets `src/AbOvo.Seed`
-([ADR-0049](../adr/0049-the-example-accounts-are-a-resource-you-start.md)) — `/instrument` is
+([ADR-0050](../adr/0050-the-example-accounts-are-a-resource-you-start.md)) — `/instrument` is
 behind `RequireRole("Admin", "SuperAdmin")` and nothing on screen can grant one.
 
 The `?redirect=` parameter is accepted **only** as a same-origin absolute path. A value
@@ -408,8 +446,15 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   companion for backgrounds. They mean *this integration is present* and *this one is
   absent*, and they are not decoration to be borrowed for anything else.
 - **`--accent` is a single blue**, used for links and emphasis.
-- **Dark mode via `prefers-color-scheme`**, as a full token swap. Not an afterthought: a
-  reader working through a program at night is the normal case.
+- **Dark mode as a full token swap, and a three-position switch over it.** Not an
+  afterthought: a reader working through a program at night is the normal case, and so is
+  one working it at a desk under a lamp. `System` is `prefers-color-scheme` and is the
+  default; `Light` and `Dark` are the reader's own answer, held in their browser and applied
+  before the first paint. The system position is the ABSENCE of `data-theme` rather than a
+  third value of it, which is what keeps the swap working with no JavaScript at all
+  ([ADR-0048](../adr/0048-the-theme-is-a-choice-and-the-system-is-a-position.md)). The switch
+  is in the index's chrome row and in the foot of the frame, the contents page and the
+  summary — before the keyboard map, which stays last on every page.
 - **Focus is a ring, never a brightness.** Every filled control — the reveal, the contents
   page's start, the shell pages' way in, the two forms' submit — wears a two-colour ring
   on `:focus-visible` (paper, then the control's own colour), because a ten-percent
@@ -529,7 +574,7 @@ written.
 | 320 | manual | #78 | Rename the repository to `ab-ovo` | 5.6 |
 | 330 | blocked | #79 | The real content bundle: 47 programs | 2b.1 |
 | 340 | blocked | #80 | A second lab | — |
-| 350 | blocked | #81 | A second track | — |
+| 350 | blocked | #81 | A second track — the content pipeline, not the screens ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) | — |
 
 **Three things this ordering asserts**, each of which is a claim and not a preference:
 
@@ -605,7 +650,7 @@ by construction.*
 | --- | --- | --- |
 | 3.1 | **Local progress first.** Place in the book, kept in the browser, with no account. | A reader who never signs in still returns to where they were. |
 | 3.2 | **Sign-in**, against `authservice` ([ADR-0004](../adr/0004-identity-authservice-and-anonymous-reader.md)). Built one step stronger than this row planned: the form posts *credentials* to `/api/auth/login`, which talks to `authservice` server-side, so the tokens are never in the document at all rather than passing through it on the way to `/api/auth/session` ([ADR-0018](../adr/0018-password-sign-in-happens-server-side.md)). No JavaScript on the happy path. | `/login` becomes a form. The middleware's redirect target is finally a screen that does something. |
-| 3.2a | **Registration**, which 3.2 assumed and no row planned — `/register` was in the middleware's public list with no page behind it, so an account could only be made with `curl`. The form is `/login`'s, one step earlier, plus the consent `AuthController.Register` requires: the versions come from the instance and are checked against what the reader was shown before anything is recorded ([ADR-0048](../adr/0048-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)). A registration grants no role, so a local machine gets its example accounts from a dashboard resource instead ([ADR-0049](../adr/0049-the-example-accounts-are-a-resource-you-start.md)). | A reader with no account can get one without leaving the product, and a fresh clone can reach every authorization group the API declares. |
+| 3.2a | **Registration**, which 3.2 assumed and no row planned — `/register` was in the middleware's public list with no page behind it, so an account could only be made with `curl`. The form is `/login`'s, one step earlier, plus the consent `AuthController.Register` requires: the versions come from the instance and are checked against what the reader was shown before anything is recorded ([ADR-0049](../adr/0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)). A registration grants no role, so a local machine gets its example accounts from a dashboard resource instead ([ADR-0050](../adr/0050-the-example-accounts-are-a-resource-you-start.md)). | A reader with no account can get one without leaving the product, and a fresh clone can reach every authorization group the API declares. |
 | 3.3 | **Synchronisation**, local progress to the account and back, with a conflict rule a reader can predict. The rule is **furthest-frame-wins**, applied on the service as well as in the browser, and the sentence saying so is on the screen where the conflict happened ([ADR-0019](../adr/0019-furthest-frame-wins.md)). Forgetting reaches both copies or is not finished. | Two machines converge. Signing out leaves local progress intact. |
 | 3.4 | **Progress is state, not evidence.** It is the reader's own, readable by that reader, and is never an input to an aggregate ([ADR-0009](../adr/0009-the-instrument-measures-the-book.md) §1). Held by three enforcements rather than a promise — a runtime refusal of any query that does not pin one reader, a closed column list, and every key leading with the reader ([ADR-0020](../adr/0020-no-aggregate-touches-the-progress-store.md)). | No aggregate query touches the progress store. |
 | 3.5 | **Account deletion** that deletes. The progress goes first and the account second, because the likely failure is a mistyped password and that order is the one whose worst case repairs itself ([ADR-0021](../adr/0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md)). The screen says what goes, what stays, what no deletion can reach, and that the identity service marks and schedules rather than erases. | It removes the account and the progress, and it says plainly that it cannot retract an anonymous outcome already folded into a rate. |

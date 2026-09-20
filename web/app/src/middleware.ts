@@ -58,6 +58,11 @@ const PUBLIC_PATHS = new Set<string>([
   // to in public. Public for the same reason `/` is — it needs no account, and a reader
   // deciding whether to trust what this system measures must not have to register first.
   '/about',
+  // The courses this deployment carries, and the way into each one (ADR-0048). Public on the
+  // index's own terms: it is a step in the reader loop — the one that says which course — and
+  // it reads content compiled into the app, so an account would gate a page that needs
+  // nothing an account provides.
+  '/courses',
   '/login',
   '/register',
   // The platform health check. `flyio/web.fly.toml` points [[http_service.checks]] at

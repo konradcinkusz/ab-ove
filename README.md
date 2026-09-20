@@ -64,12 +64,28 @@
 [![Secret scan](https://github.com/konradcinkusz/ab-ove/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/konradcinkusz/ab-ove/actions/workflows/secret-scan.yml "Secret scan — gitleaks on every pull request and every push to main")
 [![CodeQL](https://github.com/konradcinkusz/ab-ove/actions/workflows/codeql.yml/badge.svg)](https://github.com/konradcinkusz/ab-ove/actions/workflows/codeql.yml "CodeQL — SAST and dependency audit, on pull requests and weekly")
 
-**ab-ovo is a learning platform that encapsulates the book *Mathematics from Zero for the
-AI Engineer* — 47 programs of Stroud programmed-learning frames in English and Polish,
-together with the book's computer exercises.** It exists because that book is built on a
-mechanism a PDF cannot enforce: a frame asks you for something *before* it tells you
-anything, and the next frame opens with the answer you were supposed to have written — so
-the reader who skims gets nothing, and paper has no way to notice.
+**ab-ovo is a learning platform for programmed-learning courses — a course is a sequence of
+programs, each program a run of Stroud frames, worked one frame at a time in every edition
+it is published in, with its computer exercises running in the reader's own browser.** It
+exists because a book built that way rests on a mechanism a PDF cannot enforce: a frame asks
+you for something *before* it tells you anything, and the next frame opens with the answer
+you were supposed to have written — so the reader who skims gets nothing, and paper has no
+way to notice.
+
+**One course is pinned today: *Mathematics from Zero for the AI Engineer***, in English and
+Polish; what it contains is measured two paragraphs down. Which courses a deployment carries
+is `PINS` in
+[`web/app/src/lib/content/bundle.ts`](web/app/src/lib/content/bundle.ts), derived from the
+content pin in `web/content/book.lock.json`; the reading surface is written for several and
+narrows to one ([ADR-0048](docs/adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)),
+and adding a second is content work rather than a redesign — the lock file has to carry a
+second compiled bundle and `scripts/fetch-book-content.sh` has to compile it.
+
+**A *course* and a *program* are different sizes, and this document keeps them apart.** A
+course is a whole work — its own content repository, its own compiled bundle, its own tag.
+A program is one of its forty-seven units, the book's own term from programmed learning, and
+it is what a reader opens from the index. The schema and every route call a course a
+*track*, which is the word in the code and on no screen.
 
 ---
 
@@ -83,7 +99,8 @@ editions, one frame a screen, with the book's own Markdown and maths; a place ro
 the only chrome and whose frame number is a jumper; and a worksheet on every frame that asks
 for something — a line to answer on, a pad that evaluates arithmetic, a canvas to sketch on.
 Behind it: an API with a health endpoint and a service-info endpoint, a web app whose
-landing page is the index of programs and whose `/about` carries the argument and a live
+landing page is the index of programs — narrowable to one course, with `/courses` listing
+every course the deployment carries — and whose `/about` carries the argument and a live
 integration panel, a Playwright acceptance suite, four `fly.toml` files describing a
 topology that has never been applied, and the CI gates that would catch a regression in any
 of it.
@@ -359,7 +376,7 @@ supported configuration that the API reports as *degraded* rather than failing t
 (P8). `web/app/src/app/login/page.tsx` says that to the reader's face instead of offering a
 button that cannot work. Where there IS one, `/register` is where an account comes from —
 a plain form on this origin, with the tokens minted into the server and never into the
-document ([ADR-0048](docs/adr/0048-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)).
+document ([ADR-0049](docs/adr/0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -426,7 +443,7 @@ console.
 
 | Comes up at | What it is |
 | --- | --- |
-| `http://localhost:3000` | the web app — the index of programs, `/about`, `/login`, `/register` |
+| `http://localhost:3000` | the web app — the index of programs, `/courses`, `/about`, `/login`, `/register` |
 | `http://localhost:8081` | `authservice`, including `/.well-known/jwks.json` |
 | a port Aspire assigns | `AbOvo.Api` — the dashboard names it; nothing hard-codes it |
 
@@ -440,7 +457,7 @@ It is in the dashboard, stopped, with a Start button: `WithExplicitStart()`, so 
 because the system came up. Press Start and it registers two accounts against the local
 `authservice`, promotes one to `Admin`, and prints what it did in its own log beside every
 other resource's. Run it again and it says `already registered; left alone` — it is meant to
-be re-run ([ADR-0049](docs/adr/0049-the-example-accounts-are-a-resource-you-start.md)).
+be re-run ([ADR-0050](docs/adr/0050-the-example-accounts-are-a-resource-you-start.md)).
 
 | Address | What it is for |
 | --- | --- |
@@ -536,7 +553,7 @@ script duplicated in two languages to serve an interim step is two things to del
 | `src/AbOvo.ServiceDefaults` | The shared kernel (P2): telemetry, health, discovery, resilience, JWT validation, CORS, rate limiting, persistence provider selection, migrations, validation. Cross-cutting plumbing and nothing else, under a mechanical size ceiling. |
 | `src/AbOvo.Contracts` | DTOs that cross a service boundary. Not the kernel, and not a shared domain. |
 | `src/AbOvo.Api` | The HTTP service. Owns `apidb`. Validates RS256 tokens; holds no key material and mints nothing (P5). |
-| `src/AbOvo.Seed` | The local example accounts, started from the Aspire dashboard rather than at startup. **Development only**; nothing under `flyio/` references it ([ADR-0049](docs/adr/0049-the-example-accounts-are-a-resource-you-start.md)). |
+| `src/AbOvo.Seed` | The local example accounts, started from the Aspire dashboard rather than at startup. **Development only**; nothing under `flyio/` references it ([ADR-0050](docs/adr/0050-the-example-accounts-are-a-resource-you-start.md)). |
 | `tests/AbOvo.Api.Tests` | xUnit v3. In-memory integration over the real pipeline, plus the NetArchTest rules that keep domain out of the kernel. No container required. |
 | `tests/e2e` | The Playwright acceptance suite. Its own pnpm package and its own lockfile. |
 | `web/` | The pnpm workspace. `web/app` is the Next.js frontend and its backend-for-frontend: `/api/config`, `/api/auth/login`, `/api/auth/register`, `/api/auth/session`, `/api/proxy/[...path]`. |

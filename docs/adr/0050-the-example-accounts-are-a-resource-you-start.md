@@ -1,4 +1,4 @@
-# ADR-0049: The example accounts are a resource you start, and their password is generated
+# ADR-0050: The example accounts are a resource you start, and their password is generated
 
 ## Status
 
@@ -6,7 +6,7 @@
 
 ## Context
 
-[ADR-0048](0048-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md) gives a
+[ADR-0049](0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md) gives a
 reader a way to make an account. It does not give a DEVELOPER a way to reach the whole
 system, and the gap is a role: `POST /api/v1/auth/register` grants none — authservice's own
 `DbSeeder` creates the three role rows and stops — while `AbOvo.Api`'s composition root

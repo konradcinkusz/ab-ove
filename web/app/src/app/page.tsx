@@ -1,6 +1,7 @@
 import { ProgramGrid } from '@/components/programs/program-grid';
 import { allBundles } from '@/lib/content/bundle';
 import { chosenEdition } from '@/lib/content/chosen-edition';
+import { chosenTrack, shownBundles } from '@/lib/content/chosen-track';
 
 /**
  * The landing page, which is the index (ADR-0036).
@@ -36,15 +37,28 @@ export default async function HomePage({
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<React.JSX.Element> {
   const bundles = allBundles();
+  const asked = await searchParams;
+
+  /*
+    THE BOOK FIRST, THEN THE EDITION, AND THE ORDER IS THE POINT (ADR-0048).
+
+    `?track=` narrows the page to one book and `?lang=` narrows it to one edition, and the
+    editions on offer are a property of the books ON SCREEN — so the edition is resolved
+    against the narrowed set. Asking for `?track=x&lang=pl` where x is English-only is then
+    the same answer as every other unusable value: no edition chosen, every edition x has.
+    Resolved the other way round, that request would light a switch position whose page is
+    empty.
+  */
+  const track = chosenTrack(bundles, asked['track']);
 
   /*
     `lang` is read here and validated in one place. Everything that is not an edition the
     content actually has — absent, repeated, unknown, empty — comes back `undefined`, which
     is the index that picks neither rather than an error: a typo in a query string is a
     reader's slip, and ADR-0015's whole point is that the tidy response to it would be a
-    default nobody chose.
+    default nobody chose. `track` collapses the same way, for the same reason.
   */
-  const chosen = chosenEdition(bundles, (await searchParams)['lang']);
+  const chosen = chosenEdition(shownBundles(bundles, track), asked['lang']);
 
-  return <ProgramGrid bundles={bundles} chosen={chosen} />;
+  return <ProgramGrid bundles={bundles} chosen={chosen} chosenTrack={track} />;
 }

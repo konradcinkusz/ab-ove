@@ -41,7 +41,7 @@ logical databases, `authservice` from its published image, the API, the Next.js 
 
 One resource is declared and deliberately NOT started: `seed`, which makes the local example
 accounts, carries `WithExplicitStart()` and appears in the dashboard with a Start button
-([ADR-0049](../adr/0049-the-example-accounts-are-a-resource-you-start.md)). That is P1
+([ADR-0050](../adr/0050-the-example-accounts-are-a-resource-you-start.md)). That is P1
 held rather than bent — *one command brings the system up* stays one command, and a tool
 that writes to a database outliving the process does not run because the estate came up.
 

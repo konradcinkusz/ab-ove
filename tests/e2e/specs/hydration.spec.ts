@@ -43,6 +43,10 @@ const TEACHING = F01.steps.find((step) => !step.cue && step.n > 1)?.n ?? 2;
 
 const PAGES: readonly string[] = [
   '/',
+  // The courses page (ADR-0048). It renders the same kind of server markup the index does
+  // and carries no island of its own, which is exactly why it belongs here: a page nobody
+  // suspects is the one a nesting mistake survives on.
+  '/courses',
   '/about',
   `/read/${track}/F01/en`,
   `/read/${track}/F01/pl`,
