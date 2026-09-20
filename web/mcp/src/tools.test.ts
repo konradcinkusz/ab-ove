@@ -2,9 +2,16 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
 import { MemoryCursorStore } from './cursor.ts';
-import { fixtureBundles, say, unitIn } from './content.ts';
-import type { Text } from './content.ts';
-import { ANSWER_CONTRACT, SERVER_INSTRUCTIONS, TOOLS, handle } from './tools.ts';
+import { ContentUnavailable, fixtureBundles, say, unitIn } from './content.ts';
+import type { BundleSource, Text } from './content.ts';
+import {
+  ANSWER_CONTRACT,
+  EPHEMERAL_NOTE,
+  NO_CONTENT_NOTE,
+  SERVER_INSTRUCTIONS,
+  TOOLS,
+  handle,
+} from './tools.ts';
 
 const TRACK = 'math-for-ai-engineers';
 const UNIT = 'P01';
@@ -180,13 +187,81 @@ test('an empty answer is refused with a sentence aimed at the assistant', async 
   assert.equal(cursor?.step, 1, 'a refused submit must not move the reader');
 });
 
-test('review_step refuses a step beyond the furthest and says it is the method', async () => {
+test('review_step refuses a step beyond the furthest, says it is the method, and is not an error', async () => {
   const d = deps();
   await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
 
   const result = await handle('review_step', { track: TRACK, unit: UNIT, step: 3 }, d);
-  assert.ok(result.isError);
+  // The gate working is the product working (reveal.ts says so in as many words), and a
+  // result flagged as an error is painted red by a host and apologised for by a model. The
+  // first version of this test asserted `isError` here; that was the defect, pinned.
+  assert.ok(!result.isError, 'the gate holding was reported as a fault');
   assert.match(result.text, /not a fault/);
+});
+
+test('a step the program does not have IS an error — the number names nothing', async () => {
+  const d = deps();
+  await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
+
+  const result = await handle('review_step', { track: TRACK, unit: UNIT, step: 900 }, d);
+  assert.ok(result.isError);
+  assert.match(result.text, /is not one of them/);
+});
+
+test('finishing the program is not an error either', async () => {
+  const d = deps();
+  await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
+  const total = program().steps.length;
+  for (let n = 1; n < total; n += 1) {
+    await handle('submit_answer', { track: TRACK, unit: UNIT, answer: 'x' }, d);
+  }
+
+  const last = await handle('submit_answer', { track: TRACK, unit: UNIT, answer: 'x' }, d);
+  assert.ok(!last.isError, 'a reader who finished the book was told the server had failed');
+  assert.match(last.text, /finished/);
+  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, total);
+});
+
+test('a missing bundle is a sentence naming the fetch script, not a protocol error', async () => {
+  // `bundleFor()` throws when the content was never fetched; wrapped at the one crossing in
+  // content.ts, it reaches a reader as a result with the fix in it rather than as a
+  // JSON-RPC error on their first call.
+  const absent: BundleSource = {
+    for: () => {
+      throw new ContentUnavailable(new Error('no compiled content bundle found (checked: here)'));
+    },
+    all: () => {
+      throw new ContentUnavailable(new Error('no compiled content bundle found (checked: here)'));
+    },
+  };
+  const d = { cursors: new MemoryCursorStore(), bundles: absent };
+
+  for (const call of [
+    handle('list_programs', {}, d),
+    handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d),
+  ]) {
+    const result = await call;
+    assert.ok(result.isError);
+    assert.ok(result.text.startsWith(NO_CONTENT_NOTE));
+    assert.match(result.text, /fetch-book-content\.sh/);
+    assert.match(result.text, /checked: here/, 'the loader\'s own message must follow');
+  }
+});
+
+test('a place kept in memory is said in the results, and only then', async () => {
+  const ephemeral = { ...deps(), placeIsEphemeral: true };
+  const listed = await handle('list_programs', {}, ephemeral);
+  assert.ok(listed.text.endsWith(EPHEMERAL_NOTE));
+  const opened = await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, ephemeral);
+  assert.ok(opened.text.endsWith(EPHEMERAL_NOTE));
+
+  const durable = deps();
+  assert.ok(!(await handle('list_programs', {}, durable)).text.includes(EPHEMERAL_NOTE));
+  assert.ok(
+    !(await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, durable)).text.includes(
+      EPHEMERAL_NOTE,
+    ),
+  );
 });
 
 test('a program that was never opened says so rather than starting one', async () => {

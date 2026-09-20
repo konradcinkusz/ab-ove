@@ -21,6 +21,15 @@
   "engines": {
     "node": ">=22.18.0"
   },
+  "//bin": [
+    "The launcher an MCP host is pointed at. Plain JavaScript on purpose: it checks the Node",
+    "version BEFORE importing the TypeScript server, because the Node that cannot strip",
+    "types cannot parse src/server.ts to be told so. `pnpm start` goes through it too, so",
+    "the one path a developer tries is the one a host uses."
+  ],
+  "bin": {
+    "ab-ovo-mcp": "bin/ab-ovo-mcp.mjs"
+  },
   "scripts": {
     "//test": [
       "Same unit tier as @ab-ovo/app: node --test runs .ts directly through Node 22's type",
@@ -37,7 +46,7 @@
       "See docs/architecture/MCP-SERVER-SKETCH.md section 7."
     ],
     "typecheck": "tsc --noEmit",
-    "start": "node src/server.ts"
+    "start": "node bin/ab-ovo-mcp.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0"

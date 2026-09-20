@@ -97,6 +97,22 @@ empty file is not a check*.
 **There is no tool that takes an arbitrary step number and returns it.** `review_step` takes
 one and runs it through the same gate.
 
+**A refusal by the gate is an ordinary result, not an error.** `reveal.ts` said from the
+start that `not-reached` "is NOT an error — it is the product working", and the first tool
+layer sent it with `isError: true` anyway, along with a finished program; a host paints that
+red and a model apologises for it. Now only an argument that names nothing — a track, a
+program, an edition or a step number the book does not have, an empty answer — is an error.
+The gate's sentence and the end of a program travel as results.
+
+**A deployment with no book answers with the fix.** The loader's throw for a bundle that was
+never fetched used to reach the host as a JSON-RPC error on the reader's first call, carrying
+a developer's message. `content.ts` wraps it at the one crossing as `ContentUnavailable`, and
+`handle()` answers it with the one line that fixes it and the loader's own message after.
+
+**A place kept in memory is said in the results.** `server.ts` warned on stderr, which no
+reader of a host sees; `list_programs` and `open_program` now carry the same sentence, so
+the reader learns it before losing their place rather than by losing it.
+
 ### The answer contract, and what it can and cannot do
 
 The tool description carries the format rule the host's model reads: `answer` is the
@@ -187,9 +203,11 @@ disagreement: the content library is imported by app code, by
 refactor with its own diff and its own review.
 
 What is done instead is to make that refactor cheap and to make skipping it visible:
-**exactly one file reaches across the boundary**, `web/mcp/src/content.ts`, which re-exports
-what this package uses. The extraction redirects the specifiers in that file and touches
-nothing else here.
+**exactly one file reaches across the boundary at run time**, `web/mcp/src/content.ts`,
+which re-exports what this package uses. The extraction redirects the specifiers in that
+file and touches nothing else here. (`reveal.ts` and its test import the schema's *types*
+from the application directly — erased at run time, and the one crossing the sentence above
+does not count; a kit would take those specifiers with it.)
 
 **Exit condition:** the kit is extracted before a third consumer of the content library
 exists, or before anything in `web/mcp` needs a second import from `@ab-ovo/app` — whichever
@@ -235,8 +253,11 @@ the running server needs; the tests do not.
 To drive the real protocol over stdio:
 
 ```bash
-node web/mcp/src/server.ts
+node web/mcp/bin/ab-ovo-mcp.mjs
 ```
 
-With neither `AB_OVO_API_URL` nor `AB_OVO_READER_TOKEN` set it keeps the reader's place in
-memory and says so on stderr.
+The launcher is plain JavaScript that checks for Node 22.18 before importing the
+TypeScript server, because the Node that cannot strip types cannot be told so by a file it
+cannot parse; `web/mcp/README.md` has the host configuration. With neither
+`AB_OVO_API_URL` nor `AB_OVO_READER_TOKEN` set it keeps the reader's place in memory and
+says so — on stderr, and in every result that shows a place.

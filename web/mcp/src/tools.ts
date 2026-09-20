@@ -13,10 +13,10 @@
  * answered FOR can see that they were.
  */
 import { advance, current, explain, serve, FIRST_STEP } from './reveal.ts';
-import type { Cursor } from './reveal.ts';
+import type { Cursor, Refusal } from './reveal.ts';
 import type { CursorStore } from './cursor.ts';
 import { isIdentifier } from './cursor.ts';
-import { languageIn, say, unitIn } from './content.ts';
+import { ContentUnavailable, languageIn, say, unitIn } from './content.ts';
 import type { BundleSource, Step, Unit } from './content.ts';
 
 /**
@@ -181,7 +181,44 @@ export interface ToolResult {
   readonly isError?: boolean;
 }
 
+/** Bad input: a track, a program, an edition or a step number that names nothing. */
 const problem = (text: string): ToolResult => ({ text, isError: true });
+
+/**
+ * THE GATE'S OWN VOICE, WHICH IS NOT AN ERROR'S.
+ *
+ * `reveal.ts` says it in as many words — "`not-reached` is the gate doing its job and is
+ * NOT an error … or a model will report the refusal as a fault and the reader will think
+ * the server is broken" — and the first version of this file then sent every refusal with
+ * `isError: true` anyway. A host paints that red; a model apologises for it; a reader who
+ * has just finished a program was told the server had failed. So a refusal that is the
+ * method working is an ordinary result carrying its sentence, and `isError` is kept for
+ * what it means: an argument that names nothing.
+ */
+const refused = (text: string): ToolResult => ({ text });
+
+function refusalResult(refusal: Refusal): ToolResult {
+  return refusal.kind === 'no-such-step' ? problem(explain(refusal)) : refused(explain(refusal));
+}
+
+/**
+ * What a reader is told when the place is kept in memory — IN THE RESULT, where they can
+ * read it. `server.ts` says the same on stderr, which no reader of an MCP host ever sees;
+ * finding out by losing one's place is the worst available way to be told (P8).
+ */
+export const EPHEMERAL_NOTE =
+  'Your place in the book is kept for this session only: this server has no account to ' +
+  'write it to, so a restart begins the program again. Fine for reading; not a bookmark.';
+
+/**
+ * The one sentence a reader gets when the deployment has no book, and the one line that
+ * fixes it. The loader's own message follows, because it names the paths it checked and
+ * that is what whoever runs the server needs.
+ */
+export const NO_CONTENT_NOTE =
+  'This server has no book to serve yet: the compiled content bundle is not on this ' +
+  'machine. Whoever runs the server should run `bash scripts/fetch-book-content.sh` from ' +
+  'the repository root, once, and start the server again.';
 
 /** Render one step for a reader, in their edition. */
 export function render(step: Step, language: string, total: number): string {
@@ -236,15 +273,40 @@ export interface Deps {
   readonly cursors: CursorStore;
   /** Injected so the unit tier runs against the committed fixture, never through bundleFor(). */
   readonly bundles: BundleSource;
+  /**
+   * True when the place is kept in this process's memory and forgotten at restart — the
+   * store `server.ts` falls back to with no API to talk to. The results that show a place
+   * then say so; a reader is told in the channel they can read.
+   */
+  readonly placeIsEphemeral?: boolean;
 }
 
+/**
+ * Answer one tool call. The one thing wrapped here is the content going missing: a bundle
+ * that was never fetched throws out of the loader, and that used to reach the host as a
+ * JSON-RPC error on the reader's first call. It is a tool result now, with the fix in it.
+ */
 export async function handle(
+  name: string,
+  args: Record<string, unknown>,
+  deps: Deps,
+): Promise<ToolResult> {
+  try {
+    return await dispatch(name, args, deps);
+  } catch (error) {
+    if (error instanceof ContentUnavailable) return problem(`${NO_CONTENT_NOTE}\n\n${error.message}`);
+    throw error;
+  }
+}
+
+async function dispatch(
   name: string,
   args: Record<string, unknown>,
   deps: Deps,
 ): Promise<ToolResult> {
   const track = typeof args.track === 'string' ? args.track : '';
   const unit = typeof args.unit === 'string' ? args.unit : '';
+  const ephemeral = deps.placeIsEphemeral ? `\n\n${EPHEMERAL_NOTE}` : '';
 
   if (name === 'list_programs') {
     const lines: string[] = [];
@@ -259,7 +321,7 @@ export async function handle(
         lines.push(`  ${program.id} — ${program.steps.length} steps — ${place}`);
       }
     }
-    return { text: lines.join('\n') };
+    return { text: lines.join('\n') + ephemeral };
   }
 
   const located = locate(deps.bundles, track, unit);
@@ -279,10 +341,10 @@ export async function handle(
     const saved = await deps.cursors.save(cursor);
 
     const served = current(located.unit, saved);
-    if (!served.ok) return problem(explain(served.refusal));
+    if (!served.ok) return refusalResult(served.refusal);
 
     const resumed = existing ? `Resuming "${unit}" at step ${saved.step}.` : `Starting "${unit}".`;
-    return { text: `${resumed}\n\n${render(served.step, saved.language, located.total)}` };
+    return { text: `${resumed}\n\n${render(served.step, saved.language, located.total)}${ephemeral}` };
   }
 
   const cursor = await deps.cursors.read(track, unit);
@@ -292,14 +354,14 @@ export async function handle(
 
   if (name === 'current_step') {
     const served = current(located.unit, cursor);
-    if (!served.ok) return problem(explain(served.refusal));
+    if (!served.ok) return refusalResult(served.refusal);
     return { text: render(served.step, cursor.language, located.total) };
   }
 
   if (name === 'review_step') {
     const n = typeof args.step === 'number' ? args.step : Number.NaN;
     const served = serve(located.unit, cursor, n);
-    if (!served.ok) return problem(explain(served.refusal));
+    if (!served.ok) return refusalResult(served.refusal);
     return { text: render(served.step, cursor.language, located.total) };
   }
 
@@ -313,11 +375,11 @@ export async function handle(
     }
 
     const moved = advance(located.unit, cursor);
-    if (!moved.ok) return problem(explain(moved.refusal));
+    if (!moved.ok) return refusalResult(moved.refusal);
 
     const saved = await deps.cursors.save(moved.cursor);
     const served = current(located.unit, saved);
-    if (!served.ok) return problem(explain(served.refusal));
+    if (!served.ok) return refusalResult(served.refusal);
 
     return {
       text:

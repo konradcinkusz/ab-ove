@@ -14,6 +14,9 @@
  * helper would want those schemas re-expressed in zod. Two spellings of one input contract
  * is the divergence this estate keeps paying to avoid.
  */
+import { realpathSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
@@ -21,9 +24,17 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { ApiCursorStore, MemoryCursorStore } from './cursor.ts';
 import type { CursorStore } from './cursor.ts';
 import { liveBundles } from './content.ts';
+import type { BundleSource } from './content.ts';
 import { SERVER_INSTRUCTIONS, TOOLS, handle } from './tools.ts';
 
-export function createServer(cursors: CursorStore): Server {
+export interface ServerOptions {
+  /** Where the content comes from; the live loader unless a test injects the fixture. */
+  readonly bundles?: BundleSource;
+  /** Whether the place is kept in memory only, so the results can say so to the reader. */
+  readonly placeIsEphemeral?: boolean;
+}
+
+export function createServer(cursors: CursorStore, options: ServerOptions = {}): Server {
   const server = new Server(
     { name: 'ab-ovo', version: '0.1.0' },
     {
@@ -48,7 +59,11 @@ export function createServer(cursors: CursorStore): Server {
     const result = await handle(
       request.params.name,
       (request.params.arguments ?? {}) as Record<string, unknown>,
-      { cursors, bundles: liveBundles },
+      {
+        cursors,
+        bundles: options.bundles ?? liveBundles,
+        ...(options.placeIsEphemeral ? { placeIsEphemeral: true } : {}),
+      },
     );
 
     return {
@@ -61,34 +76,49 @@ export function createServer(cursors: CursorStore): Server {
 }
 
 /**
- * Which store the process runs against.
+ * Which store the process runs against, and whether it forgets.
  *
  * The in-memory one is offered ONLY when there is no API to talk to, and it says so on
  * stderr rather than degrading quietly: a reader whose place is forgotten at every restart
  * has lost the one thing an account buys, and finding that out by losing their place is
- * the worst available way to be told (P8 — degrade visibly).
+ * the worst available way to be told (P8 — degrade visibly). Stderr reaches whoever runs
+ * the server; the `ephemeral` flag reaches the READER, through the results `tools.ts`
+ * appends the same fact to — because an MCP host shows a reader the results and never the
+ * log.
  */
-export function storeFromEnvironment(env: NodeJS.ProcessEnv): CursorStore {
+export function storeFromEnvironment(env: NodeJS.ProcessEnv): {
+  readonly store: CursorStore;
+  readonly ephemeral: boolean;
+} {
   const api = env.AB_OVO_API_URL;
   const token = env.AB_OVO_READER_TOKEN;
 
-  if (api && token) return new ApiCursorStore(api, () => token);
+  if (api && token) return { store: new ApiCursorStore(api, () => token), ephemeral: false };
 
   process.stderr.write(
     'ab-ovo MCP: AB_OVO_API_URL and AB_OVO_READER_TOKEN are not both set, so this process ' +
       'keeps the reader\'s place IN MEMORY and forgets it on restart. Fine for trying the ' +
       'server out; not a deployment.\n',
   );
-  return new MemoryCursorStore();
+  return { store: new MemoryCursorStore(), ephemeral: true };
 }
 
-async function main(): Promise<void> {
-  const server = createServer(storeFromEnvironment(process.env));
+/** Start serving over stdio. Exported so `bin/ab-ovo-mcp.mjs` can call it after its own checks. */
+export async function main(): Promise<void> {
+  const { store, ephemeral } = storeFromEnvironment(process.env);
+  const server = createServer(store, { placeIsEphemeral: ephemeral });
   await server.connect(new StdioServerTransport());
 }
 
-// Run only when this file is the entry point, so the unit tier can import createServer.
-if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+/*
+  Run only when this file is the entry point, so the unit tier and the launcher can import
+  it. The comparison is on REAL paths: a `bin` entry installed by a package manager is a
+  symlink, and `process.argv[1]` then names the link while `import.meta.url` names the
+  target, so the naive comparison never matched under a shim and the server started as a
+  module that did nothing.
+*/
+const entry = process.argv[1] ? pathToFileURL(realpathSync(process.argv[1])).href : undefined;
+if (entry !== undefined && import.meta.url === entry) {
   main().catch((error: unknown) => {
     process.stderr.write(`ab-ovo MCP failed to start: ${String(error)}\n`);
     process.exitCode = 1;

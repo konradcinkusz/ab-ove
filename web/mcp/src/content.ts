@@ -35,10 +35,42 @@ export interface BundleSource {
   all(): readonly Bundle[];
 }
 
-/** The real thing: the compiled bundle at the pinned revision. Throws if it is not fetched. */
+/**
+ * The content is not here — a bundle that was never fetched, or one that will not
+ * validate. Thrown by `liveBundles` in place of the loader's own error so that `handle()`
+ * can tell "the deployment has no book" from a defect in this package and answer the
+ * first with a sentence rather than a stack.
+ */
+export class ContentUnavailable extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = 'ContentUnavailable';
+  }
+}
+
+/**
+ * The real thing: the compiled bundle at the pinned revision.
+ *
+ * The loader THROWS when the bundle is not fetched — correct for a deployment, and until
+ * now it escaped the tool handler as a JSON-RPC error carrying a developer's message on the
+ * reader's very first call. It is wrapped here, at the one boundary, so the tool layer can
+ * answer with the one line that fixes it.
+ */
 export const liveBundles: BundleSource = {
-  for: (track) => bundleFor(track),
-  all: () => allBundles(),
+  for: (track) => {
+    try {
+      return bundleFor(track);
+    } catch (error) {
+      throw new ContentUnavailable(error);
+    }
+  },
+  all: () => {
+    try {
+      return allBundles();
+    } catch (error) {
+      throw new ContentUnavailable(error);
+    }
+  },
 };
 
 /**
