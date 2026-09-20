@@ -1,7 +1,7 @@
 /**
  * The remembered edition, at the layer with the logic.
  *
- * P13 / TESTING-STRATEGY.md §3. ADR-0049's requirements are all properties of this module —
+ * P13 / TESTING-STRATEGY.md §3. ADR-0052's requirements are all properties of this module —
  * English by default, a choice that sticks, a cookie the server can read, and nothing
  * trusted that came back out of storage — and each is asserted here rather than through a
  * browser. A defect in any of them reaches a reader as "the site keeps forgetting", which

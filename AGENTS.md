@@ -36,7 +36,7 @@ adoption. [`CONTRIBUTING.md`](CONTRIBUTING.md) is the same ground for a human.
    because a scaffold looks empty. Entities arrive with the ticket that needs them, each with
    its own migration. (This item has now been restated twice: it said there was no domain
    model at all until #11, and two entities until
-   [ADR-0049](docs/adr/0049-one-language-control-remembered-and-english-by-default.md). A rule
+   [ADR-0052](docs/adr/0052-one-language-control-remembered-and-english-by-default.md). A rule
    stated against a fact that has moved is a rule nobody can follow.)
 
    Two of the three are named by a reader, and a query over either that does not pin one is

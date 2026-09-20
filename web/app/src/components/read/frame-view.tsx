@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import { ThemeSwitch } from '@/components/theme/theme-switch';
-import { say, sectionSpans } from '@/lib/content/bundle';
+import { say, sectionSpans, unitBefore } from '@/lib/content/bundle';
 import type { Bundle, Step, Unit } from '@/lib/content/schema';
 import { HINT_STATES, chromeFor } from '@/lib/i18n/chrome';
 import { bookNumberOf } from '@/lib/sheet/number';
@@ -14,6 +14,7 @@ import { FrameKeys } from './frame-keys.tsx';
 import styles from './frame-view.module.css';
 import { KeyName, KeysDetails } from './keys-details.tsx';
 import { PlaceRow } from './place-row.tsx';
+import { ProgramGate } from './program-gate.tsx';
 import { RememberPosition } from './remember-position.tsx';
 import { RevealLabel } from './reveal-label.tsx';
 import { RichInline, RichText } from './rich-text.tsx';
@@ -76,6 +77,8 @@ export function FrameView({
   next,
 }: FrameViewProps): React.JSX.Element {
   const track = bundle.track.id;
+  // The program that opens this one, read off the manifest (ADR-0051, `unitBefore`).
+  const previous = unitBefore(bundle, unit.id)?.id;
   const reading = (edition: string): string => `/read/${track}/${unit.id}/${edition}`;
   const at = (n: number): string => `${reading(language)}/${n}`;
   const chrome = chromeFor(language);
@@ -172,7 +175,21 @@ export function FrameView({
         the cheapest way to keep a record from becoming a score is for it to hold nothing
         worth scoring. Four identifiers cross the client boundary and no content does.
       */}
-      <RememberPosition language={language} step={step.n} track={track} unit={unit.id} />
+      {/*
+        The gate, and the recorder that must not outlive it. A reader who has not reached
+        this program is returned to the index (ADR-0051); the recorder asks the same
+        question, so a deep link that arrives here before the redirect lands leaves no
+        place behind to unlock it with. `previous` is the manifest's adjacency, never the
+        id with one taken off it.
+      */}
+      <ProgramGate language={language} previous={previous} track={track} unit={unit.id} />
+      <RememberPosition
+        language={language}
+        previous={previous}
+        step={step.n}
+        track={track}
+        unit={unit.id}
+      />
 
       <PlaceRow
         chrome={chrome}

@@ -46,7 +46,7 @@ import { deleteAccount, type DeleteAccountOutcome, type FetchLike } from './dele
 const PROGRESS_PATH = '/api/v1/progress';
 
 /**
- * `AbOvo.Api`'s other reader-scoped row: the edition they chose (ADR-0049).
+ * `AbOvo.Api`'s other reader-scoped row: the edition they chose (ADR-0052).
  *
  * IT IS DELETED HERE AND NOT ONLY BECAUSE IT IS TIDY. The ordering argument below is that
  * a row left in `apidb` under a subject that can never sign in again is unreachable by any
@@ -174,7 +174,7 @@ export type AccountDeletionOutcome =
 /** The calls, injected, so the ORDER is a thing a test can assert rather than read. */
 export interface DeletionSteps {
   readonly forgetProgress: (accessToken: string) => Promise<ProgressOutcome>;
-  /** The reader's chosen edition (ADR-0049) — `AbOvo.Api`'s other reader-scoped row. */
+  /** The reader's chosen edition (ADR-0052) — `AbOvo.Api`'s other reader-scoped row. */
   readonly forgetPreference: (accessToken: string) => Promise<ProgressOutcome>;
   readonly deleteAccount: (
     accessToken: string,

@@ -42,7 +42,7 @@ const useProgress = () => useSyncExternalStore(subscribe, snapshot, serverSnapsh
 export interface ResumeLastProps {
   /** `track/unit` → step count, for every program this index lists. */
   readonly limits: Limits;
-  /** The index's edition, which its chrome follows (ADR-0016, unconditional since ADR-0049). */
+  /** The index's edition, which its chrome follows (ADR-0016, unconditional since ADR-0052). */
   readonly language: string;
 }
 

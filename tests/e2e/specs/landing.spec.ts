@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { track, unitNamed } from './support/bundle.ts';
+import { openThrough } from './support/gate.ts';
 
 /**
  * JOURNEY 1b — the landing page is the programs, and one click reaches one of them.
@@ -10,7 +11,7 @@ import { track, unitNamed } from './support/bundle.ts';
  *
  * What used to be here was the product's argument, and it is now at `/about` under
  * `specs/about.spec.ts`. This file asserts what replaced it: a grid of programs, one title
- * per tile in the reader's edition, the one language control in the top row (ADR-0049) and
+ * per tile in the reader's edition, the one language control in the top row (ADR-0052) and
  * the account control beside it.
  *
  * The distinction this suite exists to protect is between a page that LISTS programs and a
@@ -24,6 +25,20 @@ import { track, unitNamed } from './support/bundle.ts';
  * IT MUST HOLD WITH NO ACCOUNT AND NO BACKEND, which is why almost everything here is
  * `@smoke`. The page reads content compiled into the app; `specs/no-backend.spec.ts` is
  * where the same grid is asserted with the API unreachable.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * AND IT IS THE PAGE OF A READER WHO HAS WALKED TO P01 — ADR-0051.
+ *
+ * A program is shut until the reader has a place in the one before it, so on a FRESH
+ * browser P01's tile carries no link and every assertion below would be asserting the gate
+ * rather than the grid. The `beforeEach` seeds the record such a reader would have
+ * (`specs/support/gate.ts`), which keeps this file about what it has always been about:
+ * that the index REACHES a program rather than merely listing it.
+ *
+ * The fresh browser's index — one open tile, forty-six saying `opens after …` — is
+ * `specs/gate.spec.ts`, and P01 is still the program asserted here because it is the one
+ * deep enough in the book to prove the reaching.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * LOCATORS. Role plus accessible name, then text — preferences 1 and 2 of
  * E2E-ACCEPTANCE-TESTING.md §3. Every locator below names what it is looking for, so a
@@ -51,7 +66,13 @@ const P01 = {
 };
 
 test.describe('landing page', () => {
-  test('is the index of programs, and each program is a link into it @smoke', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
+    await openThrough(page, 'P01');
+  });
+
+  test('is the index of programs, and a program the reader has reached is a link into it @smoke', async ({
+    page,
+  }) => {
     const response = await page.goto('/');
     expect(response?.status(), 'the landing page must answer 200').toBe(200);
 
@@ -73,7 +94,7 @@ test.describe('landing page', () => {
 
   test('opens in English for a reader who has chosen nothing @smoke', async ({ page }) => {
     /*
-      ADR-0049's first clause, asserted on the page rather than only in a unit. A fresh
+      ADR-0052's first clause, asserted on the page rather than only in a unit. A fresh
       context has no stored choice and no cookie, so this is the reader arriving for the
       first time: ONE title per tile, in English, and the other edition's title absent
       rather than beside it. Both halves matter — an index that added the default without
@@ -169,7 +190,7 @@ test.describe('landing page', () => {
     // what is on the other end.
     const courses = page.getByRole('link', { name: 'Courses' });
     await expect(courses).toBeVisible();
-    // It carries the edition, because there always is one to carry (ADR-0049): a reader who
+    // It carries the edition, because there always is one to carry (ADR-0052): a reader who
     // has chosen nothing is reading English, and the page this opens must open in it.
     await expect(courses).toHaveAttribute('href', '/courses?lang=en');
 
@@ -188,7 +209,7 @@ test.describe('landing page', () => {
     // target is a property worth asserting rather than assuming: this is the one page in the
     // product whose location can include a query string, and the plain `usePathname()`
     // answer would silently drop the edition on the way back from the form. It carries the
-    // default too — a reader who has chosen nothing is still reading an edition (ADR-0049).
+    // default too — a reader who has chosen nothing is still reading an edition (ADR-0052).
     await expect(signIn).toHaveAttribute('href', '/login?redirect=%2F%3Flang%3Den');
 
     await page.goto('/?lang=pl');
@@ -221,7 +242,7 @@ test.describe('landing page', () => {
     await expect(foundation.getByRole('link', { name: P01.en })).toHaveCount(0);
 
     // The headings follow the chosen edition, as every other word of chrome does (ADR-0016,
-    // unconditional since ADR-0049: this page always has a reader edition to follow).
+    // unconditional since ADR-0052: this page always has a reader edition to follow).
     await page.goto('/?lang=pl');
     await expect(page.getByRole('heading', { level: 3 })).toHaveText(['Podstawy', 'Cz\u0119\u015b\u0107 g\u0142\u00f3wna']);
   });

@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { collectPageErrors, describePageErrors } from './support/page-errors.js';
 import { serveNetworkFailure, serveProxyFailure } from './support/service-info.js';
 
-import { track, unitNamed } from './support/bundle.ts';
+import { served, track } from './support/bundle.ts';
 
 /**
  * JOURNEY 4 — the app with no backend.
@@ -36,9 +36,15 @@ import { track, unitNamed } from './support/bundle.ts';
   serving the real book this file was asserting against a link that does not exist.
   A literal in a spec has no source, so nothing notices when the content moves —
   see specs/support/bundle.ts.
+
+  THE FIRST PROGRAM RATHER THAN P01, since ADR-0051. This file's reader has no account, no
+  backend and — the part that is new — no record either, so the program that is one click
+  from the index is the first one of the track. Asserting P01 would have needed a seeded
+  record, and a seeded record is a thing this suite must never need: what it is about is a
+  browser arriving at a deployment with nothing behind it. Read by POSITION and not by
+  name, because which program is first is the manifest's answer and not this file's.
 */
-const P01 = unitNamed('P01');
-const F01 = unitNamed('F01');
+const FIRST = served.units[0]!;
 
 test.describe('no backend', () => {
   test('reaches the programs when the API cannot be reached at all @smoke', async ({ page }) => {
@@ -53,7 +59,7 @@ test.describe('no backend', () => {
       a program is one click away — asserted as the href into the reading route, because a
       grid that rendered tiles linking nowhere would pass every weaker form of this test.
 
-      Both editions, one at a time: the index shows the reader's own (ADR-0049), and neither
+      Both editions, one at a time: the index shows the reader's own (ADR-0052), and neither
       edition may be reachable only when a service this deployment does not have is up. The
       language control is the whole path between them and it is a plain link, so it works
       here for the same reason the tiles do.
@@ -62,9 +68,9 @@ test.describe('no backend', () => {
     for (const language of ['en', 'pl']) {
       await page.goto(`/?lang=${language}`);
       await expect(
-        page.getByRole('link', { name: P01.titles[language]! }),
-        `the ${language} link into P01 is not on the index`,
-      ).toHaveAttribute('href', `/read/${track}/P01/${language}`);
+        page.getByRole('link', { name: FIRST.titles[language]! }),
+        `the ${language} link into ${FIRST.id} is not on the index`,
+      ).toHaveAttribute('href', `/read/${track}/${FIRST.id}/${language}`);
     }
     await page.goto('/');
 
@@ -199,7 +205,7 @@ test.describe('no backend', () => {
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
     await expect(
-      page.getByRole('link', { name: F01.titles['en']! }),
+      page.getByRole('link', { name: FIRST.titles['en']! }),
       'the index rendered its heading and lost the programs — the list is compiled in and needs no API',
     ).toBeVisible();
   });

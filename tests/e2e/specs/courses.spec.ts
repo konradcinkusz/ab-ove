@@ -35,7 +35,7 @@ const COURSE = {
   pl: trackTitles['pl']!,
 };
 
-/** The same, in the edition a reader who has chosen nothing gets (ADR-0049). */
+/** The same, in the edition a reader who has chosen nothing gets (ADR-0052). */
 const DEFAULTED = `${COURSE.href}&lang=en`;
 
 test.describe('the courses page', () => {
@@ -80,7 +80,7 @@ test.describe('the courses page', () => {
 
     // The way back is the label the reading surface already uses for the same destination,
     // and it leads to the index that shows every course rather than to one of them. It
-    // carries the edition and nothing else: `?lang=` is not a narrowing (ADR-0049), it is
+    // carries the edition and nothing else: `?lang=` is not a narrowing (ADR-0052), it is
     // the one thing every screen in the product is in.
     await page.getByRole('link', { name: '← Programs' }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
@@ -92,12 +92,12 @@ test.describe('the courses page', () => {
 
   test('shows one title per course, in the reader’s edition @core', async ({ page }) => {
     /*
-      THIS TEST REVERSED WITH ADR-0049, AND THE OLD ONE IS WORTH RECORDING.
+      THIS TEST REVERSED WITH ADR-0052, AND THE OLD ONE IS WORTH RECORDING.
 
       It asserted that the page "chooses a course without choosing an edition for the
       reader": a course carried a title per edition inside ONE anchor, so picking a course
       said nothing about which edition you read. That was ADR-0015's refusal held at one more
-      door, and ADR-0049 removed the thing it was protecting — there is always a reader
+      door, and ADR-0052 removed the thing it was protecting — there is always a reader
       edition now, so a second title beside the first is this page asking a question the
       control at the top of it has already answered.
 
@@ -181,7 +181,7 @@ test.describe('the index narrowed to one course', () => {
       `${COURSE.href}&lang=en`,
     );
     /*
-      THERE IS NO THIRD POSITION ANY MORE (ADR-0049), and its absence is asserted rather
+      THERE IS NO THIRD POSITION ANY MORE (ADR-0052), and its absence is asserted rather
       than merely not tested: *Both editions* was the way back to an index that had chosen
       neither, and the index always chooses one now. A control that grew it back would be
       the ninety-four-title first screen returning.

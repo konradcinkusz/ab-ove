@@ -7,7 +7,7 @@ import { revealTo } from './support/reveal.ts';
  * JOURNEY — reading the same frame in the other edition, and being remembered.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * ADR-0049 — ONE CONTROL PER SCREEN, AT THE TOP OF IT, AND IT KEEPS THE ANSWER.
+ * ADR-0052 — ONE CONTROL PER SCREEN, AT THE TOP OF IT, AND IT KEEPS THE ANSWER.
  *
  * There were four of these: above the programme grid, on every contents page, on every
  * summary and in every frame's place row — and none of them remembered anything, so a

@@ -109,7 +109,7 @@ export default function RootLayout({
         */}
         <ThemeFlag />
         {/*
-          The account's copy of the chosen edition, adopted once per page load (ADR-0049).
+          The account's copy of the chosen edition, adopted once per page load (ADR-0052).
 
           Here for the same structural reason as the sync above — a layout is not remounted
           by a soft navigation, so one subscriber serves a whole reading session — and for a

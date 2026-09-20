@@ -108,7 +108,7 @@ of it.
 The domain model is **three entities**: `ReaderProgress`, which arrived with synchronisation
 (#11); `FrameOutcome`, the instrument's tally, which carries no reader at all (#15); and
 `ReaderPreference`, which edition a reader chose
-([ADR-0049](docs/adr/0049-one-language-control-remembered-and-english-by-default.md)). Two of
+([ADR-0052](docs/adr/0052-one-language-control-remembered-and-english-by-default.md)). Two of
 the three are all this estate stores about anybody. There are no frames and no exercises in
 any database, because the frames are a content bundle the reader fetches; and nothing a
 reader writes on a frame is stored anywhere but their own browser
@@ -378,7 +378,9 @@ between machines. It is not a gate on any of the four steps above, it is the las
 the work rather than the first, and a deployment with no identity service at all is a
 supported configuration that the API reports as *degraded* rather than failing to start
 (P8). `web/app/src/app/login/page.tsx` says that to the reader's face instead of offering a
-button that cannot work.
+button that cannot work. Where there IS one, `/register` is where an account comes from —
+a plain form on this origin, with the tokens minted into the server and never into the
+document ([ADR-0049](docs/adr/0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -439,14 +441,41 @@ before it restores for exactly that reason.
 `src/AbOvo.AppHost/AppHost.cs` is the composition root (P1). It brings up Postgres with a
 data volume and pgAdmin, creates the two logical databases (`apidb` and `authdb`), starts
 `authservice` from its published image, starts the API wired to `apidb`, and starts the
-Next.js app with the API's address supplied at run time. The Aspire dashboard's URL is
-printed in the console.
+Next.js app with the API's address supplied at run time. It also DECLARES a `seed` resource
+and deliberately does not start it — see below. The Aspire dashboard's URL is printed in the
+console.
 
 | Comes up at | What it is |
 | --- | --- |
-| `http://localhost:3000` | the web app — the index of programs, `/courses`, `/about`, `/login` |
+| `http://localhost:3000` | the web app — the index of programs, `/courses`, `/about`, `/login`, `/register` |
 | `http://localhost:8081` | `authservice`, including `/.well-known/jwks.json` |
 | a port Aspire assigns | `AbOvo.Api` — the dashboard names it; nothing hard-codes it |
+
+### The example accounts, and how to get one
+
+`/register` makes an account the way a reader does, and a reader's account holds no role —
+`POST /api/v1/auth/register` grants none, so the author's view at `/instrument` is behind a
+gate nothing on screen can open. That gap is what the **`seed` resource** is for.
+
+It is in the dashboard, stopped, with a Start button: `WithExplicitStart()`, so it never runs
+because the system came up. Press Start and it registers two accounts against the local
+`authservice`, promotes one to `Admin`, and prints what it did in its own log beside every
+other resource's. Run it again and it says `already registered; left alone` — it is meant to
+be re-run ([ADR-0050](docs/adr/0050-the-example-accounts-are-a-resource-you-start.md)).
+
+| Address | What it is for |
+| --- | --- |
+| `reader@ab-ovo.test` | an ordinary reader: progress syncs, the admin views are refused |
+| `author@ab-ovo.test` | the author's view — `/instrument`'s ranked list, which the admin group gates |
+| `admin@ab-ovo.test` | the SuperAdmin `authservice` seeds itself, and the only role that can grant a role |
+
+**The password is generated and is not in this repository** (AGENTS.md rule 6). The AppHost
+makes it on first run and persists it to `dotnet user-secrets`, so it is the same on the next
+one:
+
+```bash
+dotnet user-secrets list --project src/AbOvo.AppHost   # Parameters:seed-password
+```
 
 ### What the setup script does, and why it is not optional
 
@@ -528,9 +557,10 @@ script duplicated in two languages to serve an interim step is two things to del
 | `src/AbOvo.ServiceDefaults` | The shared kernel (P2): telemetry, health, discovery, resilience, JWT validation, CORS, rate limiting, persistence provider selection, migrations, validation. Cross-cutting plumbing and nothing else, under a mechanical size ceiling. |
 | `src/AbOvo.Contracts` | DTOs that cross a service boundary. Not the kernel, and not a shared domain. |
 | `src/AbOvo.Api` | The HTTP service. Owns `apidb`. Validates RS256 tokens; holds no key material and mints nothing (P5). |
+| `src/AbOvo.Seed` | The local example accounts, started from the Aspire dashboard rather than at startup. **Development only**; nothing under `flyio/` references it ([ADR-0050](docs/adr/0050-the-example-accounts-are-a-resource-you-start.md)). |
 | `tests/AbOvo.Api.Tests` | xUnit v3. In-memory integration over the real pipeline, plus the NetArchTest rules that keep domain out of the kernel. No container required. |
 | `tests/e2e` | The Playwright acceptance suite. Its own pnpm package and its own lockfile. |
-| `web/` | The pnpm workspace. `web/app` is the Next.js frontend and its backend-for-frontend: `/api/config`, `/api/auth/login`, `/api/auth/session`, `/api/proxy/[...path]`. |
+| `web/` | The pnpm workspace. `web/app` is the Next.js frontend and its backend-for-frontend: `/api/config`, `/api/auth/login`, `/api/auth/register`, `/api/auth/session`, `/api/proxy/[...path]`. |
 | `web/mcp` | `@ab-ovo/mcp` — an MCP server serving the book one step at a time to a reader working inside an MCP host. Stdio against a checkout, started through `web/mcp/bin/ab-ovo-mcp.mjs`; nothing is deployed. |
 | `scripts/` | Onboarding (`setup.sh`, `setup.ps1`), the secret scan (`--complete` covers every commit on the remote), and the pre-commit hook. Each runs alone, from any working directory. |
 | `flyio/` | The deployed topology — four `fly.toml` files, `SECRETS.md`, `INFRASTRUCTURE-ANALYSIS.md`. Nothing here has been applied. |

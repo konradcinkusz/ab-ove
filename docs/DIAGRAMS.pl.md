@@ -136,7 +136,7 @@ których odmawia
 [`../tests/AbOvo.Api.Tests/ArchitectureTests.cs`](../tests/AbOvo.Api.Tests/ArchitectureTests.cs).
 
 ```mermaid
-%% Układ rozwiązania: cztery projekty .NET, jedna przestrzeń pnpm i to, co wolno referować.
+%% Układ rozwiązania: projekty .NET, jedna przestrzeń pnpm i to, co wolno referować.
 %% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
 
 %% STRZAŁKI TO REFERENCJE MIĘDZY PROJEKTAMI, A SEDNEM SĄ TE NIEOBECNE. Ze wspólnego jądra
@@ -150,11 +150,12 @@ których odmawia
 
 flowchart TD
   subgraph dotnet["AbOvo.sln"]
-    APPHOST["AbOvo.AppHost<br/>deweloperski korzeń kompozycji<br/>postgres, authservice, api, web"]
+    APPHOST["AbOvo.AppHost<br/>deweloperski korzeń kompozycji<br/>postgres, authservice, api, web, seed"]
     API["AbOvo.Api<br/>minimal API, EF Core<br/>Program.cs jest manifestem"]
     CONTRACTS["AbOvo.Contracts<br/>rekordy żądań i odpowiedzi<br/>bez zachowania"]
     KERNEL["AbOvo.ServiceDefaults<br/>wspólne jądro<br/>uwierzytelnianie, CORS, limity,<br/>health, OpenAPI, migracje"]
     TESTS["AbOvo.Api.Tests<br/>jednostkowe, integracyjne w pamięci,<br/>reguły architektury"]
+    SEED["AbOvo.Seed<br/>lokalne konta przykładowe<br/>uruchamiane z pulpitu,<br/>nigdy przy starcie"]
   end
 
   subgraph node["web/ - jedna przestrzeń pnpm"]
@@ -167,6 +168,7 @@ flowchart TD
   end
 
   APPHOST --> API
+  APPHOST --> SEED
   API --> CONTRACTS
   API --> KERNEL
   TESTS --> API
@@ -177,7 +179,7 @@ flowchart TD
   KERNEL -.->|"odrzucane przez ArchitectureTests"| API
   KERNEL -.->|"odrzucane przez ArchitectureTests"| CONTRACTS
 
-  linkStyle 7,8 stroke:#b45309,stroke-dasharray: 4 4;
+  linkStyle 8,9 stroke:#b45309,stroke-dasharray: 4 4;
 ```
 
 ### A3. Jeden origin — każde żądanie, które wolno wykonać przeglądarce
@@ -206,9 +208,9 @@ flowchart LR
   BROWSER["Przeglądarka czytelnika"]
 
   subgraph origin["Własny origin aplikacji webowej"]
-    PAGES["Strony<br/>/ /about /read /lab<br/>/login /account /instrument"]
+    PAGES["Strony<br/>/ /about /read /lab<br/>/login /register /account /instrument"]
     CONFIG["/api/config<br/>adresy w czasie żądania<br/>nigdy NEXT_PUBLIC_*"]
-    LOGIN["/api/auth/login<br/>/api/auth/2fa<br/>poświadczenia w, status z"]
+    LOGIN["/api/auth/login<br/>/api/auth/2fa<br/>/api/auth/register<br/>poświadczenia w, status z"]
     SESSION["/api/auth/session<br/>ciasteczka z tokenów,<br/>które klient już ma"]
     PROXY["/api/proxy/[...path]<br/>jedyna droga do backendu"]
   end
@@ -292,7 +294,7 @@ flowchart TD
 
 Trzy tabele, każdą trzymają mechaniczne reguły, a nie obietnica. Dwie są kluczowane
 czytelnikiem — gdzie jest i którą edycję wybrał
-([ADR-0049](adr/0049-one-language-control-remembered-and-english-by-default.md)) — i dzielą
+([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)) — i dzielą
 jedną straż. Nieobecna kolumna w trzeciej — czytelnik w wierszu wyniku — jest projektem i to
 ona czyni ocenę pojedynczego czytelnika nie do zbudowania
 ([ADR-0009](adr/0009-the-instrument-measures-the-book.md),
@@ -304,7 +306,7 @@ ona czyni ocenę pojedynczego czytelnika nie do zbudowania
 
 %% TRZY TABELE, A KAŻDĄ TRZYMAJĄ MECHANICZNE REGUŁY, NIE OBIETNICA. ReaderProgress mówi,
 %% GDZIE jest czytelnik, i nigdy jak mu poszło; ReaderPreference mówi, którą EDYCJĘ wybrał, i
-%% nic poza tym (ADR-0049); FrameOutcome zlicza werdykt przy ramce i nie niesie ani
+%% nic poza tym (ADR-0052); FrameOutcome zlicza werdykt przy ramce i nie niesie ani
 %% identyfikatora, ani znacznika czasu (ADR-0009, ADR-0020, ADR-0023).
 
 %% DWIE TABELE ZWIĄZANE Z CZYTELNIKIEM DZIELĄ JEDNĄ STRAŻ. "Ilu czytelników wybrało polski"
@@ -635,7 +637,7 @@ sequenceDiagram
 Wszystko, co ten serwis trzyma o czytelniku, znika pierwsze — miejsce w lekturze i wybrana
 edycja, oba pod tym samym podmiotem — a ekran mówi, czego żadne usunięcie nie dosięgnie
 ([ADR-0021](adr/0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md),
-[ADR-0049](adr/0049-one-language-control-remembered-and-english-by-default.md)). Ekran, który
+[ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)). Ekran, który
 sugerowałby inaczej, deklarowałby możliwość, której schemat celowo nie ma.
 
 ```mermaid
@@ -645,7 +647,7 @@ sugerowałby inaczej, deklarowałby możliwość, której schemat celowo nie ma.
 %% KAŻDY WIERSZ ZWIĄZANY Z CZYTELNIKIEM ZNIKA PIERWSZY, A EKRAN MÓWI, CZEGO NIE DOSIĘGNIE
 %% (ADR-0021). Kolejność wynika z PODMIOTU: gdy serwis tożsamości oznaczy konto, nikt już nie
 %% zaloguje się jako ten podmiot, więc cokolwiek pozostanie pod nim w apidb, jest na zawsze
-%% poza zasięgiem czytelnika. Dotyczy to wybranej edycji (ADR-0049) dokładnie tak jak miejsca
+%% poza zasięgiem czytelnika. Dotyczy to wybranej edycji (ADR-0052) dokładnie tak jak miejsca
 %% w lekturze - i dlatego oba znikają przed kontem, a nie po nim.
 
 %% A PONIEWAŻ WYNIK NIE NIESIE CZYTELNIKA, nic nie potrafi znaleźć wierszy, które były twoje
@@ -839,7 +841,7 @@ zanim EF skompiluje zapytanie.
 %% SĄ SWOIMI LUSTRZANYMI ODBICIAMI, A NIE TĄ SAMĄ REGUŁĄ Z INNĄ KOLUMNĄ.
 %% ReaderScopedQueries odmawia zapytania obejmującego wielu CZYTELNIKÓW - po każdej z dwóch
 %% tabel kluczowanych czytelnikiem - bo ocena pojedynczego czytelnika ma być nie do
-%% zbudowania (ADR-0009, ADR-0020, ADR-0049).
+%% zbudowania (ADR-0009, ADR-0020, ADR-0052).
 %% BundlePinnedQueries odmawia zapytania obejmującego wiele TEKSTÓW, bo średnia po dwóch
 %% brzmieniach ramki jest bez sensu, a nie zakazana (ADR-0024) - kazałaby rejestrowi kłamać
 %% o ramce, którą ktoś już poprawił.

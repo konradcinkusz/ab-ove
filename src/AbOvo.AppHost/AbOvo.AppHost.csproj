@@ -34,6 +34,12 @@
 
   <ItemGroup>
     <ProjectReference Include="../AbOvo.Api/AbOvo.Api.csproj" />
+    <!-- The example-account seeder, started from the dashboard rather than at startup.
+         A ProjectReference here is what generates `Projects.AbOvo_Seed`; it is NOT an
+         assembly reference, which is why the one address the two share is a constant in
+         AppHost.cs handed over as an environment variable rather than a type this file
+         could import. -->
+    <ProjectReference Include="../AbOvo.Seed/AbOvo.Seed.csproj" />
   </ItemGroup>
 
 </Project>

@@ -16,9 +16,9 @@ flowchart LR
   BROWSER["Przeglądarka czytelnika"]
 
   subgraph origin["Własny origin aplikacji webowej"]
-    PAGES["Strony<br/>/ /about /read /lab<br/>/login /account /instrument"]
+    PAGES["Strony<br/>/ /about /read /lab<br/>/login /register /account /instrument"]
     CONFIG["/api/config<br/>adresy w czasie żądania<br/>nigdy NEXT_PUBLIC_*"]
-    LOGIN["/api/auth/login<br/>/api/auth/2fa<br/>poświadczenia w, status z"]
+    LOGIN["/api/auth/login<br/>/api/auth/2fa<br/>/api/auth/register<br/>poświadczenia w, status z"]
     SESSION["/api/auth/session<br/>ciasteczka z tokenów,<br/>które klient już ma"]
     PROXY["/api/proxy/[...path]<br/>jedyna droga do backendu"]
   end

@@ -1,4 +1,4 @@
-# ADR-0049: One language control, remembered, and English by default
+# ADR-0052: One language control, remembered, and English by default
 
 ## Status
 
@@ -8,13 +8,19 @@ Supersedes [ADR-0015](0015-the-reading-index-has-no-default-language.md) and the
 switch [ADR-0036](0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md) added.
 ADR-0016 is untouched and is easier to satisfy than before — see Consequences.
 
-**On the number.** This was written as 0048 and renumbered on the merge: two other changes
-took that number while it was in flight, and both landed first —
-[the courses page](0048-the-courses-are-a-page-and-the-index-narrows-to-one.md) and
-[the theme switch](0048-the-theme-is-a-choice-and-the-system-is-a-position.md). Those two
-share 0048 between them, which ADR-0001's "ids are never reused" says they should not; that
-collision is theirs to resolve and renumbering somebody else's accepted decision is not this
-change's to make. 0049 is the next free number and this file takes it.
+**On the number.** This was written as 0048 and renumbered twice on the way in, because four
+other decisions took numbers while it was in flight and every one of them landed first: the
+[courses page](0048-the-courses-are-a-page-and-the-index-narrows-to-one.md) and the
+[theme switch](0048-the-theme-is-a-choice-and-the-system-is-a-position.md), which share 0048
+between them; then
+[registration](0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md),
+[the example accounts](0050-the-example-accounts-are-a-resource-you-start.md) and
+[the reading gate](0051-a-program-opens-when-the-one-before-it-has-been-opened.md). 0052 is
+the next free number and this file takes it.
+
+The 0048 collision is left alone deliberately: ADR-0001's "ids are never reused" says it
+should not exist, and renumbering somebody else's accepted decision is not this change's to
+make. It is a real finding against `main` and it wants its own commit.
 
 ## Context
 

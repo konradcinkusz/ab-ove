@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ConsentControl } from '@/components/consent/consent-control';
 import { LanguageChoice } from '@/components/language/language-choice';
 import { ThemeSwitch } from '@/components/theme/theme-switch';
-import { say } from '@/lib/content/bundle';
+import { say, unitBefore } from '@/lib/content/bundle';
 import type { Bundle, Route, Unit } from '@/lib/content/schema';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
@@ -11,6 +11,7 @@ import { labFor } from '@/lib/lab/protocol';
 
 import styles from './contents.module.css';
 import { KeysDetails } from './keys-details.tsx';
+import { ProgramGate } from './program-gate.tsx';
 import summaryStyles from './program-summary.module.css';
 import { RichInline } from './rich-text.tsx';
 import { SummaryKeys } from './summary-keys.tsx';
@@ -75,6 +76,19 @@ export function ProgramSummary({
   return (
     <main className={styles.page} lang={language}>
       {/*
+        The same gate the frames and the contents carry (ADR-0051): this screen is inside a
+        program, so a reader who has not reached the program has not reached its return
+        index either. It is the only one of the three that records nothing, so there is
+        nothing here for the gate to have to undo.
+      */}
+      <ProgramGate
+        language={language}
+        previous={unitBefore(bundle, unit.id)?.id}
+        track={track}
+        unit={unit.id}
+      />
+
+      {/*
         The two keys this screen has, from the same flag `frame-keys.tsx` sets — so a reader
         who arrived here by pressing `→` on the last frame finds the arrows still work,
         which is the one thing that would make the hand-off feel like a dead end if it did
@@ -110,7 +124,7 @@ export function ProgramSummary({
             {' · '}
             <Link href="/">{chrome.programs}</Link>
           </span>
-          {/* THE language control for this screen, at the top of it (ADR-0049). */}
+          {/* THE language control for this screen, at the top of it (ADR-0052). */}
           <LanguageChoice
             current={language}
             hrefs={editionHrefs(

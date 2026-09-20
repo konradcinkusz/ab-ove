@@ -39,6 +39,12 @@ Every resource is declared there with its edges — `WithReference`, `WaitFor`,
 `WithHttpHealthCheck` — and nothing else: Postgres with a data volume and pgAdmin, the two
 logical databases, `authservice` from its published image, the API, the Next.js app.
 
+One resource is declared and deliberately NOT started: `seed`, which makes the local example
+accounts, carries `WithExplicitStart()` and appears in the dashboard with a Start button
+([ADR-0050](../adr/0050-the-example-accounts-are-a-resource-you-start.md)). That is P1
+held rather than bent — *one command brings the system up* stays one command, and a tool
+that writes to a database outliving the process does not run because the estate came up.
+
 The file's own header carries the constraint that matters more than the convenience: **the
 AppHost is development-only and is not the production topology.** Production is described
 by `flyio/*.fly.toml` and `.github/workflows/flyio.yml`, and the two genuinely differ — the
@@ -534,7 +540,7 @@ statement about a file.
 **The domain model is three tables, and the anti-goal is now a rule rather than an absence.**
 `AbOvoDbContext` declared no entity until #11; it declares `ReaderProgress` (#11),
 `FrameOutcome` (#15) and `ReaderPreference`
-([ADR-0049](../adr/0049-one-language-control-remembered-and-english-by-default.md)), each
+([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md)), each
 with its own migration beside it. INIT-GENERIC-TEMPLATE.md §12 is why the first took that
 long — the template ships the mechanism and one thin vertical slice, and inventing entities
 for a product nobody has specified produces code the first ticket deletes.

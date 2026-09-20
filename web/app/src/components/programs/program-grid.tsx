@@ -4,7 +4,7 @@ import { AccountControl } from '@/components/account/account-control';
 import { ConsentControl } from '@/components/consent/consent-control';
 import { LanguageChoice } from '@/components/language/language-choice';
 import { ThemeSwitch } from '@/components/theme/theme-switch';
-import { groupsOf, say, sectionSpans } from '@/lib/content/bundle';
+import { groupsOf, say, sectionSpans, unitBefore } from '@/lib/content/bundle';
 import { editionsOffered } from '@/lib/content/chosen-edition';
 import { shownBundles } from '@/lib/content/chosen-track';
 import type { Bundle } from '@/lib/content/schema';
@@ -16,12 +16,13 @@ import { ClearWorksheets } from '../read/clear-controls.tsx';
 import { ForgetProgress, ResumeLast, type Limits } from '../read/resume.tsx';
 
 import styles from './program-grid.module.css';
+import { TileEntry } from './tile-entry.tsx';
 import { TilePosition } from './tile-position.tsx';
 
 export interface ProgramGridProps {
   readonly bundles: readonly Bundle[];
   /**
-   * The edition to render. Always a language since ADR-0049 — what the URL asked for, else
+   * The edition to render. Always a language since ADR-0052 — what the URL asked for, else
    * what this browser remembers, else English — and resolved by `chosenEdition`, which is
    * where every way of supplying a bad one collapses to the same answer.
    */
@@ -54,7 +55,7 @@ export interface ProgramGridProps {
  * picked one found the question waiting for them again on the next screen, because nothing
  * kept the answer.
  *
- * ADR-0049 reversed it. `chosen` is now always a language: English unless the reader has
+ * ADR-0052 reversed it. `chosen` is now always a language: English unless the reader has
  * said otherwise, and what they say is remembered (`lib/language/store.ts`). Each tile
  * carries one title, in that edition, and the control that changes it is `LanguageChoice`
  * in the row at the top of the page — the same control in the same place on every screen in
@@ -158,7 +159,7 @@ export function ProgramGrid({ bundles, chosen, chosenTrack }: ProgramGridProps):
             It is three words of furniture and not a filled control, on the language
             control's reasoning (`language-choice.tsx`): a reader touches it once and then
             wants it out of the way. Both are now that shape, and both are remembered — the
-            theme in `localStorage`, the edition there and on the account (ADR-0049).
+            theme in `localStorage`, the edition there and on the account (ADR-0052).
           */}
           <ThemeSwitch language={chrome.language} />
           <ResumeLast language={chrome.language} limits={limits} />
@@ -183,7 +184,7 @@ export function ProgramGrid({ bundles, chosen, chosenTrack }: ProgramGridProps):
 
       {/*
         THE HEADING AND THE LANGUAGE CONTROL, SHARING A LINE — this page's one language
-        control, and the only one on it (ADR-0049).
+        control, and the only one on it (ADR-0052).
 
         WHY HERE AND NOT IN THE MASTHEAD ROW ABOVE, which is where the other three screens
         put it. That row is `flex-wrap: wrap` and everything in it after the theme switch —
@@ -296,32 +297,54 @@ export function ProgramGrid({ bundles, chosen, chosenTrack }: ProgramGridProps):
                         sections > 0 ? ` · ${chrome.sections(sections)}` : ''
                       }`;
 
+                      /*
+                        The program that opens this one, read off the manifest rather than
+                        off the id (ADR-0051; `unitBefore` says what P07's insertion did to
+                        the arithmetic). `undefined` for the book's first program, which is
+                        the one tile that is never shut.
+                      */
+                      const previous = unitBefore(bundle, unit.id)?.id;
+
                       return (
-                        <li className={styles.tile} key={unit.id}>
+                        /*
+                          `id="p-<unit>"` is where a reader bounced off a shut program
+                          lands (`program-gate.tsx` redirects to this fragment): the tile
+                          they asked for, carrying the one sentence that explains the
+                          bounce. Prefixed for the reason the contents page prefixes its
+                          section anchors — a bare `P01` is a name this page does not own.
+                        */
+                        <li className={styles.tile} id={`p-${unit.id}`} key={unit.id}>
                           <div className={styles.idRow}>
                             <span className={styles.tileId}>{unit.id}</span>
                             {/*
-                              Where the reader is in this program, if anywhere — text, in
-                              the id's register, arriving after hydration into a row that
+                              Where the reader is in this program, if anywhere — or, if the
+                              program is not open to them yet, the one that opens it. Text,
+                              in the id's register, arriving after hydration into a row that
                               already has its height. See the component for what it is
                               deliberately not.
                             */}
                             <TilePosition
                               language={chrome.language}
                               last={unit.steps.length}
+                              previous={previous}
                               track={bundle.track.id}
                               unit={unit.id}
                             />
                           </div>
-                          <span className={styles.titles}>
-                            <Link
-                              className={styles.title}
-                              href={`/read/${bundle.track.id}/${unit.id}/${shown}`}
-                              lang={shown}
-                            >
-                              {say(unit.titles, shown)}
-                            </Link>
-                          </span>
+                          {/*
+                            The way in, which is a link only while the reader may take it.
+                            The title is the CONTENT's, so it is resolved here and handed
+                            over — the component's own note says why deciding the element on
+                            the client is worth that. ONE edition since ADR-0052, so the list
+                            has one entry; the prop stays a list because the component's job
+                            is the door rather than the count.
+                          */}
+                          <TileEntry
+                            editions={[{ language: shown, title: say(unit.titles, shown) }]}
+                            previous={previous}
+                            track={bundle.track.id}
+                            unit={unit.id}
+                          />
                           <p className={styles.meta}>{meta}</p>
                         </li>
                       );

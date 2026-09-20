@@ -10,7 +10,7 @@ namespace AbOvo.Api.Endpoints;
 /// Which edition the reader chose, kept for an account.
 ///
 /// <para>
-/// ADR-0049 — the language is one control at the top of the page, it defaults to English,
+/// ADR-0052 — the language is one control at the top of the page, it defaults to English,
 /// and it is remembered. The browser is where it is remembered; this is the copy that makes
 /// a second machine agree with the first, on exactly the terms
 /// <see cref="ProgressEndpoints"/> keeps the reader's place: the browser renders from its

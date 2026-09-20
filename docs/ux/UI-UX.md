@@ -33,6 +33,7 @@ something is in the reader loop at all.
 | `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, the consent invitation, and the way into the next one | nothing |
 | `/lab/<id>` | the book's exercises under Pyodide — reached from P01's summary only, and on its way out ([ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md)) | nothing |
 | `/login` | a form that posts credentials to this app's own BFF | an identity service |
+| `/register` | the same form one step earlier: an address, a password, and the consent the identity service records | an identity service |
 | `/account` | the reader's own progress, export and deletion | an account |
 | `/instrument` | the author's view: frames ranked by how badly the book is doing | an account |
 | `/healthz` | the app's own liveness | nothing |
@@ -90,10 +91,13 @@ Its parts, in order:
    and reverts in five seconds — and *Forget* is the last of them, furthest from the link
    a returning reader is reaching for
    ([ADR-0047](../adr/0047-forgetting-is-two-presses-because-it-reaches-the-account.md)).
-2. **The heading**, alone on its line. The edition switch that used to share it is gone: the
-   language is **one control, in the top row, on every screen in the product**
-   ([ADR-0049](../adr/0049-one-language-control-remembered-and-english-by-default.md)), and
-   it has one position per edition and no third. A reader who has chosen nothing reads
+2. **The heading and the language control**, sharing a line — where the three-position
+   edition switch used to be, and the only language control on the page
+   ([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md)). It
+   has one position per edition and no third. It is in THIS row rather than the masthead,
+   which is where the other screens put it, because the masthead's right-hand end grows
+   after hydration and one more item there wraps the row under a reader who is already
+   reading (`specs/progress.spec.ts` bounds that shift). A reader who has chosen nothing reads
    English. A choice is `/?lang=<edition>` — visible, linkable, leaveable, never inferred
    from `Accept-Language` — and it is **remembered**: in this browser, and on the reader's
    account when there is one, so the question is asked once rather than on every screen.
@@ -110,12 +114,22 @@ Its parts, in order:
    way). Each run is headed at level three, under the track's title. One tile per program,
    carrying the program's id, its title in the reader's edition, and how many frames and
    sections it has; the whole tile is the target. (It carried a title *per edition* until
-   ADR-0049, which is where the first screen's ninety-four titles came from.) A tile whose program the
+   ADR-0052, which is where the first screen's ninety-four titles came from.) A tile whose program the
    reader has a place in says so beside the id — `at frame 12` — as text arriving after
    hydration into a row that already has its height. It is a **position and never a
    progress** (ADR-0041): no fraction, no bar, nothing about how far, and not a link,
    because the way back into the frame is the resume control and `progress.spec.ts` holds
    the page to exactly one.
+
+   **A tile the reader has not reached yet carries no link**
+   ([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)). A
+   program opens when the reader has any place in the one before it — the first program of
+   the track is always open, and so is any program they already have a place in — and until
+   then the same slot that would say `at frame 12` says `opens after P06` instead. The id,
+   the title and the counts stay: the index is the book's table of contents and a reader
+   may see what is in it; what it loses is the way in. The door is what closes, not the
+   tile. It is derived from the record that already exists, so nothing new is stored and a
+   reader who signs in finds the same doors open on their other machine.
 5. **The consent invitation**, last, absent from the first paint, and an invitation rather
    than a gate — a reader who came to read reaches the programs first and the question
    afterwards. The same invitation is on a program's summary, below the list, where a
@@ -187,6 +201,36 @@ It still branches on whether an identity service is configured at all, and says 
 rather than offering a button that cannot work (P8) — a deployment with no identity service is
 a supported configuration, not a broken one.
 
+### `/register` — where an account comes from
+
+`web/app/src/app/register/page.tsx`. **This page was missing for longer than it should have
+been, and the middleware knew**: `/register` has been in `PUBLIC_PATHS` since the gate was
+written, `/login` told the reader to use "the email address and password you registered
+with", and the only way to obtain one was `curl`. Nothing in the tree asked, which is why
+`specs/registration.spec.ts`'s first assertion is that the page renders a form at all.
+
+The same shape as `/login` and for the same reasons — a plain form, no client component, no
+token in the document — plus one thing sign-in does not have: **a consent**.
+`AuthController.Register` refuses any registration that does not accept the exact Terms and
+Privacy versions that instance is configured with, so the page asks the instance
+(`GET /auth/consents/versions`), shows what it answers, and carries it in two hidden fields;
+the route asks again and forwards only versions that MATCH the ones the form carried. What
+the reader was shown is what gets recorded, or nothing is
+([ADR-0049](../adr/0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)).
+
+The outcomes are a closed set in this app's words, looked up from a code on the query string
+exactly as `/login`'s are. Three of them are separated because each is fixed somewhere
+different — an address that already has an account (the form is withdrawn and the sign-in
+link offered instead), a password the policy refuses (the page states all five rules rather
+than waiting to refuse again), and a consent that was not given. A fourth, *the account was
+created and the address needs verifying*, is a NOTICE and not a problem: reporting it in the
+warning panel would tell a reader whose registration succeeded that it had failed.
+
+**A registration grants no role**, which is a fact about authservice rather than a choice
+here, and it is why a local machine gets `src/AbOvo.Seed`
+([ADR-0050](../adr/0050-the-example-accounts-are-a-resource-you-start.md)) — `/instrument` is
+behind `RequireRole("Admin", "SuperAdmin")` and nothing on screen can grant one.
+
 The `?redirect=` parameter is accepted **only** as a same-origin absolute path. A value
 starting `//` or with a scheme is discarded. It arrives on a query string, which means an
 attacker chooses it, and a sign-in page that forwards to it is a phishing redirector with
@@ -225,7 +269,14 @@ same element, same class — so the page moves by nothing when the record is rea
 (`progress.spec.ts` holds it to the index's shift bound). The crumb row's quiet *Start at
 frame 1* appears only beside a *Continue*, so the page has exactly one link to the reader's
 frame and always one to the first. The foot carries the two neighbouring programs and the
-key map.
+key map — and **the next one only once this program has been opened**
+([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)): a
+`F03 →` that led somewhere the reader would be sent back from is a control that is reliably
+refused. **The page itself is gated on the same rule.** A reader who has not reached this
+program is returned to the index, at the tile that says which program opens it. It happens
+after hydration, because the record is in the browser and the server has no reader — a
+first paint of a shut program is the honest cost of the loop working with no backend at
+all (ADR-0004).
 
 ### `/read/<track>/<unit>/<lang>/<step>` — one frame
 
@@ -389,9 +440,11 @@ one, so there is no downstream for it to have ([ADR-0045](../adr/0045-a-workshee
 
 ### What is behind them
 
-Not screens, but the reader's experience rests on all five: `/api/config` (addresses read at
+Not screens, but the reader's experience rests on every one of them: `/api/config` (addresses read at
 request time, never compiled in), `/api/auth/login` (credentials in, a status out — the
-tokens are minted into this process and the browser never holds one), `/api/auth/session`
+tokens are minted into this process and the browser never holds one), `/api/auth/register`
+(the same, one step earlier, and the only route that makes two calls to the identity service
+— the consent versions, then the registration), `/api/auth/session`
 (the same cookies, established from tokens a client already has, which is what an OAuth
 callback produces; between them these two are the only things that may set the session
 cookie — tokens never touch `localStorage`, and `document.cookie` cannot set `HttpOnly`),
@@ -621,6 +674,7 @@ by construction.*
 | --- | --- | --- |
 | 3.1 | **Local progress first.** Place in the book, kept in the browser, with no account. | A reader who never signs in still returns to where they were. |
 | 3.2 | **Sign-in**, against `authservice` ([ADR-0004](../adr/0004-identity-authservice-and-anonymous-reader.md)). Built one step stronger than this row planned: the form posts *credentials* to `/api/auth/login`, which talks to `authservice` server-side, so the tokens are never in the document at all rather than passing through it on the way to `/api/auth/session` ([ADR-0018](../adr/0018-password-sign-in-happens-server-side.md)). No JavaScript on the happy path. | `/login` becomes a form. The middleware's redirect target is finally a screen that does something. |
+| 3.2a | **Registration**, which 3.2 assumed and no row planned — `/register` was in the middleware's public list with no page behind it, so an account could only be made with `curl`. The form is `/login`'s, one step earlier, plus the consent `AuthController.Register` requires: the versions come from the instance and are checked against what the reader was shown before anything is recorded ([ADR-0049](../adr/0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)). A registration grants no role, so a local machine gets its example accounts from a dashboard resource instead ([ADR-0050](../adr/0050-the-example-accounts-are-a-resource-you-start.md)). | A reader with no account can get one without leaving the product, and a fresh clone can reach every authorization group the API declares. |
 | 3.3 | **Synchronisation**, local progress to the account and back, with a conflict rule a reader can predict. The rule is **furthest-frame-wins**, applied on the service as well as in the browser, and the sentence saying so is on the screen where the conflict happened ([ADR-0019](../adr/0019-furthest-frame-wins.md)). Forgetting reaches both copies or is not finished. | Two machines converge. Signing out leaves local progress intact. |
 | 3.4 | **Progress is state, not evidence.** It is the reader's own, readable by that reader, and is never an input to an aggregate ([ADR-0009](../adr/0009-the-instrument-measures-the-book.md) §1). Held by three enforcements rather than a promise — a runtime refusal of any query that does not pin one reader, a closed column list, and every key leading with the reader ([ADR-0020](../adr/0020-no-aggregate-touches-the-progress-store.md)). | No aggregate query touches the progress store. |
 | 3.5 | **Account deletion** that deletes. The progress goes first and the account second, because the likely failure is a mistyped password and that order is the one whose worst case repairs itself ([ADR-0021](../adr/0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md)). The screen says what goes, what stays, what no deletion can reach, and that the identity service marks and schedules rather than erases. | It removes the account and the progress, and it says plainly that it cannot retract an anonymous outcome already folded into a rate. |

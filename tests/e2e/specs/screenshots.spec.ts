@@ -91,7 +91,7 @@ test.describe('@screenshots the documentation set', () => {
     /*
       `landing-both-editions` STOOD HERE AND HAS NOTHING LEFT TO CAPTURE. It photographed
       the state a reader arrived in when no edition had been chosen — every tile carrying a
-      title per edition — and ADR-0049 removed that state: `/` now opens in the reader's own
+      title per edition — and ADR-0052 removed that state: `/` now opens in the reader's own
       edition, English until they say otherwise. A capture of a bare `/` would be
       `landing-english` under a second name.
     */

@@ -136,7 +136,7 @@ are references that
 refuses.
 
 ```mermaid
-%% The solution layout: four .NET projects, one pnpm workspace, and what may reference what.
+%% The solution layout: the .NET projects, one pnpm workspace, and what may reference what.
 %% ONE DIAGRAM PER FILE. ASCII ONLY. See a1-system-context.mmd for why no comment line here
 %% is a bare %% marker.
 
@@ -151,11 +151,12 @@ refuses.
 
 flowchart TD
   subgraph dotnet["AbOvo.sln"]
-    APPHOST["AbOvo.AppHost<br/>development composition root<br/>postgres, authservice, api, web"]
+    APPHOST["AbOvo.AppHost<br/>development composition root<br/>postgres, authservice, api, web, seed"]
     API["AbOvo.Api<br/>minimal API, EF Core<br/>Program.cs is a manifest"]
     CONTRACTS["AbOvo.Contracts<br/>request and response records<br/>no behaviour"]
     KERNEL["AbOvo.ServiceDefaults<br/>the shared kernel<br/>auth, CORS, rate limits,<br/>health, OpenAPI, migrations"]
     TESTS["AbOvo.Api.Tests<br/>unit, in-memory integration,<br/>architecture rules"]
+    SEED["AbOvo.Seed<br/>the local example accounts<br/>started from the dashboard,<br/>never at startup"]
   end
 
   subgraph node["web/ - one pnpm workspace"]
@@ -168,6 +169,7 @@ flowchart TD
   end
 
   APPHOST --> API
+  APPHOST --> SEED
   API --> CONTRACTS
   API --> KERNEL
   TESTS --> API
@@ -178,7 +180,7 @@ flowchart TD
   KERNEL -.->|"refused by ArchitectureTests"| API
   KERNEL -.->|"refused by ArchitectureTests"| CONTRACTS
 
-  linkStyle 7,8 stroke:#b45309,stroke-dasharray: 4 4;
+  linkStyle 8,9 stroke:#b45309,stroke-dasharray: 4 4;
 ```
 
 ### A3. One origin — every request the browser is allowed to make
@@ -206,9 +208,9 @@ flowchart LR
   BROWSER["Reader's browser"]
 
   subgraph origin["The web app's own origin"]
-    PAGES["Pages<br/>/ /about /read /lab<br/>/login /account /instrument"]
+    PAGES["Pages<br/>/ /about /read /lab<br/>/login /register /account /instrument"]
     CONFIG["/api/config<br/>addresses at request time<br/>never NEXT_PUBLIC_*"]
-    LOGIN["/api/auth/login<br/>/api/auth/2fa<br/>credentials in, status out"]
+    LOGIN["/api/auth/login<br/>/api/auth/2fa<br/>/api/auth/register<br/>credentials in, status out"]
     SESSION["/api/auth/session<br/>cookies from tokens<br/>a client already holds"]
     PROXY["/api/proxy/[...path]<br/>the one path to any backend"]
   end
@@ -292,7 +294,7 @@ flowchart TD
 
 Three tables, each held by mechanical rules rather than by a promise. Two are keyed by a
 reader — where they are, and which edition they chose
-([ADR-0049](adr/0049-one-language-control-remembered-and-english-by-default.md)) — and share
+([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)) — and share
 one guard. The absent column on the third — a reader on an outcome row — is the design, and
 it is what makes a per-reader score unbuildable
 ([ADR-0009](adr/0009-the-instrument-measures-the-book.md),
@@ -304,7 +306,7 @@ it is what makes a per-reader score unbuildable
 
 %% THREE TABLES, AND EACH IS HELD BY MECHANICAL RULES RATHER THAN BY A PROMISE.
 %% ReaderProgress says WHERE a reader is and never how they did; ReaderPreference says which
-%% EDITION they chose and nothing else (ADR-0049); FrameOutcome counts a verdict against a
+%% EDITION they chose and nothing else (ADR-0052); FrameOutcome counts a verdict against a
 %% frame and carries no identifier and no timestamp (ADR-0009, ADR-0020, ADR-0023).
 
 %% THE TWO READER-SCOPED TABLES SHARE ONE GUARD. "How many readers chose Polish" is a
@@ -633,7 +635,7 @@ sequenceDiagram
 Everything this service holds for the reader goes first — their place and their chosen
 edition, both under the same subject — and the screen says what no deletion can reach
 ([ADR-0021](adr/0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md),
-[ADR-0049](adr/0049-one-language-control-remembered-and-english-by-default.md)). A screen
+[ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)). A screen
 that implied otherwise would be claiming a capability the schema was designed not to have.
 
 ```mermaid
@@ -643,7 +645,7 @@ that implied otherwise would be claiming a capability the schema was designed no
 %% EVERY READER-SCOPED ROW GOES FIRST, AND THE SCREEN SAYS WHAT IT CANNOT REACH (ADR-0021).
 %% The order is about the SUBJECT: once the identity service has marked the account, nobody
 %% can sign in as that subject again, so anything still filed under it in apidb is
-%% unreachable by any reader for ever. That is true of the chosen edition (ADR-0049) exactly
+%% unreachable by any reader for ever. That is true of the chosen edition (ADR-0052) exactly
 %% as it is of the place, which is why both go before the account rather than after.
 
 %% AND BECAUSE AN OUTCOME CARRIES NO READER, nothing can find the rows that were yours -- so
@@ -838,7 +840,7 @@ refuse before EF compiles the query.
 %% THEY ARE MIRROR IMAGES AND NOT THE SAME RULE WITH A DIFFERENT COLUMN ON IT.
 %% ReaderScopedQueries refuses a query that spans READERS -- over either of the two tables
 %% keyed by one -- because a per-reader score is being made unbuildable (ADR-0009, ADR-0020,
-%% ADR-0049). BundlePinnedQueries refuses a query that
+%% ADR-0052). BundlePinnedQueries refuses a query that
 %% spans TEXTS, because an average over two wordings of a frame is meaningless rather than
 %% forbidden (ADR-0024) -- it would make the ledger lie about a frame somebody has already
 %% fixed.

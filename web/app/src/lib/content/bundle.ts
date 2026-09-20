@@ -202,6 +202,28 @@ export function unitIn(bundle: Bundle, unitId: string): Unit | undefined {
 }
 
 /**
+ * The program the book puts immediately before this one, or `undefined` for the first.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * ADJACENCY IN THE MANIFEST, NEVER ARITHMETIC ON THE ID, AND THE BOOK HAS ALREADY PROVED
+ * WHY. The main sequence was renumbered once when P07 was inserted, so `P08 - 1` is a
+ * string operation whose answer stopped being a program that day. `program-contents.tsx`
+ * found the neighbours this way for its foot; this is the same rule, lifted here because
+ * the gate (`lib/progress/gate.ts`) asks the same question from three more places and one
+ * copy of it is what keeps them agreeing.
+ *
+ * A unit this bundle does not carry returns `undefined` — the same answer as the first
+ * program, and deliberately so. Both mean "nothing here precedes it", and the gate's
+ * reading of that is the open door: a program the book does not list is not a program a
+ * reader can be sent back from.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+export function unitBefore(bundle: Bundle, unitId: string): Unit | undefined {
+  const index = bundle.units.findIndex((unit) => unit.id === unitId);
+  return index > 0 ? bundle.units[index - 1] : undefined;
+}
+
+/**
  * Step `n` of a unit, 1-based, or undefined.
  *
  * Indexed rather than searched, and that is safe rather than an assumption: the validator

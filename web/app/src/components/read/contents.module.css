@@ -43,7 +43,7 @@
 
 /*
  * The left-hand group of the crumb row: the way back, and the language control beside it
- * (ADR-0049). Its own flex container so the two sit on one line and wrap together on a
+ * (ADR-0052). Its own flex container so the two sit on one line and wrap together on a
  * narrow screen, rather than the control being pushed to the row's far end where
  * `justify-content: space-between` would put a third child.
  *

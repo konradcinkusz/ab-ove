@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The local seeder: a DEVELOPMENT tool, started from the Aspire dashboard.
+
+       It is a plain console project on purpose. Nothing under flyio/ references it, no
+       image contains it, and it is reachable only through the AppHost — which P1 already
+       says is the development composition root and not the production topology.
+
+       IT DOES NOT TAKE AbOvo.ServiceDefaults, and that is a decision rather than an
+       omission. The kernel is P2's cross-cutting plumbing FOR THE SERVICES IN THE ESTATE —
+       telemetry, health, resilience, service discovery — and this is a process that runs
+       for a few seconds, posts a handful of registrations and exits. Adding it would put a
+       development tool on the kernel's consumer list, which is one more thing a change to
+       the kernel has to be true for, in exchange for traces nobody will read.
+
+       No PackageReference either. Everything it needs — HttpClient, System.Text.Json — is
+       in the shared framework, so the dependency it adds to this repository is none. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>AbOvo.Seed</RootNamespace>
+  </PropertyGroup>
+
+</Project>

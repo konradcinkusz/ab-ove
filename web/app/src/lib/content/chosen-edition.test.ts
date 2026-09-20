@@ -6,7 +6,7 @@
  * unknown and empty must every one of them fall through to what the reader remembers, and
  * then to English. A regression in any of those reads as a tidier page rather than as a
  * fault — a reader who chose Polish quietly served English is the failure this file exists
- * to make loud, which is ADR-0015's own argument surviving ADR-0049's reversal of it.
+ * to make loud, which is ADR-0015's own argument surviving ADR-0052's reversal of it.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -66,7 +66,7 @@ test('a remembered edition is used when the URL asks for nothing', () => {
   assert.equal(remembered('pl'), 'pl');
 });
 
-test('a reader who has never chosen gets English (ADR-0049)', () => {
+test('a reader who has never chosen gets English (ADR-0052)', () => {
   assert.equal(chosenEdition(BUNDLES, undefined, undefined), 'en');
 });
 

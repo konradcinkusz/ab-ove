@@ -6,14 +6,14 @@ import type { Bundle } from './schema.ts';
  * Which edition the index is showing.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * ADR-0049 REVERSED ADR-0015, AND THIS FILE IS WHERE THE REVERSAL IS VISIBLE.
+ * ADR-0052 REVERSED ADR-0015, AND THIS FILE IS WHERE THE REVERSAL IS VISIBLE.
  *
  * What stood here returned `undefined` for a reader who had not chosen, and the index
  * rendered every programme's title twice — once per edition, each half a link — so that no
  * default was ever applied. The argument was good and the result was not: a reader met the
  * language question on the index, again on the contents page, again on the summary and
  * again in every frame's place row, and answering it never stuck, because nothing kept the
- * answer. ADR-0049 has the full argument; the short of it is that a question asked on every
+ * answer. ADR-0052 has the full argument; the short of it is that a question asked on every
  * screen costs a reader more than a default they can change once and never see again.
  *
  * So this now always returns a language. English unless the reader has said otherwise —

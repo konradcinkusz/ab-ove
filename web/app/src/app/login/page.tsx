@@ -4,7 +4,7 @@ import { backendConfigured } from '@/lib/server/backends';
 import { safeRedirectTarget } from '@/lib/redirect-target';
 import { signInProblem } from '@/lib/sign-in-problem';
 
-import styles from './login-form.module.css';
+import styles from '../credentials-form.module.css';
 
 /**
  * The sign-in page.
@@ -68,6 +68,10 @@ export default async function LoginPage({
     identityConfigured && (problem === null || problem.retryable || problem.startsOver === true);
 
   const startAgainHref = intended ? `/login?redirect=${encodeURIComponent(intended)}` : '/login';
+
+  const registerHref = intended
+    ? `/register?redirect=${encodeURIComponent(intended)}`
+    : '/register';
 
   return (
     <main className="shell">
@@ -174,6 +178,17 @@ export default async function LoginPage({
               string, and an address bar is the one place a value ends up in browser history
               and in every access log between here and the reader. One retype is cheaper.
             */}
+            {/*
+              The way to GET an account, which this page invited the reader to have and for
+              a long time did not say how to obtain. It carries the destination onward, so a
+              reader bounced here off a gated page and sent to register lands where they
+              were going rather than at the top of the site.
+            */}
+            <p>
+              No account yet? <Link href={registerHref}>Create one</Link> — it takes an email
+              address and a password, and it is only needed to carry your place between
+              machines.
+            </p>
           </>
         ) : (
           <p>

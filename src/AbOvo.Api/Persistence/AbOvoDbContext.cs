@@ -9,7 +9,7 @@ namespace AbOvo.Api.Persistence;
 /// INIT-GENERIC-TEMPLATE.md §12 — "No sample domain model … inventing entities for a product
 /// you have not been told about produces code the first ticket deletes." <see
 /// cref="ReaderProgress"/> came with issue #11, <see cref="FrameOutcome"/> with issue #15,
-/// and <see cref="ReaderPreference"/> with the one language control (ADR-0049). The
+/// and <see cref="ReaderPreference"/> with the one language control (ADR-0052). The
 /// mechanism was wired and proven before any of them.
 /// </para>
 /// </summary>
@@ -26,7 +26,7 @@ public sealed class AbOvoDbContext(DbContextOptions<AbOvoDbContext> options) : D
     public DbSet<FrameOutcome> FrameOutcomes => Set<FrameOutcome>();
 
     /// <summary>
-    /// Which edition each reader chose (ADR-0049). A preference, never a measurement — see
+    /// Which edition each reader chose (ADR-0052). A preference, never a measurement — see
     /// <see cref="ReaderPreference"/>.
     /// </summary>
     public DbSet<ReaderPreference> ReaderPreferences => Set<ReaderPreference>();

@@ -120,7 +120,7 @@ export default function AboutPage(): React.JSX.Element {
           editions and no primary one — its own tooling gates them frame for frame — but this
           site has to open in one of them, so it opens in English and offers the switch at the
           top of every screen. Change it once and it stays changed: in this browser, and on
-          your account if you have one (ADR-0049). Nothing is inferred from your
+          your account if you have one (ADR-0052). Nothing is inferred from your
           browser&rsquo;s settings, and every position of the switch is a link you can see,
           share and leave.
         </p>

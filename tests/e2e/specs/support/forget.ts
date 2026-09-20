@@ -8,7 +8,7 @@ import { expect, type Page } from '@playwright/test';
  * has done nothing — which is a property, and `progress.spec.ts` asserts it in as many
  * words — so every journey that wants the record gone goes through here, and the two
  * labels are the English ones because a test context has chosen no edition and the index
- * therefore opens in English (ADR-0049).
+ * therefore opens in English (ADR-0052).
  */
 export async function forgetWhereIAm(page: Page): Promise<void> {
   const control = page.getByRole('button', { name: 'Forget where I am' });

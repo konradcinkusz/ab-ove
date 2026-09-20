@@ -13,7 +13,7 @@ import styles from './course-list.module.css';
 export interface CourseListProps {
   readonly bundles: readonly Bundle[];
   /**
-   * The edition to render. Always a language since ADR-0049 — what the URL asked for, else
+   * The edition to render. Always a language since ADR-0052 — what the URL asked for, else
    * what this browser remembers, else English — resolved by `chosenEdition`, the same rule
    * the index applies.
    */
@@ -35,7 +35,7 @@ export interface CourseListProps {
  *
  * IT MAKES NO FETCH AND NEEDS NO BACKEND, like the index it leads to (ADR-0004). Everything
  * here is in the bundles compiled into the app. The route that renders it reads one cookie,
- * this origin's own, which is where the reader's remembered edition lives (ADR-0049) — no
+ * this origin's own, which is where the reader's remembered edition lives (ADR-0052) — no
  * request, and nothing this component knows about.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
@@ -43,7 +43,7 @@ export interface CourseListProps {
  *
  * It carried every title it had, in one anchor, so that choosing a course did not make a
  * reader choose an edition on the way — which was ADR-0015's refusal held at one more door.
- * ADR-0049 removed the thing that refusal was protecting: there is always a reader edition
+ * ADR-0052 removed the thing that refusal was protecting: there is always a reader edition
  * now, chosen or defaulted to, so a second title beside the first would be this page asking
  * a question the control at the top of it has already answered. A course this deployment
  * does not publish in that edition shows the title it does have, which is the same fallback
@@ -77,7 +77,7 @@ export function CourseList({ bundles, chosen }: CourseListProps): React.JSX.Elem
           because leaving this page must not undo the choice that got here.
         */}
         <div className={styles.chrome}>
-          {/* THE language control for this screen, at the top of it (ADR-0049). */}
+          {/* THE language control for this screen, at the top of it (ADR-0052). */}
           <LanguageChoice
             current={chosen}
             hrefs={editionHrefs(editions, (other) => coursesHref(other))}

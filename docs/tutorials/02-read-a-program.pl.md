@@ -32,7 +32,7 @@ wzrokiem *kosztuje* — odpowiedzi nie ma na stronie, więc nie ma na co zerkną
 Kontrolka stoi na górze każdego ekranu w produkcie i jest dokładnie jedna. Strona otwiera się
 po **angielsku** i mówi to wprost, zamiast zgadywać: nic nie czyta twojego nagłówka
 `Accept-Language` i nie decyduje za ciebie
-([ADR-0049](../adr/0049-one-language-control-remembered-and-english-by-default.md)).
+([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md)).
 
 Naciśnij *polski* i czytasz po polsku — na tym ekranie, na stronie spisu treści, w każdej
 ramce i następnym razem, gdy wrócisz. Wybór zostaje zapamiętany w przeglądarce, a po

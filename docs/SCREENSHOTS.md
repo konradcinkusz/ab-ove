@@ -65,7 +65,7 @@ those.
 
 The book is set in English and Polish, and the edition is the reader's choice rather than
 something guessed from a header
-([ADR-0049](adr/0049-one-language-control-remembered-and-english-by-default.md)). Switching
+([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)). Switching
 is a link in the place row; it keeps your frame number — and it is remembered, so the
 question is asked once rather than on every screen.
 
@@ -103,13 +103,13 @@ is the one that needs no JavaScript
 
 ### The landing page is the index
 
-![The landing page. A wordmark, the language control offering English and polski, links to Courses and About, a three-position theme switch reading System, Light and Dark, a link to Sign in, and a grid of tiles — one per program, each with its id, its title, and how many frames and sections it has. At the foot of the page, a card headed "Help fix the book?" with two buttons.](assets/screenshots/landing-english.png)
+![The landing page. A wordmark; links to Courses and About, a three-position theme switch reading System, Light and Dark, and a link to Sign in; then the Programs heading with the language control offering English and polski at the end of its line, and a grid of tiles — one per program, each with its id, the program that opens it, its title, and how many frames and sections it has. At the foot of the page, a card headed "Help fix the book?" with two buttons.](assets/screenshots/landing-english.png)
 
 The first screen is the thing a reader came for, one navigation from a frame instead of two
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). It is a
 Server Component that makes no fetch and needs no backend; it reads one cookie, this origin's
 own, which is where the reader's chosen edition is kept so that the first paint is already in
-it ([ADR-0049](adr/0049-one-language-control-remembered-and-english-by-default.md)).
+it ([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)).
 
 The card at the foot is the **consent invitation**, and it is last on purpose: a reader who
 came to read reaches the programs first and the question afterwards. It is an invitation
@@ -124,7 +124,7 @@ A reader who has chosen nothing reads English. The control at the top of every s
 only way to change that, a choice is `/?lang=<edition>` — visible, linkable, leaveable, never
 inferred from `Accept-Language` — and **it is remembered**: in this browser, and on the
 reader's account when they have one, so the question is asked once rather than on every
-screen (ADR-0049).
+screen (ADR-0052).
 
 ![The landing page in dark mode.](assets/screenshots/landing-dark.png)
 

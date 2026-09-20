@@ -42,7 +42,7 @@ import { LANGUAGE_COOKIE, isLanguageTag } from '@/lib/language/store';
  * reader who chose Polish months ago would otherwise get an English index on the first
  * paint and a Polish one a moment later when script caught up — a flash of the wrong book,
  * on the screen where it is most visible. The cookie is the same answer in the one form a
- * server can read (ADR-0049; `lib/language/store.ts` has the argument), so the first paint
+ * server can read (ADR-0052; `lib/language/store.ts` has the argument), so the first paint
  * is already right and nothing corrects it afterwards.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */

@@ -19,7 +19,7 @@ import { LANGUAGE_COOKIE, isLanguageTag } from '@/lib/language/store';
  * — `searchParams` is a request-time API in Next 16 — and the property that rendering mode
  * gives up is held by `lib/content/bundle.test.ts` rather than by a build.
  *
- * It reads ONE cookie, this origin's own, for the index's reason (ADR-0049): this is a
+ * It reads ONE cookie, this origin's own, for the index's reason (ADR-0052): this is a
  * screen with no language in its URL and nothing on it but titles, so without the remembered
  * edition the first paint would be English for a reader who chose Polish and would correct
  * itself a moment later.
@@ -65,7 +65,7 @@ export default async function CoursesPage({
     is not published in it shows the title it does have — `course-list.tsx` says why that is
     better than omitting the course or printing nothing.
 
-    Always a language since ADR-0049: what the URL asks for, else what this browser
+    Always a language since ADR-0052: what the URL asks for, else what this browser
     remembers, else English.
   */
   const remembered = (await cookies()).get(LANGUAGE_COOKIE)?.value;

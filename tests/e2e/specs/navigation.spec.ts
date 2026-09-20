@@ -62,7 +62,7 @@ test.describe('navigation', () => {
     await page.goto('/');
 
     /*
-      EVERY EDITION IS REACHABLE FROM THE INDEX, ONE AT A TIME (ADR-0049).
+      EVERY EDITION IS REACHABLE FROM THE INDEX, ONE AT A TIME (ADR-0052).
 
       The index shows one edition now — English until the reader says otherwise — so this
       walks the control rather than asserting two links side by side. What is being

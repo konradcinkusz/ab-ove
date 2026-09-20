@@ -2,7 +2,7 @@
  * Which edition the reader is reading in — one answer, kept in their own browser.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * ADR-0049. ONE CONTROL, AT THE TOP, ENGLISH UNTIL SOMEBODY SAYS OTHERWISE, REMEMBERED.
+ * ADR-0052. ONE CONTROL, AT THE TOP, ENGLISH UNTIL SOMEBODY SAYS OTHERWISE, REMEMBERED.
  *
  * What this replaces is four separate switches — one above the grid, one on a contents
  * page, one on a summary, one in a frame's place row — plus an index that rendered every
@@ -10,7 +10,7 @@
  * question on every screen and answering it never stuck. The answer lives here now, and
  * every one of those screens reads it instead of asking again.
  *
- * ENGLISH IS THE DEFAULT AND THAT IS A REVERSAL, argued in ADR-0049 against ADR-0015. The
+ * ENGLISH IS THE DEFAULT AND THAT IS A REVERSAL, argued in ADR-0052 against ADR-0015. The
  * short of it: refusing a default made every screen ask, and a question asked on every
  * screen is worse for the reader than a default they can change in one press and never see
  * again.

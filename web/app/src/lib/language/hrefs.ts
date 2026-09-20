@@ -26,7 +26,7 @@
  *
  * `build` runs HERE, on the server, and never crosses anything. The insertion order is
  * `languages`' order, which is the bundle's own declaration — the control renders the
- * editions in that order and does not sort them (ADR-0015's reasoning, which ADR-0049
+ * editions in that order and does not sort them (ADR-0015's reasoning, which ADR-0052
  * kept).
  */
 export function editionHrefs(

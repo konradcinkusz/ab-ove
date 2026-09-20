@@ -157,8 +157,27 @@
   position: relative;
 }
 
-.tile:hover,
+/*
+ * The tile lifts under the pointer ONLY WHEN THERE IS SOMETHING TO PRESS. A program the
+ * reader has not reached yet carries no link (ADR-0051), and a border that lit up anyway
+ * would be the affordance of a control that is not there — `:has(a.title)` asks the markup
+ * rather than taking a second class from the component, the same way `:only-child` below
+ * asks it how many editions the tile offers. `:focus-within` needs no such guard: nothing
+ * inside a shut tile can take focus.
+ */
+.tile:has(a.title):hover,
 .tile:focus-within {
+  border-color: var(--accent);
+}
+
+/*
+ * The tile a reader was sent back to, having asked for a program that is not open yet
+ * (ADR-0051). `:target` is the browser's own answer to "which one did the fragment name",
+ * so the mark costs no state, survives a reload of the same URL, and clears itself the
+ * moment the reader navigates anywhere else. Same border as the pointer's, because it
+ * means the same thing — this is the one you were pointing at.
+ */
+.tile:target {
   border-color: var(--accent);
 }
 
@@ -202,7 +221,7 @@
 }
 
 /*
- * One title, since ADR-0049 made the index render one edition. It stays a grid rather than
+ * One title, since ADR-0052 made the index render one edition. It stays a grid rather than
  * becoming a bare inline element because the tile's own rows are laid out against it, and a
  * second title is one line away should a track ever want both back.
  */
@@ -217,26 +236,49 @@
   text-decoration: none;
 }
 
-.title:hover,
-.title:focus-visible {
+/*
+ * Scoped to the anchor, because half the titles on this page are not one. A shut tile
+ * renders its title as a `<span>` of the same class (ADR-0051, `tile-entry.tsx`), and an
+ * underline following the pointer across it would promise a press that does nothing.
+ */
+a.title:hover,
+a.title:focus-visible {
   text-decoration: underline;
+}
+
+/*
+ * A program that is not open yet: the title still reads — the index is the book's table of
+ * contents and a reader may see what is in it — in the register the tile's own id and
+ * `opens after P06` are set in. After `.title + .title` and at the same specificity, so a
+ * second edition's title on a shut tile is faint too rather than one step brighter.
+ */
+.title.titleShut {
+  color: var(--ink-faint);
+  cursor: default;
 }
 
 /*
  * THE WHOLE TILE IS THE TARGET, BUT ONLY WHEN THERE IS ONE TARGET.
  *
- * `:only-child` was the condition that told the two states apart back when a tile carried
- * one title for a reader who had chosen an edition and two for a reader who had not. Since
- * ADR-0049 there is always exactly one, so the selector always matches — and it is kept
- * rather than simplified away, because it is the thing that makes the overlay impossible to
- * introduce by accident beside a second link. A tile that ever grows one again loses the
- * whole-tile target instead of quietly picking which of the two it points at.
+ * `:only-child` told the two states apart back when a tile carried one title for a reader
+ * who had chosen an edition and two for a reader who had not — a tile with two links in it
+ * cannot have a single click target without one of the two editions quietly winning, which
+ * is the editorial pick ADR-0015 refused. Since ADR-0052 there is always exactly one, so the
+ * selector always matches; it is kept rather than simplified away because it is the thing
+ * that makes the overlay impossible to introduce by accident beside a second link. A tile
+ * that ever grows one again loses the whole-tile target instead of picking for the reader.
+ *
+ * Expressing it in CSS rather than as a class the component sets means the two states
+ * cannot disagree: the markup says how many entries this tile offers, and the rule follows
+ * from that rather than from a second decision made next to it. `a.` joins the condition
+ * for the same reason — a shut tile's title is a `<span>` and an only child too, and a
+ * stretched overlay over no link is a tile-sized target that does nothing (ADR-0051).
  *
  * The accessible name stays the program's title — the overlay is on the anchor's own
  * `::after`, so nothing else joins the link's text, and the `<p>` of frame counts is still
  * read as the paragraph it is.
  */
-.title:only-child::after {
+a.title:only-child::after {
   content: '';
   inset: 0;
   position: absolute;

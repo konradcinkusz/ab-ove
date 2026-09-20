@@ -99,7 +99,7 @@ and goes red the day the controls stop following the edition. A spec asserting
 the index had no reader language for the chrome to follow, because
 [ADR-0015](0015-the-reading-index-has-no-default-language.md) refused to pick an edition of
 the *book* for the reader, so the furniture there was English whatever the reader read in.
-[ADR-0049](0049-one-language-control-remembered-and-english-by-default.md) gave the index a
+[ADR-0052](0052-one-language-control-remembered-and-english-by-default.md) gave the index a
 reader edition — English by default, remembered once chosen — so the rule below is
 unconditional and there is no page left that has nothing to follow. The index moved to `/`
 with ADR-0036; `/read` is a 308 to it.

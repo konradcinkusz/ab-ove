@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { LanguageChoice } from '@/components/language/language-choice';
 import { ThemeSwitch } from '@/components/theme/theme-switch';
-import { say, sectionSpans } from '@/lib/content/bundle';
+import { say, sectionSpans, unitBefore } from '@/lib/content/bundle';
 import type { Bundle, Unit } from '@/lib/content/schema';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
@@ -10,7 +10,9 @@ import { editionHrefs } from '@/lib/language/hrefs';
 import styles from './contents.module.css';
 import { EntryControl, StartAfresh } from './entry-control.tsx';
 import { KeysDetails } from './keys-details.tsx';
+import { ProgramGate } from './program-gate.tsx';
 import { RichInline } from './rich-text.tsx';
+import { WhenOpen } from './when-open.tsx';
 
 export interface ProgramContentsProps {
   readonly bundle: Bundle;
@@ -67,11 +69,27 @@ export function ProgramContents({
   const openingEnds = (spans[0]?.from ?? 1) - 1;
 
   const index = bundle.units.findIndex((candidate) => candidate.id === unit.id);
-  const previousUnit = index > 0 ? bundle.units[index - 1] : undefined;
+  // Through `unitBefore` rather than `index - 1`, so the gate and this foot read the
+  // book's order out of one function (ADR-0051). The forward neighbour has no such
+  // sharer and stays here.
+  const previousUnit = unitBefore(bundle, unit.id);
   const nextUnit = index >= 0 ? bundle.units[index + 1] : undefined;
 
   return (
     <main className={styles.page} lang={language}>
+      {/*
+        A reader who has not reached this program is returned to the index, where the tile
+        says which program opens it (ADR-0051). It renders nothing and cannot run on the
+        server, which is why the page below it is written as though every reader belongs
+        here — see `program-gate.tsx` for why that is the product rather than a shortcut.
+      */}
+      <ProgramGate
+        language={language}
+        previous={previousUnit?.id}
+        track={track}
+        unit={unit.id}
+      />
+
       {/*
         `← Programs` rather than the wordmark chain it replaced. The chain said ab-ovo ·
         Programs on a page whose own `<h1>` already names the program, which is three levels
@@ -87,7 +105,7 @@ export function ProgramContents({
         everything under it.
       */}
       {/*
-        A `<div>` AND NOT A `<p>`, since ADR-0049 put the language control in this row. The
+        A `<div>` AND NOT A `<p>`, since ADR-0052 put the language control in this row. The
         control is a `<nav>`, `<p>` cannot legally contain one, and the parser closes the
         paragraph when it meets it — which React reports as a hydration mismatch and pays
         for by regenerating the whole client tree. `place-row.tsx`'s header has the full
@@ -98,7 +116,7 @@ export function ProgramContents({
           <Link href="/">{chrome.programsCrumb}</Link>
           {/*
             THE LANGUAGE CONTROL — this screen's only one, at the top of it. It sits beside
-            the way back rather than on a line of its own, which is the line ADR-0049
+            the way back rather than on a line of its own, which is the line ADR-0052
             removed: a block between the crumb and the programme's title, on every contents
             page, saying nothing the reader had not already been asked twice.
           */}
@@ -197,8 +215,15 @@ export function ProgramContents({
               ← {previousUnit.id}
             </Link>
           ) : null}
+          {/*
+            The way on, offered only once this program has been opened: the next program is
+            shut until the reader has a place in this one, and a foot link that bounced off
+            the gate would be a control that is reliably refused.
+          */}
           {nextUnit ? (
-            <Link href={`/read/${track}/${nextUnit.id}/${language}`}>{nextUnit.id} →</Link>
+            <WhenOpen previous={unit.id} track={track} unit={nextUnit.id}>
+              <Link href={`/read/${track}/${nextUnit.id}/${language}`}>{nextUnit.id} →</Link>
+            </WhenOpen>
           ) : null}
         </span>
 
