@@ -10,11 +10,13 @@ innymi, przeczytaj tę.
 
 ## Czym jest to repozytorium?
 
-**ab-ovo to platforma edukacyjna, która zamyka w sobie książkę *Matematyka od zera dla
-inżyniera AI*** — 47 programów ramek nauczania programowanego Strouda, po angielsku i po
-polsku, wraz z ćwiczeniami komputerowymi książki.
+**ab-ovo to platforma edukacyjna dla kursów nauczania programowanego** — każdy kurs to ciąg
+programów z ramek Strouda, w każdej edycji, w której został wydany, wraz z jego ćwiczeniami
+komputerowymi. Jedyny kurs przypięty dzisiaj to *Matematyka od zera dla inżyniera AI*: 47
+programów, po angielsku i po polsku.
 
-Istnieje, bo ta książka stoi na mechanizmie, którego PDF nie potrafi wymusić:
+Istnieje, bo książka zbudowana w ten sposób stoi na mechanizmie, którego PDF nie potrafi
+wymusić:
 
 > Ramka prosi cię o coś **zanim** cokolwiek ci powie, a kolejna ramka otwiera się
 > odpowiedzią, którą miałeś już zapisać. Czytelnik, który przelatuje wzrokiem, nie dostaje

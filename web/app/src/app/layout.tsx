@@ -14,10 +14,21 @@ import './globals.css';
  * page renders with zero external requests of any kind.
  */
 
+/*
+  THE PRODUCT IS THE PLATFORM, NOT ONE COURSE ON IT (ADR-0048).
+
+  This title named a single work — the one course pinned on the day it was written — and
+  every page of the application inherits it, so a reader on the courses page or on a second
+  course's frame had a tab saying they were somewhere else. What ab-ovo IS, is a way of
+  working programmed-learning courses; which courses a deployment carries is `PINS`, in
+  `lib/content/bundle.ts`, and a deployment that pins two must not have one of them in the
+  title of the other's pages. The first course is named in the description, where it is a
+  fact about this deployment rather than a claim about the product.
+*/
 export const metadata: Metadata = {
-  title: 'ab-ovo — Mathematics from Zero for the AI Engineer',
+  title: 'ab-ovo — courses you work, a frame at a time',
   description:
-    'A learning platform that encapsulates the book "Mathematics from Zero for the AI Engineer": 47 programs of programmed-learning frames in English and Polish, with the book\'s computer exercises running in the browser. The instrument measures the book, never the reader.',
+    'A learning platform for programmed-learning courses: each one a sequence of programs in the editions it is published in, worked a frame at a time, with its computer exercises running in the browser. The first is "Mathematics from Zero for the AI Engineer" — 47 programs in English and Polish. The instrument measures the book, never the reader.',
   applicationName: 'ab-ovo',
   // No `metadataBase` and no absolute URL anywhere in this object. An absolute site URL
   // here would be an environment-specific address baked into the image at build time —
