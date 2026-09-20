@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { languages, track, uniqueProbeIn, unitNamed } from './support/bundle.ts';
+import { revealTo } from './support/reveal.ts';
 
 /**
  * JOURNEY — reading a program, which is the thing the product is for.
@@ -198,6 +199,118 @@ test.describe('reading ergonomics', () => {
     expect(page.url(), 'an arrow key inside a contenteditable navigated the frame').toBe(wasAt);
   });
 
+  test('Enter opens the answer line, Esc returns to reading, and the hint says which @core', async ({
+    page,
+  }) => {
+    /*
+      ──────────────────────────────────────────────────────────────────────────────────
+      ADR-0041 DECIDED THESE TWO KEYS AND THE CODE DID NOT HAVE THEM.
+
+      "`Enter` with nothing focused puts the caret in the answer line; `Esc` returns to
+      reading … while a field has focus the line says what is true there." UI-UX.md
+      repeated it. `frame-keys.tsx` handled the arrows and `g`, so a keyboard reader
+      reached the answer line on every cue frame through four Tab stops, and the hint went
+      on promising the arrows inside a field where they are dead. This is the decision,
+      executed — and it is the reason "read end to end from the keyboard" (the first test
+      in this file) can now be "read AND answered".
+      ──────────────────────────────────────────────────────────────────────────────────
+    */
+    const cue = steps.find((step) => step.cue && step.n > 1);
+    if (!cue) throw new Error(`${unitId} has no cue frame past the first, so this proves nothing`);
+
+    await openReady(page, 'en', cue.n);
+    const line = page.getByRole('textbox', { name: /your answer/i });
+    const hint = page.getByTestId('frame-keys-hint');
+
+    // Reading state: the arrows and Enter are offered; nothing about Esc yet. `useInnerText`
+    // throughout: every state's line is in the markup and only one is visible, and the
+    // question is what the reader can see.
+    const shown = { useInnerText: true } as const;
+    await expect(hint).toContainText('→', shown);
+    await expect(hint).toContainText('Enter', shown);
+    await expect(hint).not.toContainText('Esc', shown);
+
+    await page.keyboard.press('Enter');
+    await expect(line, 'Enter with nothing focused did not open the answer line').toBeFocused();
+
+    // Typing state: the arrows are dead in a field, so the hint stops promising them and
+    // says what is true here instead.
+    await expect(hint).toContainText('Esc', shown);
+    await expect(hint).not.toContainText('→', shown);
+    await page.keyboard.type('a line the reader wrote');
+
+    await page.keyboard.press('Escape');
+    await expect(line, 'Esc did not return the reader to reading').not.toBeFocused();
+    await expect(line, 'Esc threw away what was typed').toHaveValue('a line the reader wrote');
+    await expect(hint).toContainText('→', shown);
+
+    // And the arrows are live again, which is what "back to reading" means.
+    await page.keyboard.press('ArrowRight');
+    await page.waitForURL(`**${at('en', cue.n + 1)}`);
+  });
+
+  test('Esc in the frame number cancels what was typed rather than going there @core', async ({
+    page,
+  }) => {
+    // The jumper commits on blur — the number itself is the control — so an Esc that merely
+    // blurred it would NAVIGATE to a half-typed number. Cancel first, then leave.
+    const n = Math.min(3, steps.length);
+    await openReady(page, 'en', n);
+    const jumper = page.locator('#frame-jumper');
+
+    await page.keyboard.press('g');
+    await expect(jumper).toBeFocused();
+    await jumper.fill('1');
+    await page.keyboard.press('Escape');
+
+    await expect(jumper).not.toBeFocused();
+    await expect(jumper, 'Esc left a stray number in the place row').toHaveValue(String(n));
+    await page.waitForTimeout(400);
+    expect(page.url(), 'Esc navigated to the number that was being typed').toContain(`/${n}`);
+  });
+
+  test('the reveal shows its focus as a ring, and says when it is under way @core', async ({
+    page,
+  }) => {
+    /*
+      The filled controls expressed `:focus-visible` as a ten-percent brightness, which a
+      keyboard reader tabbing to the one control the frame is built around could not see.
+      Reached by Tab rather than by `focus()`, because `:focus-visible` is about HOW focus
+      arrived, and a script-focused element does not always count.
+    */
+    await openReady(page, 'en', 2);
+    const reveal = revealTo(page, at('en', 3));
+    for (let presses = 0; presses < 20; presses += 1) {
+      await page.keyboard.press('Tab');
+      if (await reveal.evaluate((node) => node === document.activeElement)) break;
+    }
+    await expect(reveal).toBeFocused();
+    const ring = await reveal.evaluate((node) => getComputedStyle(node).boxShadow);
+    expect(ring, 'the reveal has no visible focus ring').not.toBe('none');
+
+    // And the label carries the pending flag the stylesheet dims on — idle here, because
+    // the fetch is too quick to catch; the attribute's presence is what says the island is
+    // wired to the link at all.
+    await expect(reveal.locator('[data-pending]')).toHaveAttribute('data-pending', 'no');
+  });
+
+  test('the place row and the foot are a finger tall to press @core', async ({ page }) => {
+    // 44 px is the smallest target a finger hits reliably; the rows are set in small type,
+    // so the controls are padded to it and given the space back with a negative margin.
+    // What is measured is the box a press lands in, not the type.
+    await openReady(page, 'en', 2);
+    const targets = [
+      page.locator('#frame-jumper'),
+      page.getByRole('link', { name: unit.titles['en']! }),
+      page.getByRole('link', { name: /previous/i }),
+    ];
+    for (const target of targets) {
+      const box = await target.boundingBox();
+      expect(box, 'a control has no box, so nothing here measured anything').toBeTruthy();
+      expect(box!.height, `${await target.evaluate((n) => n.outerHTML.slice(0, 60))} is not a finger tall`).toBeGreaterThanOrEqual(40);
+    }
+  });
+
   test('the shortcut is told to the reader, in their own edition @core', async ({ page }) => {
     // A keyboard path nobody is told about is not an ergonomic feature, it is a secret. The
     // assertion is relational and needs no copy of either string — see language-switch.spec.
@@ -287,7 +400,7 @@ test.describe('reading ergonomics', () => {
       }).observe({ type: 'layout-shift', buffered: true });
     });
 
-    await page.locator(`a[href="${at('en', heavy.n)}"]`).click();
+    await revealTo(page, at('en', heavy.n)).click();
     await page.waitForURL(`**${at('en', heavy.n)}`);
     await expect(page.locator('body')).toContainText(uniqueProbeIn(unit, heavy.n, 'en'));
     await page.waitForTimeout(700);
@@ -296,5 +409,26 @@ test.describe('reading ergonomics', () => {
       () => (window as unknown as { __shift: number }).__shift,
     );
     expect(shift, 'the answer arriving moved the page under the reader').toBeLessThan(0.01);
+  });
+});
+
+/**
+ * A phone has no arrow keys. The one-line hint under the reveal used to say `→ next frame
+ * · ← previous frame · Ctrl+Enter commit and reveal` on a 360 px screen, in the way of the
+ * frame, about keys the reader does not have. It is not rendered on a coarse-pointer device;
+ * the foot's full `Keys` list stays, for a tablet with a keyboard attached.
+ */
+test.describe('the reading surface on a touch screen', () => {
+  // Not a `devices[...]` preset: those carry `defaultBrowserType`, which is worker-scoped
+  // and cannot be set inside a describe. The three options below are what the hint's media
+  // query reads — Chromium's mobile emulation is what answers `hover: none` and
+  // `pointer: coarse` — and they are test-scoped, so the block shares the project's worker.
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 393, height: 851 } });
+
+  test('the keyboard hint is not there, and the key map still is @core', async ({ page }) => {
+    await page.goto(at('en', 2));
+    await keysReady(page);
+    await expect(page.getByTestId('frame-keys-hint')).toBeHidden();
+    await expect(page.getByRole('group').filter({ hasText: /keys/i })).toHaveCount(1);
   });
 });

@@ -484,7 +484,7 @@ script duplicated in two languages to serve an interim step is two things to del
 | `tests/AbOvo.Api.Tests` | xUnit v3. In-memory integration over the real pipeline, plus the NetArchTest rules that keep domain out of the kernel. No container required. |
 | `tests/e2e` | The Playwright acceptance suite. Its own pnpm package and its own lockfile. |
 | `web/` | The pnpm workspace. `web/app` is the Next.js frontend and its backend-for-frontend: `/api/config`, `/api/auth/login`, `/api/auth/session`, `/api/proxy/[...path]`. |
-| `web/mcp` | `@ab-ovo/mcp` — an MCP server serving the book one step at a time to a reader working inside an MCP host. Stdio against a checkout; nothing is deployed. |
+| `web/mcp` | `@ab-ovo/mcp` — an MCP server serving the book one step at a time to a reader working inside an MCP host. Stdio against a checkout, started through `web/mcp/bin/ab-ovo-mcp.mjs`; nothing is deployed. |
 | `scripts/` | Onboarding (`setup.sh`, `setup.ps1`), the secret scan (`--complete` covers every commit on the remote), and the pre-commit hook. Each runs alone, from any working directory. |
 | `flyio/` | The deployed topology — four `fly.toml` files, `SECRETS.md`, `INFRASTRUCTURE-ANALYSIS.md`. Nothing here has been applied. |
 | `docs/` | Architecture, ADRs, UX and the overview paper. See below. |

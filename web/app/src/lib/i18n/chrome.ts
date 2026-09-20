@@ -44,10 +44,38 @@ interface Plural {
   readonly other: string;
 }
 
+/**
+ * The states a frame can be in from the keyboard's point of view, and the reason the hint
+ * has more than one line.
+ *
+ * ADR-0041: "while a field has focus the line says what is true there instead — the arrows
+ * are dead inside a text field and a hint that promised them would be lying twice a frame."
+ * `reading` is nothing focused; the other three are the fields a reader types in, each
+ * carrying its own name on a `data-typing` attribute that `frame-keys.tsx` mirrors onto
+ * `<html>` as focus moves.
+ */
+export const HINT_STATES = ['reading', 'answer-line', 'working', 'jumper'] as const;
+
+export type HintState = (typeof HINT_STATES)[number];
+
 /** One row of the keyboard map, shown in the frame's own hint and in the foot's `Keys` details. */
-interface KeyEntry {
+export interface KeyEntry {
   readonly key: string;
+  /**
+   * The same chord as an Apple keyboard spells it. Both spellings are in the markup and
+   * the stylesheet shows one, from a flag `modifier-flag.tsx` sets on `<html>` — so the
+   * page never rewrites a string after paint and never hydrates against a different one.
+   */
+  readonly macKey?: string;
   readonly does: string;
+  /**
+   * Where the key means this, when the foot's full list needs to say so — `Enter` in the
+   * frame number is not `Enter` on the page. The hint line never prints it: the line is
+   * only ever shown in the state the entry belongs to.
+   */
+  readonly where?: string;
+  /** The states this entry is true in. The foot lists every entry; the hint filters by this. */
+  readonly when: readonly HintState[];
   /**
    * The `data-` flag on `<html>` this entry's hint segment is gated on, when it is gated.
    *
@@ -174,6 +202,12 @@ interface ConsentStrings {
 interface Strings {
   readonly answer: string;
   readonly forget: string;
+  /**
+   * The second press of *Forget where I am*, which is the one that destroys anything. It
+   * names the reach — every device — because that is what changed when the record grew an
+   * account copy (ADR-0047); a bare "are you sure" says nothing a reader can weigh.
+   */
+  readonly forgetConfirm: string;
   readonly signIn: string;
   readonly signOut: string;
   readonly account: string;
@@ -302,6 +336,27 @@ interface Strings {
   /** The summary screen's own way back, mirroring the frame's crumb. */
   readonly backToLastFrame: string;
   readonly labOptional: string;
+  /**
+   * THE INDEX FOR A READER WHO CAME BACK.
+   *
+   * The names for the id prefixes `groupsOf()` (lib/content/bundle.ts) divides the
+   * programs by — that function knows the letters and deliberately not the words, because
+   * a word is in a language and the content library has none. A prefix with no entry here
+   * is grouped without a heading, which is what a third track's `X07` should get.
+   */
+  readonly groupLabels: Readonly<Record<string, string>>;
+  /**
+   * The accessible name of the place row's section list — the disclosure under the
+   * section's title that reaches every heading of the program in one hop (ADR-0041).
+   */
+  readonly sectionsLabel: string;
+  /**
+   * On a tile whose program has a stored place: `at frame 12`. A POSITION and never a
+   * progress (ADR-0041) — no fraction, no bar, no "12 of 45 read" — and text rather than
+   * a link, because `progress.spec.ts` holds the index to exactly one link back into the
+   * stored frame and that link is the resume control.
+   */
+  readonly atFrame: (n: number) => string;
 }
 
 /**
@@ -321,6 +376,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   en: {
     answer: 'Answer',
     forget: 'Forget where I am',
+    forgetConfirm: 'Forget it \u2014 on every device',
     signIn: 'Sign in',
     signOut: 'Sign out',
     account: 'Account',
@@ -349,7 +405,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       removesAccount: 'The account itself, at the identity service.',
       staysTitle: 'What stays',
       stays:
-        'This browser keeps its own copy of where you are in the book, and you can carry on reading with no account at all. If you want that cleared too, use \u2018Forget where I am\u2019 on the reading page \u2014 a separate control, because it is a separate thing.',
+        'This browser keeps its own copy of where you are in the book, and you can carry on reading with no account at all. If you want that cleared too, use \u2018Forget where I am\u2019 on the programs page \u2014 a separate control, because it is a separate thing.',
       cannotReachTitle: 'What this cannot reach',
       cannotReach:
         'The instrument measures how a frame does, never how a reader does: an outcome carries no reader on it, so no row of it knows it was yours and no deletion can find one. That is deliberate \u2014 it is what makes a rate safe to publish \u2014 and the price is that a contribution already folded into a rate cannot be taken back out.',
@@ -421,10 +477,38 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     goToFrame: 'Go to frame',
     keysHeading: 'Keys',
     keysMap: [
-      { key: '→', does: 'next frame', needs: 'frame-keys' },
-      { key: '←', does: 'previous frame', needs: 'frame-keys' },
-      { key: 'Ctrl+Enter', does: 'commit and reveal', needs: 'answer-line' },
-      { key: 'g', does: 'go to a frame number', needs: 'frame-jumper' },
+      { key: '→', does: 'next frame', needs: 'frame-keys', when: ['reading'] },
+      { key: '←', does: 'previous frame', needs: 'frame-keys', when: ['reading'] },
+      { key: 'Enter', does: 'write an answer', needs: 'answer-line', when: ['reading'] },
+      { key: 'g', does: 'go to a frame number', needs: 'frame-jumper', when: ['reading'] },
+      {
+        key: 'Ctrl+Enter',
+        macKey: '⌘+Enter',
+        does: 'commit and reveal',
+        needs: 'answer-line',
+        when: ['answer-line'],
+      },
+      {
+        key: 'Ctrl+Enter',
+        macKey: '⌘+Enter',
+        does: 'work it out',
+        where: 'in the pad',
+        needs: 'answer-line',
+        when: ['working'],
+      },
+      {
+        key: 'Enter',
+        does: 'go to that frame',
+        where: 'in the frame number',
+        needs: 'frame-jumper',
+        when: ['jumper'],
+      },
+      {
+        key: 'Esc',
+        does: 'back to reading',
+        needs: 'frame-keys',
+        when: ['answer-line', 'working', 'jumper'],
+      },
     ],
     footNav: 'Where to next',
     nextSection: 'Next section →',
@@ -436,12 +520,16 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       'The Test exercises and Further problems for this program are not in this edition of the app yet.',
     nextProgramLabel: 'Next program',
     previousProgramLabel: 'Previous program',
+    groupLabels: { F: 'Foundation', P: 'Main sequence' },
+    sectionsLabel: 'Sections',
+    atFrame: (n) => `at frame ${n}`,
     backToLastFrame: '← Back to the frame',
     labOptional: 'This program also has computer exercises in Python, optional',
   },
   pl: {
     answer: 'Odpowiedź',
     forget: 'Zapomnij, gdzie jestem',
+    forgetConfirm: 'Zapomnij \u2014 na ka\u017cdym urz\u0105dzeniu',
     signIn: 'Zaloguj się',
     signOut: 'Wyloguj się',
     account: 'Konto',
@@ -470,7 +558,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       removesAccount: 'Samo konto, w serwisie to\u017csamo\u015bci.',
       staysTitle: 'Co zostaje',
       stays:
-        'Ta przegl\u0105darka zachowuje w\u0142asn\u0105 kopi\u0119 tego, gdzie jeste\u015b w ksi\u0105\u017cce, i mo\u017cesz czyta\u0107 dalej bez konta. Je\u015bli chcesz wyczy\u015bci\u0107 tak\u017ce j\u0105, u\u017cyj \u201eZapomnij, gdzie jestem\u201d na stronie lektury \u2014 to osobny przycisk, bo to osobna rzecz.',
+        'Ta przegl\u0105darka zachowuje w\u0142asn\u0105 kopi\u0119 tego, gdzie jeste\u015b w ksi\u0105\u017cce, i mo\u017cesz czyta\u0107 dalej bez konta. Je\u015bli chcesz wyczy\u015bci\u0107 tak\u017ce j\u0105, u\u017cyj \u201eZapomnij, gdzie jestem\u201d na stronie program\u00f3w \u2014 to osobny przycisk, bo to osobna rzecz.',
       cannotReachTitle: 'Czego to nie dosi\u0119gnie',
       cannotReach:
         'Instrument mierzy, jak radzi sobie ramka, nigdy jak radzi sobie czytelnik: wynik nie niesie ze sob\u0105 \u017cadnego czytelnika, wi\u0119c \u017caden jego wiersz nie wie, \u017ce by\u0142 tw\u00f3j, i \u017cadne usuni\u0119cie go nie znajdzie. Tak to zaprojektowano \u2014 dzi\u0119ki temu wska\u017anik mo\u017cna bezpiecznie publikowa\u0107 \u2014 a cen\u0105 jest to, \u017ce wk\u0142adu wliczonego ju\u017c do wska\u017anika nie da si\u0119 z niego wycofa\u0107.',
@@ -481,7 +569,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       confirmLabel: (word) => `Wpisz ${word}, aby potwierdzi\u0107`,
       passwordLabel: 'Twoje has\u0142o',
       passwordHint:
-        'Zostaw puste, je\u015bli logujesz si\u0119 przez Google albo GitHub i nigdy nie ustawia\u0142e\u015b has\u0142a.',
+        'Zostaw puste, je\u015bli logujesz si\u0119 przez Google albo GitHub i has\u0142o nigdy nie zosta\u0142o ustawione.',
       submit: 'Usu\u0144 moje konto',
       cancel: 'Zostaw moje konto',
       doneTitle: 'Twojego konta ju\u017c nie ma',
@@ -519,7 +607,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     section: { one: 'sekcja', few: 'sekcje', many: 'sekcji', other: 'sekcji' },
     yourAnswer: 'Twoja odpowiedź',
     writeItDown: 'Zapisz, zanim pójdziesz dalej',
-    youWrote: 'Zapisałeś',
+    // Impersonal on purpose: a second-person past tense in Polish has to pick a gender,
+    // and "Zapisałeś" picked one for every reader. "Zapisano" — recorded — picks none.
+    youWrote: 'Zapisano',
     matchesBook: 'Tak jak w książce',
     writtenBefore: 'zapisane przed odsłonięciem',
     earlierEdition: 'zapisane przy wcześniejszym wydaniu',
@@ -533,7 +623,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     sketchLabel: 'Narysuj swoją odpowiedź',
     sketchGrid: 'Siatka',
     sketchAxes: 'Osie',
-    sketchNone: 'Gładko',
+    sketchNone: 'Bez tła',
     sketchUndo: 'Cofnij',
     sketchClear: 'Wyczyść',
     sketchFull: 'Ten szkic jest już za duży, żeby go zapisać. To, co widać, zostaje do wyjścia z ramki.',
@@ -543,10 +633,38 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     goToFrame: 'Przejdź do ramki',
     keysHeading: 'Klawisze',
     keysMap: [
-      { key: '→', does: 'kolejna ramka', needs: 'frame-keys' },
-      { key: '←', does: 'poprzednia ramka', needs: 'frame-keys' },
-      { key: 'Ctrl+Enter', does: 'zapisz i odsłoń', needs: 'answer-line' },
-      { key: 'g', does: 'przejdź do numeru ramki', needs: 'frame-jumper' },
+      { key: '→', does: 'kolejna ramka', needs: 'frame-keys', when: ['reading'] },
+      { key: '←', does: 'poprzednia ramka', needs: 'frame-keys', when: ['reading'] },
+      { key: 'Enter', does: 'wpisz odpowiedź', needs: 'answer-line', when: ['reading'] },
+      { key: 'g', does: 'przejdź do numeru ramki', needs: 'frame-jumper', when: ['reading'] },
+      {
+        key: 'Ctrl+Enter',
+        macKey: '⌘+Enter',
+        does: 'zapisz i odsłoń',
+        needs: 'answer-line',
+        when: ['answer-line'],
+      },
+      {
+        key: 'Ctrl+Enter',
+        macKey: '⌘+Enter',
+        does: 'policz',
+        where: 'w obliczeniach',
+        needs: 'answer-line',
+        when: ['working'],
+      },
+      {
+        key: 'Enter',
+        does: 'przejdź do tej ramki',
+        where: 'w numerze ramki',
+        needs: 'frame-jumper',
+        when: ['jumper'],
+      },
+      {
+        key: 'Esc',
+        does: 'wróć do czytania',
+        needs: 'frame-keys',
+        when: ['answer-line', 'working', 'jumper'],
+      },
     ],
     footNav: 'Dokąd dalej',
     nextSection: 'Następna sekcja →',
@@ -558,6 +676,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       'Zadania testowe i Dalsze zadania tego programu nie są jeszcze w tej wersji aplikacji.',
     nextProgramLabel: 'Następny program',
     previousProgramLabel: 'Poprzedni program',
+    groupLabels: { F: 'Podstawy', P: 'Część główna' },
+    sectionsLabel: 'Sekcje',
+    atFrame: (n) => `na ramce ${n}`,
     backToLastFrame: '← Wróć do ramki',
     labOptional: 'Ten program ma też ćwiczenia komputerowe w Pythonie, opcjonalne',
   },
@@ -621,6 +742,12 @@ export interface Chrome {
   readonly language: string;
   readonly answer: string;
   readonly forget: string;
+  /**
+   * The second press of *Forget where I am*, which is the one that destroys anything. It
+   * names the reach — every device — because that is what changed when the record grew an
+   * account copy (ADR-0047); a bare "are you sure" says nothing a reader can weigh.
+   */
+  readonly forgetConfirm: string;
   readonly signIn: string;
   readonly signOut: string;
   readonly account: string;
@@ -681,6 +808,9 @@ export interface Chrome {
   readonly previousProgramLabel: string;
   readonly backToLastFrame: string;
   readonly labOptional: string;
+  readonly groupLabels: Readonly<Record<string, string>>;
+  readonly sectionsLabel: string;
+  readonly atFrame: (n: number) => string;
 }
 
 /** The controls for a reader of `language`, falling back to English rather than failing. */

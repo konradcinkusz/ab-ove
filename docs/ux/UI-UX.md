@@ -25,10 +25,11 @@ something is in the reader loop at all.
 
 | Route | What it is | Needs |
 | --- | --- | --- |
-| `/` | the landing page: every program as a tile, and the edition switch | nothing |
+| `/` | the landing page: every program as a tile, in the book's own runs, and the edition switch | nothing |
 | `/about` | what the product is, the anti-goal, the loop, the integration panel | nothing |
+| `/read/<track>/<unit>/<lang>` | a program's contents: its headings, and the filled way in — frame 1, or the reader's own place | nothing |
 | `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a navigation | nothing |
-| `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, and the way into the next one | nothing |
+| `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, the consent invitation, and the way into the next one | nothing |
 | `/lab/<id>` | the book's exercises under Pyodide — reached from P01's summary only, and on its way out ([ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md)) | nothing |
 | `/login` | a form that posts credentials to this app's own BFF | an identity service |
 | `/account` | the reader's own progress, export and deletion | an account |
@@ -38,6 +39,17 @@ something is in the reader loop at all.
 
 **The first five are the whole product for a reader who never signs in**, and that is a
 requirement rather than an accident.
+
+**An address that is not a page gets a page of this product's.** `app/not-found.tsx` and
+`app/error.tsx` stand behind the two statuses the routes already answer: a frame number
+past the end of a program, a program the book does not have or an edition it is not
+published in is a 404 with the wordmark, one sentence about the shape of a right address
+and the filled way back to the programs; a bundle that will not load is a 500 that says the
+fault is the deployment's, that nothing written in the browser is lost, and offers *Try
+again*. Both are English only, on `/login`'s reasoning. The middleware is private by
+default, so an unknown *top-level* path meets the sign-in redirect first; the pages are met
+under `/read/` and `/lab/`, and anywhere at all once signed in. `specs/navigation.spec.ts`
+asserts the 404's way back.
 
 ### `/` — the landing page, which is the index
 
@@ -54,20 +66,38 @@ navigation from a frame instead of two.
 
 Its parts, in order:
 
-1. **The top row** — the wordmark, a link to `/about`, the resume and forget controls, and
-   the account control. Everything but the first two is read from the browser and arrives
-   after the first paint, so the row extends rather than the page moving
-   (the constraint issue #7 put on the resume controls).
+1. **The top row** — the wordmark, a link to `/about`, the resume control, the two
+   destructive controls, and the account control, in that order. Everything but the first
+   two is read from the browser and arrives after the first paint, so the row extends
+   rather than the page moving (the constraint issue #7 put on the resume controls). The
+   resume control — `F01 · Continue at frame 12` — is the index's one filled control: for
+   a reader who has been here before it is the page's primary action, and it used to be
+   the faintest thing on it. It is padded outwards and the padding given back as margin,
+   so the row it arrives in does not grow. *Clear my worksheets* and *Forget where I am*
+   are both two presses — the control renames itself to say what the second press does,
+   and reverts in five seconds — and *Forget* is the last of them, furthest from the link
+   a returning reader is reaching for
+   ([ADR-0047](../adr/0047-forgetting-is-two-presses-because-it-reaches-the-account.md)).
 2. **The heading and the edition switch**, sharing a line. The switch has three positions —
    each edition, and *both* — and *both* is what a reader who has chosen nothing is looking
    at. A choice is `/?lang=<edition>`: visible, linkable, leaveable, and never inferred.
-3. **The grid** — one tile per program, per track, carrying the program's id, its title, and
-   how many frames and sections it has. With no edition chosen a tile carries a title per
-   edition, each its own link; with one chosen it carries that edition's title and the whole
-   tile is the target.
+3. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
+   the parts themselves once a bundle carries them (`groupsOf`, in `lib/content/bundle.ts`,
+   which the MCP server's `list_programs` shares, so the two surfaces divide the book one
+   way). Each run is headed at level three, under the track's title. One tile per program,
+   carrying the program's id, its title, and how many frames and sections it has; with no
+   edition chosen a tile carries a title per edition, each its own link; with one chosen it
+   carries that edition's title and the whole tile is the target. A tile whose program the
+   reader has a place in says so beside the id — `at frame 12` — as text arriving after
+   hydration into a row that already has its height. It is a **position and never a
+   progress** (ADR-0041): no fraction, no bar, nothing about how far, and not a link,
+   because the way back into the frame is the resume control and `progress.spec.ts` holds
+   the page to exactly one.
 4. **The consent invitation**, last, absent from the first paint, and an invitation rather
    than a gate — a reader who came to read reaches the programs first and the question
-   afterwards.
+   afterwards. The same invitation is on a program's summary, below the list, where a
+   reader has just finished the frames the instrument is about; one record, so an answer
+   on either page is the answer on both (ADR-0022, Consequences).
 
 `/read` is a 308 to this page and the deep links under it do not move.
 
@@ -120,6 +150,15 @@ starting `//` or with a scheme is discarded. It arrives on a query string, which
 attacker chooses it, and a sign-in page that forwards to it is a phishing redirector with
 this site's name on it.
 
+**A problem the password cannot fix withdraws the form.** `SignInProblem.retryable`
+(`lib/sign-in-problem.ts`) was written to decide this and, for a while, nothing read it: a
+reader whose sign-in failed on a locked account, an unreachable identity service or a
+token this deployment refuses was handed the form and invited to try again — "the
+interface telling the reader the fault is theirs", in the field's own words. Under those
+problems the page now shows the sentence and a link to a fresh sign-in page instead. The
+two second-factor codes that send a reader back here to start from the password keep the
+form, because on this page the password *is* the way back in; `startsOver` names them.
+
 ### The integration panel
 
 `web/app/src/components/integration-report.tsx`. A Client Component that asks *this app's own
@@ -132,6 +171,19 @@ integration, each with a `live`/`degraded` badge and the detail string the API s
 **unreachable** — which is *not an error state*. "No API answered" is a supported
 configuration of this product, so the panel says so plainly and repeats that nothing on the
 page depends on it.
+
+### `/read/<track>/<unit>/<lang>` — a program's contents
+
+`components/read/program-contents.tsx`. The program's headings, each linking at the frame it
+opens on, and nothing from any frame — a heading carries no question and no answer, which is
+the contents page's own rule. **Its one filled control follows the reader**: *Start at
+frame 1* for a reader who has not, *Continue at frame N* for one who has, in the edition
+they were actually in. Server-rendered as the start and swapped after hydration in place —
+same element, same class — so the page moves by nothing when the record is read
+(`progress.spec.ts` holds it to the index's shift bound). The crumb row's quiet *Start at
+frame 1* appears only beside a *Continue*, so the page has exactly one link to the reader's
+frame and always one to the first. The foot carries the two neighbouring programs and the
+key map.
 
 ### `/read/<track>/<unit>/<lang>/<step>` — one frame
 
@@ -152,13 +204,32 @@ kinds, 21 714 maths spans. [ADR-0037](../adr/0037-the-books-prose-is-rendered-no
 
 #### One place row, and the rest of the chrome is gone
 
-`F01 · <title>  ›  <section>    English · polski    [12] / 45`. It replaced a crumb chain, a
-language row with its own label, a rule-and-badge row and a foot count — four things saying
+`F01 · <title>  ›  <section ▾>    English · polski    [12] / 45`. It replaced a crumb chain,
+a language row with its own label, a rule-and-badge row and a foot count — four things saying
 where the reader is in four ways, around one question. The frame number **is** an input: type
-a number, press Enter, arrive. `→`/`←` move; `g` focuses the jumper; `Enter` puts the caret in
-the answer line; `Ctrl/⌘+Enter` commits and reveals; `Esc` returns to reading. Every segment
-of the one-line hint is gated on the island that implements it, and while a field has focus
-the line says what is true *there*, because the arrows are dead inside a text field.
+a number, press Enter, arrive. **The section is a disclosure**: closed, it is the heading the
+reader is under; open, it is every heading of the program, each linking to its first frame,
+the current one as text, and *Contents* first — one hop to anywhere in the program, where it
+was two through the contents page. A heading carries no question and no answer, which is
+the contents page's own rule and the reason the list leaks nothing; every link in it, the
+foot's *Next section →*, the contents page's headings and the summary's frame ranges are
+`prefetch={false}` on the reveal's own reasoning, because a frame mid-program opens with an
+answer. The list is in flow, never positioned, and opening it is the reader's act. **The id
+links to the index**, so a reader who arrived by deep link is one click from the programs;
+a separate *Programs* entry would be the side text this row was built against. `→`/`←` move; `g` focuses the jumper; `Enter` with nothing
+focused puts the caret in the answer line; `Ctrl+Enter` — spelt `⌘+Enter` on an Apple
+keyboard, from a flag the page sets rather than a string it rewrites — commits and reveals;
+`Esc` returns to reading. Every segment of the one-line hint is gated on the island that
+implements it, and while a field has focus the line says what is true *there*, because the
+arrows are dead inside a text field: the hint is one line per state, all in one grid cell so
+that switching moves nothing, and the foot's `Keys` list is the whole map with a note beside
+a key that means something else elsewhere. **The two keys and the typing-state hint were
+decided in ADR-0041 and shipped later than the rest of it** — this paragraph described them
+for a while before `frame-keys.tsx` had them, and `specs/reading.spec.ts` now presses both.
+
+The frame carries a heading nobody sees: the program's title and the position, in a
+visually-hidden `<h1>`, so heading navigation lands on the frame's name rather than on the
+foot's `Keys`.
 
 The row is a `<div>`. It must not be a `<nav>` — `language-switch.spec.ts` counts navigations
 containing a `[lang]` descendant and expects one — and it was a `<p>`, which **cannot contain
@@ -249,8 +320,11 @@ check offer that ADR-0040 removed.
 ### `/account` — the reader's own record
 
 Progress, export, and deletion that deletes. The deletion screen says what goes, what stays,
-and what no deletion can reach — an anonymous outcome already folded into a rate cannot be
-retracted, because nothing can find the rows that were yours.
+what no deletion can reach — an anonymous outcome already folded into a rate cannot be
+retracted, because nothing can find the rows that were yours — and that the account is
+marked and scheduled rather than erased. That fourth sentence was off the page for a
+while, swallowed by a comment nobody closed, and the acceptance suite now signs in against
+the identity fixture to read all four (ADR-0021, Consequences).
 
 ### `/instrument` — the author's view
 
@@ -303,6 +377,25 @@ sans, code in mono, all three from the reader's own system — there is no webfo
 - **`--accent` is a single blue**, used for links and emphasis.
 - **Dark mode via `prefers-color-scheme`**, as a full token swap. Not an afterthought: a
   reader working through a program at night is the normal case.
+- **Focus is a ring, never a brightness.** Every filled control — the reveal, the contents
+  page's start, the shell pages' way in, the two forms' submit — wears a two-colour ring
+  on `:focus-visible` (paper, then the control's own colour), because a ten-percent
+  brightness on a blue block is invisible to the keyboard reader it was for (WCAG 2.4.7).
+- **A line a reader writes on is `--ink-faint`; a rule that is only a rule is `--rule`.**
+  The answer line and the pad's field carry a dashed rule that clears 3:1 against the
+  paper (WCAG 1.4.11), and the teaching frame's dotted rule stays faint, so the two marks
+  no longer look the same.
+- **Every control on a line of small type is a finger tall.** The place row's links, the
+  frame number, the edition switch, the foot's links and the index's edition switch are
+  padded to about 44 px and given the space back with a matching negative margin, so the
+  hit area grew and nothing on the page moved.
+- **The reveal says when it is under way.** It is the one navigation that is never
+  prefetched, so it always costs a round trip; while the next frame is on its way the
+  control dims and its cursor says so (`reveal-label.tsx`, Next's `useLinkStatus`).
+  Nothing lays out, so the reveal's shift bound holds.
+- **No keyboard hint where there is no keyboard.** On a coarse-pointer device the one-line
+  hint under the reveal is not rendered at all; the foot's `Keys` list stays for a tablet
+  with a keyboard attached.
 
 ---
 
@@ -538,7 +631,11 @@ exists so that the first of those cannot arrive quietly.
 The reveal is the thing that does NOT travel for free. It is a navigation on the reading
 surface and it is nothing on a transport with no navigation, so the property is rebuilt
 there rather than inherited: a step is served only at or below the reader's furthest, which
-makes an unreached answer unselectable rather than filtered. The note above about the
+makes an unreached answer unselectable rather than filtered. What does travel: the place row
+(every step opens with program, title, section and position), the summary screen (the last
+step hands off to the program's Summary, *Can you?* and the next program), and the book's
+runs in the program list — each from the same function the surface uses, so the two never
+divide or name the book two ways. The note above about the
 service worker applies here with the sign turned over — the acceptance suite asserts over
 the DOM, and a transport that has none needs its own gate or the suite stays green while the
 property does not reach it.

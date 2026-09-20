@@ -103,6 +103,37 @@ test.describe('local progress', () => {
     expect(stored, 'the place was not kept in the browser').toBeTruthy();
   });
 
+  test('the index says which program the reader is in, on its tile, as a position @core', async ({
+    page,
+  }) => {
+    /*
+      A returning reader's question at the index is "which one was I in", and forty-seven
+      tiles used to answer it with nothing. The tile now says `at frame N` — a POSITION and
+      never a progress (ADR-0041): no fraction, no bar, nothing about how far. And it is
+      text, not a link: the count of links back into the stored frame stays at one, which
+      is the resume control, so the assertion in the journey above still holds by the
+      letter.
+    */
+    await readUpTo(page, 'en', STOPPED_AT!);
+    await page.goto('/');
+
+    const tile = page.locator('li', { has: page.getByRole('link', { name: program.titles['en']! }) });
+    await expect(tile).toHaveCount(1);
+    const marker = tile.getByText(`at frame ${STOPPED_AT}`, { exact: true });
+    await expect(marker).toBeVisible();
+    await expect(marker.locator('a'), 'the marker must not be a second way in').toHaveCount(0);
+    await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
+
+    // No other tile carries a marker: the reader has been in one program.
+    await expect(page.getByText(/^at frame \d+$/)).toHaveCount(1);
+
+    // Nothing on the page says how far that is, in any of the ways ADR-0041 forbids.
+    const body = await page.locator('body').innerText();
+    expect(body).not.toMatch(/\d+\s*%/);
+    expect(body).not.toMatch(/\d+ of \d+ read/i);
+    await expect(page.getByRole('progressbar')).toHaveCount(0);
+  });
+
   test('a reader who has read nothing is offered nothing @core', async ({ page }) => {
     // The positive control for the test above. Without it, an index that always rendered a
     // resume link to frame 1 would satisfy the journey and mean nothing.
@@ -122,11 +153,25 @@ test.describe('local progress', () => {
     await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(0);
   });
 
-  test('a program’s contents offer that program’s own place @core', async ({ page }) => {
+  test('a program’s contents offer that program’s own place, as the page’s filled control @core', async ({
+    page,
+  }) => {
     await readUpTo(page, 'en', STOPPED_AT!);
     await page.goto(contentsAt('en'));
 
-    await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
+    const resume = resumeOn(page, 'en', STOPPED_AT!);
+    await expect(resume).toHaveCount(1);
+
+    /*
+      THE FILLED ONE. The page used to fill `Start at frame 1` for everybody and put the
+      reader's own place in the crumb as a small link, so the reader coming back found the
+      primary action pointing at the wrong frame. The filled control is the one that
+      follows the reader; asserted by its fill rather than by a class, because the class
+      is the mechanism and the fill is what the reader sees.
+    */
+    await expect(resume).toHaveText(`Continue at frame ${STOPPED_AT}`);
+    const fill = await resume.evaluate((node) => getComputedStyle(node).backgroundColor);
+    expect(fill, 'the resume control is not the filled one').not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
 
     // And the way in for a reader who has not started is still there beside it: resuming is
     // an addition to the loop, never a replacement for its front door.
@@ -136,13 +181,53 @@ test.describe('local progress', () => {
     // be asserting the fixture's section layout rather than the claim. The claim is that a
     // way in exists.
     await expect(page.locator(`a[href="${frameAt('en', 1)}"]`).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Start at frame 1' })).toHaveCount(1);
   });
 
-  test('a reader can be forgotten, and stays forgotten @core', async ({ page }) => {
+  test('a program’s contents start at frame 1 for a reader with no place in it @core', async ({
+    page,
+  }) => {
+    // The positive control: without a record the filled control is the front door and there
+    // is no `Continue`, and no second `Start` either — one way in, said once.
+    await page.goto(contentsAt('en'));
+    const start = page.getByRole('link', { name: 'Start at frame 1' });
+    await expect(start).toHaveCount(1);
+    await expect(start).toHaveAttribute('href', frameAt('en', 1));
+    await expect(page.getByRole('link', { name: /continue at frame/i })).toHaveCount(0);
+  });
+
+  test('the contents page’s control changing hands shifts nothing @core', async ({ page }) => {
+    // The filled control is server-rendered as `Start at frame 1` and becomes `Continue at
+    // frame N` after hydration: same element, same class, a label and an href. The same
+    // bound the index is held to below, because the swap is exactly the shape of a shift.
+    await readUpTo(page, 'en', STOPPED_AT!);
+
+    await page.addInitScript(() => {
+      const scope = window as unknown as { __shift: number };
+      scope.__shift = 0;
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries() as unknown as {
+          value: number;
+          hadRecentInput: boolean;
+        }[]) {
+          if (!entry.hadRecentInput) scope.__shift += entry.value;
+        }
+      }).observe({ type: 'layout-shift', buffered: true });
+    });
+
+    await page.goto(contentsAt('en'));
+    await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveText(`Continue at frame ${STOPPED_AT}`);
+    await page.waitForTimeout(700);
+
+    const shift = await page.evaluate(() => (window as unknown as { __shift: number }).__shift);
+    expect(shift, 'the control changing hands moved the page under the reader').toBeLessThan(0.01);
+  });
+
+  test('a reader can be forgotten, in two presses, and stays forgotten @core', async ({ page }) => {
     // A product that remembers a reader with no way to be forgotten is the local half of
-    // what issue #13 owes the account. One click, because what it destroys is one integer
-    // and one language tag per program — see resume.tsx for why that argument stops holding
-    // the day the record holds more.
+    // what issue #13 owes the account. TWO presses, because since #11 the record reaches
+    // the account and reading one frame here does not bring back the phone's place —
+    // ADR-0047, which is where ADR-0017's one-click argument said it would stop holding.
     await readUpTo(page, 'en', STOPPED_AT!);
     await page.goto('/read');
     await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
@@ -153,8 +238,18 @@ test.describe('local progress', () => {
       `/read` (issue #14) and then failed with a strict-mode violation naming three
       buttons — which is the good outcome: an unnamed locator that had silently started
       clicking the wrong control would have left this test green and meaningless.
+
+      The first press arms and destroys nothing: the control renames itself to say what
+      the second will do, and the reader's place is still there — on the page and in the
+      store. A one-click implementation fails on the first assertion below.
     */
     await page.getByRole('button', { name: 'Forget where I am' }).click();
+    const armed = page.getByRole('button', { name: 'Forget it — on every device' });
+    await expect(armed).toBeVisible();
+    await expect(resumeOn(page, 'en', STOPPED_AT!), 'one press forgot the reader').toHaveCount(1);
+    expect(await page.evaluate((key) => window.localStorage.getItem(key), KEY)).not.toBeNull();
+
+    await armed.click();
     await expect(resumeOn(page, 'en', STOPPED_AT!), 'the control survived being forgotten').toHaveCount(0);
 
     // And it was the STORE that was cleared, not the screen: a reload is the only assertion
@@ -204,8 +299,10 @@ test.describe('local progress', () => {
     });
 
     await page.goto('/read');
-    // The control really did arrive, so the number below is about a page that changed.
+    // The controls really did arrive — the filled resume link in the header and the tile's
+    // marker in the grid — so the number below is about a page that changed twice.
     await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
+    await expect(page.getByText(`at frame ${STOPPED_AT}`, { exact: true })).toBeVisible();
     await page.waitForTimeout(700);
 
     const shift = await page.evaluate(() => (window as unknown as { __shift: number }).__shift);

@@ -1,52 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback } from 'react';
 
 import { clearAnswerHere, clearEverything, useAnySheet, useSheet } from '@/lib/sheet/client';
 
+import { useTwoStep } from './use-two-step.ts';
 import styles from './worksheet.module.css';
 
-/**
- * TWO PRESSES, FIVE SECONDS APART AT MOST — the confirmation for something a reader wrote.
- *
- * ──────────────────────────────────────────────────────────────────────────────────────
- * WHY THIS IS NOT `ForgetProgress`'S ONE CLICK, AND ADR-0017 SAYS SO ITSELF.
- *
- * `resume.tsx` explains at length why forgetting a reader's PLACE needs no confirmation:
- * what it destroys is one integer and one language tag per program, and a modal guarding
- * it would cost every reader a click to protect against something that repairs itself by
- * reading one frame. That ADR then names its own limit — the argument "stops holding the
- * moment the record holds anything a reader cannot trivially rebuild".
- *
- * A worksheet is exactly that. It is the reader's own working, and nothing brings it back.
- * So this is the answer the ADR asked for, and it is a second press rather than a modal:
- * a dialog is a thing to dismiss, and a control that renames itself is a thing to read.
- * The label on the second press SAYS what will happen, which is the part a modal usually
- * gets right and a bare "Are you sure?" does not.
- *
- * It reverts after five seconds, so a reader who walks away does not come back to a primed
- * destructive control under their cursor.
- * ──────────────────────────────────────────────────────────────────────────────────────
+/*
+ * TWO PRESSES, FIVE SECONDS APART AT MOST — `use-two-step.ts`, which these controls were
+ * written with and which *Forget where I am* now shares. A worksheet is the reader's own
+ * working and nothing brings it back, which is the case ADR-0017 named as the limit of
+ * one-click forgetting; ADR-0047 records the day forgetting reached that limit too.
  */
-function useTwoStep(act: () => void): { armed: boolean; press: () => void } {
-  const [armed, setArmed] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  useEffect(() => () => clearTimeout(timer.current), []);
-
-  const press = useCallback(() => {
-    if (armed) {
-      clearTimeout(timer.current);
-      setArmed(false);
-      act();
-      return;
-    }
-    setArmed(true);
-    timer.current = setTimeout(() => setArmed(false), 5000);
-  }, [armed, act]);
-
-  return { armed, press };
-}
 
 export interface ClearAnswerProps {
   readonly track: string;
@@ -108,7 +74,7 @@ export interface ClearWorksheetsProps {
   readonly confirmLabel: string;
 }
 
-/** Every worksheet in this browser, from the index's foot beside `Forget where I am`. */
+/** Every worksheet in this browser, from the index's header row beside `Forget where I am`. */
 export function ClearWorksheets({
   language,
   label,

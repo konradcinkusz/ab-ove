@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { say, sectionSpans } from '@/lib/content/bundle';
 import type { Bundle, Step, Unit } from '@/lib/content/schema';
-import { chromeFor } from '@/lib/i18n/chrome';
+import { HINT_STATES, chromeFor } from '@/lib/i18n/chrome';
 import { bookNumberOf } from '@/lib/sheet/number';
 
 import { AnswerLine } from './answer-line.tsx';
@@ -11,10 +11,11 @@ import { Working } from './working.tsx';
 import { ClearAnswer } from './clear-controls.tsx';
 import { FrameKeys } from './frame-keys.tsx';
 import styles from './frame-view.module.css';
-import { KeysDetails } from './keys-details.tsx';
+import { KeyName, KeysDetails } from './keys-details.tsx';
 import { PlaceRow } from './place-row.tsx';
 import { RememberPosition } from './remember-position.tsx';
-import { RichText } from './rich-text.tsx';
+import { RevealLabel } from './reveal-label.tsx';
+import { RichInline, RichText } from './rich-text.tsx';
 import { YouWrote } from './you-wrote.tsx';
 
 export interface FrameViewProps {
@@ -138,6 +139,19 @@ export function FrameView({
     */
     <article className={styles.page} lang={language}>
       {/*
+        A HEADING NOBODY SEES, for the reader who navigates by headings. The frame renders
+        no visible title — the place row says where the reader is and the owner's complaint
+        was side text — so heading navigation found nothing on a frame at all, and a screen
+        reader's "list headings" answered with the foot's `Keys`. This is the frame's name,
+        off the page (the visually-hidden idiom, worksheet.module.css): the program's title
+        and the position, the same two facts the row shows, said once for the landmark.
+      */}
+      <h1 className={styles.title}>
+        <RichInline language={language} text={say(unit.titles, language)} />{' '}
+        <span lang={chrome.language}>· {chrome.position(step.n, unit.steps.length)}</span>
+      </h1>
+
+      {/*
         The keyboard path, and the reason a program can be READ from the keyboard rather
         than merely reached by one: without it a reader tabs past the crumb, the edition
         switch and the reveal on every frame — three presses and an Enter, forty-five times
@@ -163,9 +177,11 @@ export function FrameView({
         chrome={chrome}
         contentsHrefFor={reading}
         current={step.n}
+        frameHrefFor={at}
         language={language}
         last={unit.steps.length}
         section={section}
+        spans={spans}
         trackLanguages={bundle.track.languages}
         unitId={unit.id}
         unitTitle={say(unit.titles, language)}
@@ -291,7 +307,7 @@ export function FrameView({
             />
           ) : null}
           <Link className={styles.reveal} href={forward} lang={chrome.language} prefetch={false}>
-            {step.cue ? chrome.reveal : chrome.next}
+            <RevealLabel label={step.cue ? chrome.reveal : chrome.next} />
           </Link>
         </>
       ) : (
@@ -306,7 +322,7 @@ export function FrameView({
           that this link earns the same restraint.
         */
         <Link className={styles.reveal} href={summaryAt} lang={chrome.language} prefetch={false}>
-          {chrome.summaryAndChecklist}
+          <RevealLabel label={chrome.summaryAndChecklist} />
         </Link>
       )}
 
@@ -334,15 +350,28 @@ export function FrameView({
         lang={chrome.language}
       >
         {/*
-          ONE SPAN PER KEY, each revealed by the flag its own island sets — so a teaching
-          frame, which has no answer line, does not offer `Ctrl+Enter`, and no frame offers
-          anything at all until the handlers have hydrated. The separators are inside the
-          spans because a `·` between two hidden segments is a stray dot.
+          ONE LINE PER STATE, ALL IN THE SAME GRID CELL, and one visible at a time — so the
+          hint says what is true with nothing focused (the arrows, Enter, `g`) and says
+          something else inside a field (the chord that commits, Esc back), which is the
+          half of ADR-0041 the first version did not have. Stacking them in one cell is what
+          keeps the switch from moving anything: the tallest line reserves the height.
+
+          Within a line, ONE SPAN PER KEY, each revealed by the flag its own island sets — so
+          a teaching frame, which has no answer line, does not offer `Enter`, and no frame
+          offers anything at all until the handlers have hydrated. The separators are inside
+          the spans because a `·` between two hidden segments is a stray dot; the first entry
+          of every line is one that is live whenever the line is.
         */}
-        {chrome.keysMap.map((entry, index) => (
-          <span className={styles.key} data-needs={entry.needs} key={entry.key}>
-            {index > 0 ? ' · ' : null}
-            {entry.key} {entry.does}
+        {HINT_STATES.map((state) => (
+          <span className={styles.line} data-when={state} key={state}>
+            {chrome.keysMap
+              .filter((entry) => entry.when.includes(state))
+              .map((entry, index) => (
+                <span className={styles.key} data-needs={entry.needs} key={`${entry.key} ${entry.does}`}>
+                  {index > 0 ? ' · ' : null}
+                  <KeyName as="span" entry={entry} /> {entry.does}
+                </span>
+              ))}
           </span>
         ))}
       </p>
@@ -354,8 +383,13 @@ export function FrameView({
           ) : (
             <Link href={reading(language)}>{chrome.backToContents}</Link>
           )}
+          {/*
+            `prefetch={false}`, on the reveal's reasoning: the next section's first frame
+            opens with the answer to this one, and this link was pulling it over the wire
+            while the reader was still writing.
+          */}
           {nextSpan ? (
-            <Link className={styles.nextSection} href={at(nextSpan.from)}>
+            <Link className={styles.nextSection} href={at(nextSpan.from)} prefetch={false}>
               {chrome.nextSection}
             </Link>
           ) : null}

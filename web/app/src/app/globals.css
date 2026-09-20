@@ -131,10 +131,20 @@ kbd {
  * have to read the roadmap to find the book.
  */
 .enter {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
   margin: 1.6rem 0 0;
 }
 
-.enter a {
+/*
+ * The filled way in, and — on `error.tsx` — the filled way to try again. One selector for
+ * the link and the button so the two cannot drift apart in size or colour; the button's
+ * own reset sits below because a `<button>` arrives with a border and a font of its own.
+ */
+.enter a,
+.enter button {
   background: var(--accent);
   border-radius: 3px;
   color: var(--paper-raised);
@@ -144,9 +154,33 @@ kbd {
   text-decoration: none;
 }
 
+.enter button {
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
 .enter a:hover,
-.enter a:focus-visible {
+.enter button:hover {
   filter: brightness(1.1);
+}
+
+/* A visible ring on focus — frame-view.module.css records why a brightness was not one. */
+.enter a:focus-visible,
+.enter button:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--accent);
+  outline: none;
+}
+
+/* The second control beside a filled one reads as a link, so the page has one primary. */
+.enter a.quiet {
+  background: none;
+  color: var(--accent);
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
 .antigoal {

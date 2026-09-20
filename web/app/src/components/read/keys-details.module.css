@@ -72,3 +72,21 @@
   font-size: 0.75rem;
   padding: 0.0625rem 0.3125rem;
 }
+
+/*
+ * The chord's two spellings. `modifier-flag.tsx` puts `data-modifier="meta"` on `<html>`
+ * for an Apple keyboard, and that flag decides which of the pair is shown; until it is set,
+ * and everywhere it never is, the `Ctrl` spelling shows. Both are in the markup so nothing
+ * is rewritten after paint.
+ */
+.list kbd[data-mod='meta'] {
+  display: none;
+}
+
+:global([data-modifier='meta']) .list kbd[data-mod='meta'] {
+  display: inline;
+}
+
+:global([data-modifier='meta']) .list kbd[data-mod='ctrl'] {
+  display: none;
+}

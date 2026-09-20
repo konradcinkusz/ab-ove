@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { AUTHOR, READER } from '../fixtures/accounts.mts';
+import { signIn } from './support/sign-in.ts';
 
 /**
  * JOURNEY — the signed-in path, against an identity service this suite starts itself.
@@ -52,17 +53,6 @@ import { AUTHOR, READER } from '../fixtures/accounts.mts';
 const GATED = '/instrument';
 
 const SIGN_IN = /\/login(\?|$)/;
-
-/** Fill the form and wait for wherever the route sends the browser. */
-async function signIn(
-  page: import('@playwright/test').Page,
-  account: { email: string; password: string },
-  destination: RegExp,
-) {
-  await page.fill('input[name="email"]', account.email);
-  await page.fill('input[name="password"]', account.password);
-  await Promise.all([page.waitForURL(destination), page.click('button[type="submit"]')]);
-}
 
 test.describe('a reader with an account reaches the page the gate was keeping', () => {
   test('signing in lands on the destination that was asked for @identity', async ({ page }) => {
@@ -227,6 +217,39 @@ test.describe('a reader with an account reaches the page the gate was keeping', 
     // Two roles: an array.
     expect(AUTHOR.roles.length).toBeGreaterThan(1);
     expect((await claimsFor(AUTHOR))[ROLE]).toEqual(AUTHOR.roles);
+  });
+
+  /**
+   * `SignInProblem.retryable` was computed, tested at the unit tier, and read by nothing —
+   * so a reader whose sign-in failed for a reason no password could fix (an issuer this
+   * deployment refuses, an identity service that is down) was still handed the form and
+   * invited to try again. The field's own comment says what it is for: "a form that invites
+   * a retry which cannot work is the interface telling the reader the fault is theirs."
+   *
+   * Under the identity project, because on a deployment with no identity service there is
+   * never a form to withdraw, and the assertion would pass for the wrong reason.
+   */
+  test('a problem the password cannot fix withdraws the form; one it can keeps it @identity', async ({
+    page,
+  }) => {
+    await page.goto('/login?error=rejected');
+    await expect(page.getByRole('main')).toContainText('were not accepted');
+    await expect(page.locator('form[action="/api/auth/login"]')).toHaveCount(1);
+
+    await page.goto('/login?error=token-rejected');
+    await expect(page.getByRole('main')).toContainText('configuration fault');
+    await expect(
+      page.locator('form[action="/api/auth/login"]'),
+      'a retry that cannot work was offered anyway',
+    ).toHaveCount(0);
+    // And it is not a dead end: a fresh sign-in page is one link away, without the code.
+    await expect(page.getByRole('link', { name: /start again/i })).toHaveAttribute('href', '/login');
+
+    // A second-factor step that expired sends the reader back HERE to start from the
+    // password, so on this page the form is the remedy even though that step is not
+    // retryable — the distinction `startsOver` carries.
+    await page.goto('/login?error=second-factor-expired');
+    await expect(page.locator('form[action="/api/auth/login"]')).toHaveCount(1);
   });
 
   test('a wrong password is refused and says nothing about which field was wrong @identity', async ({

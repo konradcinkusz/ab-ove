@@ -26,7 +26,7 @@ import { test } from 'node:test';
 
 import fixture from './fixtures/book-p01.bundle.json' with { type: 'json' };
 
-import { PINS, allBundles, bundleFor, languageIn, say, sectionSpans, stepIn, unitIn } from './bundle.ts';
+import { PINS, allBundles, bundleFor, groupsOf, languageIn, say, sectionSpans, stepIn, unitIn } from './bundle.ts';
 import type { Bundle, Unit } from './schema.ts';
 import { validateBundle } from './validate.ts';
 import { skipWithoutBundle } from './have-bundle.ts';
@@ -211,4 +211,61 @@ test('the fixture’s own spans cover every step from the first heading to the l
   assert.equal(spans[0]!.from, 1, 'the fixture no longer opens at its first heading');
   assert.equal(spans[spans.length - 1]!.to, FIXTURE_UNIT.steps.length);
   for (const { from, to } of spans) assert.ok(from <= to, `span ${from}–${to} runs backwards`);
+});
+
+/*
+ * The index's grouping. Synthetic bundles built from the fixture's one program, because
+ * the property is about the RUN of ids and parts and the fixture has one of each.
+ */
+function withUnits(ids: readonly string[], parts?: readonly (string | undefined)[]): Bundle {
+  const units = ids.map((id, index) => {
+    const partId = parts?.[index];
+    const bare: { -readonly [K in keyof Unit]?: Unit[K] } = { ...FIXTURE_UNIT, id };
+    delete bare.part;
+    return partId === undefined
+      ? (bare as Unit)
+      : { ...(bare as Unit), part: { id: partId, titles: { en: `Part ${partId}`, pl: `Część ${partId}` } } };
+  });
+  return { ...FIXTURE, units };
+}
+
+test('programs are grouped where their id prefix changes, in the manifest\'s order', () => {
+  const groups = groupsOf(withUnits(['F01', 'F02', 'P01', 'P02', 'P03']));
+  assert.deepEqual(
+    groups.map((group) => [group.prefix, group.units.map((unit) => unit.id)]),
+    [
+      ['F', ['F01', 'F02']],
+      ['P', ['P01', 'P02', 'P03']],
+    ],
+  );
+  assert.ok(groups.every((group) => group.part === undefined), 'no part was invented');
+});
+
+test('a track whose ids share one prefix is one unlabelled group, not an invented division', () => {
+  for (const ids of [['P01', 'P02'], ['01', '02'], []]) {
+    const groups = groupsOf(withUnits(ids));
+    assert.equal(groups.length, 1, ids.join(','));
+    assert.equal(groups[0]!.prefix, undefined);
+    assert.equal(groups[0]!.part, undefined);
+    assert.deepEqual(groups[0]!.units.map((unit) => unit.id), ids);
+  }
+});
+
+test('when every program names its part, the parts are the groups and carry their titles', () => {
+  const groups = groupsOf(withUnits(['F01', 'F02', 'P01'], ['I', 'I', 'II']));
+  assert.deepEqual(
+    groups.map((group) => [group.part?.id, say(group.part!.titles, 'pl'), group.units.map((unit) => unit.id)]),
+    [
+      ['I', 'Część I', ['F01', 'F02']],
+      ['II', 'Część II', ['P01']],
+    ],
+  );
+  assert.ok(groups.every((group) => group.prefix === undefined), 'a part is not also a prefix');
+});
+
+test('one program without a part sends the whole track back to grouping by prefix', () => {
+  // Half a division is worse than none: a part heading over some programs and a prefix
+  // heading over the rest would be two rules on one page.
+  const groups = groupsOf(withUnits(['F01', 'P01', 'P02'], ['I', undefined, 'II']));
+  assert.deepEqual(groups.map((group) => group.prefix), ['F', 'P']);
 });

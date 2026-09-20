@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import styles from './place-row.module.css';
 
@@ -85,18 +85,41 @@ export function FrameJumper({ base, current, last, label, language }: FrameJumpe
     }
   };
 
+  /*
+    `Esc` CANCELS, AND IT HAS TO CANCEL BEFORE IT LEAVES. The number IS the control, so
+    this field commits on blur — which means a plain `blur()` on Esc would navigate to
+    whatever half-typed digit was in the box, the exact opposite of "back to reading".
+    The flag is read once by the blur that Esc itself causes and cleared there; a later
+    blur from a click or a Tab commits as before.
+  */
+  const cancelling = useRef(false);
+
   return (
     <span className={styles.jumper} lang={language}>
       <input
         aria-label={label}
         className={styles.jumperInput}
+        data-typing="jumper"
         id="frame-jumper"
         inputMode="numeric"
         max={last}
         min={1}
-        onBlur={commit}
+        onBlur={() => {
+          if (cancelling.current) {
+            cancelling.current = false;
+            return;
+          }
+          commit();
+        }}
         onChange={(event) => setValue(event.currentTarget.value)}
         onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            cancelling.current = true;
+            setValue(String(current));
+            event.currentTarget.blur();
+            return;
+          }
           if (event.key === 'Enter') {
             event.preventDefault();
             commit();

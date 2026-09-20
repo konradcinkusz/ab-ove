@@ -96,12 +96,21 @@ export function Working({
     now says something different from what is in the box is somebody else's edit and the
     results on screen are stale; a store that says the same thing is this component's own
     write coming back, and there is nothing to discard.
+
+    AND A SECOND COMPARISON, because the first one still clobbered a keystroke. A record is
+    new after ANY write to this frame's sheet — the answer line committing on its way out
+    is the common one — and on the render the reader's next keystroke causes, the store's
+    `working` (unchanged) differs from the box (one character further on). The first rule
+    read that as somebody else's edit and threw the character away. So the box adopts the
+    store's text only when the STORE's text changed since it was last seeded: the record
+    is new AND its `working` is not what it was. `answer-line.tsx` carries the same rule
+    and the test that found it.
     ──────────────────────────────────────────────────────────────────────────────────────
   */
   if (stored !== seed) {
     setSeed(stored);
     const incoming = stored?.working ?? '';
-    if (incoming !== text) {
+    if (incoming !== text && incoming !== (seed?.working ?? '')) {
       setText(incoming);
       setResults([]);
     }
@@ -139,10 +148,17 @@ export function Working({
           <textarea
             aria-label={label}
             className={styles.workingField}
+            data-typing="working"
             maxLength={WORKING_LIMIT}
             onBlur={() => commit(text)}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={(event) => {
+              // Esc returns to reading; the blur commits, as leaving by a click would.
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                event.currentTarget.blur();
+                return;
+              }
               if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
                 event.preventDefault();
                 evaluate();

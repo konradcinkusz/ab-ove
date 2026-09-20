@@ -1,17 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 import { chromeFor } from '@/lib/i18n/chrome';
 import { serverSnapshot, snapshot, subscribe } from '@/lib/progress/client';
 import { forgetEverywhere } from '@/lib/progress/sync';
-import { positionIn } from '@/lib/progress/store';
 
 import styles from './resume.module.css';
+import { useTwoStep } from './use-two-step.ts';
 
 /**
- * The controls that read a reader's own record back to them.
+ * The index's controls that read a reader's own record back to them. The contents page's
+ * own — the filled control that follows the reader, and the quiet way back to frame 1 —
+ * are in `entry-control.tsx`, where the reasoning about a position at the last step lives.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * THEY APPEAR WITHOUT MOVING ANYTHING, WHICH IS WHY THEY LIVE IN THE CRUMB ROW.
@@ -44,7 +46,15 @@ export interface ResumeLastProps {
   readonly language: string;
 }
 
-/** The index's control: back to the program the reader was last in. */
+/**
+ * The index's control: back to the program the reader was last in.
+ *
+ * THE ONE FILLED CONTROL ON THE INDEX. For a reader who has been here before it is the
+ * primary action on the page — everything else is a way to start something — and it was
+ * rendered as the faintest thing on it, a small link in the header's row of faint links.
+ * It is filled now, the way the reveal and the contents page's *Start* are, and it still
+ * arrives after hydration into a row that does not grow (resume.module.css says how).
+ */
 export function ResumeLast({ limits, language }: ResumeLastProps): React.JSX.Element | null {
   const progress = useProgress();
   const chrome = chromeFor(language);
@@ -63,7 +73,7 @@ export function ResumeLast({ limits, language }: ResumeLastProps): React.JSX.Ele
 
   return (
     <Link
-      className={styles.resume}
+      className={styles.resumeFilled}
       href={`/read/${last.track}/${last.unit}/${last.language}/${step}`}
       lang={chrome.language}
     >
@@ -72,115 +82,52 @@ export function ResumeLast({ limits, language }: ResumeLastProps): React.JSX.Ele
   );
 }
 
-export interface ResumeHereProps {
-  readonly track: string;
-  readonly unit: string;
-  readonly last: number;
-  readonly language: string;
-}
-
 /**
- * A program's own control, on its contents page.
- *
- * It links to the edition the reader was actually in, which may not be the edition of the
- * contents page they are looking at — that is the record being right rather than the
- * control being inconsistent, and #6 made the edition part of the position for this reason.
+ * Forget everything, in two presses.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * IT OFFERS THE FRAME AT THE LAST STEP TOO, AND THAT WAS TRIED THE OTHER WAY FIRST.
+ * IT WAS ONE CLICK, AND THE ARGUMENT FOR THAT ENDED WHEN THE RECORD REACHED THE ACCOUNT.
  *
- * The obvious improvement is to send a reader whose position is N to `/summary` instead —
- * "continue at frame 45" being a poor answer to "I have finished". It was written, and
- * then removed, for two reasons that are worth keeping written down.
- *
- * A POSITION OF N DOES NOT MEAN FINISHED. The store holds a frame number, so "read the
- * last frame" and "opened the summary" are the same record; `program-summary.tsx` declines
- * to write one at all precisely because N would be a lie on a deep link. Branching a
- * control on a value that cannot carry the distinction is guessing with extra steps.
- *
- * AND THE TWO RESUME CONTROLS MUST AGREE. `ResumeLast` on the index and `ResumeHere` on a
- * contents page look identical and mean the same thing, so one of them quietly leading
- * somewhere else is worse for a reader than either destination is better. The hand-off to
- * the summary is already the last frame's own filled control and its `→`, which are the
- * two places a reader who has just finished is actually looking.
- * ──────────────────────────────────────────────────────────────────────────────────────
- */
-export function ResumeHere({
-  track,
-  unit,
-  last,
-  language,
-}: ResumeHereProps): React.JSX.Element | null {
-  const progress = useProgress();
-  const chrome = chromeFor(language);
-
-  const here = positionIn(progress, { track, unit }, last);
-  if (!here) return null;
-
-  return (
-    <Link
-      className={styles.resume}
-      href={`/read/${track}/${unit}/${here.language}/${here.step}`}
-      lang={chrome.language}
-    >
-      {chrome.continueAtFrame(here.step)}
-    </Link>
-  );
-}
-
-/**
- * Forget everything, in one click and with no confirmation.
- *
- * ──────────────────────────────────────────────────────────────────────────────────────
- * THE ABSENCE OF A CONFIRMATION IS A DECISION, AND IT IS SIZED TO WHAT IS DESTROYED.
- *
- * What this deletes is one integer and one language tag per program. A reader who hits it
- * by accident restores their place in a program by reading one frame of it, so a modal
- * guarding it would cost every reader a click to protect against something that repairs
- * itself.
- *
- * THAT ARGUMENT ENDED WITH #11, AND THE ANSWER SURVIVED IT FOR A DIFFERENT REASON. The
- * paragraph above used to say the question reopens "the moment the record holds anything a
- * reader cannot trivially rebuild — which is phase 3.3's synchronisation (#11)". It does,
- * and it did: `forgetEverywhere` now destroys the ACCOUNT copy as well, so what goes is a
- * second machine's position too, and reading one frame does not bring it back.
- *
- * It still has no confirmation, and the reason has changed rather than survived. This is
- * now the only control that makes the product forget a reader — the local half of what
- * account deletion (#13) owes at the account level — and a destructive control behind a
- * modal is a privacy control that is measurably less used. What it destroys is still a
- * frame number and a language tag per program: no note, no answer, no history, because
- * ADR-0009 §1 keeps the record too thin to be worth anything else. The day that stops
- * being true, this question reopens again.
+ * ADR-0017 defended one-click forgetting on what it destroyed — one integer and one
+ * language tag per program, rebuilt by reading one frame — and named its own exit: the
+ * argument "stops holding the moment the record holds anything a reader cannot trivially
+ * rebuild — which is #11's synchronisation". #11 shipped. `forgetEverywhere` destroys the
+ * ACCOUNT copy as well, so what goes is every device's place, and reading one frame here
+ * does not bring back the phone's. ADR-0019 kept the one click for a different reason —
+ * a destructive control behind a modal is a privacy control that is measurably less used
+ * — and that reason argues against a MODAL, not against a second press: the control stays
+ * where the pointer is, renames itself to say what it will do, and reverts in five seconds.
+ * It is the shape `ClearWorksheets` beside it already had, so the two destructive controls
+ * on the row stop behaving two ways. ADR-0047 is the record.
  *
  * It is rendered only when there is something to forget, so a reader with no record is not
- * offered a control that does nothing — and it is at the end of the crumb row rather than
- * beside the resume link, so the destructive control is not the one next to the cursor.
+ * offered a control that does nothing — and it is LAST in the row but for the account,
+ * after the worksheets control, rather than beside the resume link: the destructive
+ * control is not the one next to the cursor, which is ADR-0017's own placement rule,
+ * restored (the grid had put it beside the resume link).
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export function ForgetProgress({ language }: { readonly language: string }): React.JSX.Element | null {
   const progress = useProgress();
   const chrome = chromeFor(language);
 
+  /*
+    Fire and forget, deliberately. The local record is gone the instant this returns and
+    the control disappears with it; the account copy is the network's problem, and
+    `forgetEverywhere` leaves a marker that blocks the next PULL until the account has
+    actually been told — so a DELETE that does not land cannot resurrect what the reader
+    just watched disappear. Awaiting it here would only mean a spinner over a deletion
+    that has already happened as far as this browser is concerned.
+  */
+  const act = useCallback(() => void forgetEverywhere(), []);
+  const { armed, press } = useTwoStep(act);
+
   const has = progress.last !== undefined || Object.keys(progress.positions).length > 0;
   if (!has) return null;
 
   return (
-    <button
-      className={styles.forget}
-      lang={chrome.language}
-      /*
-        Fire and forget, deliberately. The local record is gone the instant this returns
-        and the control disappears with it; the account copy is the network's problem, and
-        `forgetEverywhere` leaves a marker that blocks the next PULL until the account has
-        actually been told — so a DELETE that does not land cannot resurrect what the
-        reader just watched disappear. Awaiting it here would only mean a spinner over a
-        deletion that has already happened as far as this browser is concerned.
-      */
-      onClick={() => void forgetEverywhere()}
-      type="button"
-    >
-      {chrome.forget}
+    <button className={styles.forget} lang={chrome.language} onClick={press} type="button">
+      {armed ? chrome.forgetConfirm : chrome.forget}
     </button>
   );
 }

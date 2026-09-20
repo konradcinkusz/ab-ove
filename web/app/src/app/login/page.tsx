@@ -56,6 +56,19 @@ export default async function LoginPage({
   // site's own chrome, on the screen where a password is being asked for.
   const problem = signInProblem(params['error']);
 
+  /*
+    WHETHER THE FORM IS WORTH OFFERING, which `SignInProblem.retryable` was written to
+    decide and nothing read. A rejected password is the reader's to fix. A locked account,
+    an identity service that is down, a token this deployment refuses — no password
+    changes those, and a form under them "is the interface telling the reader the fault is
+    theirs" (the field's own words). The two second-factor codes that send the reader back
+    here to start from the password are the exception, and `startsOver` names them.
+  */
+  const offersForm =
+    identityConfigured && (problem === null || problem.retryable || problem.startsOver === true);
+
+  const startAgainHref = intended ? `/login?redirect=${encodeURIComponent(intended)}` : '/login';
+
   return (
     <main className="shell">
       <header className="masthead">
@@ -79,7 +92,20 @@ export default async function LoginPage({
 
       <section className="section">
         <h2>Sign in</h2>
-        {identityConfigured ? (
+        {identityConfigured && !offersForm ? (
+          /*
+            The form is withdrawn, and the sentence says why in general terms because the
+            panel above has already said it in particular. The link is a FRESH sign-in page
+            — the same destination, no error code — so a reader told to wait a minute has
+            somewhere to come back to, and nothing on this page invites an attempt the
+            panel has just said cannot work.
+          */
+          <p>
+            Typing the password again cannot change that answer, so the form is not offered
+            under it. Once the sentence above says an attempt is worth making,{' '}
+            <Link href={startAgainHref}>start again</Link> from a fresh sign-in page.
+          </p>
+        ) : identityConfigured ? (
           <>
             <p>
               {intended ? (

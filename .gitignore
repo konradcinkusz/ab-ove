@@ -19,6 +19,10 @@ x86/
 [Aa][Rr][Mm]64/
 bld/
 [Bb]in/
+# ...except the MCP package's launcher, which is a package `bin` in npm's sense and not a
+# build output. The .NET rule above is a directory name, and without this line the one
+# file an MCP host is pointed at would be the one file git never saw.
+!web/mcp/bin/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/

@@ -60,3 +60,38 @@ the key is a convenience and never the only way.
 a `<nav>` — and `<p>` cannot contain the `<nav>` the language switch is, so hydration failed
 on every frame page in the book until it was measured. `hydration.spec.ts` is the guard;
 `place-row.tsx` carries the finding.
+
+**`Enter`, `Esc` and the typing-state hint shipped after the rest of this file, and this
+file said they existed.** The first implementation carried the arrows and `g`; the two keys
+above and the line that "says what is true there" were decided here and described in
+UI-UX.md, and neither was in `frame-keys.tsx`. They are now: `Enter` with nothing focused
+opens the answer line, `Esc` leaves a field the way a click would (the line and the pad
+commit; the jumper cancels first, because its blur navigates), the hint is one line per
+state stacked in one grid cell, and the chord is spelt `⌘+Enter` on an Apple keyboard from
+a flag rather than a rewritten string. What it cost: the foot's `Keys` list is longer, and
+says beside `Enter` and the pad's `Ctrl+Enter` where each applies, because one key now means
+two things on one page. `specs/reading.spec.ts` presses both keys; `chrome.test.ts` holds
+every language to the same map.
+
+**The rule reaches the index.** A tile whose program the reader has a place in says `at
+frame 12` beside its id — the same position the place row shows, one page up, so a returning
+reader can see which of forty-seven programs they were in. It is the same test as `[12] /
+45`: a frame number is where they are, and a fraction, a bar, a count of frames read or a
+tick on a finished program would be how they are doing. It is text rather than a link, so
+the index still has exactly one way back into the stored frame, and `progress.spec.ts`
+asserts both halves — the marker is there, and nothing on the page says a percentage.
+
+**The section became a disclosure, and the id a link.** The decision above made the section
+a link to its anchor on the contents page, which put a heading two hops from a frame and
+offered *Next section →* only on a section's last frame. The place row's section is now a
+`<details>` listing every heading of the program — each linking to its first frame, the
+current one as text with `aria-current`, *Contents* first — so any section is one hop away.
+Headings carry no question and no answer (the contents page's rule), so the list leaks
+nothing; each of its links is `prefetch={false}` for the reveal's reason, and so, found on
+the way, are *Next section →*, the contents page's heading links and the summary's ranges,
+all of which had been prefetching answer-bearing frames. The row is still a `<div>` holding
+a `<nav>`, and its left half is a `<div>` too, because a `<details>` cannot live in a
+`<span>`. The unit id links to `/`; a *Programs* entry would be side text, and the id was
+already there. What it cost: a reveal is no longer the only link on a frame to the next
+frame, so every spec now locates it as the `<article>`'s own child
+(`specs/support/reveal.ts`).

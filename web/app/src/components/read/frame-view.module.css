@@ -74,6 +74,22 @@
 }
 
 
+/*
+ * The frame's heading, off the page — the standard visually-hidden idiom (the worksheet's
+ * live region uses the same one). Clipped to a pixel and absolute, which `narrow-screen.
+ * spec.ts`'s sweep exempts by exactly that shape; it is the one absolutely positioned
+ * element on the frame and it cannot overlap anything, because it has no size to.
+ */
+.title {
+  clip-path: inset(50%);
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
 .reveal {
   background: var(--accent);
   border: 0;
@@ -87,9 +103,33 @@
   text-decoration: none;
 }
 
-.reveal:hover,
-.reveal:focus-visible {
+.reveal:hover {
   filter: brightness(1.1);
+}
+
+/*
+ * A RING, NOT A BRIGHTNESS. The filled controls used `filter: brightness(1.1)` as their
+ * only `:focus-visible` treatment, which is a ten-percent change on a blue block — a
+ * keyboard reader tabbing to the one control the frame is built around could not see they
+ * had reached it (WCAG 2.4.7). The ring is the paper colour first and the accent second,
+ * so it reads on the button's own fill and on the page behind it in either scheme.
+ */
+.reveal:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--accent);
+  outline: none;
+}
+
+/*
+ * WHILE THE NEXT FRAME IS ON ITS WAY. `reveal-label.tsx` marks its span the moment the
+ * link is pressed and until the navigation lands; the reveal is the one navigation that is
+ * never prefetched, so this is the one place a wait is guaranteed. Opacity and a cursor —
+ * nothing that lays out, so the reveal moves nothing (specs/reading.spec.ts).
+ */
+.reveal:has([data-pending='yes']) {
+  cursor: progress;
+  opacity: 0.65;
 }
 
 
@@ -127,6 +167,21 @@
 }
 
 /*
+ * A FINGER'S WORTH OF TARGET ON A LINE OF SMALL TYPE. The foot is set at 0.8125rem, so a
+ * link in it is a line some twenty pixels tall — under half the 44 px a finger hits
+ * reliably, and the same shape the place row above has. The padding grows the box the
+ * reader can press and the negative margin gives the space back, so the line sits where
+ * it did and the page lays out as it did; only the hit area changed. Flex items are
+ * blockified, which is why the margin is needed at all — on an inline the padding alone
+ * would have done.
+ */
+.foot a,
+.foot button {
+  margin: -0.75rem -0.375rem;
+  padding: 0.75rem 0.375rem;
+}
+
+/*
  * A SECTION SKIP IS ONE CLICK FROM THE FRAME, and it is here rather than in the place row
  * on purpose. The place row answers "where am I"; this answers "where next", and the two
  * are different questions a reader asks at different moments — the first on arrival, the
@@ -146,6 +201,13 @@
  */
 .keys {
   color: var(--ink-faint);
+  /*
+   * A GRID WITH ONE CELL, holding one line per state (`.line` below). Every line sits in
+   * the same cell, so the tallest of them reserves the height once and switching from the
+   * reading line to a typing line moves nothing — the same reason the row uses
+   * `visibility` and not `display` in the first place.
+   */
+  display: grid;
   font-size: 0.75rem;
   letter-spacing: 0.02em;
   margin: 0.625rem 0 0;
@@ -161,6 +223,38 @@
 }
 
 :global([data-frame-keys='on']) .keys {
+  visibility: visible;
+}
+
+/*
+ * NO KEYBOARD HINT WHERE THERE IS NO KEYBOARD. A phone showed `→ next frame · ← previous
+ * frame · Ctrl+Enter commit and reveal` under every reveal — three keys the reader does not
+ * have, in the way of the frame. `display` rather than `visibility` here, on purpose: the
+ * query is decided at first paint, so removing the line moves nothing after it, and a
+ * touch reader gets the space back. The foot's full `Keys` list stays, for the reader on a
+ * tablet with a keyboard attached.
+ */
+@media (hover: none) and (pointer: coarse) {
+  .keys {
+    display: none;
+  }
+}
+
+/*
+ * THE STATE DECIDES THE LINE. `frame-keys.tsx` mirrors the focused field's `data-typing`
+ * onto `<html>`; no attribute is the reading state. A child's `visibility: visible` shows
+ * through a hidden parent, which is why every rule here also requires the handler's own
+ * flag — a line must not appear before the key it names is live.
+ */
+.line {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+
+:global([data-frame-keys='on']:not([data-typing])) .line[data-when='reading'],
+:global([data-frame-keys='on'][data-typing='answer-line']) .line[data-when='answer-line'],
+:global([data-frame-keys='on'][data-typing='working']) .line[data-when='working'],
+:global([data-frame-keys='on'][data-typing='jumper']) .line[data-when='jumper'] {
   visibility: visible;
 }
 
@@ -186,6 +280,22 @@
 :global([data-frame-jumper='on']) .key[data-needs='frame-jumper'],
 :global([data-frame-keys='on']) .key[data-needs='frame-keys'] {
   display: inline;
+}
+
+/*
+ * The chord's two spellings — see keys-details.module.css, which carries the same three
+ * rules for the foot's list and the reasoning behind them.
+ */
+.key [data-mod='meta'] {
+  display: none;
+}
+
+:global([data-modifier='meta']) .key [data-mod='meta'] {
+  display: inline;
+}
+
+:global([data-modifier='meta']) .key [data-mod='ctrl'] {
+  display: none;
 }
 
 /*

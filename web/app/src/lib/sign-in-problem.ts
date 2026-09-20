@@ -31,6 +31,14 @@ export interface SignInProblem {
    * work is the interface telling the reader the fault is theirs.
    */
   readonly retryable: boolean;
+  /**
+   * The problem was met on a LATER step and sends the reader back to the password form,
+   * so on `/login` the form is the remedy even though the step that failed is not
+   * retryable. `retryable` answers for the form the problem was met on; this answers for
+   * the one it is reported on. Absent everywhere else, deliberately: a third state on
+   * every row would be a flag somebody sets to make a page behave.
+   */
+  readonly startsOver?: true;
 }
 
 export const SIGN_IN_PROBLEMS = {
@@ -77,6 +85,9 @@ export const SIGN_IN_PROBLEMS = {
     // again would be the interface inviting an attempt that cannot work. The route has
     // already cleared the challenge, so the page renders its start-again branch.
     retryable: false,
+    // Reported on `/login`, where the sentence above says the sign-in starts from the
+    // password again — so that page offers its form under it.
+    startsOver: true,
   },
   'second-factor-rejected': {
     title: 'That code was not accepted.',
@@ -89,6 +100,8 @@ export const SIGN_IN_PROBLEMS = {
     detail:
       'The challenge from the first step is good for about five minutes. Nothing is wrong with the account or the password — enter them again and you will get a fresh one.',
     retryable: false,
+    // "Enter them again" is an instruction the page it lands on has to be able to honour.
+    startsOver: true,
   },
   /**
    * WORDED TO BE TRUE UNDER BOTH CONFIGURATIONS, which is the only reason it says "an

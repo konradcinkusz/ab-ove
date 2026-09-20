@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { pickPair, served, track, unitNamed } from './support/bundle.ts';
+import { revealTo } from './support/reveal.ts';
 
 /**
  * JOURNEY — committing an answer before turning over, which is the method the book is.
@@ -71,6 +72,8 @@ function decimalPair(): { unit: string; asks: number; answers: number; number: s
 /** The answer line, by its accessible name — it has no visible label, only the dotted rule. */
 const line = (page: import('@playwright/test').Page, name: RegExp) =>
   page.getByRole('textbox', { name });
+/** The English answer line, for the tests that only ever read that edition. */
+const line_ = (page: import('@playwright/test').Page) => line(page, /your answer/i);
 
 /**
  * Press `Clear my answer` through both of its steps, as a reader must.
@@ -122,7 +125,7 @@ test.describe('the worksheet', () => {
 
     // Through the reveal, by the control rather than by the URL: the point is the loop a
     // reader walks, not that a route renders.
-    await page.locator(`a[href="${at('en', NUMERIC.answers)}"]`).click();
+    await revealTo(page, at('en', NUMERIC.answers)).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', NUMERIC.answers)}$`));
 
     await expect(
@@ -141,7 +144,7 @@ test.describe('the worksheet', () => {
     // ──────────────────────────────────────────────────────────────────────────────────
     await page.goto(at('en', NUMERIC.asks));
     await line(page, /your answer/i).fill(NUMERIC.number);
-    await page.locator(`a[href="${at('en', NUMERIC.answers)}"]`).click();
+    await revealTo(page, at('en', NUMERIC.answers)).click();
     await expect(page.locator('body')).toContainText(/matches the book/i);
 
     // The same frame, a different number. NOT "wrong", NOT a cross, NOT a score — the
@@ -153,7 +156,7 @@ test.describe('the worksheet', () => {
     const field = line(page, /your answer/i);
     await expect(field, 'clearing did not give the line back').toBeEditable();
     await field.fill(`${NUMERIC.number}00000`);
-    await page.locator(`a[href="${at('en', NUMERIC.answers)}"]`).click();
+    await revealTo(page, at('en', NUMERIC.answers)).click();
 
     await expect(page.locator('body')).toContainText(`${NUMERIC.number}00000`);
     await expect(page.locator('body')).not.toContainText(/matches the book/i);
@@ -175,7 +178,7 @@ test.describe('the worksheet', () => {
      */
     await page.goto(at('en', pair.asking.n));
     await line(page, /your answer/i).fill('committed');
-    await page.locator(`a[href="${at('en', pair.answering.n)}"]`).click();
+    await revealTo(page, at('en', pair.answering.n)).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', pair.answering.n)}$`));
 
     await page.goBack();
@@ -200,7 +203,7 @@ test.describe('the worksheet', () => {
     // The dominant path: read, `→`, never type. Nothing is locked and nothing is said.
     const first = program.steps.find((step) => step.cue && step.n > 1)!;
     await page.goto(at('en', first.n));
-    await page.locator(`a[href="${at('en', first.n + 1)}"]`).click();
+    await revealTo(page, at('en', first.n + 1)).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', first.n + 1)}$`));
     await page.goBack();
     await expect(line(page, /your answer/i)).toBeEditable();
@@ -240,6 +243,38 @@ test.describe('the worksheet', () => {
     );
   });
 
+  test('Esc leaves the answer line and the pad with what was written still in them @core', async ({
+    page,
+  }) => {
+    // Esc returns the reader to reading (ADR-0041) and must not cost them a keystroke: the
+    // line commits on blur, so what is asserted is that leaving by the keyboard is the same
+    // as leaving by the mouse, on both fields.
+    //
+    // IT FOUND A DEFECT THAT WAS NOT THE KEYBOARD'S. The pad came back holding `^10`: its
+    // first keystroke had been thrown away, because the line's commit on the way out made
+    // the frame's record new, and the pad re-seeded itself from that record on the render
+    // the keystroke caused. A click between the two fields did the same. Both fields now
+    // adopt the store's text only when the STORE's text changed — see `working.tsx`.
+    await page.goto(at('en', pair.asking.n));
+    const line = line_(page);
+    await line.click();
+    await page.keyboard.type('kept');
+    await page.keyboard.press('Escape');
+    await expect(line).not.toBeFocused();
+
+    await page.getByRole('group').filter({ hasText: 'Working' }).first().locator('summary').click();
+    const pad = page.getByRole('textbox', { name: /your working/i });
+    await pad.click();
+    await page.keyboard.type('2^10');
+    await page.keyboard.press('Escape');
+    await expect(pad).not.toBeFocused();
+
+    await page.reload();
+    await expect(line_(page)).toHaveValue('kept');
+    await page.getByRole('group').filter({ hasText: 'Working' }).first().locator('summary').click();
+    await expect(page.getByRole('textbox', { name: /your working/i })).toHaveValue('2^10');
+  });
+
   test('the Polish edition takes a Polish decimal comma @core', async ({ page }) => {
     /*
      * `\num{}` prints `0.5` in English and `0,5` in Polish — the same number, written the
@@ -257,7 +292,7 @@ test.describe('the worksheet', () => {
     const target = (n: number): string => `/read/${track}/${found.unit}/pl/${n}`;
     await page.goto(target(found.asks));
     await line(page, /twoja odpowied/i).fill(comma);
-    await page.locator(`a[href="${target(found.answers)}"]`).click();
+    await revealTo(page, target(found.answers)).click();
     await expect(page).toHaveURL(new RegExp(`${target(found.answers)}$`));
     await expect(page.locator('body')).toContainText(/tak jak w książce/i);
 
@@ -275,7 +310,7 @@ test.describe('the worksheet', () => {
     */
     await clearTheAnswer(page, /clear my answer/i, /^clear it$/i);
     await line(page, /your answer/i).fill(comma);
-    await page.locator(`a[href="${english(found.answers)}"]`).click();
+    await revealTo(page, english(found.answers)).click();
     await expect(page.locator('body')).toContainText(/matches the book/i);
   });
 
@@ -293,7 +328,7 @@ test.describe('the worksheet', () => {
 
     await page.goto(at('en', pair.asking.n));
     await line(page, /your answer/i).fill('the reader wrote this and nobody else may see it');
-    await page.locator(`a[href="${at('en', pair.answering.n)}"]`).click();
+    await revealTo(page, at('en', pair.answering.n)).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', pair.answering.n)}$`));
     await page.waitForLoadState('networkidle');
 

@@ -18,8 +18,11 @@
   color: var(--ink-faint);
 }
 
+/* Padded to a finger's height and given the space back — place-row.module.css says why. */
 .other {
   color: var(--accent);
+  margin: -0.75rem -0.375rem;
+  padding: 0.75rem 0.375rem;
   text-decoration: none;
 }
 

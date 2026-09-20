@@ -85,6 +85,13 @@ same rule at the layer with the logic (P13); this covers it on the page.
 It also asserts that `/read` still answers **308** to `/`. A redirect nobody asserts is one
 somebody removes as dead code.
 
+The grid is divided into the book's own runs — *Foundation* and *Main sequence* — under
+level-three headings, and the test that says so also says the level-one heading is still the
+only one: a heading list that reads as a tree is the property, and a second `<h1>` would
+pass every other assertion here. The returning reader's half of the index — the tile that
+says `at frame N`, the filled resume control, and the layout not moving when either arrives
+— is in `specs/progress.spec.ts`, because it needs a place to have been recorded first.
+
 ### 2. `GET /api/config` returns runtime-resolved addresses — `specs/runtime-config.spec.ts`
 
 The defect this guards is `NEXT_PUBLIC_*`: the compiler substitutes those into the bundle, so
@@ -723,6 +730,9 @@ tests/e2e/
       service-info.ts               the API's payload shape and the route handlers
       page-errors.ts                uncaught-exception collector
       lab.ts                        the pinned book's exercise file, solutions and splices
+      bundle.ts                     the served bundle, and the needles the reading specs assert
+      reveal.ts                     the reveal's locator: the article's own child, not any href
+      sign-in.ts                    signing in against the identity fixture
 ```
 
 `specs/support/` holds no assertions and no waits, by design. Playwright's default

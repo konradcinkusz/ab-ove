@@ -1,15 +1,19 @@
 import { expect, test } from '@playwright/test';
 
+import { READER } from '../fixtures/accounts.mts';
+import { signIn } from './support/sign-in.ts';
+
 /**
  * JOURNEY — closing an account, and everything about it that does not need one.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * WHAT THIS SUITE CANNOT SAY, STATED BEFORE WHAT IT CAN.
  *
- * CI runs no identity service, so no test here deletes anything. The deleting path — the
- * progress call, then authservice, then the cookies — is pinned at the layer with the
- * logic in `delete-account.test.ts`, including the ORDER, which is the decision. Issue #29
- * is open for the CI identity fixture that would let a spec cross the whole thing.
+ * No test here deletes anything. The deleting path — the progress call, then authservice,
+ * then the cookies — is pinned at the layer with the logic in `delete-account.test.ts`,
+ * including the ORDER, which is the decision. The identity fixture issue #29 delivered
+ * lets the last block below SIGN IN and READ the deletion screen, which is a different and
+ * smaller thing: the fixture answers a sign-in, and answers nothing about a deletion.
  *
  * E2E-ACCEPTANCE-TESTING.md §2 bans "skip if the feature isn't there" inside a test,
  * because it is indistinguishable from "skip if the feature broke". Nothing below is
@@ -173,4 +177,49 @@ test('an unconfigured deployment says so rather than claiming a deletion @core',
     ['unconfigured', 'signed-out'],
     `the route answered ${problem ?? '(nothing)'} to a request with no session`,
   ).toContain(problem);
+});
+
+/**
+ * THE FOUR THINGS ADR-0021 SAYS THE SCREEN MUST SAY BEFORE THE BUTTON — and the one that
+ * went unsaid for a whole release without anything noticing.
+ *
+ * A JSX comment in `app/account/page.tsx` was opened and never closed. The parser swallowed
+ * the section that says the account is marked and scheduled rather than erased, the page
+ * compiled, and every gate stayed green, because no gate read the screen a reader would.
+ * This block reads it. It needs a session, so it runs under the identity project, and it
+ * asserts the HEADINGS: they are the four questions the screen exists to answer, and a
+ * heading that is present with its paragraph missing is not a shape this page can produce.
+ */
+test.describe('the deletion screen says all four things before the button', () => {
+  test('in English @identity', async ({ page }) => {
+    await page.goto('/login?redirect=%2Faccount');
+    await signIn(page, READER, /\/account(\?|$)/);
+
+    const main = page.locator('main');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Delete your account');
+    await expect(page.getByRole('heading', { name: 'What stays' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'What this cannot reach' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'The account is not erased on the spot' }),
+      'the fourth of the four things is missing from the deletion screen',
+    ).toBeVisible();
+
+    // BEFORE the button, which is the clause a reader would otherwise discover afterwards.
+    // `textContent`, not `innerText`: the section headings are set in capitals by the
+    // stylesheet, and `innerText` returns them as rendered.
+    const text = (await main.textContent()) ?? '';
+    expect(text.indexOf('not erased on the spot')).toBeGreaterThan(-1);
+    expect(text.indexOf('not erased on the spot')).toBeLessThan(text.indexOf('Type DELETE'));
+    await expect(page.locator('form[action="/api/auth/account/delete"]')).toHaveCount(1);
+  });
+
+  test('in Polish @identity', async ({ page }) => {
+    await page.goto('/login?redirect=%2Faccount%3Flang%3Dpl');
+    await signIn(page, READER, /\/account\?lang=pl/);
+
+    await expect(page.locator('main')).toHaveAttribute('lang', 'pl');
+    await expect(page.getByRole('heading', { name: 'Co zostaje' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Czego to nie dosięgnie' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Konto nie znika od razu' })).toBeVisible();
+  });
 });

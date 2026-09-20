@@ -72,10 +72,6 @@ export function ConsentControl({
         <p className={styles.body}>{strings.invitationWhat}</p>
         <p className={styles.body}>{strings.invitationNoReader}</p>
         {/*
-          True only while phase 4 is unbuilt, and gated: a .NET test fails the build when a
-          second entity appears in the model, and names this string and the deletion
-          screen's together.
-        {/*
           The sentence that makes declining safe to do, and it is load-bearing rather than
           reassurance: a reader who is not told that "no" costs them nothing will hesitate,
           and a hesitant yes is not consent.

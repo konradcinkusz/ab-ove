@@ -110,3 +110,11 @@ the decline as a 0.75rem borderless link left it passing, because the row is a f
 and flex stretches its items to equal height. It was measuring the container. Found by
 mutating the stylesheet and watching the test not fail — which is the only way that class of
 defect is ever found.
+
+**The invitation is made on two pages, and it is still one ask.** It sat below the index's
+forty-seven tiles, where almost nobody scrolls, and nowhere else; it is also on a program's
+summary now, where a reader has just worked the frames the instrument is about. Same
+component, same three states, same record — so an answer given on either page is the answer
+on both, and `specs/consent.spec.ts` asserts that declining on the summary leaves the index
+silent. The no-nag rule above is unchanged: a second page is not a second ask, because the
+record is read before anything renders.

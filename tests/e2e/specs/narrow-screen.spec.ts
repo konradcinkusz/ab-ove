@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { pickPair, track, unitNamed } from './support/bundle.ts';
+import { revealTo } from './support/reveal.ts';
 
 /**
  * The reading surface on a phone — 360 px, the floor.
@@ -161,6 +162,14 @@ test.describe('the reading surface at 360 px', () => {
     // and it is the one page in the product whose content grows every time the book does.
     await page.goto('/');
     expect(await overflowing(page), 'the index reaches past 360 px').toEqual([]);
+
+    // And with a place in it: the filled resume control in the header and the tile's
+    // `at frame N` marker arrive after hydration, into rows that must wrap rather than run.
+    await page.goto(at('en', asking.n));
+    await page.waitForFunction(() => window.localStorage.getItem('ab-ovo:progress:v1') !== null);
+    await page.goto('/');
+    await expect(page.getByText(`at frame ${asking.n}`, { exact: true })).toBeVisible();
+    expect(await overflowing(page), 'the index with a place in it reaches past 360 px').toEqual([]);
   });
 
   test('the reader loop still runs, with the answer still absent @smoke', async ({ page }) => {
@@ -193,7 +202,7 @@ test.describe('the reading surface at 360 px', () => {
      * this test: on most frames the control is below the fold at this width, which is the
      * accepted cost recorded in this file's header, and a reader scrolls to it.
      */
-    const reveal = page.locator(`a[href="${at('en', answering.n)}"]`);
+    const reveal = revealTo(page, at('en', answering.n));
     await reveal.scrollIntoViewIfNeeded();
     await expect(reveal, 'the reveal is not reachable at 360 px').toBeVisible();
 

@@ -114,6 +114,15 @@ hold in a configured deployment and an unconfigured one alike. The translation t
 written against authservice's source and **not** against a running one; issue #29 is open
 for the fixture that would change that.
 
+**The fourth of the four things went unrendered for a time, and nothing noticed.** A JSX
+comment in `web/app/src/app/account/page.tsx` was opened and never closed, and the parser
+swallowed the section saying the account is marked and scheduled rather than erased — the
+page compiled, rendered and passed every gate, because no gate read the screen a reader
+would. The section is back, and `tests/e2e/specs/account-deletion.spec.ts` now signs in
+against the fixture issue #29 delivered and asserts all four headings in both editions,
+before the button. That narrows the paragraph above rather than retiring it: the
+*reading* of the screen is proved end to end; the deleting path still is not.
+
 **The three 400s from authservice are separated only by English prose in its source.** They
 are matched positively and loosely, and anything unrecognised becomes `unavailable` rather
 than the most likely guess: report a wrong confirmation as a wrong password and the reader

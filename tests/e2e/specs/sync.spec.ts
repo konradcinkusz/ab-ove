@@ -1,6 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 import { track as TRACK, unitNamed } from './support/bundle.ts';
+import { forgetWhereIAm } from './support/forget.ts';
 
 /**
  * JOURNEY — the same reader, on a second machine.
@@ -377,7 +378,7 @@ test.describe('the account is a copy, and the reader owns both', () => {
     await page.goto('/read');
     await expect(resumeTo(page, 'en', AHEAD)).toHaveCount(1);
 
-    await page.getByRole('button', { name: 'Forget where I am' }).click();
+    await forgetWhereIAm(page);
 
     await expect
       .poll(() => remote.deleted, { message: 'the account copy was left behind' })
@@ -415,7 +416,7 @@ test.describe('the account is a copy, and the reader owns both', () => {
           }),
     );
 
-    await page.getByRole('button', { name: 'Forget where I am' }).click();
+    await forgetWhereIAm(page);
     await expect(resumeTo(page, 'en', AHEAD)).toHaveCount(0);
 
     await expect

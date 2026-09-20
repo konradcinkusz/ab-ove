@@ -165,6 +165,33 @@ test.describe('landing page', () => {
     );
   });
 
+  test('divides the programs into the book\u2019s own runs, under one page heading @core', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    /*
+      Forty-seven tiles in one grid was a scroll rather than an index; the book's ids carry
+      the division a reader needs and the grid had dropped it. The headings are level three
+      — under the page's `Programs` and the track's own title — so the level-one heading is
+      still the one the smoke test above asserts, and a heading list reads as a tree.
+    */
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+    const groups = page.getByRole('heading', { level: 3 });
+    await expect(groups).toHaveText(['Foundation', 'Main sequence']);
+
+    // And the tiles are still where they were, in their run: the first Foundation program
+    // is under the first heading and the first main-sequence one under the second.
+    const f01 = unitNamed('F01');
+    const foundation = page.locator('ul', { has: page.getByRole('link', { name: f01.titles['en']! }) });
+    await expect(foundation).toHaveCount(1);
+    await expect(foundation.getByRole('link', { name: P01.en })).toHaveCount(0);
+
+    // The headings follow the chosen edition, as every other word of chrome does (ADR-0016).
+    await page.goto('/?lang=pl');
+    await expect(page.getByRole('heading', { level: 3 })).toHaveText(['Podstawy', 'Cz\u0119\u015b\u0107 g\u0142\u00f3wna']);
+  });
+
   test('offers no leaderboard, ranking or score affordance @smoke', async ({ page }) => {
     await page.goto('/');
 

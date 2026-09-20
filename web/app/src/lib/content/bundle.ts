@@ -36,7 +36,7 @@ import { existsSync, readFileSync } from 'node:fs';
 
 import lock from '../../../../content/book.lock.json' with { type: 'json' };
 
-import type { Bundle, ContentPin, Section, Step, Unit } from './schema.ts';
+import type { Bundle, ContentPin, Part, Section, Step, Unit } from './schema.ts';
 import { validateBundle } from './validate.ts';
 
 interface ContentBundleLock {
@@ -288,4 +288,63 @@ export function sectionSpans(unit: Unit): readonly SectionSpan[] {
     // The validator has already refused anything where this could invert.
     to: (sections[index + 1]?.firstStep ?? unit.steps.length + 1) - 1,
   }));
+}
+
+/** A run of programs the index lists under one heading. */
+export interface ProgramGroup {
+  /** Stable, for a React key and nothing else: `part:<id>`, `prefix:<letters>`, or `''`. */
+  readonly key: string;
+  /** The book's own part, when every program of the track names one. Its titles are the heading. */
+  readonly part: Part | undefined;
+  /** Otherwise the letters the ids open with — `F`, `P` — which a caller may know a name for. */
+  readonly prefix: string | undefined;
+  readonly units: readonly Unit[];
+}
+
+/**
+ * The programs, in the manifest's order, broken where their part or their id prefix changes.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * IT CAME WITH PR4, LEFT WITH THE GRID, AND IS BACK — WITH THE REASON IT WAS WRITTEN.
+ *
+ * "Forty-seven entries in one list is a scroll rather than an index." The book's own ids
+ * carry the division a reader needs: `F` for the Foundation programs that assume nothing,
+ * `P` for the main sequence that follows. ADR-0036's grid dropped the grouping with no
+ * recorded reason, and a returning reader was scanning forty-seven tiles for the one they
+ * were in. It lives here rather than in a component because two surfaces list the
+ * programs — the index and the MCP server's `list_programs` — and one rule is what keeps
+ * them from dividing the book two ways.
+ *
+ * The book's real structure is its parts, and schema v2 carries them as `unit.part`. A
+ * bundle in which every program names its part is grouped by part, with the part's own
+ * titles as the heading; a bundle that does not is grouped by the one thing the data has.
+ *
+ * It degrades to the flat list rather than inventing a division: a track whose ids share
+ * one prefix, or carry none, comes back as one unlabelled group. And a prefix is grouped
+ * without being described — the NAME for `F` is the caller's, because it is a word in a
+ * language and this library has none.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+export function groupsOf(bundle: Bundle): readonly ProgramGroup[] {
+  const units = bundle.units;
+  const byPart = units.length > 0 && units.every((unit) => unit.part !== undefined);
+
+  const groups: ProgramGroup[] = [];
+  for (const unit of units) {
+    const prefix = /^[A-Za-z]+/.exec(unit.id)?.[0] ?? '';
+    const key = byPart ? `part:${unit.part!.id}` : `prefix:${prefix}`;
+    const last = groups.at(-1);
+    if (last?.key === key) {
+      (last.units as Unit[]).push(unit);
+    } else {
+      groups.push({
+        key,
+        part: byPart ? unit.part : undefined,
+        prefix: byPart || prefix === '' ? undefined : prefix,
+        units: [unit],
+      });
+    }
+  }
+
+  return groups.length > 1 ? groups : [{ key: '', part: undefined, prefix: undefined, units }];
 }

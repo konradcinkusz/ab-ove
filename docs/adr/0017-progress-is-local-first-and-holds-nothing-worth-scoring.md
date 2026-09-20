@@ -92,9 +92,25 @@ already exists.
 buy — "progress that follows you between machines" — and it is now the *only* thing it buys,
 which is the shape ADR-0004 asked for.
 
+**The record now decides which control is filled, on two pages.** The index's resume link
+and the contents page's *Start at frame 1* were both written for a first visit: the returning
+reader's way back was a small link beside a filled control pointing at frame 1. The index's
+resume control is now its one filled control, and the contents page's filled control reads
+the record — *Continue at frame N* with a place, *Start at frame 1* without — swapping label
+and href in place after hydration. Both still arrive after the first paint, into a line or
+an element that already has its size, so the constraint above holds and `progress.spec.ts`
+measures it on both pages.
+
 **A program that is unpinned or renamed produces no control rather than a 404.** The index
 is handed the length of every program it lists, so a stored place past the end of a
 shortened program is clamped and a place in a program no longer listed is dropped.
+
+**"Forget is one click" reached its own exit.** The paragraph above says the argument stops
+holding when the record holds something a reader cannot trivially rebuild, and names #11's
+synchronisation as that moment. #11 shipped, forgetting now destroys the account copy too,
+and [ADR-0047](0047-forgetting-is-two-presses-because-it-reaches-the-account.md) makes the
+control two presses — a renaming control rather than the modal this file argued against —
+and moves it back to the end of the row, where this file put it.
 
 **The store is one more thing #12 has to check is not queried.** It is in the browser, so no
 server query can reach it — which makes that gate trivially true today and is the reason to
