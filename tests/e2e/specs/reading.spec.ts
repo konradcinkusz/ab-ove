@@ -268,6 +268,48 @@ test.describe('reading ergonomics', () => {
     expect(page.url(), 'Esc navigated to the number that was being typed').toContain(`/${n}`);
   });
 
+  test('the reveal shows its focus as a ring, and says when it is under way @core', async ({
+    page,
+  }) => {
+    /*
+      The filled controls expressed `:focus-visible` as a ten-percent brightness, which a
+      keyboard reader tabbing to the one control the frame is built around could not see.
+      Reached by Tab rather than by `focus()`, because `:focus-visible` is about HOW focus
+      arrived, and a script-focused element does not always count.
+    */
+    await openReady(page, 'en', 2);
+    const reveal = page.locator(`article > a[href="${at('en', 3)}"]`);
+    for (let presses = 0; presses < 20; presses += 1) {
+      await page.keyboard.press('Tab');
+      if (await reveal.evaluate((node) => node === document.activeElement)) break;
+    }
+    await expect(reveal).toBeFocused();
+    const ring = await reveal.evaluate((node) => getComputedStyle(node).boxShadow);
+    expect(ring, 'the reveal has no visible focus ring').not.toBe('none');
+
+    // And the label carries the pending flag the stylesheet dims on — idle here, because
+    // the fetch is too quick to catch; the attribute's presence is what says the island is
+    // wired to the link at all.
+    await expect(reveal.locator('[data-pending]')).toHaveAttribute('data-pending', 'no');
+  });
+
+  test('the place row and the foot are a finger tall to press @core', async ({ page }) => {
+    // 44 px is the smallest target a finger hits reliably; the rows are set in small type,
+    // so the controls are padded to it and given the space back with a negative margin.
+    // What is measured is the box a press lands in, not the type.
+    await openReady(page, 'en', 2);
+    const targets = [
+      page.locator('#frame-jumper'),
+      page.getByRole('link', { name: unit.titles['en']! }),
+      page.getByRole('link', { name: /previous/i }),
+    ];
+    for (const target of targets) {
+      const box = await target.boundingBox();
+      expect(box, 'a control has no box, so nothing here measured anything').toBeTruthy();
+      expect(box!.height, `${await target.evaluate((n) => n.outerHTML.slice(0, 60))} is not a finger tall`).toBeGreaterThanOrEqual(40);
+    }
+  });
+
   test('the shortcut is told to the reader, in their own edition @core', async ({ page }) => {
     // A keyboard path nobody is told about is not an ergonomic feature, it is a secret. The
     // assertion is relational and needs no copy of either string — see language-switch.spec.
@@ -366,5 +408,26 @@ test.describe('reading ergonomics', () => {
       () => (window as unknown as { __shift: number }).__shift,
     );
     expect(shift, 'the answer arriving moved the page under the reader').toBeLessThan(0.01);
+  });
+});
+
+/**
+ * A phone has no arrow keys. The one-line hint under the reveal used to say `→ next frame
+ * · ← previous frame · Ctrl+Enter commit and reveal` on a 360 px screen, in the way of the
+ * frame, about keys the reader does not have. It is not rendered on a coarse-pointer device;
+ * the foot's full `Keys` list stays, for a tablet with a keyboard attached.
+ */
+test.describe('the reading surface on a touch screen', () => {
+  // Not a `devices[...]` preset: those carry `defaultBrowserType`, which is worker-scoped
+  // and cannot be set inside a describe. The three options below are what the hint's media
+  // query reads — Chromium's mobile emulation is what answers `hover: none` and
+  // `pointer: coarse` — and they are test-scoped, so the block shares the project's worker.
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 393, height: 851 } });
+
+  test('the keyboard hint is not there, and the key map still is @core', async ({ page }) => {
+    await page.goto(at('en', 2));
+    await keysReady(page);
+    await expect(page.getByTestId('frame-keys-hint')).toBeHidden();
+    await expect(page.getByRole('group').filter({ hasText: /keys/i })).toHaveCount(1);
   });
 });

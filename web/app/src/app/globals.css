@@ -161,10 +161,17 @@ kbd {
 }
 
 .enter a:hover,
-.enter a:focus-visible,
-.enter button:hover,
-.enter button:focus-visible {
+.enter button:hover {
   filter: brightness(1.1);
+}
+
+/* A visible ring on focus — frame-view.module.css records why a brightness was not one. */
+.enter a:focus-visible,
+.enter button:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--accent);
+  outline: none;
 }
 
 /* The second control beside a filled one reads as a link, so the page has one primary. */

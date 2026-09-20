@@ -90,6 +90,9 @@
 
 .edition {
   color: var(--ink-faint);
+  /* A finger's worth of target on a line of small type — place-row.module.css says why. */
+  margin: -0.75rem -0.375rem;
+  padding: 0.75rem 0.375rem;
   text-decoration: none;
 }
 

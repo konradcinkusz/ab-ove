@@ -332,6 +332,25 @@ sans, code in mono, all three from the reader's own system — there is no webfo
 - **`--accent` is a single blue**, used for links and emphasis.
 - **Dark mode via `prefers-color-scheme`**, as a full token swap. Not an afterthought: a
   reader working through a program at night is the normal case.
+- **Focus is a ring, never a brightness.** Every filled control — the reveal, the contents
+  page's start, the shell pages' way in, the two forms' submit — wears a two-colour ring
+  on `:focus-visible` (paper, then the control's own colour), because a ten-percent
+  brightness on a blue block is invisible to the keyboard reader it was for (WCAG 2.4.7).
+- **A line a reader writes on is `--ink-faint`; a rule that is only a rule is `--rule`.**
+  The answer line and the pad's field carry a dashed rule that clears 3:1 against the
+  paper (WCAG 1.4.11), and the teaching frame's dotted rule stays faint, so the two marks
+  no longer look the same.
+- **Every control on a line of small type is a finger tall.** The place row's links, the
+  frame number, the edition switch, the foot's links and the index's edition switch are
+  padded to about 44 px and given the space back with a matching negative margin, so the
+  hit area grew and nothing on the page moved.
+- **The reveal says when it is under way.** It is the one navigation that is never
+  prefetched, so it always costs a round trip; while the next frame is on its way the
+  control dims and its cursor says so (`reveal-label.tsx`, Next's `useLinkStatus`).
+  Nothing lays out, so the reveal's shift bound holds.
+- **No keyboard hint where there is no keyboard.** On a coarse-pointer device the one-line
+  hint under the reveal is not rendered at all; the foot's `Keys` list stays for a tablet
+  with a keyboard attached.
 
 ---
 

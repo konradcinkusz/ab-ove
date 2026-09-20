@@ -75,9 +75,16 @@
   padding: 0.5rem 1.125rem;
 }
 
-.submit:hover,
-.submit:focus-visible {
+.submit:hover {
   filter: brightness(1.1);
+}
+
+/* A visible ring on focus, in the button's own colour — see frame-view.module.css. */
+.submit:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--degraded);
+  outline: none;
 }
 
 .removes {

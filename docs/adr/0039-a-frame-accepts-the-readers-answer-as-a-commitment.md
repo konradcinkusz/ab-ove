@@ -93,3 +93,10 @@ clamp rather than drop — is the precedent.
 **Self-marking toggles were designed and cut.** Two buttons on 94% of reveals is a
 hand-rolled score prompt the book never asks for, and a mark in an unenumerable store buys
 the reader nothing.
+
+**The dotted row was hard to tell from the dotted rule, and now is not.** The answer line's
+border was `--rule`, the same hairline a teaching frame draws as decoration, at about 1.2:1
+against the paper — so the one thing saying *this one takes writing* was a placeholder that
+vanishes at the first keystroke. The line is `--ink-faint` now, above the 3:1 WCAG asks of a
+component's boundary in both schemes, and the teaching frame's rule stays faint. A reader
+who has seen both can tell them apart by the mark rather than by the words in it.

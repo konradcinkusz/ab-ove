@@ -14,6 +14,7 @@ import styles from './frame-view.module.css';
 import { KeyName, KeysDetails } from './keys-details.tsx';
 import { PlaceRow } from './place-row.tsx';
 import { RememberPosition } from './remember-position.tsx';
+import { RevealLabel } from './reveal-label.tsx';
 import { RichText } from './rich-text.tsx';
 import { YouWrote } from './you-wrote.tsx';
 
@@ -291,7 +292,7 @@ export function FrameView({
             />
           ) : null}
           <Link className={styles.reveal} href={forward} lang={chrome.language} prefetch={false}>
-            {step.cue ? chrome.reveal : chrome.next}
+            <RevealLabel label={step.cue ? chrome.reveal : chrome.next} />
           </Link>
         </>
       ) : (
@@ -306,7 +307,7 @@ export function FrameView({
           that this link earns the same restraint.
         */
         <Link className={styles.reveal} href={summaryAt} lang={chrome.language} prefetch={false}>
-          {chrome.summaryAndChecklist}
+          <RevealLabel label={chrome.summaryAndChecklist} />
         </Link>
       )}
 

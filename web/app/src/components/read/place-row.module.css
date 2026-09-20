@@ -34,9 +34,20 @@
   color: var(--rule);
 }
 
+/*
+ * A FINGER'S WORTH OF TARGET, on the row the owner ranked first. The row is set at
+ * 0.8125rem, so each of its links was a box some twenty pixels tall — the frame number
+ * the reader navigates by was among the hardest things on the page to hit on a phone.
+ * Padding grows the box and the matching negative margin gives the space back, so
+ * nothing on the row moves; these are flex items, so the padding alone would have grown
+ * the row. `narrow-screen.spec.ts` still measures the jumper inside 360 px, which is why
+ * the jumper's own rule below pads block-wise only.
+ */
 .unitTitle,
 .sectionLink {
   color: var(--ink-soft);
+  margin: -0.75rem -0.375rem;
+  padding: 0.75rem 0.375rem;
   text-decoration: none;
 }
 
@@ -88,7 +99,9 @@
   color: inherit;
   font: inherit;
   font-variant-numeric: tabular-nums;
-  padding: 0 0.125rem;
+  /* Block-wise only: the width is what narrow-screen.spec.ts measures against 360 px. */
+  margin: -0.75rem 0;
+  padding: 0.75rem 0.125rem;
   text-align: right;
   width: 2.4ch;
 }

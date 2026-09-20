@@ -15,10 +15,19 @@
   margin: 0 0 1.25rem;
 }
 
+/*
+ * THE RULE IS INK-FAINT, NOT RULE-GREY, AND THE DIFFERENCE IS THE AFFORDANCE. `--rule` on
+ * `--paper` is about 1.2:1 — a hairline the eye reads as decoration, and the same dashed
+ * hairline is decoration on a teaching frame (`.dots` in frame-view.module.css). So the
+ * two looked identical, and the one thing telling a reader this one takes writing was a
+ * placeholder that vanishes at the first keystroke. `--ink-faint` clears WCAG 1.4.11's
+ * 3:1 for a component's boundary in both schemes, and the teaching frame's rule stays
+ * faint, so "somewhere to write" and "a rule" stop looking like the same mark.
+ */
 .field {
   background: none;
   border: 0;
-  border-bottom: 1px dashed var(--rule);
+  border-bottom: 1px dashed var(--ink-faint);
   color: var(--ink);
   display: block;
   font-family: var(--font-text);
@@ -204,7 +213,7 @@
 .workingField {
   background: transparent;
   border: 0;
-  border-bottom: 1px dashed var(--rule);
+  border-bottom: 1px dashed var(--ink-faint);
   color: var(--ink);
   overflow: hidden;
   padding: 0;

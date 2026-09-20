@@ -125,9 +125,16 @@
   text-decoration: none;
 }
 
-.start:hover,
-.start:focus-visible {
+.start:hover {
   filter: brightness(1.1);
+}
+
+/* The same ring the reveal wears — frame-view.module.css says why a brightness was not one. */
+.start:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--accent);
+  outline: none;
 }
 
 /*
