@@ -1,24 +1,21 @@
 import Link from 'next/link';
 
-/*
- * The composed route's own module, imported into a component that both routes render.
- *
- * It is the only place the address `/read/<track>/<unit>/<lang>/lab/<lab>/<step>` is
- * written down, and one copy of it is worth the reach: the alternative is this file
- * spelling the same path a second time, and two spellings of one address drift the first
- * time a segment moves — silently, because both would still be strings that compile.
- * `baseFor` below makes the same argument from the other direction, which is why its
- * DEFAULT is here rather than being a prop every caller has to remember to pass.
- */
-import { checkOpensAt } from '@/app/read/[track]/[unit]/[lang]/lab/[lab]/resolve.ts';
-import { say } from '@/lib/content/bundle';
+import { say, sectionSpans } from '@/lib/content/bundle';
 import type { Bundle, Step, Unit } from '@/lib/content/schema';
 import { chromeFor } from '@/lib/i18n/chrome';
+import { bookNumberOf } from '@/lib/sheet/number';
 
+import { AnswerLine } from './answer-line.tsx';
+import { Sketch } from './sketch.tsx';
+import { Working } from './working.tsx';
+import { ClearAnswer } from './clear-controls.tsx';
 import { FrameKeys } from './frame-keys.tsx';
 import styles from './frame-view.module.css';
-import { LanguageSwitch } from './language-switch.tsx';
+import { KeysDetails } from './keys-details.tsx';
+import { PlaceRow } from './place-row.tsx';
 import { RememberPosition } from './remember-position.tsx';
+import { RichText } from './rich-text.tsx';
+import { YouWrote } from './you-wrote.tsx';
 
 export interface FrameViewProps {
   readonly bundle: Bundle;
@@ -27,23 +24,6 @@ export interface FrameViewProps {
   readonly language: string;
   /** Present unless this is the last step of the unit. */
   readonly next?: Step;
-  /**
-   * The path a frame number is appended to, in a given language. Defaults to the reading
-   * route, `/read/<track>/<unit>/<lang>`.
-   *
-   * IT IS A PREFIX AND NOT A LIST OF URLS, and that is the shape `FrameKeys` already needs:
-   * the shortcut reads the number off `location.pathname` and appends a new one, so a
-   * component handed whole URLs would be a component holding the next frame's address in
-   * hydrated props. One string covers the reveal, the back link and the keyboard path; one
-   * call per language covers the edition switch, because switching editions keeps the
-   * position and the position is the last segment either way.
-   *
-   * What it exists for is the composed route of UI-UX.md 1.5 — a frame with the lab pane
-   * beside it — where every one of those has to stay inside the composition or the reveal
-   * throws the reader's exercise away. The default is the plain reading route, so a caller
-   * that does not pass it gets exactly what this component did before.
-   */
-  readonly baseFor?: (language: string) => string;
 }
 
 /**
@@ -71,6 +51,20 @@ export interface FrameViewProps {
  * its point would not: a reader with the network tab open would be looking at the answer.
  * Do not remove this to make the reveal feel faster.
  * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE PLACE ROW REPLACES THREE BLOCKS, AND THE LAST FRAME OPENS `/summary` RATHER THAN
+ * ENDING ON A SENTENCE — PR3, and the owner's own "the most important element here is
+ * ultra-good navigation".
+ *
+ * What used to be a crumb (`<p>`), a language switch (`<nav>`) and a rule-and-badge line
+ * (`<div>`) is now `place-row.tsx`'s one row: the id, the title, the section, the edition
+ * and the frame — with the frame number itself the control that jumps to another one. The
+ * three blocks are gone from this file entirely rather than kept beside the new row, on
+ * the same "too much side text unrelated to the frames" complaint that motivated PR3: a
+ * reader does not need the same fact (which frame, which program) said twice in two
+ * different visual registers on the same screen.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export function FrameView({
   bundle,
@@ -78,56 +72,56 @@ export function FrameView({
   step,
   language,
   next,
-  baseFor,
 }: FrameViewProps): React.JSX.Element {
   const track = bundle.track.id;
   const reading = (edition: string): string => `/read/${track}/${unit.id}/${edition}`;
-  const base = baseFor ?? reading;
-  const at = (n: number): string => `${base(language)}/${n}`;
-  const section = unit.sections?.find((candidate) => candidate.id === step.section);
+  const at = (n: number): string => `${reading(language)}/${n}`;
   const chrome = chromeFor(language);
   const forward = next ? at(step.n + 1) : undefined;
   const back = step.n > 1 ? at(step.n - 1) : undefined;
+  const summaryAt = `${reading(language)}/summary`;
 
   /*
-   * THE FRAME'S OWN EXERCISE — issue #55, UI-UX.md 2b.2.
-   *
-   * A step may carry a `check`, which `content-schema.v1.json` defines as "a reference into
-   * labs[], never an exercise body". Both halves of what is offered below come out of that
-   * one object, so nothing can send a reader to the right lab and the wrong exercise: there
-   * is no second source to disagree with.
-   *
-   * `undefined` in three distinct cases, and all three are the same answer — OFFER NOTHING
-   * AND SAY NOTHING, which is issue #55's own first clause:
-   *
-   *   - the step carries no check. Most steps do not, and such a frame must render exactly
-   *     as it did before this existed — no empty slot, no disabled control, no line saying
-   *     there is no exercise here, which is a thing a reader reads and then has to decide
-   *     about.
-   *   - the check names a lab this BUILD does not serve. `validate.ts` reconciles a bundle
-   *     with itself and cannot know what `LABS` holds, so this is reachable with a bundle
-   *     that is perfectly valid; see `labFor` in lib/lab/protocol.ts. A link there would
-   *     404, which is the dead control the issue refuses, arriving by the other door.
-   *   - `opensAt` is the address of the page being rendered, which happens on the composed
-   *     route when the lab already beside this frame is the one the check names. `href` is
-   *     dropped and the sentence stays: the reader is told WHICH exercise without being
-   *     offered a navigation to where they already are. That is not only tidiness — a
-   *     self-link is the one click this change could make that re-enters the composed
-   *     route, and #86 put the lab segment above the step segment precisely so that moving
-   *     within it never discards the file the reader is typing into.
-   *
-   * A check naming an exercise the lab does not have never reaches here at all: the bundle
-   * does not load, `bundleFor` throws, and the route is a 500 with the validator's own
-   * sentence in it. That is the gate the issue asks to see reached.
-   */
-  const check = step.check;
-  const opensAt = check
-    ? checkOpensAt(check, { track, unit: unit.id, language, step: step.n })
-    : undefined;
-  const offer =
-    check && opensAt
-      ? { exercise: check.exercise, href: opensAt === at(step.n) ? undefined : opensAt }
+    The number this frame's answer IS, for the reveal's own comparison — or `undefined`,
+    which is the ordinary case. Computed on the server because that is where the answer
+    already is; see the attribute below for why it never becomes a prop.
+  */
+  const bookNumber = step.answer ? bookNumberOf(say(step.answer, language), language) : undefined;
+
+  const section = unit.sections?.find((candidate) => candidate.id === step.section);
+
+  /*
+    Where a "Next section →" link belongs: the LAST step of a section that is not the
+    program's own last step. sectionSpans() already answers "which heading covers this
+    step and where does it end" for the contents page; reusing it here rather than
+    re-deriving the boundary is what keeps the two pages agreeing about where a section
+    stops without either one copying the other's arithmetic.
+  */
+  const spans = sectionSpans(unit);
+  const currentSpan = spans.find((span) => step.n >= span.from && step.n <= span.to);
+  const nextSpan =
+    currentSpan && step.n === currentSpan.to
+      ? spans[spans.indexOf(currentSpan) + 1]
       : undefined;
+
+  /*
+    ────────────────────────────────────────────────────────────────────────────────────
+    THE CHECK OFFER USED TO BE HERE, AND IT IS GONE WITH THE PYTHON LAB IT POINTED AT.
+
+    A step may still carry a `check` — `content-schema.v1.json` keeps the field and the
+    bundle still fills it for P01's six frames — and this component no longer renders
+    anything for it. The reason is the owner's, not a tidy-up: a frame asks for a number, a
+    word or a line of working, and the reader this book is written for was never told they
+    would need Python. An offer to "work exercise gap in the lab" beside a frame asking
+    which of two numbers is larger is an invitation to leave the loop for a different
+    skill.
+
+    The lab itself is not deleted. It is one line on P01's summary screen
+    (`program-summary.tsx`), reached after the program rather than beside a frame, and
+    described as what it is: optional computer exercises, in Python. That is the only place
+    the word appears on the reading surface.
+    ────────────────────────────────────────────────────────────────────────────────────
+  */
 
   return (
     /*
@@ -150,8 +144,12 @@ export function FrameView({
         (measured). It is handed a path prefix and a count, neither of which changes while a
         reader moves through the program and neither of which is content; see
         frame-keys.tsx for why both halves of that are load-bearing rather than tidy.
+
+        `after` is the summary route, always — it is only ever REACHED past the last step,
+        so handing it in on every frame costs nothing and means this component does not have
+        to know it is rendering the last one to wire the key correctly.
       */}
-      <FrameKeys base={base(language)} last={unit.steps.length} />
+      <FrameKeys after={summaryAt} base={reading(language)} last={unit.steps.length} />
 
       {/*
         The reader's place, in the reader's browser. It renders nothing — no badge, no
@@ -161,37 +159,17 @@ export function FrameView({
       */}
       <RememberPosition language={language} step={step.n} track={track} unit={unit.id} />
 
-      {/*
-        Up, to this program's contents, and across, to the same frame in another edition.
-        Neither carries `prefetch={false}` and the asymmetry with the reveal below is
-        deliberate: a contents page holds headings and frame numbers and no frame's text,
-        and the other edition of THIS frame is a frame the reader has already earned. The
-        reveal is the only link on this page that leads to an answer, and the only one that
-        must not be fetched early.
-      */}
-      <p className={styles.crumb}>
-        {/*
-          `reading(...)`, NOT `base(...)`, and the difference is the whole of what "up"
-          means. The contents is the program, so a reader leaving a frame for it is leaving
-          whatever is sharing the page with that frame as well — which is what makes the
-          crumb the way OUT of the composed route rather than a link that keeps a pane the
-          reader has finished with.
-        */}
-        <Link href={reading(language)}>{say(unit.titles, language)}</Link>
-      </p>
-
-      <LanguageSwitch
-        current={language}
-        hrefFor={(other) => `${base(other)}/${step.n}`}
-        label={chrome.languageLabel}
-        labelLanguage={chrome.language}
-        languages={bundle.track.languages}
+      <PlaceRow
+        chrome={chrome}
+        contentsHrefFor={reading}
+        current={step.n}
+        language={language}
+        last={unit.steps.length}
+        section={section}
+        trackLanguages={bundle.track.languages}
+        unitId={unit.id}
+        unitTitle={say(unit.titles, language)}
       />
-
-      <div className={styles.rule}>
-        <span className={styles.badge}>{step.n}</span>
-        {section ? <span className={styles.section}>{say(section.titles, language)}</span> : null}
-      </div>
 
       {/*
         The answer to the step before this one. It opens the frame because that is where a
@@ -199,93 +177,215 @@ export function FrameView({
         edge to cover — the book's reason for the shape of its own answer box.
       */}
       {step.answer ? (
-        <div className={styles.answer}>
+        /*
+          `data-book-number` IS THE COMPARISON, AND IT IS RENDERED BY THE SERVER.
+
+          It is the whole answer normalised to one printed number, or empty when the answer
+          is not one — which is 92% of them (`lib/sheet/number.ts` has the measurement and
+          the three real answers that a looser rule said "matches" to). `you-wrote.tsx`
+          reads it off this element rather than taking it as a prop, because a prop would
+          serialise it into the HTML of every frame that renders this component and the
+          answer is already on THIS page. The attribute puts it exactly where it already is.
+        */
+        <div className={styles.answer} data-book-number={bookNumber ?? ''}>
           <span className={styles.answerLabel} lang={chrome.language}>
             {chrome.answer}
           </span>
-          <p>{say(step.answer, language)}</p>
+          <RichText language={language} text={say(step.answer, language)} />
+          <YouWrote
+            bookNumber={bookNumber}
+            bundleTag={bundle.tag}
+            chromeLanguage={chrome.language}
+            language={language}
+            matches={chrome.matchesBook}
+            n={step.n}
+            track={track}
+            unit={unit.id}
+            youWrote={chrome.youWrote}
+          />
         </div>
       ) : null}
 
       <div className={styles.body}>
-        <p>{say(step.body, language)}</p>
+        <RichText language={language} text={say(step.body, language)} />
       </div>
 
       {forward ? (
         <>
           {/*
-            The dotted row is `\dotline`: somewhere to write before turning over. It carries
-            no input, and that is a decision rather than an omission — ADR-0009 puts the
-            instrument on the book and never on the reader, and a text box here would be the
-            first place a per-reader record could come from.
+            ──────────────────────────────────────────────────────────────────────────────
+            THE DOTTED ROW IS SOMEWHERE TO WRITE ON A FRAME THAT ASKS, AND A RULE ON ONE
+            THAT DOES NOT.
+
+            It used to carry no input on either, and three places in this repository called
+            that a decision rather than an omission. `answer-line.tsx` records the reversal
+            and why ADR-0009 is not what it was read as; the short form is that the method
+            this product encapsulates is *commit an answer before you turn over*, and a page
+            that asks for a commitment and gives the reader nowhere to make it is asking
+            them to take its word for the mechanism.
+
+            A teaching frame keeps the plain rule. `step.cue` is the book's own mark for
+            "the next frame opens with the answer", so it is exactly the set of frames that
+            ask for something — no guess, and no field on the eight hundred that do not.
+            ──────────────────────────────────────────────────────────────────────────────
           */}
-          <div className={styles.dots} aria-hidden="true" />
           {step.cue ? (
-            <p className={styles.cue} lang={chrome.language}>
-              {chrome.cue}
-            </p>
+            <AnswerLine
+              earlierEdition={chrome.earlierEdition}
+              forward={forward}
+              label={chrome.yourAnswer}
+              language={chrome.language}
+              lockedNote={chrome.writtenBefore}
+              n={step.n}
+              placeholder={chrome.writeItDown}
+              tag={bundle.tag}
+              track={track}
+              unit={unit.id}
+            />
+          ) : (
+            <div className={styles.dots} aria-hidden="true" />
+          )}
+          {/*
+            THE PAD IS ON THE FRAMES THAT ASK AND ON NO OTHER, for the same reason the
+            answer line is: a teaching frame elicits nothing, so a place to work something
+            out beside it is a control with no question. It sits between the line and the
+            reveal because that is the order the reader works in — write, check the
+            arithmetic, turn over — and it is a `<details>`, so it costs one line until
+            somebody wants it.
+          */}
+          {step.cue ? (
+            <Working
+              hint={chrome.workingHint}
+              label={chrome.workingLabel}
+              language={chrome.language}
+              n={step.n}
+              run={chrome.workingRun}
+              summary={chrome.working}
+              tag={bundle.tag}
+              track={track}
+              unit={unit.id}
+            />
+          ) : null}
+          {/*
+            And somewhere to draw, on the same terms. A great many of this book's questions
+            are answered fastest with a picture — a curve's shape, a point on an axis, the
+            region under something — and the answer line above is this pane's text
+            alternative, which is what makes a canvas acceptable on a surface that is
+            otherwise entirely text. Closed until asked for, like the pad; `sketch.tsx`
+            records why it never opens itself.
+          */}
+          {step.cue ? (
+            <Sketch
+              axes={chrome.sketchAxes}
+              clear={chrome.sketchClear}
+              full={chrome.sketchFull}
+              grid={chrome.sketchGrid}
+              label={chrome.sketchLabel}
+              n={step.n}
+              none={chrome.sketchNone}
+              summary={chrome.sketch}
+              tag={bundle.tag}
+              track={track}
+              undo={chrome.sketchUndo}
+              unit={unit.id}
+            />
           ) : null}
           <Link className={styles.reveal} href={forward} lang={chrome.language} prefetch={false}>
             {step.cue ? chrome.reveal : chrome.next}
           </Link>
-          {/*
-            The shortcut, said out loud. A keyboard path nobody is told about is not an
-            ergonomic feature, it is a secret — and this is the line that makes the "read
-            end to end from the keyboard" claim something a reader can act on rather than
-            something a test knows.
-          */}
-          <p className={styles.keys} lang={chrome.language}>
-            {chrome.keys}
-          </p>
         </>
       ) : (
-        <p className={styles.end} lang={chrome.language}>
-          {chrome.lastFrame}
-        </p>
+        /*
+          THE LAST FRAME'S CONTROL IS THE SAME SHAPE AS THE REVEAL, BECAUSE IT IS THE SAME
+          MOVE: opening the next thing. A bare sentence ("That is the last frame of this
+          program.") used to end the
+          reading loop on a full stop; PR3 turns the last frame into a hand-off instead,
+          which is what "leading to the next" in the plan's own words for `/summary` means.
+          `prefetch={false}` on the SAME reasoning as the reveal above: `/summary`'s labels
+          paraphrase what the program concluded, and paraphrase is close enough to answer
+          that this link earns the same restraint.
+        */
+        <Link className={styles.reveal} href={summaryAt} lang={chrome.language} prefetch={false}>
+          {chrome.summaryAndChecklist}
+        </Link>
       )}
 
       {/*
-        AFTER the reveal, never before it, and never between the question and the dots.
-        The dotted row is where a reader writes before turning over, so anything inserted
-        above it is something between the frame and the hand covering it. This is an aside
-        about the frame rather than a step in the ask-and-reveal loop, and a reader takes it
-        once they have engaged with the frame — which on the fixture's worked case is the
-        last frame of the program, where there is no reveal and this is the only control.
+        The shortcut, said out loud — derived from `chrome.keysMap` rather than a second,
+        independently-written sentence, so the one-line hint and the foot's full `Keys`
+        list below can never disagree about what a key does.
 
-        `prefetch={false}`, for a different reason from the reveal's and worth keeping
-        apart from it. Nothing about this link leads to an answer — it addresses THIS step,
-        on a route that renders the same one — so the privacy argument above does not reach
-        it. What does is ADR-0007: the runtime is loaded only when a reader opens the pane,
-        and "a reader who never opens it never pays for it". That ADR's "What it costs,
-        measured in a browser" is what the sentence is worth — the figure is there, with the
-        machine that produced it, rather than restated here where nothing could check it.
-        Prefetching would pull the pane's own code onto every frame that carries a check,
-        for readers who never click.
+        A keyboard path nobody is told about is not an ergonomic feature, it is a secret —
+        and this is the line that makes the "read end to end from the keyboard" claim
+        something a reader can act on rather than something a test knows.
       */}
-      {offer ? (
+      <p
+        className={styles.keys}
         /*
-          `data-testid`, as the DELIBERATE fallback of E2E-ACCEPTANCE-TESTING.md §3 rather
-          than as a shortcut past role-and-name. When the offer is a link it has both and a
-          spec could find it that way; when it is not — the composed route, where the lab is
-          already beside the frame — it is a <p> with no role and no name, which is the case
-          §3 names. And locating it by its TEXT is what a first draft of the spec did: the
-          assertion passed against a build rendering no offer at all, because the exercise is
-          called `gap` and the frame's own answer says "the gap grows with the magnitude".
+          `data-testid` as E2E-ACCEPTANCE-TESTING.md §3's DELIBERATE fallback, not as a
+          shortcut past role-and-name. This line has no role and no accessible name — it is
+          a paragraph of hint text — and the spec that asserts it must find THIS element
+          rather than any element containing an arrow, because the foot's key map contains
+          the same arrows and is always visible where this one is hidden until the handler
+          attaches. Locating it by its words would be a second copy of the string under
+          test, which is exactly what specs/language-switch.spec.ts refuses to do.
         */
-        <p className={styles.check} data-testid="frame-check" lang={chrome.language}>
-          {offer.href ? (
-            <Link className={styles.checkLink} href={offer.href} prefetch={false}>
-              {chrome.checkOffer(offer.exercise)}
-            </Link>
-          ) : (
-            chrome.checkOffer(offer.exercise)
-          )}
-        </p>
-      ) : null}
+        data-testid="frame-keys-hint"
+        lang={chrome.language}
+      >
+        {/*
+          ONE SPAN PER KEY, each revealed by the flag its own island sets — so a teaching
+          frame, which has no answer line, does not offer `Ctrl+Enter`, and no frame offers
+          anything at all until the handlers have hydrated. The separators are inside the
+          spans because a `·` between two hidden segments is a stray dot.
+        */}
+        {chrome.keysMap.map((entry, index) => (
+          <span className={styles.key} data-needs={entry.needs} key={entry.key}>
+            {index > 0 ? ' · ' : null}
+            {entry.key} {entry.does}
+          </span>
+        ))}
+      </p>
 
-      <nav className={styles.foot} lang={chrome.language}>
-        {back ? <Link href={back}>← {chrome.previous}</Link> : <span />}
-        <span>{chrome.position(step.n, unit.steps.length)}</span>
+      <nav aria-label={chrome.footNav} className={styles.foot} lang={chrome.language}>
+        <div className={styles.footLeft}>
+          {back ? (
+            <Link href={back}>← {chrome.previous}</Link>
+          ) : (
+            <Link href={reading(language)}>{chrome.backToContents}</Link>
+          )}
+          {nextSpan ? (
+            <Link className={styles.nextSection} href={at(nextSpan.from)}>
+              {chrome.nextSection}
+            </Link>
+          ) : null}
+          {/*
+            IN THE FOOT, and not beside the answer line. The plan put it in the sketch row,
+            where it would have sat next to `Clear` for the strokes — two controls with the
+            same word and different consequences, side by side. It renders nothing when
+            there is nothing to clear.
+          */}
+          {step.cue ? (
+            <ClearAnswer
+              confirmLabel={chrome.clearAnswerConfirm}
+              label={chrome.clearAnswer}
+              language={chrome.language}
+              n={step.n}
+              track={track}
+              unit={unit.id}
+            />
+          ) : null}
+        </div>
+
+        <div className={styles.footRight}>
+          <span>{chrome.position(step.n, unit.steps.length)}</span>
+          {/*
+            One click away from every frame rather than only from the contents page — a
+            reader who forgets the shortcut mid-program should not have to leave the frame
+            they are on to be reminded of it.
+          */}
+          <KeysDetails chrome={chrome} />
+        </div>
       </nav>
     </article>
   );

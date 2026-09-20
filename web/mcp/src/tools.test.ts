@@ -2,15 +2,18 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
 import { MemoryCursorStore } from './cursor.ts';
-import { bundleFor, say, unitIn } from './content.ts';
+import { fixtureBundles, say, unitIn } from './content.ts';
+import type { Text } from './content.ts';
 import { ANSWER_CONTRACT, SERVER_INSTRUCTIONS, TOOLS, handle } from './tools.ts';
 
 const TRACK = 'math-for-ai-engineers';
 const UNIT = 'P01';
 const LANG = 'en';
 
+const BUNDLES = fixtureBundles();
+
 function program() {
-  const bundle = bundleFor(TRACK);
+  const bundle = BUNDLES.for(TRACK);
   assert.ok(bundle, 'the fixture bundle must load');
   const unit = unitIn(bundle, UNIT);
   assert.ok(unit, 'the fixture must carry P01');
@@ -24,7 +27,33 @@ function answers(): { n: number; text: string }[] {
     .map((step) => ({ n: step.n, text: say(step.answer!, LANG) }));
 }
 
-const deps = () => ({ cursors: new MemoryCursorStore() });
+const deps = () => ({ cursors: new MemoryCursorStore(), bundles: BUNDLES });
+
+/**
+ * EVERY ANSWER-BEARING TEXT IN THE BUNDLE, not only the steps'.
+ *
+ * Schema v2 added two that are not steps: `Route.answer` is Appendix A's answer to a quiz
+ * question, and `Exercise.answer` is required on every Test exercise and Further problem.
+ * The gate in reveal.ts governs `Step.answer` and says NOTHING about either, so whether
+ * they reach a reader is a property of this tool surface alone -- which makes it something
+ * to assert rather than to believe.
+ */
+function everyAnswerInTheBundle(): { label: string; text: string }[] {
+  const found: { label: string; text: string }[] = [];
+  const add = (label: string, text: Text | undefined) => {
+    const written = text?.[LANG];
+    if (written) found.push({ label, text: written });
+  };
+
+  for (const bundle of BUNDLES.all()) {
+    for (const unit of bundle.units) {
+      for (const step of unit.steps) add(`step ${step.n}`, step.answer);
+      for (const route of unit.routes ?? []) add(`route ${route.kind}`, route.answer);
+      for (const exercise of unit.exercises ?? []) add(`exercise ${exercise.kind} ${exercise.n}`, exercise.answer);
+    }
+  }
+  return found;
+}
 
 /** Run the whole tool surface and return everything it said. */
 async function everythingSaid(d: ReturnType<typeof deps>): Promise<string> {
@@ -90,6 +119,33 @@ test('no tool says an unreached answer, at any point in the program', async () =
         d,
       );
       assert.ok(!moved.isError, moved.text);
+    }
+  }
+});
+
+test('the fixture carries the v2 answers this surface must never emit', () => {
+  // Watched in the fixture before it is watched in the output: a leak test with no route
+  // answer and no exercise answer to find would pass forever while both leaked.
+  const labels = everyAnswerInTheBundle().map((a) => a.label);
+  assert.ok(labels.some((l) => l.startsWith('route ')), 'the v2 fixture must carry a route answer');
+  assert.ok(labels.some((l) => l.startsWith('exercise ')), 'the v2 fixture must carry an exercise answer');
+});
+
+test('no quiz or exercise answer is ever emitted, at any cursor', async () => {
+  const d = deps();
+  await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
+
+  const offLimits = everyAnswerInTheBundle().filter((a) => !a.label.startsWith('step '));
+  assert.ok(offLimits.length > 0);
+
+  const total = program().steps.length;
+  for (let furthest = 1; furthest <= total; furthest += 1) {
+    const said = await everythingSaid(d);
+    for (const answer of offLimits) {
+      assert.ok(!said.includes(answer.text), `${answer.label} was emitted to the reader`);
+    }
+    if (furthest < total) {
+      await handle('submit_answer', { track: TRACK, unit: UNIT, answer: 'the reader wrote this' }, d);
     }
   }
 });

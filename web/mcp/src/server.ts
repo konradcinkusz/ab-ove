@@ -20,6 +20,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 
 import { ApiCursorStore, MemoryCursorStore } from './cursor.ts';
 import type { CursorStore } from './cursor.ts';
+import { liveBundles } from './content.ts';
 import { SERVER_INSTRUCTIONS, TOOLS, handle } from './tools.ts';
 
 export function createServer(cursors: CursorStore): Server {
@@ -47,7 +48,7 @@ export function createServer(cursors: CursorStore): Server {
     const result = await handle(
       request.params.name,
       (request.params.arguments ?? {}) as Record<string, unknown>,
-      { cursors },
+      { cursors, bundles: liveBundles },
     );
 
     return {

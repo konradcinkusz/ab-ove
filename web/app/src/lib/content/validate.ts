@@ -32,9 +32,31 @@
  * check in that repository, because each of them compared the two editions and both
  * editions said 91–93.
  */
-import schemaDocument from './content-schema.v1.json' with { type: 'json' };
+import schemaV1 from './content-schema.v1.json' with { type: 'json' };
+import schemaV2 from './content-schema.v2.json' with { type: 'json' };
 
-import { SCHEMA_VERSION, type Bundle, type Lab } from './schema.ts';
+import { SUPPORTED_VERSIONS, type Bundle, type Lab, type SchemaVersion } from './schema.ts';
+
+/**
+ * The document each version is checked against.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE VERSION PICKS THE DOCUMENT, WHICH IS WHY THERE ARE TWO OF THEM.
+ *
+ * This validator implements a subset of JSON Schema and refuses any document using a keyword
+ * outside it, precisely so a rule written in an ignored keyword cannot silently do nothing.
+ * `if`/`then`/`allOf` are not in the subset, so "v2 requires a quiz route to carry its
+ * question" is not expressible in one shared document at all — and widening the validator to
+ * make it expressible would widen what every other rule may quietly lean on.
+ *
+ * The consequence worth stating: **a v1 bundle takes exactly the path it always took**, and
+ * that is what makes reading two versions safe to ship before any v2 bundle exists.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+const DOCUMENTS: Readonly<Record<SchemaVersion, Schema>> = {
+  1: schemaV1 as unknown as Schema,
+  2: schemaV2 as unknown as Schema,
+};
 
 /** One thing wrong, at one place. `path` is a JSON pointer into the bundle. */
 export interface Problem {
@@ -372,13 +394,71 @@ function checkStructure(bundle: Bundle): Problem[] {
     for (const [routeIndex, route] of (unit.routes ?? []).entries()) {
       const routeAt = `${at}/routes/${routeIndex}`;
       if (route.labels) problems.push(...checkText(route.labels, languages, `${routeAt}/labels`));
+      if (route.answer) problems.push(...checkText(route.answer, languages, `${routeAt}/answer`));
       if (route.to < route.from) {
         problems.push({ path: routeAt, message: `runs backwards: ${route.from} to ${route.to}` });
       }
       if (route.from > lastStep || route.to > lastStep) {
         problems.push({ path: routeAt, message: `routes to ${route.from}–${route.to} in a unit with ${lastStep} step(s)` });
       }
+
+      /*
+        A QUIZ ROUTE OF A v2 BUNDLE CARRIES ITS QUESTION AND ITS ANSWER.
+
+        Not in the document, because this validator implements no `if`/`then` and a rule
+        written in a keyword it ignores is a rule that silently does nothing. Here instead,
+        beside the section ascent, which is not expressible there either and for the same
+        kind of reason.
+
+        WHY IT IS A RULE AND NOT A FIELD NOBODY FILLS: on the served v1 bundle all 279
+        outcome routes and all 763 summary routes carry labels and all 370 quiz routes carry
+        none, so the one instrument the book asks a reader to use BEFORE a program is the one
+        thing a bundle cannot render. A v2 that let that repeat would have changed nothing
+        about the defect it exists to fix.
+      */
+      if (bundle.schemaVersion >= 2 && route.kind === 'quiz') {
+        if (!route.labels) {
+          problems.push({
+            path: `${routeAt}/labels`,
+            message: 'a quiz route carries its question in schema 2, and this one carries none',
+          });
+        }
+        if (!route.answer) {
+          problems.push({
+            path: `${routeAt}/answer`,
+            message: 'a quiz route carries its answer in schema 2, and this one carries none',
+          });
+        }
+      }
     }
+
+    /*
+      THE EXERCISES ASCEND WITHIN THEIR KIND, which is the sections' rule one array over. A
+      reader is told to work Test exercise 4, so the numbers are the reader's index into the
+      list, and a repeat or a step backwards is a list that cannot be navigated. JSON Schema
+      cannot compare an item with the one before it, so it is here.
+
+      Within KIND rather than across the array, because the book numbers the two lists from 1
+      independently: Test exercise 1 and Further problem 1 both exist and are different
+      questions.
+    */
+    const lastOfKind = new Map<string, number>();
+    for (const [exerciseIndex, exercise] of (unit.exercises ?? []).entries()) {
+      const exerciseAt = `${at}/exercises/${exerciseIndex}`;
+      problems.push(...checkText(exercise.body, languages, `${exerciseAt}/body`));
+      problems.push(...checkText(exercise.answer, languages, `${exerciseAt}/answer`));
+
+      const previous = lastOfKind.get(exercise.kind);
+      if (previous !== undefined && exercise.n <= previous) {
+        problems.push({
+          path: `${exerciseAt}/n`,
+          message: `is ${exercise.n}, which is not after the previous ${exercise.kind} exercise's ${previous}`,
+        });
+      }
+      lastOfKind.set(exercise.kind, exercise.n);
+    }
+
+    if (unit.part) problems.push(...checkText(unit.part.titles, languages, `${at}/part/titles`));
   });
 
   return problems;
@@ -392,7 +472,36 @@ function checkStructure(bundle: Bundle): Problem[] {
  * it over a malformed bundle reports the same defect a second time in a less useful place.
  */
 export function validateBundle(value: Json): ValidationResult {
-  return validateAgainst(schemaDocument as unknown as Schema, value);
+  /*
+    THE VERSION IS READ BEFORE THE SHAPE, WHICH IS THE ONE ORDERING THIS FILE OTHERWISE
+    FORBIDS — and it is read defensively rather than trusted.
+
+    Everything else here refuses to look at a field before the shape has been checked, for
+    the reason `validateAgainst` states: a rule stated over fields it assumes are present
+    reports the same defect twice in a less useful place. This cannot follow that rule,
+    because WHICH shape to check is the question. So it reads one property, accepts only a
+    member of `SUPPORTED_VERSIONS`, and refuses anything else with the version it found —
+    including a bundle from a newer compiler, which must be refused rather than rendered in
+    part.
+  */
+  const declared = (value as { schemaVersion?: unknown } | null)?.schemaVersion;
+  const version = SUPPORTED_VERSIONS.find((candidate) => candidate === declared);
+
+  if (version === undefined) {
+    return {
+      ok: false,
+      problems: [
+        {
+          path: '/schemaVersion',
+          message:
+            `this application reads schema ${SUPPORTED_VERSIONS.join(' and ')}, and this bundle ` +
+            `declares ${JSON.stringify(declared) ?? 'nothing'}`,
+        },
+      ],
+    };
+  }
+
+  return validateAgainst(DOCUMENTS[version], value);
 }
 
 /**
@@ -434,13 +543,18 @@ export function validateAgainst(root: Schema, value: Json): ValidationResult {
   if (problems.length > 0) return { ok: false, problems };
 
   const bundle = value as Bundle;
-  if (bundle.schemaVersion !== SCHEMA_VERSION) {
-    // Unreachable while the schema pins `const: 1`, and stated anyway: this is the sentence
-    // that has to change when version 2 exists, and a bundle from a newer compiler must be
-    // refused rather than rendered in part.
+  if (!SUPPORTED_VERSIONS.some((candidate) => candidate === bundle.schemaVersion)) {
+    // Unreachable through `validateBundle`, which chose the document by this field, and
+    // unreachable through each document's own `const`. Kept because `validateAgainst` is
+    // exported and may be handed a schema that pins no version at all.
     return {
       ok: false,
-      problems: [{ path: '/schemaVersion', message: `this application reads schema version ${SCHEMA_VERSION}` }],
+      problems: [
+        {
+          path: '/schemaVersion',
+          message: `this application reads schema ${SUPPORTED_VERSIONS.join(' and ')}`,
+        },
+      ],
     };
   }
 

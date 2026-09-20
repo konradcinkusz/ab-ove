@@ -1,6 +1,15 @@
 import { expect, test, type Page, type Request } from '@playwright/test';
 
 import { CHECK_NAMES, REGION_NAMES, stubWithSolvedRegion } from './support/lab.js';
+import { served, track } from './support/bundle.js';
+// SEEDING CONSENT MEANS SEEDING THE VERSION THE PRODUCT ACCEPTS TODAY, so the constant
+// is imported across the package boundary rather than copied as a `2`. The store treats a
+// stale version as never-answered, so a literal here would not fail loudly on the next
+// bump -- it would quietly re-invite, every seeded reader would count as undecided, and
+// the four tests that require a report would go red for a reason that names none of this.
+// `lib/consent/store.ts` imports nothing itself, which is what makes reaching into the web
+// package from the e2e package safe here.
+import { CONSENT_VERSION } from '../../../web/app/src/lib/consent/store.ts';
 
 /**
  * JOURNEY — the instrument, which a reader is entitled never to notice.
@@ -93,14 +102,23 @@ async function collectOutcomes(page: Page): Promise<Request[]> {
  * than clearing, and no test in this file navigates twice, so re-running is a no-op.
  */
 async function seedConsent(page: Page, consent: 'granted' | 'declined'): Promise<void> {
+  // THE VERSION IS AN ARGUMENT AND NOT A CLOSURE, and the distinction cost a run. The
+  // callback is serialised and executed IN THE BROWSER, where nothing this module imported
+  // exists -- a Node-side `CONSENT_VERSION` referenced here is `ReferenceError: not
+  // defined` inside the page, which surfaced as six unrelated-looking `@core` failures.
+  // Typechecking the import proves it resolves in Node and says nothing about the page.
   await page.addInitScript(
-    ([key, answer]) => {
+    ([key, answer, version]) => {
       window.localStorage.setItem(
         key as string,
-        JSON.stringify({ version: 1, consent: answer, decidedAt: '2026-01-01T00:00:00.000Z' }),
+        JSON.stringify({
+          version,
+          consent: answer,
+          decidedAt: '2026-01-01T00:00:00.000Z',
+        }),
       );
     },
-    [CONSENT_KEY, consent] as const,
+    [CONSENT_KEY, consent, CONSENT_VERSION] as const,
   );
 }
 
@@ -295,5 +313,203 @@ test.describe('the reader never learns the instrument exists', () => {
 
     await expect(pane(page).output).toContainText(`ok    ${GAP_CHECK}`);
     expect(failures).toEqual([]);
+  });
+});
+
+/*
+  ────────────────────────────────────────────────────────────────────────────────────────
+  THE SECOND INSTRUMENT. Everything above this line is the Python lab, which reaches one
+  program of forty-seven. A worksheet answer reaches every program that asks a question, so
+  it is the source the tally will mostly be made of — and it had no acceptance coverage at
+  all until these, which is the one thing a PR about contributing to the tally may not ship
+  without.
+
+  WHAT IS BEING PINNED HERE IS A MEASUREMENT DECISION, NOT A FEATURE. ADR-0045: a blank
+  reveal and a wrong answer fail the SAME cell, and neither is reported on a frame whose
+  answer is not one printed number. Both halves exist to stop a check that can only ever
+  fail — whose rate is then 0% however the book is written, which is not a measurement —
+  and the second half is the one nothing else would catch: it is an absence.
+  ────────────────────────────────────────────────────────────────────────────────────────
+*/
+
+/** The report bodies seen so far, oldest first. */
+const bodiesOf = (seen: Request[]): Record<string, unknown>[] =>
+  seen.map((request) => JSON.parse(request.postData() ?? 'null') as Record<string, unknown>);
+
+/**
+ * A pair of frames whose second carries a bare-number answer, and one whose second does not.
+ *
+ * FOUND IN THE SERVED BUNDLE RATHER THAN WRITTEN DOWN, because which frames are verdict-able
+ * is a property of the book and changes when the pin moves. A hard-coded `F01/23` would go
+ * green against the wrong frame on the next bump and assert nothing.
+ */
+function pairs(): {
+  readonly unit: string;
+  readonly numeric: { asks: number; answers: number; number: string };
+  readonly prose: { asks: number; answers: number };
+} {
+  for (const unit of served.units) {
+    let numeric: { asks: number; answers: number; number: string } | undefined;
+    let prose: { asks: number; answers: number } | undefined;
+
+    for (let index = 0; index < unit.steps.length - 1; index += 1) {
+      const asking = unit.steps[index]!;
+      const answering = unit.steps[index + 1]!;
+      if (!asking.cue || !answering.answer?.en) continue;
+
+      // The server's own rule at its simplest: the WHOLE answer is one printed number.
+      const bare = /^\$\s*(-?\d+(?:\.\d+)?)\s*\$$/.exec(answering.answer.en);
+      if (bare?.[1]) {
+        numeric ??= { asks: asking.n, answers: answering.n, number: bare[1] };
+      } else if (answering.answer.en.length > 30) {
+        // Comfortably prose, so no rule change could quietly make it verdict-able and turn
+        // the absence test below into a tautology about a borderline case.
+        prose ??= { asks: asking.n, answers: answering.n };
+      }
+
+      if (numeric && prose) return { unit: unit.id, numeric, prose };
+    }
+  }
+  throw new Error('no unit carries both a bare-number answer and a prose one');
+}
+
+const PAIRS = pairs();
+const readAt = (n: number): string => `/read/${track}/${PAIRS.unit}/en/${n}`;
+const answerLine = (page: Page) => page.getByRole('textbox', { name: /your answer/i });
+
+/**
+ * Write on the asking frame, then reveal, then let the report go out.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THROUGH THE CONTROL, NEVER THE URL, and a first draft used `page.goto` and measured zero
+ * reports on an answer that matches.
+ *
+ * The answer line writes on a 250 ms debounce and synchronously on the way through the
+ * reveal link. A `goto` fires neither: the navigation beats the debounce, the sheet is never
+ * written, and the reveal then correctly reports nothing because there is nothing there. The
+ * product was right and the instrument was wrong — which is why the two absence tests below
+ * are worthless on their own. They passed against this bug.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+async function writeAndReveal(page: Page, asks: number, text: string | null): Promise<void> {
+  await page.goto(readAt(asks));
+
+  if (text === null) {
+    // A SHEET WITH NOTHING IN IT, which is what a blank reveal means: the reader engaged --
+    // opened the pad -- and committed no answer. With no sheet at all nothing is reported,
+    // which is the pen-and-paper reader the book prescribes and is its own test below.
+    await page.getByRole('group').filter({ hasText: 'Working' }).first().locator('summary').click();
+    await page.getByRole('textbox', { name: /your working/i }).fill('2 + 2');
+  } else {
+    await answerLine(page).fill(text);
+  }
+
+  await page.getByRole('link', { name: /reveal the answer/i }).click();
+  await page.waitForURL(`**/${asks + 1}`);
+  await settle(page);
+}
+
+test.describe('the worksheet contributes too', () => {
+  test('an answer that matches the book is reported against its own frame @smoke', async ({
+    page,
+  }) => {
+    await seedConsent(page, 'granted');
+    const seen = await collectOutcomes(page);
+
+    await writeAndReveal(page, PAIRS.numeric.asks, PAIRS.numeric.number);
+
+    const bodies = bodiesOf(seen);
+    expect(bodies.length, 'the reveal reported nothing').toBeGreaterThan(0);
+
+    const report = bodies[0]!;
+    // THE FRAME IS THE ONE THAT ASKED, not the one being read. The answer belongs to the
+    // question, and the whole return index of the book is built on that distinction.
+    expect(report['step']).toBe(PAIRS.numeric.asks);
+    expect(report['unit']).toBe(PAIRS.unit);
+    expect(report['attempt']).toBe(1);
+
+    const results = report['results'] as { check: string; passed: boolean }[];
+    expect(results).toHaveLength(1);
+    // The frame is IN the name, which is what stops the teaching score collapsing into the
+    // measure it exists to counterbalance -- ADR-0045 §2 has the arithmetic.
+    expect(results[0]!.check).toBe(`answer-${PAIRS.numeric.asks}`);
+    expect(results[0]!.passed).toBe(true);
+  });
+
+  test('a wrong answer and a blank reveal fail the SAME cell @smoke', async ({ page }) => {
+    /*
+      THE FOLD, WHICH IS ADR-0045's CENTRAL DECISION, ASSERTED AS ONE CHECK NAME.
+
+      A draft filed the blank under `revealed-blank-<n>`. Every report under that name would
+      have carried `passed: false`, so its rate was 0% by construction -- and on the eleven
+      frames of P01 where a lab check and a cue frame coincide it would have dragged the
+      frame's first-attempt measure down because a reader declined to type.
+    */
+    await seedConsent(page, 'granted');
+    const seen = await collectOutcomes(page);
+
+    await writeAndReveal(page, PAIRS.numeric.asks, 'definitely not the number');
+    const wrong = bodiesOf(seen).at(-1)!;
+
+    await page.context().clearCookies();
+    await page.evaluate(() => window.localStorage.clear());
+    await seedConsent(page, 'granted');
+    const before = seen.length;
+
+    await writeAndReveal(page, PAIRS.numeric.asks, null);
+    const blank = bodiesOf(seen).slice(before).at(-1);
+
+    const wrongResults = wrong['results'] as { check: string; passed: boolean }[];
+    expect(wrongResults[0]!.passed).toBe(false);
+
+    expect(blank, 'a reveal with a sheet and an empty line reported nothing').toBeDefined();
+    const blankResults = blank!['results'] as { check: string; passed: boolean }[];
+    expect(blankResults[0]!.passed).toBe(false);
+
+    // ONE NAME. If these ever differ, the 0%-by-construction cell is back.
+    expect(blankResults[0]!.check).toBe(wrongResults[0]!.check);
+  });
+
+  test('a frame whose answer is not a number is not reported at all @core', async ({ page }) => {
+    /*
+      AN ABSENCE, AND THE ONE ASSERTION HERE THAT NOTHING ELSE COULD MAKE.
+
+      MUTATION-TESTED, because an absence passes against a product that reports nothing at
+      all -- which this suite's own header records, and which these very tests did while the
+      helper above was navigating by URL. Deleting `if (bookNumber === undefined) return;`
+      from `you-wrote.tsx` and rebuilding fails THIS test and only this test; the three
+      around it stay green. So it is load-bearing and it is not redundant with them.
+
+      On a prose frame `matchesBook` is false for "the reader is wrong" and for "there is
+      nothing to compare" alike -- deliberately, since ADR-0039 forbids a negative verdict.
+      So a cell there could only ever fail, which is the defect the fold above removes,
+      arriving by the other door. The gate is that nothing is sent.
+    */
+    await seedConsent(page, 'granted');
+    const seen = await collectOutcomes(page);
+
+    await writeAndReveal(page, PAIRS.prose.asks, 'an answer in words, written in good faith');
+
+    expect(
+      bodiesOf(seen).filter((body) => body['step'] === PAIRS.prose.asks),
+      'a frame with no printed number to compare against reported an outcome anyway',
+    ).toEqual([]);
+  });
+
+  test('a reader who writes nothing anywhere contributes nothing @core', async ({ page }) => {
+    // The book prescribes pen and paper. A reader who answers on paper and reveals has no
+    // sheet here, and counting that would measure their habit rather than the book -- it is
+    // also the one case that cannot be deduplicated, so every re-read would report again.
+    await seedConsent(page, 'granted');
+    const seen = await collectOutcomes(page);
+
+    await page.goto(readAt(PAIRS.numeric.asks));
+    // The control, so this is the same journey as the tests above with the writing removed.
+    // Navigating by URL would leave it passing for the reason the helper above records.
+    await page.getByRole('link', { name: /reveal the answer/i }).click();
+    await page.waitForURL(`**/${PAIRS.numeric.asks + 1}`);
+    await settle(page);
+
+    expect(bodiesOf(seen)).toEqual([]);
   });
 });

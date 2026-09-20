@@ -7,6 +7,13 @@ import {
 } from './support/service-info.js';
 
 /**
+ * The panel is on `/about` since ADR-0036, which moved the product's argument off the
+ * landing page and took the one live thing on it along. Nothing else about this journey
+ * changed: it is the same component, asking this app's own origin the same question, and
+ * P8 is still the property under test.
+ */
+
+/**
  * JOURNEY 3 — the integration report, which is P8 seen from a browser.
  *
  * P8 asks that a degraded deployment be LEGIBLE, not merely correct: a service can degrade
@@ -33,7 +40,7 @@ test.describe('integration report', () => {
     page,
   }) => {
     await serveServiceInfo(page, SAMPLE_SERVICE_INFO);
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     await expect(report).toBeVisible();
@@ -76,7 +83,7 @@ test.describe('integration report', () => {
 
   test('names the service and version it read the report from @core', async ({ page }) => {
     await serveServiceInfo(page, SAMPLE_SERVICE_INFO);
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
 
@@ -93,7 +100,7 @@ test.describe('integration report', () => {
 
   test('says so plainly when the API reports no optional integrations @core', async ({ page }) => {
     await serveServiceInfo(page, { ...SAMPLE_SERVICE_INFO, integrations: [] });
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     await expect(report).toContainText('The API answered and reports no optional integrations.');
@@ -117,7 +124,7 @@ test.describe('integration report', () => {
       }),
     );
 
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     await expect(report).toContainText('The API answered in a shape this page did not expect.');
@@ -148,7 +155,7 @@ test.describe('integration report', () => {
     // sleep.
     test.setTimeout(120_000);
 
-    await page.goto('/');
+    await page.goto('/about');
 
     const report = page.getByRole('region', { name: 'Integration report' });
     await expect(report).toBeVisible();

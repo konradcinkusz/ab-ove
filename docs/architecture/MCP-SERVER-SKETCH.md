@@ -1,9 +1,9 @@
 # The MCP server — a sketch, and what is built so far
 
 **Status: a sketch with a working core.** `web/mcp` builds, typechecks and passes its unit
-tier; it speaks MCP over stdio against a checkout. **Nothing is deployed** (AGENTS.md #2),
-there is no HTTP transport and no OAuth, and the content it serves is still the fixture
-bundle (ADR-0008's real one is blocked on the book publishing a release).
+tier; it speaks MCP over stdio against a checkout, serving the real forty-seven-program
+bundle compiled at the pinned revision. **Nothing is deployed** (AGENTS.md #2), and there is
+no HTTP transport and no OAuth.
 
 ---
 
@@ -49,6 +49,22 @@ stale client rewinding a reader and re-exposing an answer they had already earne
 **That dependency is load-bearing:** if furthest-wins ever became last-write-wins, this gate
 silently stops holding. `web/mcp/src/cursor.test.ts` asserts the rule here too, so the
 coupling fails loudly rather than quietly.
+
+### Two answer-bearing fields the gate does NOT govern
+
+Schema v2 added `Route.answer` — Appendix A's answer to a quiz question — and
+`Exercise.answer`, required on every Test exercise and Further problem. Neither is a step,
+so `reveal.ts` says nothing about either: they are answers to work the reader has not done,
+and whether they escape is a property of **this tool surface alone**.
+
+The surface emits neither, and that is asserted rather than believed. `tools.test.ts`
+collects every answer-bearing text in the bundle — steps, routes and exercises — and checks
+the non-step ones never appear at any cursor position. The unit tier runs against the **v2**
+fixture for exactly this reason: the v1 fixture carries neither field, so a leak test
+written against it would pass by having nothing to leak.
+
+Watched failing: making `render()` emit the unit's exercise answers turns that test red and
+only that test.
 
 ### Why this is not the DOM assertion wearing a new hat
 
@@ -132,9 +148,26 @@ local-first and versioned (ADR-0022) and an MCP host has no `localStorage` to ho
 this server records nothing an instrument could read, and closing that gap is its own
 design problem rather than a line of code.
 
-**No answers persisted.** What the reader wrote is echoed and dropped. Keeping it would be
-reader-generated content in a store built to hold a place and not a history —
-`ReaderProgress` is documented as deliberately not an audit log.
+**No answers persisted, and no verdict.** What the reader wrote is echoed and dropped.
+
+This is narrower than the reading surface, and [ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)
+is the decision to read it against. That ADR splits the answer line into two things: the
+**commitment** — the reader writes before the reveal — and the **worksheet**, the stored
+text plus one flag saying it was committed before the reveal.
+
+This transport implements the commitment and not the worksheet. The commitment is what the
+gate is: `submit_answer` is the only thing that advances and it requires the reader's text.
+The worksheet it does not keep, because `ReaderProgress` holds a place and not a history,
+and ADR-0039's store is the reader's own local one — which an MCP host does not have. A
+reader who works some frames here and some in the browser will find their place synchronised
+and their written lines only in the browser. That is a real gap, named rather than papered
+over.
+
+On verdicts, ADR-0039 is a **ceiling and not a floor**: *"The machine may say 'matches the
+book'. It may never say anything else."* This server says nothing at all, which is inside
+it. Saying "matches" here would need the normalised `data-book-number` the surface renders on
+frame n+1, and the hand-reviewed verdict-able fixture that ADR-0039 requires a person to
+re-read when a bundle bump moves a frame in or out of it.
 
 **No database access.** `AbOvo.Api` registers `ReaderScopedQueries`, which throws on a query
 over `ReaderProgress` that does not pin one `Subject`. A client with its own connection
@@ -177,8 +210,10 @@ divergence the kit exists to prevent has somewhere to start.
   question and it is the book's to answer, not this repository's (ADR-0033). The book's
   `LICENSE-CONTENT` still carries its undecided block, and neither of its licence files
   names `lab/` or `figures/values/`.
-- **Real content.** The bundle here is the fixture. The book's compiler and its release
-  wiring exist; no tag has been pushed since they landed, so no bundle has been attached.
+- **Schema version.** The book's compiler at the pinned revision emits a v1 bundle; the
+  application supports v1 and v2. Nothing here depends on the difference — `Step.answer`
+  means the same in both — but the leak assertion above needs a v2 shape, which is why the
+  unit tier reads the v2 fixture rather than what `bundleFor()` currently serves.
 
 ---
 
@@ -191,8 +226,11 @@ pnpm --dir web -r test
 ```
 
 The unit tier needs no network, no database and no deployment: the gate is pure functions
-and the tool surface runs against the fixture bundle through an in-memory cursor (P13 —
-test at the layer with the logic).
+and the tool surface runs against the committed fixture through an in-memory cursor (P13 —
+test at the layer with the logic). The fixture is **injected**, not fetched — `Deps.bundles`
+is a `BundleSource`, because `bundleFor()` deliberately never serves a fixture and throws
+when the compiled bundle has not been fetched. `bash scripts/fetch-book-content.sh` is what
+the running server needs; the tests do not.
 
 To drive the real protocol over stdio:
 

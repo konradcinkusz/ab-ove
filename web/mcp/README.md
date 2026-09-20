@@ -20,9 +20,15 @@ That is `src/reveal.ts`, and it is the whole product. Everything else here is tr
 ## Running it
 
 ```bash
+bash scripts/fetch-book-content.sh   # once per clone: compiles the real bundle
 pnpm --dir web install
 node web/mcp/src/server.ts
 ```
+
+The fetch is not optional for the *server*: `bundleFor()` throws rather than falling back to
+a fixture, because silently substituting a four-frame fixture for the forty-seven-program
+book is the "looks finished and is not" failure this repository refuses everywhere. The
+*tests* need none of it — they inject the committed fixture instead.
 
 With `AB_OVO_API_URL` and `AB_OVO_READER_TOKEN` set, the reader's place is kept in
 `ReaderProgress` through `AbOvo.Api`. With either missing it is kept in memory and forgotten

@@ -44,14 +44,20 @@ const invitation = (page: import('@playwright/test').Page) =>
 
 test.describe('the ask', () => {
   test('a reader who has never answered is invited, once, at the end @smoke', async ({ page }) => {
-    await page.goto('/read');
+    await page.goto('/');
 
     await expect(invitation(page)).toBeVisible();
 
     // What is being agreed to is ON the panel, concretely. "Opt-in" means nothing if the
     // thing opted into is described as "usage data".
     const panel = page.locator('section', { has: invitation(page) });
-    await expect(panel).toContainText('what a check run said');
+    await expect(panel).toContainText('whether your answer matched the book');
+    // The half the reader cares about most, and the one the version bump was for: a
+    // worksheet answer is a new kind of contribution, so the panel has to say that the
+    // words themselves do not travel. Asserted separately from the sentence above,
+    // because a rewrite that kept the first clause and dropped this one would be the
+    // exact regression ADR-0022 requires a re-consent for.
+    await expect(panel).toContainText('your words stay in this browser');
     await expect(panel).toContainText('not a column, not a hash, not a join away');
     // The sentence that makes declining safe to do.
     await expect(panel).toContainText('You will not be asked again');
@@ -73,7 +79,7 @@ test.describe('the ask', () => {
      * resolved rather than what the stylesheet says, so a rule reaching these from anywhere
      * is caught.
      */
-    await page.goto('/read');
+    await page.goto('/');
 
     const grant = page.getByRole('button', { name: /Yes, use my outcomes/i });
     const decline = page.getByRole('button', { name: /No thanks/i });
@@ -110,7 +116,7 @@ test.describe('the ask', () => {
 
 test.describe('declining, and being left alone', () => {
   test('declining takes one click and asks nothing further @smoke', async ({ page }) => {
-    await page.goto('/read');
+    await page.goto('/');
     await page.getByRole('button', { name: /No thanks/i }).click();
 
     // No "are you sure". The panel is gone the moment it is answered.
@@ -119,7 +125,7 @@ test.describe('declining, and being left alone', () => {
   });
 
   test('it does not come back on the next page, or on a reload @smoke', async ({ page }) => {
-    await page.goto('/read');
+    await page.goto('/');
     await page.getByRole('button', { name: /No thanks/i }).click();
     await expect(invitation(page)).toHaveCount(0);
 
@@ -128,7 +134,7 @@ test.describe('declining, and being left alone', () => {
     await expect(invitation(page)).toHaveCount(0);
 
     // And back, which is the one that catches a component remounting into `undecided`.
-    await page.goto('/read');
+    await page.goto('/');
     await expect(invitation(page)).toHaveCount(0);
 
     await page.reload();
@@ -141,7 +147,7 @@ test.describe('declining, and being left alone', () => {
      * state rather than against a list of features somebody remembered to check — a list
      * would go stale the first time a control is added, and would go stale silently.
      */
-    await page.goto('/read');
+    await page.goto('/');
     await page.getByRole('button', { name: /Yes, use my outcomes/i }).click();
     const granted = await page
       .locator('main')
@@ -164,7 +170,7 @@ test.describe('declining, and being left alone', () => {
 
 test.describe('the durable control', () => {
   test('an answer can be changed in both directions @core', async ({ page }) => {
-    await page.goto('/read');
+    await page.goto('/');
     await page.getByRole('button', { name: /No thanks/i }).click();
 
     await expect(page.getByText('You are not contributing')).toBeVisible();
@@ -180,8 +186,51 @@ test.describe('the durable control', () => {
     await expect(page.getByText('It cannot take back an outcome already counted')).toHaveCount(0);
   });
 
+  test('a reader who agreed to the old tally is asked again @smoke', async ({ page }) => {
+    /*
+      ──────────────────────────────────────────────────────────────────────────────────
+      ISSUE #14'S OWN SENTENCE, EXECUTED: *consent to one thing is not consent to the next
+      thing.*
+
+      Version 1 was a tally over Python checks in one lab, reached from one program of
+      forty-seven. Version 2 is the worksheet, on every frame in the book that asks the
+      reader for something. The rows carry no more about a reader than they did — no
+      identifier, and never what was written — but they come from somewhere else and from
+      far more frames, and a reader who agreed to the first did not thereby agree to the
+      second.
+
+      Seeded as a GRANT, because that is the case where getting this wrong costs something:
+      a stale decline contributes nothing either way, and a stale grant would go on sending
+      under an answer nobody gave. Asserted from the browser rather than from the store,
+      because what matters is that the reader is asked.
+      ──────────────────────────────────────────────────────────────────────────────────
+    */
+    await page.addInitScript(
+      ([key, record]) => window.localStorage.setItem(key as string, record as string),
+      [
+        KEY,
+        JSON.stringify({ version: 1, consent: 'granted', decidedAt: '2026-01-01T00:00:00.000Z' }),
+      ],
+    );
+
+    await page.goto('/');
+
+    await expect(
+      invitation(page),
+      'a reader who agreed to the lab tally was not asked about the worksheet one',
+    ).toBeVisible();
+    await expect(
+      page.getByText('You are helping measure the book'),
+      'the old answer is being honoured for a question it was not asked',
+    ).toHaveCount(0);
+
+    // And the invitation says what actually changed, rather than repeating the old text.
+    await expect(page.getByText(/whether your answer matched/i)).toBeVisible();
+    await expect(page.getByText(/your words stay in this browser/i)).toBeVisible();
+  });
+
   test('the answer persists across a reload @core', async ({ page }) => {
-    await page.goto('/read');
+    await page.goto('/');
     await page.getByRole('button', { name: /Yes, use my outcomes/i }).click();
     await expect(page.getByText('You are helping measure the book')).toBeVisible();
 
@@ -199,7 +248,7 @@ test('nothing is asked or stored before the reader answers @smoke', async ({ pag
    * proves the different thing a reader would check: that merely looking at the page has
    * not recorded an answer on their behalf.
    */
-  await page.goto('/read');
+  await page.goto('/');
   await expect(invitation(page)).toBeVisible();
 
   const stored = await page.evaluate((key) => window.localStorage.getItem(key as string), KEY);

@@ -17,6 +17,22 @@ It exercises every shape the validator checks: both declared languages throughou
 section anchors, a cue paired with the answer that opens the next step, a step with
 neither, a check into `labs[]`, and all three route kinds.
 
+## `book-p01.v2.bundle.json`
+
+The same four steps at **schema version 2**, so both versions have something the validator can
+be watched accepting and refusing. It is the v1 fixture plus exactly what v2 adds: an `answer`
+on the quiz route, a `part`, and three exercises.
+
+**The three are two `test` and one `further`, and that is deliberate rather than decorative.**
+The exercises ascend within a kind and the two kinds are numbered from 1 independently, which
+is what the book does — so a fixture carrying `test` 1, `test` 2 and `further` 1 is refused by
+a validator that got the rule wrong in the obvious way, and accepted by one that got it right.
+A fixture with one list would have been satisfied by either.
+
+It is a fixture in the same strict sense: paraphrase, not a copy of the book. What the book
+really contains is counted rather than reproduced, in
+[the schema-2 request](../../../../../../docs/architecture/CONTENT-SCHEMA-V2-REQUEST.md).
+
 ### Why the explanation is in this file and not in the bundle
 
 The bundle carries no `$comment`, and `validate.test.ts` asserts that it does not.

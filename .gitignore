@@ -117,3 +117,38 @@ docs/papers/*.pdf
 /web/content/book/
 __pycache__/
 *.pyc
+
+## The compiled content bundle — book.lock.json's `contentBundle`. Same rule, one file
+## instead of eight: it is compiled by scripts/fetch-book-content.sh from the book's own
+## programs/{en,pl} at the pinned revision, and nothing under it is authored here either.
+/web/content/bundle/
+
+## ── Visual Studio IDE state. .vs/ is one developer's machine: the solution's .suo,
+## the window layout, the design-time build cache and the Copilot semantic index —
+## binary, rewritten on every keystroke, and meaningless in anyone else's checkout.
+## The repository's shared IDE configuration lives in .editorconfig and
+## .claude/settings.json, which ARE committed. ──────────────────────────────────
+.vs/
+
+## ── launchSettings.json, with exactly one exception. Visual Studio writes one on first F5
+## carrying that machine's randomly-assigned localhost ports; for a SERVICE that file is
+## pure scratch, because the AppHost is the composition root (P1) and Aspire assigns every
+## service's address — a committed profile would be a second, disagreeing answer to "where
+## does this run".
+##
+## The AppHost's own profile is the exception, and it is not a preference. `dotnet run`
+## without a profile runs in the PRODUCTION environment, and .NET loads user secrets only in
+## Development — so AddParameter("auth-signing-key", secret: true) finds nothing, both
+## parameters resolve to ValueMissing, and postgres, pgadmin and authservice are never
+## created. The symptom is the worst kind: the dashboard comes up, the log reports no error,
+## and the container list is simply empty. README §"Quick start" promises that one command
+## works from a fresh clone, so the file that makes it true is committed. ───────────────
+**/Properties/launchSettings.json
+!src/AbOvo.AppHost/Properties/launchSettings.json
+
+## ── Next.js writes these into web/app/ from its own postinstall, so they reappear on every
+## `pnpm install` and are derived rather than authored. The AGENTS.md that IS committed is
+## the one at the repository root. Ignoring them keeps `git status` empty after an install,
+## which is the only state in which an unexpected file means something. ──────────────────
+/web/app/AGENTS.md
+/web/app/CLAUDE.md

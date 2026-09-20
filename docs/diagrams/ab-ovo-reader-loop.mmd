@@ -4,7 +4,14 @@
 
 %% EVERY BOX IN THIS DIAGRAM RUNS WITH NO ACCOUNT AND NO BACKEND. That is the product's
 %% first requirement, not an optimisation: frames are served with the site as a versioned
-%% bundle (ADR-0008) and the exercise checks run in the browser under Pyodide (ADR-0007).
+%% bundle (ADR-0008, ADR-0038) and everything the reader writes stays in their browser
+%% (ADR-0039).
+
+%% THE WORK BRANCH USED TO BE PYTHON AND IS NOT ANY MORE (ADR-0040). It asked a reader of a
+%% mathematics book to write code, reached one program of forty-seven, and cost 6.4 MB and
+%% two seconds of boot on every visit. What replaced it is a worksheet: a line to answer on,
+%% a pad that evaluates arithmetic (ADR-0042) and a canvas (ADR-0043). None of them is a
+%% language and all three are optional.
 
 %% The two dotted edges leaving the loop are the only places a server appears, and neither
 %% is on the path: an account synchronises progress between machines and buys nothing else,
@@ -12,38 +19,39 @@
 %% loop is unchanged.
 
 %% WHAT IS NOT DRAWN, deliberately: no grading step. The next frame opens with the answer
-%% and the reader compares. Nothing scores the comparison, and no language model is called
+%% and the reader compares. The machine may say "matches the book" where the book's whole
+%% answer is one number, which is 85 frames of 1036, and it never says anything else --
+%% never "wrong" (ADR-0039). Nothing scores the comparison and no language model is called
 %% (ADR-0010). The comparison IS the teaching.
 
 flowchart TD
   START(["Open a program"])
   READ["Read a frame<br/>one idea, sometimes one line"]
-  COMMIT["Commit an answer<br/>before turning over"]
+  ASKS{"Does this frame<br/>ask the reader<br/>for something?"}
+  WORK["Work it out<br/>the pad evaluates a line;<br/>the canvas takes a sketch"]
+  COMMIT["Write the answer down<br/>before turning over"]
   REVEAL["Reveal the next frame<br/>it opens with the answer"]
   COMPARE{"Does it match?"}
   BACK["Go back one frame"]
-  LAB{"Does this frame<br/>carry an exercise?"}
-  WORK["Work it in the lab pane<br/>Python, in the browser"]
-  CHECK{"Check passes?"}
-  FRAMES["Re-read the frames the<br/>failure names<br/>never the solution"]
   NEXT["Carry on"]
+  SUMMARY["Summary and Can you?<br/>at the end of the program"]
   SYNC["Account<br/>synchronises progress<br/>between machines"]
   INST["Instrument<br/>outcome against frame,<br/>attempt, check run<br/>never against the reader"]
 
   START --> READ
-  READ --> COMMIT
+  READ --> ASKS
+  ASKS -->|"no"| NEXT
+  ASKS -->|"yes"| COMMIT
   COMMIT --> REVEAL
+  WORK --> COMMIT
+  COMMIT -.->|"optional, beside the line"| WORK
   REVEAL --> COMPARE
   COMPARE -->|"no"| BACK
   BACK --> READ
-  COMPARE -->|"yes"| LAB
-  LAB -->|"no"| NEXT
-  LAB -->|"yes"| WORK
-  WORK --> CHECK
-  CHECK -->|"no"| FRAMES
-  FRAMES --> WORK
-  CHECK -->|"yes"| NEXT
+  COMPARE -->|"yes"| NEXT
   NEXT --> READ
+  NEXT -->|"last frame"| SUMMARY
+  SUMMARY --> START
 
   NEXT -.->|"optional, phase 3"| SYNC
-  CHECK -.->|"opt-in consent, phase 4"| INST
+  COMPARE -.->|"opt-in consent, phase 4"| INST

@@ -85,6 +85,25 @@ export interface ResumeHereProps {
  * It links to the edition the reader was actually in, which may not be the edition of the
  * contents page they are looking at — that is the record being right rather than the
  * control being inconsistent, and #6 made the edition part of the position for this reason.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * IT OFFERS THE FRAME AT THE LAST STEP TOO, AND THAT WAS TRIED THE OTHER WAY FIRST.
+ *
+ * The obvious improvement is to send a reader whose position is N to `/summary` instead —
+ * "continue at frame 45" being a poor answer to "I have finished". It was written, and
+ * then removed, for two reasons that are worth keeping written down.
+ *
+ * A POSITION OF N DOES NOT MEAN FINISHED. The store holds a frame number, so "read the
+ * last frame" and "opened the summary" are the same record; `program-summary.tsx` declines
+ * to write one at all precisely because N would be a lie on a deep link. Branching a
+ * control on a value that cannot carry the distinction is guessing with extra steps.
+ *
+ * AND THE TWO RESUME CONTROLS MUST AGREE. `ResumeLast` on the index and `ResumeHere` on a
+ * contents page look identical and mean the same thing, so one of them quietly leading
+ * somewhere else is worse for a reader than either destination is better. The hand-off to
+ * the summary is already the last frame's own filled control and its `→`, which are the
+ * two places a reader who has just finished is actually looking.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export function ResumeHere({
   track,

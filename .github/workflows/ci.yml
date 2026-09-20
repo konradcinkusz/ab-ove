@@ -277,9 +277,6 @@ jobs:
       # through a browser is an acceptance test doing a unit's job, and it is slower,
       # flakier and less precise at it.
       # ─────────────────────────────────────────────────────────────────────────────────
-      - name: Unit tests
-        run: pnpm test
-
       # ─────────────────────────────────────────────────────────────────────────────────
       # THE BOOK, because `pnpm build` cannot run without it.
       #
@@ -299,10 +296,27 @@ jobs:
       #
       # working-directory is overridden because this job otherwise runs in web/ and the
       # script resolves its own repository root from its own path.
+      #
+      # AND IT IS ABOVE THE UNIT TIER, WHICH IS A SECOND REASON AND A LOAD-BEARING ORDER.
+      #
+      # The unit tier now renders every maths span of the pinned bundle through KaTeX and
+      # checks the verdict-able fixture against the book. Those tests ARE the render
+      # guarantee. Run before this step they do not fail — they SKIP, with a green tick and
+      # the words "no compiled bundle on disk" — and a guarantee that skips in CI is not a
+      # guarantee. Measured on the run that found it: eight skips and one outright failure,
+      # the failure being `runtime-assets.test.ts`, which calls `allBundles()`, which throws
+      # when the pin does not resolve.
+      #
+      # Move this step back below the tests and eight of them go quiet while nothing goes
+      # red. That is the failure this comment exists to prevent.
       # ─────────────────────────────────────────────────────────────────────────────────
       - name: Fetch the book content at its pinned revision
         working-directory: .
         run: bash scripts/fetch-book-content.sh
+
+      - name: Unit tests
+        run: pnpm test
+
 
       - name: Build
         run: pnpm build

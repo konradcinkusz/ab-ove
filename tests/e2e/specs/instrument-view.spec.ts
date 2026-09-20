@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { served, track } from './support/bundle.js';
+
 /**
  * JOURNEY — the author's view, and the promise it must not break.
  *
@@ -88,16 +90,20 @@ test.describe('the gate in front of the author’s view', () => {
 
 test.describe('the reader’s surface offers no way into a ranking', () => {
   /**
-   * The landing page already promises there is no leaderboard and `landing.spec.ts` asserts
-   * the affordances are absent. This is the promise's other half, and it is the one the
-   * author's view could break: the view ranks FRAMES, which is allowed, but a link to it
-   * from the reader's surface would put "ranked worst first" one click from a reader and
-   * make the promise a quibble about whose name is on the rows.
+   * `/about` promises there is no leaderboard and `about.spec.ts` asserts the promise;
+   * `landing.spec.ts` asserts the affordances are absent from the index. This is the
+   * promise's other half, and it is the one the author's view could break: the view ranks
+   * FRAMES, which is allowed, but a link to it from the reader's surface would put "ranked
+   * worst first" one click from a reader and make the promise a quibble about whose name is
+   * on the rows.
+   *
+   * `/read` is not in the list any more and its absence is not a gap: ADR-0036 made it a 308
+   * to `/`, so a row for it would drive the same page twice and report the coverage as two.
    */
   for (const [name, path] of [
     ['landing page', '/'],
+    ['about page', '/about'],
     ['lab index', '/lab'],
-    ['reading index', '/read'],
   ] as const) {
     test(`the ${name} links to no ranking @core`, async ({ page }) => {
       await page.goto(path);
@@ -179,5 +185,28 @@ test.describe('the author’s view ranks frames and names no reader', () => {
     // the email — `/api/auth/session` returns it — so a view that greeted them by name would
     // be one query away from a view that ranked them.
     await expect(page.getByRole('main')).not.toContainText('reader@example.test');
+
+    /*
+      ───────────────────────────────────────────────────────────────────────
+      EVERY UNIT, NOT EVERY UNIT WITH A LAB. This list used to be built from `LABS`, on the
+      reasoning that a cell exists because a reader ran a check and a check exists because a
+      lab does. The worksheet made that false: an answer is reported from any program's
+      reveal, so an index built from the labs would offer one link and silently withhold the
+      other forty-six units' data (ADR-0045 §6).
+
+      Asserted against the served bundle rather than a number, because 47 is a property of
+      the pin and moves when it does.
+      ───────────────────────────────────────────────────────────────────────
+    */
+    const units = page.getByRole('list', { name: /units with measured frames/i }).getByRole('listitem');
+    await expect(units).toHaveCount(served.units.length);
+    expect(served.units.length, 'a one-unit bundle would make the assertion above vacuous').toBeGreaterThan(1);
+
+    // A unit with no lab, named explicitly: the whole of what changed is that these appear.
+    const noLab = served.units.find((unit) => unit.id !== 'P01')!;
+    await expect(
+      page.locator(`a[href="/instrument/${track}/${noLab.id}"]`),
+      'a unit with no lab is missing from the index the worksheet now feeds',
+    ).toHaveCount(1);
   });
 });

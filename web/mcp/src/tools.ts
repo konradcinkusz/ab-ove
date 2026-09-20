@@ -16,8 +16,8 @@ import { advance, current, explain, serve, FIRST_STEP } from './reveal.ts';
 import type { Cursor } from './reveal.ts';
 import type { CursorStore } from './cursor.ts';
 import { isIdentifier } from './cursor.ts';
-import { allBundles, bundleFor, languageIn, say, unitIn } from './content.ts';
-import type { Step, Unit } from './content.ts';
+import { languageIn, say, unitIn } from './content.ts';
+import type { BundleSource, Step, Unit } from './content.ts';
 
 /**
  * What the host is told about the server as a whole, before any tool is called.
@@ -215,12 +215,12 @@ export function render(step: Step, language: string, total: number): string {
   return parts.join('\n\n');
 }
 
-function locate(track: string, unit: string): { unit: Unit; total: number } | ToolResult {
+function locate(bundles: BundleSource, track: string, unit: string): { unit: Unit; total: number } | ToolResult {
   if (!isIdentifier(track) || !isIdentifier(unit)) {
     return problem('A track and a unit are short identifiers: letters, digits, dot, dash or underscore.');
   }
 
-  const bundle = bundleFor(track);
+  const bundle = bundles.for(track);
   if (!bundle) return problem(`This server does not carry the track "${track}". Try list_programs.`);
 
   const found = unitIn(bundle, unit);
@@ -234,6 +234,8 @@ const isResult = (value: unknown): value is ToolResult =>
 
 export interface Deps {
   readonly cursors: CursorStore;
+  /** Injected so the unit tier runs against the committed fixture, never through bundleFor(). */
+  readonly bundles: BundleSource;
 }
 
 export async function handle(
@@ -246,7 +248,7 @@ export async function handle(
 
   if (name === 'list_programs') {
     const lines: string[] = [];
-    for (const bundle of allBundles()) {
+    for (const bundle of deps.bundles.all()) {
       lines.push(
         `Track "${bundle.track.id}" (${say(bundle.track.titles, bundle.track.languages[0] ?? 'en')}), ` +
           `languages: ${bundle.track.languages.join(', ')}, content tag: ${bundle.tag}`,
@@ -260,12 +262,12 @@ export async function handle(
     return { text: lines.join('\n') };
   }
 
-  const located = locate(track, unit);
+  const located = locate(deps.bundles, track, unit);
   if (isResult(located)) return located;
 
   if (name === 'open_program') {
     const asked = typeof args.language === 'string' ? args.language : '';
-    const bundle = bundleFor(track);
+    const bundle = deps.bundles.for(track);
     const language = bundle ? languageIn(bundle, asked) : undefined;
     if (!language) {
       const offered = bundle?.track.languages.join(', ') ?? 'none';

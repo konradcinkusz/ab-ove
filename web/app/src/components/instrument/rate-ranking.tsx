@@ -61,6 +61,26 @@ export interface RateRankingProps {
 const withInterval = (value: { percent: number; low: number; high: number }): string =>
   `${value.percent.toFixed(1)}% (${value.low.toFixed(1)}–${value.high.toFixed(1)})`;
 
+/**
+ * Which instrument produced a cell.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * TWO INSTRUMENTS NOW REACH ONE UNIT AND THEY DO NOT MEASURE THE SAME THING, so an author
+ * must not average them by eye. A lab check asks whether the reader's code satisfied an
+ * assertion; a worksheet answer asks whether the number they wrote before the reveal is the
+ * number the book prints. On **eleven frames of P01** both arrive, which is measured in
+ * `lib/instrument/report.ts`, so this is not hypothetical.
+ *
+ * THE MATCH IS A WEB-SIDE CONVENTION READ ON THE WEB SIDE, which is the only place it may
+ * live. `answerCheckName` mints `answer-<n>` here; `OutcomeEndpoints` validates a check name
+ * against a pattern and holds no allow-list, deliberately, so the service neither knows nor
+ * should know this spelling. A lab check that happened to be called `answer-7` would be
+ * mislabelled on this row and nowhere else — no number moves — and no lab check is
+ * (`test_p01.py` names them `test_<n>_<what>`).
+ * ───────────────────────────────────────────────────────────────────────────
+ */
+const isWorksheet = (check: string): boolean => /^answer-\d+$/.test(check);
+
 export function RateRanking({ track, unit, bundleTag }: RateRankingProps): React.JSX.Element {
   const [state, setState] = useState<ViewState>({ kind: 'loading' });
 
@@ -231,6 +251,9 @@ export function RateRanking({ track, unit, bundleTag }: RateRankingProps): React
               {frame.cells.map((cell) => (
                 <li key={`${cell.check}#${cell.attempt}`} className={styles.cell}>
                   <code className={styles.check}>{cell.check}</code>
+                  <span className={styles.source}>
+                    {isWorksheet(cell.check) ? 'worksheet' : 'lab'}
+                  </span>
                   <span className={styles.attempt}>attempt {cell.attempt}</span>
                   {/*
                     Every number carries its interval, which is issue #17's first requirement
@@ -265,14 +288,38 @@ export function RateRanking({ track, unit, bundleTag }: RateRankingProps): React
             where it is needed — and half a score is not a score. The evidence is here; the ranking
             above is not about {ranking.unscored.length === 1 ? 'it' : 'them'}.
           </p>
+          {/*
+            AND FOR A WORKSHEET ROW THAT IS PERMANENT, WHICH THE SENTENCE ABOVE DOES NOT SAY.
+            It was written for a lab check local to one frame, where more data can change the
+            answer. A worksheet answer is one question at one frame and can never be used at a
+            later one, so such a frame will sit here for ever however many readers arrive —
+            "structurally unscorable", not "not measured yet". An author who read the first
+            sentence alone would wait for data that cannot come.
+          */}
+          {ranking.unscored.some((frame) => frame.cells.some((cell) => isWorksheet(cell.check))) ? (
+            <p className={styles.unscoredBody}>
+              The <strong>worksheet</strong> rows below will stay here whatever arrives. An answer
+              written before a reveal belongs to that one frame and is never used at a later one,
+              so there is no downstream for it to have — this is not thin data. Read their counts
+              rather than waiting for a score.
+            </p>
+          ) : null}
           <ul className={styles.cells} aria-label="Cells of frames with no teaching score">
             {ranking.unscored.flatMap((frame) =>
               frame.cells.map((cell) => (
                 <li key={`${frame.step}/${cell.check}#${cell.attempt}`} className={styles.cell}>
                   <span className={styles.attempt}>frame {frame.step}</span>
                   <code className={styles.check}>{cell.check}</code>
+                  <span className={styles.source}>
+                    {isWorksheet(cell.check) ? 'worksheet' : 'lab'}
+                  </span>
                   <span className={styles.attempt}>attempt {cell.attempt}</span>
                   <span className={styles.cellRate}>{withInterval(cell.rate)}</span>
+                  {/* The counts, which the ranked list carries and this one did not. On a row
+                      that can never have a score they are the whole of what it says. */}
+                  <span className={styles.counts}>
+                    {cell.rate.passed} of {cell.rate.total}
+                  </span>
                 </li>
               )),
             )}

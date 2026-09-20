@@ -7,18 +7,65 @@
  * apps diverging: two loaders would disagree about a bundle eventually, and the one that
  * disagreed quietly would be this one.
  *
- * So there is one import boundary and it is this module. When the kit is extracted, the
- * three specifiers below are what move, and nothing else in this package knows the
- * difference. MCP-SERVER-SKETCH.md §6 carries that as the exit condition.
+ * So there is one import boundary and it is this module — the test fixtures included, which
+ * is why `fixtures` is exported from here rather than imported directly by the unit tier.
+ * When the kit is extracted, the specifiers below are what move.
  */
-export {
-  allBundles,
-  bundleFor,
-  languageIn,
-  say,
-  stepIn,
-  tagFor,
-  unitIn,
-} from '../../app/src/lib/content/bundle.ts';
+import fixture from '../../app/src/lib/content/fixtures/book-p01.v2.bundle.json' with { type: 'json' };
+import { allBundles, bundleFor } from '../../app/src/lib/content/bundle.ts';
+import { validateBundle } from '../../app/src/lib/content/validate.ts';
+import type { Bundle } from '../../app/src/lib/content/schema.ts';
 
-export type { Bundle, Step, Text, Unit } from '../../app/src/lib/content/schema.ts';
+export { languageIn, say, stepIn, tagFor, unitIn } from '../../app/src/lib/content/bundle.ts';
+export type { Bundle, Exercise, Route, Step, Text, Unit } from '../../app/src/lib/content/schema.ts';
+
+/**
+ * Where a tool handler gets its content.
+ *
+ * Injected rather than imported so the unit tier can run against the committed fixture
+ * WITHOUT going through `bundleFor()`. That is the application's own rule, stated at the
+ * loader: "`bundleFor()` never serves it; the two paths are deliberately not the same
+ * code." Since main began compiling the real forty-seven-program bundle into
+ * `web/content/bundle/`, `bundleFor()` throws when the fetch script has not run — which is
+ * correct for a deployment and wrong for a unit test, whose whole point is a small stable
+ * shape that does not move when a curriculum pass changes P01.
+ */
+export interface BundleSource {
+  for(track: string): Bundle | undefined;
+  all(): readonly Bundle[];
+}
+
+/** The real thing: the compiled bundle at the pinned revision. Throws if it is not fetched. */
+export const liveBundles: BundleSource = {
+  for: (track) => bundleFor(track),
+  all: () => allBundles(),
+};
+
+/**
+ * The unit-tier control. Hand-authored, committed, small, and NOT what a reader is served.
+ *
+ * THE v2 FIXTURE, not the v1 one, and the difference is what the tests need rather than a
+ * preference for the newer file. Schema v2 added two answer-bearing fields that are not
+ * steps -- `Route.answer` and `Exercise.answer` -- and the v1 fixture carries neither. A
+ * leak test written against it would pass by having nothing to leak, which is the shape
+ * `lab/tools/labcheck.py` refuses in the book: a check that passes on an empty file is not
+ * a check.
+ *
+ * It is validated on the way through rather than trusted, for the same reason the loader
+ * validates: a fixture that stopped matching the schema would otherwise make every test
+ * that reads it assert something about a shape the application cannot load.
+ */
+export function fixtureBundles(): BundleSource {
+  const result = validateBundle(fixture);
+  if (!result.ok) {
+    throw new Error(
+      'fixtures/book-p01.bundle.json no longer validates:\n' +
+        result.problems.map((problem) => `  ${problem.path}: ${problem.message}`).join('\n'),
+    );
+  }
+  const bundle = result.bundle;
+  return {
+    for: (track) => (track === bundle.track.id ? bundle : undefined),
+    all: () => [bundle],
+  };
+}

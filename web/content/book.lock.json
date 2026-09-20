@@ -41,5 +41,36 @@
     "<root>/lab/<exercises|solutions>/<stem>.py. check.py resolves only its own sibling",
     "tests directory, HERE/'tests'. Flatten any of this and the engine looks for the values",
     "file in the wrong place and fails at import — as a traceback, not as a FAIL line."
-  ]
+  ],
+  "contentBundle": {
+    "repository": "konradcinkusz/math-for-ai-engineers",
+    "revision": "e24a4919026ee5f081dc030d243b71957cebfaab",
+    "revisionNote": "the book's HEAD when this pipeline was built \u2014 the merge commit of PR #243, chosen because lab/tools/content_compile.py exists here and compiles clean with --cross-check. The lab-engine `source` pin above is unrelated and older on purpose: it is verified against a narrower, independently-tested set of files and there is no reason to move it just because this one moves.",
+    "$comment": [
+      "The compiled content bundle \u2014 content-schema.v1.json \u2014 for the full book, both",
+      "editions, all 47 programs. Unlike lab/ and figures/values/ above this is not a",
+      "handful of files pinned by digest: it is the WHOLE book's programs/{en,pl} tree run",
+      "through the book's own lab/tools/content_compile.py, so pinning it file by file",
+      "would mean listing every .tex file in the book and re-deriving that list on every",
+      "curriculum change.",
+      "",
+      "So the invariant here is not a digest, on purpose. The book's own CLAUDE.md records",
+      "that a COMPUTED value can print a different bit pattern on a different machine (the",
+      "np.logspace ulp finding, the p06 residuals) \u2014 so a byte-for-byte sha256 of the",
+      "compiled bundle would fail on a difference that is not a defect, which is the exact",
+      "'an observation committed where an invariant was meant' shape that file records. What",
+      "IS checkable, and what the compiler already carries, is `--cross-check`: it re-derives",
+      "programs/sections/frames/answers/cues from the book's own probe and REFUSES if the",
+      "compiled bundle disagrees. fetch-book-content.sh runs that gate every time it compiles.",
+      "",
+      "`destination` is where the compiled bundle is written, relative to web/ (this lock",
+      "file's OWN destination above is repo-root-relative instead, which is a difference",
+      "worth stating rather than tripping over \u2014 they are read by two different consumers",
+      "with two different natural roots, and neither convention is wrong on its own).",
+      "Gitignored, exactly like `destination` above: nothing under it is authored here. The",
+      "tag is DERIVED (`dev-<revision[:12]>`) rather than stored here, so moving `revision`",
+      "above is the only edit this section ever needs."
+    ],
+    "destination": "content/bundle"
+  }
 }

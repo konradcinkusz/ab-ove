@@ -11,28 +11,72 @@
  * message carries the validator's JSON pointers so the compiler author can act on it.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * PROVISIONAL IN ONE RESPECT, AND IT IS THE OBVIOUS ONE: the bundle is the fixture. The
- * real one is published by each track's own repository at a (track, tag) pin, and for this
- * book it does not exist yet — issue #8, blocked on the book. What is NOT provisional is
- * everything downstream of `bundleFor()`: swapping the source is one function body, because
- * nothing above it knows where the bytes came from.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE BUNDLE IS FETCHED, NOT IMPORTED, AND ITS ABSENCE IS A REFUSAL TOO.
+ *
+ * `scripts/fetch-book-content.sh` compiles the book's own `programs/{en,pl}` at the pinned
+ * revision (`web/content/book.lock.json`'s `contentBundle`) into
+ * `web/content/bundle/bundle.json`, gitignored — nothing under it is authored here, the
+ * same rule as `web/content/book/`. This module reads that file with `fs`, once per
+ * process, and THROWS if it is not there rather than falling back to anything smaller: a
+ * silent substitution of a four-frame fixture for the forty-seven-program book is exactly
+ * the "looks finished and is not" failure this repository refuses everywhere else
+ * (`\transcript`'s file-is-absent marker, in the book's own build traps). A developer who
+ * has not run the fetch script yet gets a clear instruction to run it — the same
+ * requirement `scripts/prepare-lab-assets.mjs` already makes of the lab engine files.
+ *
+ * `fixtures/book-p01.bundle.json` still exists and is still committed. It is the UNIT-TIER
+ * control — `bundle.test.ts` and `validate.test.ts` read it directly, by name, rather than
+ * through `bundleFor()` — so those tests exercise a small, hand-authored, stable shape and
+ * do not drift the day a curriculum pass changes P01's frame count. `bundleFor()` never
+ * serves it; the two paths are deliberately not the same code.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  */
-import fixture from './fixtures/book-p01.bundle.json' with { type: 'json' };
+import { existsSync, readFileSync } from 'node:fs';
+
+import lock from '../../../../content/book.lock.json' with { type: 'json' };
 
 import type { Bundle, ContentPin, Section, Step, Unit } from './schema.ts';
 import { validateBundle } from './validate.ts';
+
+interface ContentBundleLock {
+  readonly repository: string;
+  readonly revision: string;
+  readonly destination: string;
+}
+
+const CONTENT_BUNDLE: ContentBundleLock | undefined = (
+  lock as { contentBundle?: ContentBundleLock }
+).contentBundle;
+
+/**
+ * The tag a freshly compiled bundle carries — `dev-<revision[:12]>`, matching what
+ * `scripts/fetch-book-content.sh` passes to the book's `content_compile.py --tag`.
+ *
+ * DERIVED, never stored twice: the lock file names a revision and nothing else, so moving
+ * the pin is the only edit either side of this arithmetic ever needs.
+ */
+function devTagFor(revision: string): string {
+  return `dev-${revision.slice(0, 12)}`;
+}
 
 /**
  * The pins this application serves.
  *
  * A LIST, and a (track, tag) PAIR per entry, from the first line that carries one — book
  * issue #239 §6 gives each track its own content repository publishing its own tag, so a
- * pin that is a tag alone cannot say which track it belongs to. One entry today; the shape
- * is what stops the second one being a migration.
+ * pin that is a tag alone cannot say which track it belongs to.
+ *
+ * READ FROM THE LOCK FILE, not hand-written: `book.lock.json`'s `contentBundle.revision` is
+ * the single place this application's content pin lives, and `PINS` is that revision's own
+ * arithmetic rather than a second copy of it that could disagree. Once the book publishes a
+ * tagged release (book issue #239 §1) the tag becomes that release's own — see the
+ * `release` shape noted in the lock file's comment — and this is the one function that
+ * changes.
  */
-export const PINS: readonly ContentPin[] = [
-  { track: 'math-for-ai-engineers', tag: 'fixture-0' },
-];
+export const PINS: readonly ContentPin[] = CONTENT_BUNDLE
+  ? [{ track: 'math-for-ai-engineers', tag: devTagFor(CONTENT_BUNDLE.revision) }]
+  : [];
 
 /**
  * The tag this application serves a track at, or `undefined` for a track it does not pin.
@@ -51,41 +95,100 @@ export function tagFor(track: string): string | undefined {
   return PINS.find((candidate) => candidate.track === track)?.tag;
 }
 
+/**
+ * Where the compiled bundle might be, tried in order until one exists.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * NOT `import.meta.url`-RELATIVE, AND NOT A BARE `process.cwd()`, AND BOTH FOR THE SAME
+ * REASON: neither survives the trip from source to bundled server code unchanged.
+ *
+ * `import.meta.url` inside a module Next's server build bundles reflects the BUNDLED
+ * chunk's own synthetic location once webpack has rewritten the module graph, not this
+ * file's location on disk — so a path computed from it is only reliable in a dev server
+ * that runs the source directly, and silently wrong in a build. `process.cwd()` fails the
+ * other way: it is `web/app` under `next dev` (started inside the app package) and `/app`
+ * under the Docker image's `CMD ["node", "app/server.js"]` run from `WORKDIR /app` — a
+ * DIFFERENT relative distance to `web/content/bundle/` in each of the two environments this
+ * application actually runs in, and neither guess is safe to prefer over the other.
+ *
+ * The candidates below are every shape those environments are known to produce, tried in
+ * order and validated with a plain existence check rather than assumed — `AB_OVO_CONTENT_BUNDLE`
+ * first, so a deployment that finds itself in a fifth shape can say so with one environment
+ * variable rather than a code change.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+function candidateBundlePaths(destination: string): readonly string[] {
+  const override = process.env.AB_OVO_CONTENT_BUNDLE;
+  const filename = 'bundle.json';
+  // `destination` is `content/bundle`, relative to `web/` — the same string
+  // `scripts/fetch-book-content.sh` reads out of `contentBundle.destination` and resolves
+  // the same way, one `web/` prepended. It is deliberately NOT repo-root-relative like the
+  // lock file's sibling `destination` field: this function has three different notions of
+  // where `web/` sits relative to `cwd`, and giving `destination` a fixed relationship to
+  // `web/` is what keeps that arithmetic to one `join` per candidate instead of three.
+  return [
+    override,
+    // `next dev` / `next build` / `node --test`, run with cwd = web/app.
+    `${process.cwd()}/../${destination}/${filename}`,
+    // The Docker runner: WORKDIR /app, and the runner stage COPYs web/content/ to ./content
+    // (see web/app/Dockerfile) — cwd = /app, and content/ is a direct child of it there.
+    `${process.cwd()}/${destination}/${filename}`,
+    // A command run from the repository root, as a human at a shell would.
+    `${process.cwd()}/web/${destination}/${filename}`,
+  ].filter((candidate): candidate is string => Boolean(candidate));
+}
+
+function locateCompiledBundle(destination: string): string | undefined {
+  return candidateBundlePaths(destination).find((path) => existsSync(path));
+}
+
 /** Parsed and validated once per process. */
 const loaded = new Map<string, Bundle>();
 
 const keyOf = (pin: ContentPin): string => `${pin.track}@${pin.tag}`;
 
 /**
- * The bundle for a track: `undefined` if no such track is pinned, a throw if the one that
- * is does not validate.
+ * The bundle for a track: `undefined` if no such track is pinned, a throw if the pinned one
+ * is missing or does not validate.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * TWO FAILURES, AND THEY ARE NOT THE SAME FAILURE. The first draft of this function
- * collapsed them and threw for both, which made `/read/python-track/...` — a typo in a URL
- * — a **500**. Measured, before it was fixed; the fix is this split.
+ * THREE OUTCOMES, AND ONLY ONE OF THEM IS A READER'S PROBLEM.
  *
  * An unknown track is a READER'S question about a URL, and the answer is 404: the page is
  * absent, not broken. A 500 there fills error monitoring with other people's typos and
  * tells a crawler the route is faulty rather than the address wrong.
  *
- * A pinned bundle that does not validate is a DEPLOYMENT defect, and the honest response
- * is a 500 with the validator's own sentences in the log. Nothing a reader typed can cause
- * it and nothing a reader does can fix it. Returning `undefined` here would serve a 404 for
- * a program that exists, which is the same lie one direction over.
+ * A pinned bundle that is MISSING FROM DISK, or one that does not validate once read, are
+ * both DEPLOYMENT defects, and the honest response to each is a 500 with a sentence in the
+ * log that names what to do. Nothing a reader typed can cause either and nothing a reader
+ * does can fix it. Returning `undefined` for either would serve a 404 for a program that
+ * exists, which is the same lie the validation branch already refuses, one door over.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export function bundleFor(track: string): Bundle | undefined {
   const pin = PINS.find((candidate) => candidate.track === track);
-  if (!pin) return undefined;
+  if (!pin || !CONTENT_BUNDLE) return undefined;
 
   const cached = loaded.get(keyOf(pin));
   if (cached) return cached;
 
-  const result = validateBundle(fixture);
+  const path = locateCompiledBundle(CONTENT_BUNDLE.destination);
+  if (!path) {
+    throw new Error(
+      `no compiled content bundle found for ${keyOf(pin)}. Run ` +
+        `\`bash scripts/fetch-book-content.sh\` from the repository root first — it ` +
+        `compiles ${CONTENT_BUNDLE.repository}@${CONTENT_BUNDLE.revision.slice(0, 12)} into ` +
+        `${CONTENT_BUNDLE.destination}/bundle.json, gitignored like web/content/book/. ` +
+        `Checked: ${candidateBundlePaths(CONTENT_BUNDLE.destination).join(', ')}`,
+    );
+  }
+
+  const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+  const result = validateBundle(parsed);
   if (!result.ok) {
     throw new Error(
-      `the bundle pinned at ${keyOf(pin)} does not validate against content-schema.v1:\n` +
+      `the bundle at ${path} (pinned at ${keyOf(pin)}) does not validate against ` +
+        `content-schema.v1:\n` +
         result.problems.map((problem) => `  ${problem.path}: ${problem.message}`).join('\n'),
     );
   }
