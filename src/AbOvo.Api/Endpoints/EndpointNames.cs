@@ -13,6 +13,10 @@ public static class EndpointNames
     public const string PutProgress = "PutProgress";
     public const string DeleteProgress = "DeleteProgress";
 
+    public const string GetPreference = "GetPreference";
+    public const string PutPreference = "PutPreference";
+    public const string DeletePreference = "DeletePreference";
+
     public const string PostOutcomes = "PostOutcomes";
 
     public const string GetRates = "GetRates";

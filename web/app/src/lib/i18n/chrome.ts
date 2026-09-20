@@ -255,9 +255,14 @@ interface Strings {
   /** One sentence on what a course is here, under the courses page's heading. */
   readonly coursesLead: string;
   /**
-   * The way back from a narrowed index to the one that shows every course — the `?track=`
-   * counterpart of `bothEditions`, and needed for the same reason: a narrowing a reader
-   * cannot undo in the page is one they can only undo by editing the URL.
+   * The way back from a narrowed index to the one that shows every course, because a
+   * narrowing a reader cannot undo in the page is one they can only undo by editing the URL.
+   *
+   * It used to be described as the `?track=` counterpart of `bothEditions`, the edition
+   * switch's third position. That position is gone (ADR-0052): the edition is always chosen
+   * now and always changeable in one press, so there is nothing to go back OUT to. A course
+   * narrowing is not like that — it hides programmes rather than choosing between titles of
+   * the same one — which is why this label survives its former twin.
    */
   readonly allCourses: string;
   /**
@@ -268,15 +273,6 @@ interface Strings {
    */
   readonly onlyThisCourse: string;
   /**
-   * The edition switch's third position, offered only once an edition has been chosen.
-   *
-   * ADR-0015 refused a default edition, and ADR-0036 keeps that refusal by making "no
-   * choice" a real state rather than a state the reader can only reach by clearing a
-   * cookie. Without this label the switch is a trap door: two ways in and no way back to
-   * the page that picks neither.
-   */
-  readonly bothEditions: string;
-  /**
    * ────────────────────────────────────────────────────────────────────────────────────
    * THE THEME SWITCH — three positions, and `themeSystem` is the one that makes it honest.
    *
@@ -285,6 +281,13 @@ interface Strings {
    * objection to a default edition, met again one control along. So the reader's own
    * system is a position on the switch rather than the absence of a choice, and it is
    * somewhere to go back to after trying the other two.
+   *
+   * THE EDITION CONTROL NO LONGER WORKS THIS WAY, AND THE DIVERGENCE IS DELIBERATE
+   * (ADR-0052). `themeSystem` is a real answer about a real signal — the browser reports
+   * `prefers-color-scheme` — where nothing a browser sends says which EDITION of a book
+   * somebody wants. The edition's third position was therefore not a preference but the
+   * absence of one, so it is gone and English is the default. Where the machine can answer,
+   * ask it; where nothing can, pick one and make it a press to change.
    *
    * The words are short on purpose: this control sits on a line of 0.8125rem furniture
    * beside the edition switch and the keyboard map, and a label reading "Match my system
@@ -421,7 +424,7 @@ interface Strings {
    */
   readonly atFrame: (n: number) => string;
   /**
-   * On a tile the reader cannot enter yet: `opens after P06` (ADR-0049).
+   * On a tile the reader cannot enter yet: `opens after P06` (ADR-0051).
    *
    * IT NAMES THE PROGRAM THAT OPENS THIS ONE, which is the whole of what a shut door owes
    * a reader — one move, and it is a move they can make. A bare "locked" would say the
@@ -504,9 +507,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       problemPasswordRejected: 'That password was not accepted.',
       problemSignedOut: 'Your session ended before this could finish. Sign in and try again.',
       problemProgress:
-        'Your reading position could not be removed, so nothing else was attempted. Your account is untouched. Try again.',
+        'What your account had stored — your reading position, the edition you chose — could not be removed, so nothing else was attempted. Your account is untouched. Try again.',
       problemAccount:
-        'The reading position stored on your account has been removed, but the account itself could not be. It is still yours, and this device still knows where you are in the book. Try again.',
+        'What your account had stored has been removed, but the account itself could not be. It is still yours, and this device still knows where you are in the book. Try again.',
       problemUnconfigured:
         'This deployment has no identity service, so there is no account to delete.',
     },
@@ -525,7 +528,6 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       'Every course ab-ovo carries, each one a sequence of programs worked a frame at a time. Opening one narrows the index to it; the index shows them all until you do.',
     allCourses: 'All courses',
     onlyThisCourse: 'Only this course',
-    bothEditions: 'Both editions',
     themeLabel: 'Theme',
     themeSystem: 'System',
     themeLight: 'Light',
@@ -670,9 +672,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       problemSignedOut:
         'Twoja sesja zako\u0144czy\u0142a si\u0119, zanim to si\u0119 uda\u0142o doko\u0144czy\u0107. Zaloguj si\u0119 i spr\u00f3buj ponownie.',
       problemProgress:
-        'Nie uda\u0142o si\u0119 usun\u0105\u0107 twojej pozycji w lekturze, wi\u0119c nic wi\u0119cej nie by\u0142o pr\u00f3bowane. Konto pozosta\u0142o nietkni\u0119te. Spr\u00f3buj ponownie.',
+        'Nie uda\u0142o si\u0119 usun\u0105\u0107 tego, co przechowywa\u0142o twoje konto \u2014 pozycji w lekturze i wybranego wydania \u2014 wi\u0119c nic wi\u0119cej nie by\u0142o pr\u00f3bowane. Konto pozosta\u0142o nietkni\u0119te. Spr\u00f3buj ponownie.',
       problemAccount:
-        'Pozycja w lekturze zapisana na koncie zosta\u0142a usuni\u0119ta, ale samego konta nie uda\u0142o si\u0119 usun\u0105\u0107. Nadal nale\u017cy do ciebie, a to urz\u0105dzenie nadal wie, gdzie jeste\u015b w ksi\u0105\u017cce. Spr\u00f3buj ponownie.',
+        'To, co przechowywa\u0142o twoje konto, zosta\u0142o usuni\u0119te, ale samego konta nie uda\u0142o si\u0119 usun\u0105\u0107. Nadal nale\u017cy do ciebie, a to urz\u0105dzenie nadal wie, gdzie jeste\u015b w ksi\u0105\u017cce. Spr\u00f3buj ponownie.',
       problemUnconfigured:
         'To wdro\u017cenie nie ma serwisu to\u017csamo\u015bci, wi\u0119c nie ma konta do usuni\u0119cia.',
     },
@@ -691,7 +693,6 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       'Wszystkie kursy, kt\u00f3re niesie ab-ovo \u2014 ka\u017cdy to ci\u0105g program\u00f3w przerabianych ramka po ramce. Otwarcie jednego zaw\u0119\u017ca do niego spis; dop\u00f3ki tego nie zrobisz, spis pokazuje wszystkie.',
     allCourses: 'Wszystkie kursy',
     onlyThisCourse: 'Tylko ten kurs',
-    bothEditions: 'Obie edycje',
     // `Tryb` rather than `Motyw`: docs/SCREENSHOTS.pl.md already calls this
     // ‘tryb ciemny’, and a product that names one concept twice teaches a reader
     // that the two words are two things (docs/how-to/translate-a-document.md).
@@ -872,7 +873,6 @@ export interface Chrome {
   readonly coursesLead: string;
   readonly allCourses: string;
   readonly onlyThisCourse: string;
-  readonly bothEditions: string;
   readonly themeLabel: string;
   readonly themeSystem: string;
   readonly themeLight: string;

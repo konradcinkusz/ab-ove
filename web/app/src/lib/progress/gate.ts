@@ -4,7 +4,7 @@
  * ──────────────────────────────────────────────────────────────────────────────────────
  * THE BOOK IS READ FROM THE BEGINNING, SO THE INDEX STOPS OFFERING THE MIDDLE OF IT.
  *
- * ADR-0049. Every program used to be one click from the first screen, which is the right
+ * ADR-0051. Every program used to be one click from the first screen, which is the right
  * answer for a reference and the wrong one for a programmed text: a Stroud frame assumes
  * the frame before it, so forty-seven doors marked *enter here* invite a reader to start
  * at P27 and discover, four frames in, that the book has been talking to somebody else.

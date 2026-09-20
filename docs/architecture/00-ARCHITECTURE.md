@@ -100,7 +100,8 @@ failed deploy. It applies migrations and seeds nothing.
 InMemory whatever the provider says**. `EnsureCreated` exists on exactly one path, the
 InMemory one, and the file says so where it happens.
 
-`src/AbOvo.Api/Persistence/Migrations/` holds the first migration, `AddReaderProgress`,
+`src/AbOvo.Api/Persistence/Migrations/` holds the migrations — `AddReaderProgress`,
+`AddFrameOutcomes` and `AddReaderPreference`, each arriving with the ticket that needed it —
 and `DesignTimeDbContextFactory` exists because the runtime provider is a configuration
 switch: without it `ef migrations add` builds the host, gets InMemory, and reports that the
 context does not support migrations. **They are PostgreSQL migrations, and that is not a
@@ -536,11 +537,13 @@ root secrets in `flyio/SECRETS.md` has been set. The repository stands at *build
 green, images build*. Every statement in this document about the deployed system is a
 statement about a file.
 
-**The domain model is one table, and the anti-goal is now a rule rather than an absence.**
-`AbOvoDbContext` declared no entity until #11; it now declares `ReaderProgress`, with the
-first migration beside it. INIT-GENERIC-TEMPLATE.md §12 is why it took that long — the
-template ships the mechanism and one thin vertical slice, and inventing entities for a
-product nobody has specified produces code the first ticket deletes.
+**The domain model is three tables, and the anti-goal is now a rule rather than an absence.**
+`AbOvoDbContext` declared no entity until #11; it declares `ReaderProgress` (#11),
+`FrameOutcome` (#15) and `ReaderPreference`
+([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md)), each
+with its own migration beside it. INIT-GENERIC-TEMPLATE.md §12 is why the first took that
+long — the template ships the mechanism and one thin vertical slice, and inventing entities
+for a product nobody has specified produces code the first ticket deletes.
 
 That paragraph used to say the README's anti-goal was true *because there are no tables*,
 and that it "becomes a rule somebody has to keep the day the first migration lands." **That
@@ -548,9 +551,11 @@ day has come, and the rule is now kept by three things rather than by a policy**
 watched refusing something before it was believed
 ([ADR-0020](../adr/0020-no-aggregate-touches-the-progress-store.md)):
 
-1. **A query over the progress store that does not pin one reader is refused at run time**,
-   before EF compiles it, by an interceptor registered in the composition root. Not a test:
-   an aggregate throws on the first run whether or not anybody ran the suite. It requires an
+1. **A query over a reader-scoped store that does not pin one reader is refused at run
+   time**, before EF compiles it, by an interceptor registered in the composition root. Not a
+   test: an aggregate throws on the first run whether or not anybody ran the suite. It covers
+   `ReaderProgress` and `ReaderPreference` — "which edition is the popular one" is a fact
+   arrived at by counting readers, whatever else it is — and it requires an
    **equality** on `Subject` rather than a mention, because `GroupBy(p => p.Subject)` is the
    per-reader score, spelled differently.
 2. **The column list is closed.** Six columns, every one of which says *where* a reader is

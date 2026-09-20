@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 
+import { LanguageSync } from '@/components/language/language-sync';
 import { ProgressSync } from '@/components/sync/progress-sync';
 import { ThemeFlag } from '@/components/theme/theme-flag';
 import { THEME_BOOT } from '@/lib/theme/boot';
@@ -107,6 +108,21 @@ export default function RootLayout({
           ANOTHER tab. See `theme-flag.tsx`.
         */}
         <ThemeFlag />
+        {/*
+          The account's copy of the chosen edition, adopted once per page load (ADR-0052).
+
+          Here for the same structural reason as the sync above — a layout is not remounted
+          by a soft navigation, so one subscriber serves a whole reading session — and for a
+          reason of its own: the index renders the edition out of a cookie, so the component
+          that can correct that cookie from the account has to run on every page, not only
+          on the index a reader may not visit again this session.
+
+          It renders nothing at all, in every state. There is no notice to place and no
+          layout to shift. The theme does the same job one line up, through a boot script
+          this cannot use: a cookie the server reads is available to the FIRST paint where
+          `localStorage` is not, so the edition needs no inline script and the theme does.
+        */}
+        <LanguageSync />
       </body>
     </html>
   );

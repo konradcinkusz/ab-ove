@@ -95,10 +95,14 @@ different control text and each declares its own language" needs no string from 
 and goes red the day the controls stop following the edition. A spec asserting
 "Pokaż odpowiedź" would drift the first time somebody reworded it.
 
-**The index at `/read` is English, and that is not in tension with ADR-0015.** That ADR
-refuses to pick an edition of the *book* for the reader. The furniture is the application's,
-and there is no reader language on that page to follow — every page below it has one in its
-URL and uses it.
+**The index was English, and the exception is now gone.** This ADR used to carry a caveat:
+the index had no reader language for the chrome to follow, because
+[ADR-0015](0015-the-reading-index-has-no-default-language.md) refused to pick an edition of
+the *book* for the reader, so the furniture there was English whatever the reader read in.
+[ADR-0052](0052-one-language-control-remembered-and-english-by-default.md) gave the index a
+reader edition — English by default, remembered once chosen — so the rule below is
+unconditional and there is no page left that has nothing to follow. The index moved to `/`
+with ADR-0036; `/read` is a 308 to it.
 
 **The Polish strings have had no native review.** They are written to the book's own
 vocabulary where it has one (`ramka` for a frame, and the book's `Kolejna ramka.` for the

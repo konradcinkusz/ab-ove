@@ -77,7 +77,7 @@ export function FrameView({
   next,
 }: FrameViewProps): React.JSX.Element {
   const track = bundle.track.id;
-  // The program that opens this one, read off the manifest (ADR-0049, `unitBefore`).
+  // The program that opens this one, read off the manifest (ADR-0051, `unitBefore`).
   const previous = unitBefore(bundle, unit.id)?.id;
   const reading = (edition: string): string => `/read/${track}/${unit.id}/${edition}`;
   const at = (n: number): string => `${reading(language)}/${n}`;
@@ -177,7 +177,7 @@ export function FrameView({
       */}
       {/*
         The gate, and the recorder that must not outlive it. A reader who has not reached
-        this program is returned to the index (ADR-0049); the recorder asks the same
+        this program is returned to the index (ADR-0051); the recorder asks the same
         question, so a deep link that arrives here before the redirect lands leaves no
         place behind to unlock it with. `previous` is the manifest's adjacency, never the
         id with one taken off it.
@@ -362,7 +362,7 @@ export function FrameView({
           rather than any element containing an arrow, because the foot's key map contains
           the same arrows and is always visible where this one is hidden until the handler
           attaches. Locating it by its words would be a second copy of the string under
-          test, which is exactly what specs/language-switch.spec.ts refuses to do.
+          test, which is exactly what specs/language-choice.spec.ts refuses to do.
         */
         data-testid="frame-keys-hint"
         lang={chrome.language}

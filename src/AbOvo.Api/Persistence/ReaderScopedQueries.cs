@@ -6,7 +6,8 @@ namespace AbOvo.Api.Persistence;
 
 /// <summary>
 /// ADR-0009 §1, enforced by the persistence layer rather than promised by a comment:
-/// <b>a query over <see cref="ReaderProgress"/> that does not name one reader is refused.</b>
+/// <b>a query over a table keyed by a reader — <see cref="ReaderProgress"/>,
+/// <see cref="ReaderPreference"/> — that does not name one reader is refused.</b>
 ///
 /// <para>
 /// Issue #12 asks for something other than a promise, and prefers an ABSENCE — "a rule
@@ -23,6 +24,14 @@ namespace AbOvo.Api.Persistence;
 /// return a misleading answer, or an empty one, or the right one — it throws, on the first
 /// run, in development, naming the rule. `ArchitectureTests` then covers the shapes this
 /// cannot see: what the table may hold, and how it may be indexed.
+/// </para>
+/// <para>
+/// IT COVERS MORE THAN ONE TABLE SINCE ADR-0052, and generalising it was cheaper than
+/// arguing about whether the second one needed it. <see cref="ReaderPreference"/> holds which
+/// edition each reader chose — a preference and not a measurement — and "how many readers
+/// read it in Polish" is nonetheless a fact about readers, arrived at by counting them. The
+/// rule that already existed answers it, so the guard takes a SET of entity types and every
+/// member of that set is a table whose rows are named by a reader.
 /// </para>
 /// </summary>
 public sealed class ReaderScopedQueries : IQueryExpressionInterceptor
@@ -52,9 +61,20 @@ public sealed class ReaderScopedQueries : IQueryExpressionInterceptor
     {
     }
 
-    /// <summary>The property a query has to pin. Resolved once; a rename moves the rule with it.</summary>
-    private static readonly MemberInfo SubjectProperty =
-        typeof(ReaderProgress).GetProperty(nameof(ReaderProgress.Subject))!;
+    /// <summary>
+    /// The tables this rule covers, and the property each query over one of them has to pin.
+    /// Resolved once; a rename moves the rule with it, and a new reader-scoped table is one
+    /// entry rather than a second interceptor.
+    /// </summary>
+    private static readonly MemberInfo[] SubjectProperties =
+    [
+        typeof(ReaderProgress).GetProperty(nameof(ReaderProgress.Subject))!,
+        typeof(ReaderPreference).GetProperty(nameof(ReaderPreference.Subject))!,
+    ];
+
+    /// <summary>The entity types <see cref="SubjectProperties"/> belong to, in the same order.</summary>
+    private static readonly Type[] ReaderScoped =
+        [.. SubjectProperties.Select(property => property.DeclaringType!)];
 
     public Expression QueryCompilationStarting(
         Expression queryExpression,
@@ -63,10 +83,11 @@ public sealed class ReaderScopedQueries : IQueryExpressionInterceptor
         var inspector = new Inspector();
         inspector.Visit(queryExpression);
 
-        if (inspector.TouchesProgress && !inspector.PinsOneReader)
+        if (inspector.TouchesReaderScopedRows && !inspector.PinsOneReader)
         {
             throw new InvalidOperationException(
-                "A query over ReaderProgress must pin one reader with an equality on Subject. "
+                "A query over a reader-scoped table (ReaderProgress, ReaderPreference) must pin "
+                + "one reader with an equality on Subject. "
                 + "This one does not, so it spans readers — which is the aggregate ADR-0009 §1 "
                 + "forbids: the instrument measures the book, never the reader. If you need a "
                 + "number about the book, derive it from outcomes rather than from where people "
@@ -89,12 +110,12 @@ public sealed class ReaderScopedQueries : IQueryExpressionInterceptor
     /// </summary>
     private sealed class Inspector : ExpressionVisitor
     {
-        public bool TouchesProgress { get; private set; }
+        public bool TouchesReaderScopedRows { get; private set; }
         public bool PinsOneReader { get; private set; }
 
         public override Expression? Visit(Expression? node)
         {
-            if (node is not null && Mentions(node.Type)) TouchesProgress = true;
+            if (node is not null && Mentions(node.Type)) TouchesReaderScopedRows = true;
             return base.Visit(node);
         }
 
@@ -124,9 +145,9 @@ public sealed class ReaderScopedQueries : IQueryExpressionInterceptor
         /// </para>
         /// </summary>
         private static bool Mentions(Type type) =>
-            type.IsGenericType && type.GetGenericArguments().Any(a => a == typeof(ReaderProgress));
+            type.IsGenericType && type.GetGenericArguments().Any(argument => ReaderScoped.Contains(argument));
 
         private static bool IsSubject(Expression expression) =>
-            expression is MemberExpression member && member.Member == SubjectProperty;
+            expression is MemberExpression member && SubjectProperties.Contains(member.Member);
     }
 }

@@ -2,8 +2,9 @@
 %% ONE DIAGRAM PER FILE. ASCII ONLY.
 
 %% THEY ARE MIRROR IMAGES AND NOT THE SAME RULE WITH A DIFFERENT COLUMN ON IT.
-%% ReaderScopedQueries refuses a query that spans READERS, because a per-reader score is
-%% being made unbuildable (ADR-0009, ADR-0020). BundlePinnedQueries refuses a query that
+%% ReaderScopedQueries refuses a query that spans READERS -- over either of the two tables
+%% keyed by one -- because a per-reader score is being made unbuildable (ADR-0009, ADR-0020,
+%% ADR-0052). BundlePinnedQueries refuses a query that
 %% spans TEXTS, because an average over two wordings of a frame is meaningless rather than
 %% forbidden (ADR-0024) -- it would make the ledger lie about a frame somebody has already
 %% fixed.
@@ -16,7 +17,7 @@
 %% than a review comment.
 
 flowchart TD
-  Q1["A query over ReaderProgress"]
+  Q1["A query over ReaderProgress<br/>or ReaderPreference"]
   G1{"Does it pin<br/>exactly one reader?"}
   R1["Runs"]
   X1["Refused at run time,<br/>before EF compiles it"]

@@ -1,10 +1,15 @@
 %% What is stored, and what the schema is designed to be unable to answer.
 %% ONE DIAGRAM PER FILE. ASCII ONLY.
 
-%% TWO TABLES, AND EACH IS HELD BY THREE MECHANICAL RULES RATHER THAN BY A PROMISE.
-%% ReaderProgress says WHERE a reader is and never how they did; FrameOutcome counts a
-%% verdict against a frame and carries no identifier and no timestamp
-%% (ADR-0009, ADR-0020, ADR-0023).
+%% THREE TABLES, AND EACH IS HELD BY MECHANICAL RULES RATHER THAN BY A PROMISE.
+%% ReaderProgress says WHERE a reader is and never how they did; ReaderPreference says which
+%% EDITION they chose and nothing else (ADR-0052); FrameOutcome counts a verdict against a
+%% frame and carries no identifier and no timestamp (ADR-0009, ADR-0020, ADR-0023).
+
+%% THE TWO READER-SCOPED TABLES SHARE ONE GUARD. "How many readers chose Polish" is a
+%% preference rather than a measurement, and it is still a fact arrived at by counting
+%% readers -- so ReaderScopedQueries refuses it on the same terms as "how far has each
+%% reader got".
 
 %% THE ABSENT COLUMN IS THE DESIGN. An outcome has no reader, so nothing can find the rows
 %% that were yours -- which is why deleting an account cannot retract a contribution
@@ -21,6 +26,7 @@ flowchart TD
 
   subgraph apidb["apidb - owned by AbOvo.Api"]
     RP["ReaderProgress<br/>Subject, Track, Unit,<br/>Step, UpdatedAt"]
+    RPF["ReaderPreference<br/>Subject, Language,<br/>UpdatedAt"]
     FO["FrameOutcome<br/>BundleTag, Unit, Step,<br/>Check, Attempt, Verdict,<br/>Count"]
   end
 
@@ -33,9 +39,11 @@ flowchart TD
   RULE3["Closed column lists<br/>an outcome, a duration or<br/>a count of attempts<br/>breaks the build"]
 
   LOCAL -.->|"only with an account"| RP
+  LOCAL -.->|"only with an account"| RPF
   LOCAL -.->|"only with consent"| FO
 
   RULE1 --> RP
+  RULE1 --> RPF
   RULE3 --> RP
   RULE2 --> FO
   RULE3 --> FO
@@ -43,4 +51,4 @@ flowchart TD
   NOPE(["A per-reader score<br/>no column, no key,<br/>no index prepared for it"])
   FO -.->|"unbuildable"| NOPE
 
-  linkStyle 6 stroke:#b45309,stroke-dasharray: 4 4;
+  linkStyle 8 stroke:#b45309,stroke-dasharray: 4 4;

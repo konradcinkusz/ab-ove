@@ -35,6 +35,9 @@ const COURSE = {
   pl: trackTitles['pl']!,
 };
 
+/** The same, in the edition a reader who has chosen nothing gets (ADR-0052). */
+const DEFAULTED = `${COURSE.href}&lang=en`;
+
 test.describe('the courses page', () => {
   test('lists every course, and each one is a link into the index @smoke', async ({ page }) => {
     const response = await page.goto('/courses');
@@ -50,7 +53,7 @@ test.describe('the courses page', () => {
       choosing a course does, and it is the only part a list of titles cannot fake.
     */
     const course = page.getByRole('link', { name: rx(COURSE.en) });
-    await expect(course).toHaveAttribute('href', COURSE.href);
+    await expect(course).toHaveAttribute('href', DEFAULTED);
 
     /*
       ONE ENTRY PER PINNED COURSE, which is one today and is asserted as one on purpose.
@@ -70,29 +73,46 @@ test.describe('the courses page', () => {
     await page.goto('/');
 
     const courses = page.getByRole('link', { name: 'Courses' });
-    await expect(courses).toHaveAttribute('href', '/courses');
+    await expect(courses).toHaveAttribute('href', '/courses?lang=en');
     await courses.click();
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Courses');
 
     // The way back is the label the reading surface already uses for the same destination,
-    // and it leads to the index that shows every course rather than to one of them.
+    // and it leads to the index that shows every course rather than to one of them. It
+    // carries the edition and nothing else: `?lang=` is not a narrowing (ADR-0052), it is
+    // the one thing every screen in the product is in.
     await page.getByRole('link', { name: '← Programs' }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
-    expect(new URL(page.url()).search, 'the way back narrows nothing').toBe('');
+    expect(
+      new URLSearchParams(new URL(page.url()).search).get('track'),
+      'the way back narrows nothing',
+    ).toBeNull();
   });
 
-  test('chooses a course without choosing an edition for the reader @core', async ({ page }) => {
+  test('shows one title per course, in the reader’s edition @core', async ({ page }) => {
+    /*
+      THIS TEST REVERSED WITH ADR-0052, AND THE OLD ONE IS WORTH RECORDING.
+
+      It asserted that the page "chooses a course without choosing an edition for the
+      reader": a course carried a title per edition inside ONE anchor, so picking a course
+      said nothing about which edition you read. That was ADR-0015's refusal held at one more
+      door, and ADR-0052 removed the thing it was protecting — there is always a reader
+      edition now, so a second title beside the first is this page asking a question the
+      control at the top of it has already answered.
+
+      What is asserted instead is the other half of the same property: the English title is
+      the only one, and the reader can change that in the control rather than by being made
+      to choose in a list.
+    */
     await page.goto('/courses');
 
-    /*
-      ADR-0015 at one more door. A course carries a title per edition and ONE link, so a
-      reader who picks a course has said nothing about which edition they read — the index it
-      opens still offers both. The index's own tiles cannot do this, because a frame's
-      address contains its language; this page's target does not, so it must not invent one.
-    */
-    await expect(page.getByRole('link', { name: rx(COURSE.pl) })).toHaveAttribute('href', COURSE.href);
-    await expect(page.locator('a[href*="lang="]')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: rx(COURSE.en) })).toHaveAttribute('href', DEFAULTED);
+    await expect(page.getByRole('link', { name: rx(COURSE.pl) })).toHaveCount(0);
+
+    // And the other edition is one press away, on the page's own control.
+    await page.getByRole('link', { name: 'polski' }).click();
+    await expect(page.getByRole('link', { name: rx(COURSE.pl) })).toBeVisible();
   });
 
   test('follows the edition a reader has chosen, and keeps it on the way out @core', async ({
@@ -151,19 +171,22 @@ test.describe('the index narrowed to one course', () => {
     await page.goto(`${COURSE.href}&lang=pl`);
 
     /*
-      THE PROPERTY THIS WHOLE FILE IS ABOUT. The two narrowings are independent, so every
-      position of the edition switch carries `?track=` — including *both editions*, which is
-      the position a reader uses to get back to the page that picks neither. A switch that
-      dropped it would answer "show me this in English" with every course on the platform.
+      THE PROPERTY THIS WHOLE FILE IS ABOUT. The two choices are independent, so every
+      position of the language control carries `?track=`. A control that dropped it would
+      answer "show me this in English" with every course on the platform, which is the
+      reader's course narrowing being undone by a question about language.
     */
     await expect(page.getByRole('link', { name: 'English' })).toHaveAttribute(
       'href',
       `${COURSE.href}&lang=en`,
     );
-    await expect(page.getByRole('link', { name: 'Obie edycje' })).toHaveAttribute(
-      'href',
-      COURSE.href,
-    );
+    /*
+      THERE IS NO THIRD POSITION ANY MORE (ADR-0052), and its absence is asserted rather
+      than merely not tested: *Both editions* was the way back to an index that had chosen
+      neither, and the index always chooses one now. A control that grew it back would be
+      the ninety-four-title first screen returning.
+    */
+    await expect(page.getByRole('link', { name: 'Obie edycje' })).toHaveCount(0);
 
     // And the link out to the courses carries the edition, so the page it opens is in the
     // language this one is in.

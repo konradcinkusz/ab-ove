@@ -292,19 +292,27 @@ flowchart TD
 
 ### A5. Co jest przechowywane i na co schemat nie potrafi odpowiedzieć
 
-Dwie tabele, każdą trzymają trzy mechaniczne reguły, a nie obietnica. Nieobecna kolumna —
-czytelnik w wierszu wyniku — jest projektem i to ona czyni ocenę pojedynczego czytelnika nie
-do zbudowania ([ADR-0009](adr/0009-the-instrument-measures-the-book.md),
+Trzy tabele, każdą trzymają mechaniczne reguły, a nie obietnica. Dwie są kluczowane
+czytelnikiem — gdzie jest i którą edycję wybrał
+([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)) — i dzielą
+jedną straż. Nieobecna kolumna w trzeciej — czytelnik w wierszu wyniku — jest projektem i to
+ona czyni ocenę pojedynczego czytelnika nie do zbudowania
+([ADR-0009](adr/0009-the-instrument-measures-the-book.md),
 [ADR-0020](adr/0020-no-aggregate-touches-the-progress-store.md)).
 
 ```mermaid
 %% Co jest przechowywane i na jakie pytanie schemat celowo nie potrafi odpowiedzieć.
 %% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
 
-%% DWIE TABELE, A KAŻDĄ TRZYMAJĄ TRZY MECHANICZNE REGUŁY, NIE OBIETNICA. ReaderProgress
-%% mówi, GDZIE jest czytelnik, i nigdy jak mu poszło; FrameOutcome zlicza werdykt przy
-%% ramce i nie niesie ani identyfikatora, ani znacznika czasu
-%% (ADR-0009, ADR-0020, ADR-0023).
+%% TRZY TABELE, A KAŻDĄ TRZYMAJĄ MECHANICZNE REGUŁY, NIE OBIETNICA. ReaderProgress mówi,
+%% GDZIE jest czytelnik, i nigdy jak mu poszło; ReaderPreference mówi, którą EDYCJĘ wybrał, i
+%% nic poza tym (ADR-0052); FrameOutcome zlicza werdykt przy ramce i nie niesie ani
+%% identyfikatora, ani znacznika czasu (ADR-0009, ADR-0020, ADR-0023).
+
+%% DWIE TABELE ZWIĄZANE Z CZYTELNIKIEM DZIELĄ JEDNĄ STRAŻ. "Ilu czytelników wybrało polski"
+%% to preferencja, a nie pomiar, i wciąż jest faktem uzyskanym przez liczenie czytelników -
+%% więc ReaderScopedQueries odmawia go na tych samych zasadach co "jak daleko zaszedł każdy
+%% czytelnik".
 
 %% NIEOBECNA KOLUMNA JEST PROJEKTEM. Wynik nie niesie czytelnika, więc nic nie potrafi
 %% znaleźć wierszy, które były twoje - dlatego usunięcie konta nie cofnie wkładu już
@@ -321,6 +329,7 @@ flowchart TD
 
   subgraph apidb["apidb - należy do AbOvo.Api"]
     RP["ReaderProgress<br/>Subject, Track, Unit,<br/>Step, UpdatedAt"]
+    RPF["ReaderPreference<br/>Subject, Language,<br/>UpdatedAt"]
     FO["FrameOutcome<br/>BundleTag, Unit, Step,<br/>Check, Attempt, Verdict,<br/>Count"]
   end
 
@@ -333,9 +342,11 @@ flowchart TD
   RULE3["Zamknięte listy kolumn<br/>wynik, czas trwania albo liczba<br/>podejść psują build"]
 
   LOCAL -.->|"tylko z kontem"| RP
+  LOCAL -.->|"tylko z kontem"| RPF
   LOCAL -.->|"tylko za zgodą"| FO
 
   RULE1 --> RP
+  RULE1 --> RPF
   RULE3 --> RP
   RULE2 --> FO
   RULE3 --> FO
@@ -343,7 +354,7 @@ flowchart TD
   NOPE(["Ocena pojedynczego czytelnika<br/>brak kolumny, klucza<br/>i indeksu na nią gotowego"])
   FO -.->|"nie do zbudowania"| NOPE
 
-  linkStyle 6 stroke:#b45309,stroke-dasharray: 4 4;
+  linkStyle 8 stroke:#b45309,stroke-dasharray: 4 4;
 ```
 
 ---
@@ -623,19 +634,26 @@ sequenceDiagram
 
 ### B6. Usunięcie konta — co znika, co zostaje, czego nic nie dosięgnie
 
-Miejsce w lekturze znika pierwsze, a ekran mówi, czego żadne usunięcie nie dosięgnie
-([ADR-0021](adr/0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md)).
-Ekran, który sugerowałby inaczej, deklarowałby możliwość, której schemat celowo nie ma.
+Wszystko, co ten serwis trzyma o czytelniku, znika pierwsze — miejsce w lekturze i wybrana
+edycja, oba pod tym samym podmiotem — a ekran mówi, czego żadne usunięcie nie dosięgnie
+([ADR-0021](adr/0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md),
+[ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)). Ekran, który
+sugerowałby inaczej, deklarowałby możliwość, której schemat celowo nie ma.
 
 ```mermaid
 %% Usunięcie konta: co znika, co zostaje i czego żadne usunięcie nie dosięgnie.
 %% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
 
-%% MIEJSCE W LEKTURZE ZNIKA PIERWSZE, A EKRAN MÓWI, CZEGO NIE DOSIĘGNIE (ADR-0021). Wynik
-%% nie niesie czytelnika, więc nic nie potrafi znaleźć wierszy, które były twoje - a zatem
-%% wkładu wliczonego już do wskaźnika nie da się wycofać. To jest cena strukturalnej
-%% nieobecności, dzięki której ocena pojedynczego czytelnika jest nie do zbudowania, i
-%% czytelnik ją słyszy, zamiast zakładać coś przeciwnego.
+%% KAŻDY WIERSZ ZWIĄZANY Z CZYTELNIKIEM ZNIKA PIERWSZY, A EKRAN MÓWI, CZEGO NIE DOSIĘGNIE
+%% (ADR-0021). Kolejność wynika z PODMIOTU: gdy serwis tożsamości oznaczy konto, nikt już nie
+%% zaloguje się jako ten podmiot, więc cokolwiek pozostanie pod nim w apidb, jest na zawsze
+%% poza zasięgiem czytelnika. Dotyczy to wybranej edycji (ADR-0052) dokładnie tak jak miejsca
+%% w lekturze - i dlatego oba znikają przed kontem, a nie po nim.
+
+%% A PONIEWAŻ WYNIK NIE NIESIE CZYTELNIKA, nic nie potrafi znaleźć wierszy, które były twoje
+%% - a zatem wkładu wliczonego już do wskaźnika nie da się wycofać. To jest cena
+%% strukturalnej nieobecności, dzięki której ocena pojedynczego czytelnika jest nie do
+%% zbudowania, i czytelnik ją słyszy, zamiast zakładać coś przeciwnego.
 
 %% SERWIS TOŻSAMOŚCI OZNACZA I PLANUJE, A NIE WYMAZUJE. To repozytorium nie posiada authdb i
 %% nie składa deklaracji w jego imieniu; ekran mówi, co robi serwis tożsamości, jego
@@ -645,12 +663,12 @@ Ekran, który sugerowałby inaczej, deklarowałby możliwość, której schemat 
 
 flowchart TD
   ASK["Czytelnik prosi<br/>na /account"]
-  P1["1. DELETE /api/v1/progress<br/>wiersze tego czytelnika, znikają"]
+  P1["1. DELETE /api/v1/progress<br/>i /api/v1/preferences/language<br/>wiersze tego czytelnika, znikają"]
   P2["2. Serwis tożsamości<br/>oznacza i planuje"]
   P3["3. Stan lokalny czyszczony<br/>miejsce, arkusz, zgoda"]
   DONE["/account/deleted<br/>mówi, co się stało"]
 
-  GONE["Co znika<br/>wiersze ReaderProgress,<br/>kopia lokalna,<br/>konto"]
+  GONE["Co znika<br/>wiersze ReaderProgress<br/>i ReaderPreference,<br/>kopia lokalna,<br/>konto"]
   STAYS["Co zostaje<br/>anonimowe zliczenia już<br/>wliczone do wskaźnika"]
   CANNOT["Czego nic nie dosięgnie<br/>FrameOutcome nie ma czytelnika,<br/>więc żadne zapytanie nie znajdzie twoich"]
 
@@ -811,7 +829,8 @@ flowchart TD
 ### C4. Dwa zapytania, których odmawia warstwa trwałości
 
 Lustrzane odbicia, a nie ta sama reguła z inną kolumną: jedna odmawia zapytania obejmującego
-wielu **czytelników**, druga zapytania obejmującego wiele **tekstów**
+wielu **czytelników** — po każdej z dwóch tabel kluczowanych czytelnikiem — druga zapytania
+obejmującego wiele **tekstów**
 ([ADR-0024](adr/0024-a-rate-and-its-interval-are-one-value-over-one-cell.md)). Obie odmawiają,
 zanim EF skompiluje zapytanie.
 
@@ -820,8 +839,9 @@ zanim EF skompiluje zapytanie.
 %% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
 
 %% SĄ SWOIMI LUSTRZANYMI ODBICIAMI, A NIE TĄ SAMĄ REGUŁĄ Z INNĄ KOLUMNĄ.
-%% ReaderScopedQueries odmawia zapytania obejmującego wielu CZYTELNIKÓW, bo ocena
-%% pojedynczego czytelnika ma być nie do zbudowania (ADR-0009, ADR-0020).
+%% ReaderScopedQueries odmawia zapytania obejmującego wielu CZYTELNIKÓW - po każdej z dwóch
+%% tabel kluczowanych czytelnikiem - bo ocena pojedynczego czytelnika ma być nie do
+%% zbudowania (ADR-0009, ADR-0020, ADR-0052).
 %% BundlePinnedQueries odmawia zapytania obejmującego wiele TEKSTÓW, bo średnia po dwóch
 %% brzmieniach ramki jest bez sensu, a nie zakazana (ADR-0024) - kazałaby rejestrowi kłamać
 %% o ramce, którą ktoś już poprawił.
@@ -832,7 +852,7 @@ zanim EF skompiluje zapytanie.
 %% ODMOWA PADA, ZANIM EF SKOMPILUJE ZAPYTANIE, co czyni ją regułą, a nie uwagą z przeglądu.
 
 flowchart TD
-  Q1["Zapytanie po ReaderProgress"]
+  Q1["Zapytanie po ReaderProgress<br/>lub ReaderPreference"]
   G1{"Czy przypina<br/>dokładnie jednego czytelnika?"}
   R1["Wykonuje się"]
   X1["Odmowa w czasie działania,<br/>zanim EF je skompiluje"]

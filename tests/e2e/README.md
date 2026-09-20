@@ -69,18 +69,20 @@ enforced where it is least likely to be broken.
 
 ### 1b. The landing page is the index — `specs/landing.spec.ts`
 
-What replaced the argument on `/`: a grid of programs, an edition switch, and the account
+What replaced the argument on `/`: a grid of programs, the language control, and the account
 control at the top. The assertions are about **hrefs into the reading route** rather than
 about tiles existing — a grid of tiles linking nowhere would satisfy every weaker form of
 this test, and "a reader arriving is one move from working a program" is the requirement the
 change was made for.
 
-The edition switch gets four of them, because it is the part that could quietly undo
-[ADR-0015](../../docs/adr/0015-the-reading-index-has-no-default-language.md): both editions
-are linked when nothing is chosen, one when something is, an edition the book does not have
-is no choice rather than a fallback to English, and *Both editions* gets a reader back to
-the page that picks neither. `web/app/src/lib/content/chosen-edition.test.ts` covers the
-same rule at the layer with the logic (P13); this covers it on the page.
+The edition gets five of them, because it is the part that could quietly undo
+[ADR-0052](../../docs/adr/0052-one-language-control-remembered-and-english-by-default.md):
+the index opens in English with ONE title per tile for a reader who has chosen nothing, a
+`?lang=` narrows it, a choice made in the control survives a return to the bare `/`, a link
+that names an edition beats what the reader remembers, and an edition the book does not have
+falls through rather than 404ing. `web/app/src/lib/content/chosen-edition.test.ts` and
+`web/app/src/lib/language/store.test.ts` cover the same rules at the layer with the logic
+(P13); this covers them on the page.
 
 It also asserts that `/read` still answers **308** to `/`. A redirect nobody asserts is one
 somebody removes as dead code.
@@ -721,7 +723,7 @@ tests/e2e/
   tsconfig.json                     strict; `pnpm run typecheck` is a real gate
   specs/
     about.spec.ts                   journey 1 — the argument and its anti-goal
-    landing.spec.ts                 journey 1b — the index, its tiles and its edition switch
+    landing.spec.ts                 journey 1b — the index, its tiles and the language control
     runtime-config.spec.ts          journey 2 — GET /api/config, resolved at request time
     integration-report.spec.ts      journey 3 — P8, seen from a browser
     no-backend.spec.ts              journey 4 — the reader loop's premise

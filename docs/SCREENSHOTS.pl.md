@@ -55,7 +55,7 @@ uwierzono.
 ### Wiersz miejsca jest jedyną obudową
 
 Wiersz nad ramką niesie identyfikator programu, tytuł programu, sekcję, w której jesteś,
-przełącznik edycji i to, gdzie jesteś — `3 / 45`. Ten numer ramki jest skokiem: naciśnij `g` i
+wybór języka i to, gdzie jesteś — `3 / 45`. Ten numer ramki jest skokiem: naciśnij `g` i
 wpisz numer. **Pokazuje miejsce, nigdy postęp**
 ([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md)) — procent z
 książki o czterdziestu siedmiu programach byłby liczbą o czytelniku, a ten produkt takich nie
@@ -66,8 +66,10 @@ produkuje.
 ![Ta sama ramka F01 w edycji polskiej: to samo podbarwione pudełko z odpowiedzią, to samo pytanie, te same kontrolki arkusza, wszystko po polsku.](assets/screenshots/frame-asks-polish.png)
 
 Książka jest złożona po angielsku i po polsku, a edycja jest wyborem czytelnika, a nie czymś
-zgadniętym z nagłówka ([ADR-0015](adr/0015-the-reading-index-has-no-default-language.md)).
-Przełączenie to odnośnik w wierszu miejsca; zachowuje twój numer ramki.
+zgadniętym z nagłówka
+([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)).
+Przełączenie to odnośnik w wierszu miejsca; zachowuje twój numer ramki — i zostaje
+zapamiętane, więc pytanie pada raz, a nie na każdym ekranie.
 
 ### Arkusz
 
@@ -103,26 +105,29 @@ wyboru, i jedyna, która nie potrzebuje JavaScriptu
 
 ### Strona startowa jest indeksem
 
-![Strona startowa. Znak słowny, odnośnik do About, trójpozycyjny przełącznik trybu z opcjami System, Light i Dark, odnośnik do Sign in, przełącznik edycji z opcjami English, polski i Both editions oraz siatka kafelków — po jednym na program, każdy z identyfikatorem, tytułem i liczbą ramek i sekcji. U dołu strony karta zatytułowana "Help fix the book?" z dwoma przyciskami.](assets/screenshots/landing-english.png)
+![Strona startowa. Znak słowny; odnośniki do Courses i About, trójpozycyjny przełącznik trybu z opcjami System, Light i Dark oraz odnośnik do Sign in; dalej nagłówek Programs z wyborem języka — English i polski — na końcu jego wiersza, a pod nim siatka kafelków — po jednym na program, każdy z identyfikatorem, tytułem i liczbą ramek i sekcji. U dołu strony karta zatytułowana "Help fix the book?" z dwoma przyciskami.](assets/screenshots/landing-english.png)
 
 Pierwszy ekran jest tym, po co czytelnik przyszedł, o jedną nawigację od ramki zamiast o dwie
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). To
-komponent serwerowy, który nie robi żadnego zapytania, nie czyta ciasteczka i nie potrzebuje
-backendu.
+komponent serwerowy, który nie robi żadnego zapytania i nie potrzebuje backendu; czyta jedno
+ciasteczko, własne tego origin, w którym trzymana jest wybrana przez czytelnika edycja — dzięki
+temu pierwsze malowanie jest już w niej
+([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)).
 
 Karta u dołu to **zaproszenie do zgody** i stoi na końcu celowo: czytelnik, który przyszedł
 czytać, dociera najpierw do programów, a do pytania potem. Jest zaproszeniem, a nie bramką,
 jest trójwartościowa — udzielona, odmówiona, jeszcze niezadana — i mieszka w przeglądarce
 ([ADR-0022](adr/0022-consent-is-local-versioned-and-three-valued.md)).
 
-### Bez wybranej edycji i z wybraną
-
-![Strona startowa bez wybranej edycji: każdy kafelek niesie tytuł w każdej edycji, każdy własnym odnośnikiem.](assets/screenshots/landing-both-editions.png)
-
-*Both editions* to widok czytelnika, który nie wybrał niczego. Wybór to `/?lang=<edycja>`:
-widoczny, linkowalny, opuszczalny i nigdy niezgadywany.
+### W każdej edycji
 
 ![Strona startowa w edycji polskiej: polskie tytuły programów, polska obudowa.](assets/screenshots/landing-polish.png)
+
+Czytelnik, który nie wybrał niczego, czyta po angielsku. Jedynym sposobem, by to zmienić, jest
+kontrolka na górze każdego ekranu; wybór to `/?lang=<edycja>` — widoczny, linkowalny,
+opuszczalny i nigdy niezgadywany z `Accept-Language` — **i jest zapamiętywany**: w tej
+przeglądarce, a na koncie czytelnika, jeśli je ma. Pytanie pada więc raz, a nie na każdym
+ekranie (ADR-0052).
 
 ![Strona startowa w trybie ciemnym.](assets/screenshots/landing-dark.png)
 

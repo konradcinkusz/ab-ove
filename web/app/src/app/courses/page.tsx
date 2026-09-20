@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 
 import { allBundles } from '@ab-ovo/web-kit';
 
 import { CourseList } from '@/components/programs/course-list';
 import { chosenEdition } from '@/lib/content/chosen-edition';
-import { FALLBACK_LANGUAGE, chromeFor } from '@/lib/i18n/chrome';
+import { chromeFor } from '@/lib/i18n/chrome';
+import { LANGUAGE_COOKIE, isLanguageTag } from '@/lib/language/store';
 
 /**
  * The courses this deployment carries, and the way into each one (ADR-0048).
@@ -12,11 +14,16 @@ import { FALLBACK_LANGUAGE, chromeFor } from '@/lib/i18n/chrome';
  * ──────────────────────────────────────────────────────────────────────────────────────
  * THE INDEX'S SIBLING, AND IT KEEPS THE INDEX'S FIRST PROPERTY.
  *
- * No fetch, no cookie, no backend: `allBundles()` reads content compiled into the app, so
- * the page a reader uses to choose a course works under exactly the conditions the reader
- * loop is required to work under (ADR-0004). It is rendered per request for the reason the
- * index is — `searchParams` is a request-time API in Next 16 — and the property that
- * rendering mode gives up is held by `@ab-ovo/web-kit`'s `bundle.test.ts` rather than by a build.
+ * No fetch and no backend: `allBundles()` reads content compiled into the app, so the page a
+ * reader uses to choose a course works under exactly the conditions the reader loop is
+ * required to work under (ADR-0004). It is rendered per request for the reason the index is
+ * — `searchParams` is a request-time API in Next 16 — and the property that rendering mode
+ * gives up is held by `@ab-ovo/web-kit`'s `bundle.test.ts` rather than by a build.
+ *
+ * It reads ONE cookie, this origin's own, for the index's reason (ADR-0052): this is a
+ * screen with no language in its URL and nothing on it but titles, so without the remembered
+ * edition the first paint would be English for a reader who chose Polish and would correct
+ * itself a moment later.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * WHY THIS ROUTE EXISTS RATHER THAN A SECOND SWITCH ON `/`. The index already carries the
@@ -37,8 +44,13 @@ export async function generateMetadata({
     tab title would be this application disagreeing with itself in the one place a reader
     cannot see the disagreement.
   */
-  const chosen = chosenEdition(allBundles(), (await searchParams)['lang']);
-  return { title: `${chromeFor(chosen ?? FALLBACK_LANGUAGE).courses} — ab-ovo` };
+  const remembered = (await cookies()).get(LANGUAGE_COOKIE)?.value;
+  const chosen = chosenEdition(
+    allBundles(),
+    (await searchParams)['lang'],
+    isLanguageTag(remembered) ? remembered : undefined,
+  );
+  return { title: `${chromeFor(chosen).courses} — ab-ovo` };
 }
 
 export default async function CoursesPage({
@@ -51,10 +63,18 @@ export default async function CoursesPage({
   /*
     The edition, resolved against every course rather than against one: this page lists them
     all, so an edition any of them publishes is a choice a reader can make here. A course that
-    is not published in it shows the titles it does have — `course-list.tsx` says why that is
+    is not published in it shows the title it does have — `course-list.tsx` says why that is
     better than omitting the course or printing nothing.
+
+    Always a language since ADR-0052: what the URL asks for, else what this browser
+    remembers, else English.
   */
-  const chosen = chosenEdition(bundles, (await searchParams)['lang']);
+  const remembered = (await cookies()).get(LANGUAGE_COOKIE)?.value;
+  const chosen = chosenEdition(
+    bundles,
+    (await searchParams)['lang'],
+    isLanguageTag(remembered) ? remembered : undefined,
+  );
 
   return <CourseList bundles={bundles} chosen={chosen} />;
 }

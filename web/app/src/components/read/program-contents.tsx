@@ -2,13 +2,14 @@ import Link from 'next/link';
 
 import { say, sectionSpans, unitBefore, type Bundle, type Unit } from '@ab-ovo/web-kit';
 
+import { LanguageChoice } from '@/components/language/language-choice';
 import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { chromeFor } from '@/lib/i18n/chrome';
+import { editionHrefs } from '@/lib/language/hrefs';
 
 import styles from './contents.module.css';
 import { EntryControl, StartAfresh } from './entry-control.tsx';
 import { KeysDetails } from './keys-details.tsx';
-import { LanguageSwitch } from './language-switch.tsx';
 import { ProgramGate } from './program-gate.tsx';
 import { RichInline } from './rich-text.tsx';
 import { WhenOpen } from './when-open.tsx';
@@ -69,7 +70,7 @@ export function ProgramContents({
 
   const index = bundle.units.findIndex((candidate) => candidate.id === unit.id);
   // Through `unitBefore` rather than `index - 1`, so the gate and this foot read the
-  // book's order out of one function (ADR-0049). The forward neighbour has no such
+  // book's order out of one function (ADR-0051). The forward neighbour has no such
   // sharer and stays here.
   const previousUnit = unitBefore(bundle, unit.id);
   const nextUnit = index >= 0 ? bundle.units[index + 1] : undefined;
@@ -78,7 +79,7 @@ export function ProgramContents({
     <main className={styles.page} lang={language}>
       {/*
         A reader who has not reached this program is returned to the index, where the tile
-        says which program opens it (ADR-0049). It renders nothing and cannot run on the
+        says which program opens it (ADR-0051). It renders nothing and cannot run on the
         server, which is why the page below it is written as though every reader belongs
         here — see `program-gate.tsx` for why that is the product rather than a shortcut.
       */}
@@ -103,18 +104,35 @@ export function ProgramContents({
         the first paint, and extending a line moves nothing where adding a block would move
         everything under it.
       */}
-      <p className={styles.crumb} lang={chrome.language}>
-        <Link href="/">{chrome.programsCrumb}</Link>
+      {/*
+        A `<div>` AND NOT A `<p>`, since ADR-0052 put the language control in this row. The
+        control is a `<nav>`, `<p>` cannot legally contain one, and the parser closes the
+        paragraph when it meets it — which React reports as a hydration mismatch and pays
+        for by regenerating the whole client tree. `place-row.tsx`'s header has the full
+        finding; it cost a PR to notice, because nothing looks broken when it happens.
+      */}
+      <div className={styles.crumb} lang={chrome.language}>
+        <span className={styles.crumbSide}>
+          <Link href="/">{chrome.programsCrumb}</Link>
+          {/*
+            THE LANGUAGE CONTROL — this screen's only one, at the top of it. It sits beside
+            the way back rather than on a line of its own, which is the line ADR-0052
+            removed: a block between the crumb and the programme's title, on every contents
+            page, saying nothing the reader had not already been asked twice.
+          */}
+          <LanguageChoice
+            current={language}
+            hrefs={editionHrefs(
+              bundle.track.languages,
+              (other) => `/read/${track}/${unit.id}/${other}`,
+            )}
+            label={chrome.languageLabel}
+            labelLanguage={chrome.language}
+            languages={bundle.track.languages}
+          />
+        </span>
         <StartAfresh language={language} last={unit.steps.length} track={track} unit={unit.id} />
-      </p>
-
-      <LanguageSwitch
-        current={language}
-        hrefFor={(other) => `/read/${track}/${unit.id}/${other}`}
-        label={chrome.languageLabel}
-        labelLanguage={chrome.language}
-        languages={bundle.track.languages}
-      />
+      </div>
 
       <h1 className={styles.programTitle}>
         <RichInline language={language} text={say(unit.titles, language)} />

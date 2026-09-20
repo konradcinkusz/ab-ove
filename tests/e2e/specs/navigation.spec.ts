@@ -61,11 +61,18 @@ test.describe('navigation', () => {
 
     await page.goto('/');
 
-    // BOTH editions, each under its own title, each its own link. The index is where a
-    // reader who has not chosen a language arrives, so it is the one page that could
-    // quietly make the book monolingual — and the failure would look like a tidier page.
+    /*
+      EVERY EDITION IS REACHABLE FROM THE INDEX, ONE AT A TIME (ADR-0052).
+
+      The index shows one edition now — English until the reader says otherwise — so this
+      walks the control rather than asserting two links side by side. What is being
+      protected is the same property as before: the index is the one page that could quietly
+      make the book monolingual, and the failure would look like a tidier page.
+    */
     expect(languages.length, 'the track no longer has two editions to distinguish').toBe(2);
     for (const language of languages) {
+      await page.goto(`/?lang=${language}`);
+
       await expect(
         page.getByRole('link', { name: unitTitles[language]! }),
         `the ${language} edition of ${unit} is not linked from the index`,

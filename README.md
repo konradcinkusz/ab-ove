@@ -105,10 +105,13 @@ integration panel, a Playwright acceptance suite, four `fly.toml` files describi
 topology that has never been applied, and the CI gates that would catch a regression in any
 of it.
 
-The domain model is still **one entity** — `ReaderProgress`, which arrived with
-synchronisation (#11) and is the only thing this estate stores about anybody. There are no
-frames and no exercises in any database, because the frames are a content bundle the reader
-fetches; and nothing a reader writes on a frame is stored anywhere but their own browser
+The domain model is **three entities**: `ReaderProgress`, which arrived with synchronisation
+(#11); `FrameOutcome`, the instrument's tally, which carries no reader at all (#15); and
+`ReaderPreference`, which edition a reader chose
+([ADR-0052](docs/adr/0052-one-language-control-remembered-and-english-by-default.md)). Two of
+the three are all this estate stores about anybody. There are no frames and no exercises in
+any database, because the frames are a content bundle the reader fetches; and nothing a
+reader writes on a frame is stored anywhere but their own browser
 ([ADR-0039](docs/adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)). Entities
 invented ahead of the ticket that needs them are code the first real ticket deletes
 (INIT-GENERIC-TEMPLATE.md §12).
@@ -212,7 +215,8 @@ or a group-by key over one. `ReaderProgress` is not a score row — it says wher
 and never how they did — and three things now hold that, none of them a promise:
 
 - **a query over it that does not pin one reader is refused at run time**, before EF compiles
-  it (`ReaderScopedQueries`);
+  it (`ReaderScopedQueries`) — which covers `ReaderPreference` on the same terms, because
+  "how many readers chose Polish" is still a fact arrived at by counting readers;
 - **its column list is closed**, so an outcome, a duration or a count of attempts breaks the
   build rather than arriving in a reasonable-looking commit;
 - **every key and index leads with the reader**, so the table is not even *prepared* to answer

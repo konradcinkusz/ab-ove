@@ -41,6 +41,12 @@
   color: var(--ink-faint);
 }
 
+/*
+ * The right-hand end of the masthead: the language control and the destinations, two
+ * separate navigations side by side. A plain `<div>` rather than a `<nav>`, because a
+ * `<nav>` holding a `<nav>` makes both ambiguous — `program-grid.module.css` has the same
+ * pair and the same note.
+ */
 .chrome {
   align-items: baseline;
   color: var(--ink-faint);
@@ -48,6 +54,14 @@
   flex-wrap: wrap;
   font-family: var(--font-ui);
   font-size: 0.8125rem;
+  gap: 0.5rem 1.25rem;
+}
+
+/* The destinations: back to the index, and the product's argument. */
+.chromeLinks {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem 1.25rem;
 }
 

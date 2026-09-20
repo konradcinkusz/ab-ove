@@ -25,16 +25,19 @@ dostaje nic, a papier nie ma jak tego zauważyć.
 Ta aplikacja też nie ma jak i nawet nie próbuje. Robi za to coś innego: sprawia, że przelatywanie
 wzrokiem *kosztuje* — odpowiedzi nie ma na stronie, więc nie ma na co zerknąć.
 
-## Krok 1 — wybierz edycję, i to na serio
+## Krok 1 — wybierz edycję, raz
 
-![Strona startowa z przełącznikiem edycji: English, polski, Both editions.](../assets/screenshots/landing-english.png)
+![Strona startowa z wyborem języka: English i polski.](../assets/screenshots/landing-english.png)
 
-Przełącznik ma trzy pozycje — każdą edycję i *obie*. **Obie** to widok czytelnika, który nie
-wybrał niczego, i nie jest to domyślność przebrana za wybór: domyślności nie ma
-([ADR-0015](../adr/0015-the-reading-index-has-no-default-language.md)). Nic nie czyta twojego
-nagłówka `Accept-Language` i nie decyduje za ciebie.
+Kontrolka stoi na górze każdego ekranu w produkcie i jest dokładnie jedna. Strona otwiera się
+po **angielsku** i mówi to wprost, zamiast zgadywać: nic nie czyta twojego nagłówka
+`Accept-Language` i nie decyduje za ciebie
+([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md)).
 
-Wybór to URL — `/?lang=pl` — więc jest widoczny, linkowalny i opuszczalny.
+Naciśnij *polski* i czytasz po polsku — na tym ekranie, na stronie spisu treści, w każdej
+ramce i następnym razem, gdy wrócisz. Wybór zostaje zapamiętany w przeglądarce, a po
+zalogowaniu także na koncie, więc ten samouczek pyta o to tylko teraz. Wybór to również URL —
+`/?lang=pl` — więc pozostaje widoczny, linkowalny i opuszczalny.
 
 Wybierz **F01 — Liczby, potęgi i pierwiastki**. Każdy czytelnik zaczyna tam.
 
