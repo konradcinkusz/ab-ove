@@ -10,7 +10,7 @@ import { isOpen } from '@/lib/progress/gate';
 export interface ProgramGateProps {
   readonly track: string;
   readonly unit: string;
-  /** The program the book puts before this one, or `undefined` for the first (ADR-0049). */
+  /** The program the book puts before this one, or `undefined` for the first (ADR-0051). */
   readonly previous: string | undefined;
   /** The edition this page is in, so the index the reader lands on is in it too. */
   readonly language: string;
@@ -22,7 +22,7 @@ export interface ProgramGateProps {
  * ──────────────────────────────────────────────────────────────────────────────────────
  * WITHOUT THIS, THE RULE IS A DECORATION ON ONE PAGE.
  *
- * ADR-0049 shuts a program until the reader has a place in the one before it, and the
+ * ADR-0051 shuts a program until the reader has a place in the one before it, and the
  * index expresses that by not rendering a link. A link is not the only way into a URL: the
  * address bar, a bookmark, a shared link, the contents page's own foot and the browser's
  * history all reach `/read/<track>/<unit>/<lang>` without passing a tile. So the three
@@ -35,7 +35,7 @@ export interface ProgramGateProps {
  * account and no backend (ADR-0004) is what put it there. A server that could gate these
  * routes would be a server that knows who is asking, which is the product this is not. So
  * the frame renders, hydration reads the record, and a shut program is left within a few
- * hundred milliseconds. The honest cost is in ADR-0049's Consequences: the first paint of
+ * hundred milliseconds. The honest cost is in ADR-0051's Consequences: the first paint of
  * a shut program is the program, and a reader with script off is not gated at all.
  *
  * `replace`, NEVER `push`. A pushed redirect puts the shut page in the history behind the

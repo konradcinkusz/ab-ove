@@ -181,7 +181,7 @@
 
 /*
  * The tile lifts under the pointer ONLY WHEN THERE IS SOMETHING TO PRESS. A program the
- * reader has not reached yet carries no link (ADR-0049), and a border that lit up anyway
+ * reader has not reached yet carries no link (ADR-0051), and a border that lit up anyway
  * would be the affordance of a control that is not there — `:has(a.title)` asks the markup
  * rather than taking a second class from the component, the same way `:only-child` below
  * asks it how many editions the tile offers. `:focus-within` needs no such guard: nothing
@@ -194,7 +194,7 @@
 
 /*
  * The tile a reader was sent back to, having asked for a program that is not open yet
- * (ADR-0049). `:target` is the browser's own answer to "which one did the fragment name",
+ * (ADR-0051). `:target` is the browser's own answer to "which one did the fragment name",
  * so the mark costs no state, survives a reload of the same URL, and clears itself the
  * moment the reader navigates anywhere else. Same border as the pointer's, because it
  * means the same thing — this is the one you were pointing at.
@@ -255,7 +255,7 @@
 
 /*
  * Scoped to the anchor, because half the titles on this page are not one. A shut tile
- * renders its title as a `<span>` of the same class (ADR-0049, `tile-entry.tsx`), and an
+ * renders its title as a `<span>` of the same class (ADR-0051, `tile-entry.tsx`), and an
  * underline following the pointer across it would promise a press that does nothing.
  */
 a.title:hover,
@@ -291,7 +291,7 @@ a.title:focus-visible {
  * cannot disagree: the markup says how many editions this tile offers, and the rule follows
  * from that rather than from a second decision made next to it. `a.` joins the condition
  * for the same reason — a shut tile's title is a `<span>` and an only child too, and a
- * stretched overlay over no link is a tile-sized target that does nothing (ADR-0049).
+ * stretched overlay over no link is a tile-sized target that does nothing (ADR-0051).
  *
  * The accessible name stays the program's title — the overlay is on the anchor's own
  * `::after`, so nothing else joins the link's text, and the `<p>` of frame counts is still

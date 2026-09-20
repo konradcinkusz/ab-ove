@@ -15,7 +15,7 @@ export interface TilePositionProps {
   /** The program's length, so a place past the end of a shortened program is clamped. */
   readonly last: number;
   /**
-   * The program the book puts before this one, or `undefined` for the first (ADR-0049).
+   * The program the book puts before this one, or `undefined` for the first (ADR-0051).
    * An id read off the manifest by `unitBefore`, never an id with one taken off it.
    */
   readonly previous: string | undefined;
@@ -43,7 +43,7 @@ export interface TilePositionProps {
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * AND THE SAME SLOT SAYS WHEN THE TILE IS SHUT, WHICH IS ADR-0049 REUSING A RESERVED LINE
+ * AND THE SAME SLOT SAYS WHEN THE TILE IS SHUT, WHICH IS ADR-0051 REUSING A RESERVED LINE
  * RATHER THAN ADDING ONE.
  *
  * The two can never both be true: a place in a program is one of the three things that

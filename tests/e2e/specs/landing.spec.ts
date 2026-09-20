@@ -26,7 +26,7 @@ import { openThrough } from './support/gate.ts';
  * where the same grid is asserted with the API unreachable.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * AND IT IS THE PAGE OF A READER WHO HAS WALKED TO P01 — ADR-0049.
+ * AND IT IS THE PAGE OF A READER WHO HAS WALKED TO P01 — ADR-0051.
  *
  * A program is shut until the reader has a place in the one before it, so on a FRESH
  * browser P01's tile carries no link and every assertion below would be asserting the gate

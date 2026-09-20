@@ -419,7 +419,7 @@ interface Strings {
    */
   readonly atFrame: (n: number) => string;
   /**
-   * On a tile the reader cannot enter yet: `opens after P06` (ADR-0049).
+   * On a tile the reader cannot enter yet: `opens after P06` (ADR-0051).
    *
    * IT NAMES THE PROGRAM THAT OPENS THIS ONE, which is the whole of what a shut door owes
    * a reader — one move, and it is a move they can make. A bare "locked" would say the

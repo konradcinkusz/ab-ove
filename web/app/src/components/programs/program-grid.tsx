@@ -264,7 +264,7 @@ export function ProgramGrid({ bundles, chosen, chosenTrack }: ProgramGridProps):
 
                       /*
                         The program that opens this one, read off the manifest rather than
-                        off the id (ADR-0049; `unitBefore` says what P07's insertion did to
+                        off the id (ADR-0051; `unitBefore` says what P07's insertion did to
                         the arithmetic). `undefined` for the book's first program, which is
                         the one tile that is never shut.
                       */
