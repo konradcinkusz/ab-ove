@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { track, unitNamed } from './support/bundle.ts';
+import { openThrough } from './support/gate.ts';
 
 /**
  * JOURNEY 1b — the landing page is the programs, and one click reaches one of them.
@@ -23,6 +24,20 @@ import { track, unitNamed } from './support/bundle.ts';
  * IT MUST HOLD WITH NO ACCOUNT AND NO BACKEND, which is why almost everything here is
  * `@smoke`. The page reads content compiled into the app; `specs/no-backend.spec.ts` is
  * where the same grid is asserted with the API unreachable.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * AND IT IS THE PAGE OF A READER WHO HAS WALKED TO P01 — ADR-0049.
+ *
+ * A program is shut until the reader has a place in the one before it, so on a FRESH
+ * browser P01's tile carries no link and every assertion below would be asserting the gate
+ * rather than the grid. The `beforeEach` seeds the record such a reader would have
+ * (`specs/support/gate.ts`), which keeps this file about what it has always been about:
+ * that the index REACHES a program rather than merely listing it.
+ *
+ * The fresh browser's index — one open tile, forty-six saying `opens after …` — is
+ * `specs/gate.spec.ts`, and P01 is still the program asserted here because it is the one
+ * deep enough in the book to prove the reaching.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * LOCATORS. Role plus accessible name, then text — preferences 1 and 2 of
  * E2E-ACCEPTANCE-TESTING.md §3. Every locator below names what it is looking for, so a
@@ -50,7 +65,13 @@ const P01 = {
 };
 
 test.describe('landing page', () => {
-  test('is the index of programs, and each program is a link into it @smoke', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
+    await openThrough(page, 'P01');
+  });
+
+  test('is the index of programs, and a program the reader has reached is a link into it @smoke', async ({
+    page,
+  }) => {
     const response = await page.goto('/');
     expect(response?.status(), 'the landing page must answer 200').toBe(200);
 

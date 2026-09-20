@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { pickPair, served, track, unitNamed } from './support/bundle.ts';
+import { openThrough } from './support/gate.ts';
 import { revealTo } from './support/reveal.ts';
 
 /**
@@ -192,6 +193,10 @@ test.describe('the frame view', () => {
      */
     const { number } = NUMERIC;
 
+    // `numericPairAnywhere` searches the whole book, so the frame can be in any program —
+    // and since ADR-0049 a program renders for a reader who walked to it. The rest of this
+    // file reads the FIRST program, which is open to everybody and needs no seed.
+    await openThrough(page, NUMERIC.unit);
     await page.goto(numericAt('en', NUMERIC.asks));
     expect(
       await page.content(),

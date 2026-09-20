@@ -2,6 +2,8 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
 
 import { AUTHOR, READER, TWO_FACTOR } from '../fixtures/accounts.mts';
 
+import { openThrough } from './support/gate.ts';
+
 /**
  * JOURNEY — the hop between the two halves this suite already covers.
  *
@@ -260,6 +262,11 @@ test.describe('the browser holds no token and constructs no bearer', () => {
 
   test('nothing in browser storage looks like a token @identity', async ({ page }) => {
     await signIn(page, READER);
+    // The walk to this program, which since ADR-0049 is what makes a frame of it render at
+    // all. It is `localStorage` and nothing else — no cookie, no request — so the storage
+    // this test rakes through is exactly what the application put there plus one seed that
+    // could not be mistaken for a token.
+    await openThrough(page, UNIT);
     await page.goto(`/read/${TRACK}/${UNIT}/en/1`);
     // A frame is an `<article>`, which is what `frame-view.tsx` renders — the reading surface
     // is the document's subject rather than a region of a larger page.
@@ -327,6 +334,8 @@ test.describe('a frame a reader reads reaches the account and comes back', () =>
     // inside it and is not frame 1, which is where a reader who did nothing would be.
     const STEP = 3;
 
+    // ADR-0049: the reader of this journey is one who walked here, so the record says so.
+    await openThrough(page, UNIT);
     await page.goto(`/read/${TRACK}/${UNIT}/en/${STEP}`);
     await expect(page.locator('article')).toBeVisible();
 
@@ -360,6 +369,7 @@ test.describe('a frame a reader reads reaches the account and comes back', () =>
     // because the caller ADOPTS the answer. `ProgressEndpointTests` proves the service does
     // that; this proves the answer survives the proxy, which is the only hop between them that
     // could drop a body or re-wrap it in an envelope of its own.
+    await openThrough(page, UNIT);
     await page.goto(`/read/${TRACK}/${UNIT}/en/1`);
 
     const wrote = await throughProxy(page, `${PROGRESS}/${TRACK}/${UNIT}`, {

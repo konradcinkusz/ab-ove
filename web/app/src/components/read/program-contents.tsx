@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import { ThemeSwitch } from '@/components/theme/theme-switch';
-import { say, sectionSpans } from '@/lib/content/bundle';
+import { say, sectionSpans, unitBefore } from '@/lib/content/bundle';
 import type { Bundle, Unit } from '@/lib/content/schema';
 
 import { chromeFor } from '@/lib/i18n/chrome';
@@ -10,7 +10,9 @@ import styles from './contents.module.css';
 import { EntryControl, StartAfresh } from './entry-control.tsx';
 import { KeysDetails } from './keys-details.tsx';
 import { LanguageSwitch } from './language-switch.tsx';
+import { ProgramGate } from './program-gate.tsx';
 import { RichInline } from './rich-text.tsx';
+import { WhenOpen } from './when-open.tsx';
 
 export interface ProgramContentsProps {
   readonly bundle: Bundle;
@@ -67,11 +69,27 @@ export function ProgramContents({
   const openingEnds = (spans[0]?.from ?? 1) - 1;
 
   const index = bundle.units.findIndex((candidate) => candidate.id === unit.id);
-  const previousUnit = index > 0 ? bundle.units[index - 1] : undefined;
+  // Through `unitBefore` rather than `index - 1`, so the gate and this foot read the
+  // book's order out of one function (ADR-0049). The forward neighbour has no such
+  // sharer and stays here.
+  const previousUnit = unitBefore(bundle, unit.id);
   const nextUnit = index >= 0 ? bundle.units[index + 1] : undefined;
 
   return (
     <main className={styles.page} lang={language}>
+      {/*
+        A reader who has not reached this program is returned to the index, where the tile
+        says which program opens it (ADR-0049). It renders nothing and cannot run on the
+        server, which is why the page below it is written as though every reader belongs
+        here — see `program-gate.tsx` for why that is the product rather than a shortcut.
+      */}
+      <ProgramGate
+        language={language}
+        previous={previousUnit?.id}
+        track={track}
+        unit={unit.id}
+      />
+
       {/*
         `← Programs` rather than the wordmark chain it replaced. The chain said ab-ovo ·
         Programs on a page whose own `<h1>` already names the program, which is three levels
@@ -180,8 +198,15 @@ export function ProgramContents({
               ← {previousUnit.id}
             </Link>
           ) : null}
+          {/*
+            The way on, offered only once this program has been opened: the next program is
+            shut until the reader has a place in this one, and a foot link that bounced off
+            the gate would be a control that is reliably refused.
+          */}
           {nextUnit ? (
-            <Link href={`/read/${track}/${nextUnit.id}/${language}`}>{nextUnit.id} →</Link>
+            <WhenOpen previous={unit.id} track={track} unit={nextUnit.id}>
+              <Link href={`/read/${track}/${nextUnit.id}/${language}`}>{nextUnit.id} →</Link>
+            </WhenOpen>
           ) : null}
         </span>
 

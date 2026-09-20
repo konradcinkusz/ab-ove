@@ -113,6 +113,16 @@ Its parts, in order:
    progress** (ADR-0041): no fraction, no bar, nothing about how far, and not a link,
    because the way back into the frame is the resume control and `progress.spec.ts` holds
    the page to exactly one.
+
+   **A tile the reader has not reached yet carries no link**
+   ([ADR-0049](../adr/0049-a-program-opens-when-the-one-before-it-has-been-opened.md)). A
+   program opens when the reader has any place in the one before it — the first program of
+   the track is always open, and so is any program they already have a place in — and until
+   then the same slot that would say `at frame 12` says `opens after P06` instead. The id,
+   the title and the counts stay: the index is the book's table of contents and a reader
+   may see what is in it; what it loses is the way in. The door is what closes, not the
+   tile. It is derived from the record that already exists, so nothing new is stored and a
+   reader who signs in finds the same doors open on their other machine.
 5. **The consent invitation**, last, absent from the first paint, and an invitation rather
    than a gate — a reader who came to read reaches the programs first and the question
    afterwards. The same invitation is on a program's summary, below the list, where a
@@ -252,7 +262,14 @@ same element, same class — so the page moves by nothing when the record is rea
 (`progress.spec.ts` holds it to the index's shift bound). The crumb row's quiet *Start at
 frame 1* appears only beside a *Continue*, so the page has exactly one link to the reader's
 frame and always one to the first. The foot carries the two neighbouring programs and the
-key map.
+key map — and **the next one only once this program has been opened**
+([ADR-0049](../adr/0049-a-program-opens-when-the-one-before-it-has-been-opened.md)): a
+`F03 →` that led somewhere the reader would be sent back from is a control that is reliably
+refused. **The page itself is gated on the same rule.** A reader who has not reached this
+program is returned to the index, at the tile that says which program opens it. It happens
+after hydration, because the record is in the browser and the server has no reader — a
+first paint of a shut program is the honest cost of the loop working with no backend at
+all (ADR-0004).
 
 ### `/read/<track>/<unit>/<lang>/<step>` — one frame
 

@@ -26,7 +26,7 @@ import { test } from 'node:test';
 
 import fixture from './fixtures/book-p01.bundle.json' with { type: 'json' };
 
-import { PINS, allBundles, bundleFor, groupsOf, languageIn, say, sectionSpans, stepIn, unitIn } from './bundle.ts';
+import { PINS, allBundles, bundleFor, groupsOf, languageIn, say, sectionSpans, stepIn, unitBefore, unitIn } from './bundle.ts';
 import type { Bundle, Unit } from './schema.ts';
 import { validateBundle } from './validate.ts';
 import { skipWithoutBundle } from './have-bundle.ts';
@@ -268,4 +268,22 @@ test('one program without a part sends the whole track back to grouping by prefi
   // heading over the rest would be two rules on one page.
   const groups = groupsOf(withUnits(['F01', 'P01', 'P02'], ['I', undefined, 'II']));
   assert.deepEqual(groups.map((group) => group.prefix), ['F', 'P']);
+});
+
+/*
+ * The program before this one — the adjacency the gate asks for (ADR-0049). Asserted over
+ * the same synthetic bundles, because the property is about the ORDER of the manifest and
+ * the fixture carries one program.
+ */
+test('the program before this one is its neighbour in the manifest, and nothing for the first', () => {
+  const bundle = withUnits(['F01', 'F02', 'P01']);
+  assert.equal(unitBefore(bundle, 'F01'), undefined, 'the first program has nothing before it');
+  assert.equal(unitBefore(bundle, 'F02')?.id, 'F01');
+  assert.equal(unitBefore(bundle, 'P01')?.id, 'F02', 'it crosses the run boundary the index draws');
+});
+
+test('a program the bundle does not carry has nothing before it', () => {
+  // The same answer as the first program, and the gate reads both as the open door: a
+  // program the book does not list is not one a reader can be sent back from.
+  assert.equal(unitBefore(withUnits(['F01', 'F02']), 'P27'), undefined);
 });

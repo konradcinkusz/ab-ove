@@ -1,0 +1,184 @@
+import { expect, test } from '@playwright/test';
+
+import { served, track } from './support/bundle.ts';
+import { openThrough } from './support/gate.ts';
+
+/**
+ * JOURNEY — the book is entered at the beginning.
+ *
+ * ADR-0049's requirement in one sentence: *a program opens when the reader has a place in
+ * the one before it, and until then the way in is not there.* No account, no backend and
+ * nothing sent anywhere — the gate is a question put to the reader's own record, so this
+ * suite is the anonymous reader's, like `progress.spec.ts` beside it.
+ *
+ * THE PROGRAMS ARE READ OFF THE SERVED BUNDLE rather than named. The rule is about the
+ * manifest's ORDER, so a spec naming F01 and F02 would be asserting today's book: the day
+ * a program is inserted, the names would still exist, the assertion would still pass, and
+ * it would have stopped being about the first two programs.
+ */
+const [first, second, third] = served.units;
+
+const contentsOf = (unitId: string, language = 'en'): string =>
+  `/read/${track}/${unitId}/${language}`;
+
+const KEY = 'ab-ovo:progress:v1';
+
+/** The stored record, as the browser holds it — or null, which is the fresh reader. */
+const stored = (page: import('@playwright/test').Page) =>
+  page.evaluate((key) => window.localStorage.getItem(key), KEY);
+
+/**
+ * The tile for a program, found by its id rather than its title: a shut tile has no link,
+ * so the title is not a role this page can be searched by for half of its own grid.
+ */
+const tileFor = (page: import('@playwright/test').Page, unitId: string) =>
+  page.locator(`li[id="p-${unitId}"]`);
+
+test.beforeAll(() => {
+  // Three programs, because the claim needs one that is open, one that opens next, and one
+  // that is still shut when the second one has been entered.
+  expect(served.units.length, 'the served bundle has fewer than three programs').toBeGreaterThan(2);
+
+  /*
+    A GUARD FOR THE OTHER SPECS, stated here because this is the file that knows the rule.
+
+    Most of the reading suite opens `F01` in a fresh browser and expects a frame — which is
+    only true while F01 is the program the book starts with. This assertion is the one
+    place that says so, so the day the book opens with something else the suite reports a
+    sentence naming the cause instead of a dozen journeys redirecting to the index for no
+    stated reason. The fix when it fires is `openThrough` in those files, not a change
+    here.
+  */
+  expect(
+    first!.id,
+    'the reading specs open F01 in a fresh browser, which the gate allows only for the ' +
+      'first program of the track — see specs/support/gate.ts',
+  ).toBe('F01');
+});
+
+test.describe('a program opens when the one before it has been opened', () => {
+  test('the first program is the way in, and the next one is not @smoke', async ({ page }) => {
+    await page.goto('/');
+
+    // The first program: a link, as every tile used to be.
+    await expect(
+      tileFor(page, first!.id).getByRole('link', { name: first!.titles['en']! }),
+    ).toHaveCount(1);
+
+    /*
+      The second: the tile is all still there — id, title, frame count — and the way in is
+      not. Both halves matter. A tile that vanished would be a book hiding its own table of
+      contents; a tile that kept its link would be ADR-0049 as decoration.
+    */
+    const shut = tileFor(page, second!.id);
+    await expect(shut.getByText(`opens after ${first!.id}`, { exact: true })).toBeVisible();
+    await expect(shut.getByRole('link')).toHaveCount(0);
+    await expect(shut).toContainText(second!.titles['en']!);
+  });
+
+  test('a shut program refuses a deep link and records nothing on the way @smoke', async ({
+    page,
+  }) => {
+    /*
+      THE HOLE THIS TEST EXISTS FOR. Arriving at a frame is what records a place
+      (`remember-position.tsx`), and a place in a program is one of the three things that
+      OPENS it — so a recorder that wrote before the gate redirected would have made one
+      typed URL buy the program permanently. The assertion is therefore not only "the
+      reader was moved" but "nothing was left behind".
+    */
+    await page.goto(`${contentsOf(second!.id)}/1`);
+
+    await page.waitForURL((url) => url.pathname === '/');
+    expect(await stored(page), 'a shut program recorded a place').toBeNull();
+
+    // And it lands on the tile it was asking for, which is where the explanation is.
+    expect(page.url()).toContain(`#p-${second!.id}`);
+    await expect(
+      tileFor(page, second!.id).getByText(`opens after ${first!.id}`, { exact: true }),
+    ).toBeVisible();
+  });
+
+  test('the contents page of a shut program refuses it too @core', async ({ page }) => {
+    await page.goto(contentsOf(second!.id));
+    await page.waitForURL((url) => url.pathname === '/');
+  });
+
+  test('reading one frame of a program opens the next one, and only the next @core', async ({
+    page,
+  }) => {
+    // One frame. Not the last one, not every one — ADR-0049 chose the weakest gate that
+    // still makes the order true, and this is the test of exactly that choice.
+    await page.goto(`${contentsOf(first!.id)}/1`);
+    await page.waitForFunction((key) => window.localStorage.getItem(key) !== null, KEY);
+
+    await page.goto('/');
+    await expect(
+      tileFor(page, second!.id).getByRole('link', { name: second!.titles['en']! }),
+    ).toHaveCount(1);
+
+    // The one after it has not moved: opening a door does not open the corridor.
+    const still = tileFor(page, third!.id);
+    await expect(still.getByText(`opens after ${second!.id}`, { exact: true })).toBeVisible();
+    await expect(still.getByRole('link')).toHaveCount(0);
+
+    // And the program itself now opens on the route, which is the half a tile cannot prove.
+    await page.goto(contentsOf(second!.id));
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(second!.titles['en']!);
+  });
+
+  test('the contents foot offers the next program only once this one has been opened @core', async ({
+    page,
+  }) => {
+    // A reader on a contents page has not necessarily opened a FRAME of it — the gate let
+    // them in on the program before. `F02 →` at the foot would lead somewhere they would
+    // be sent back from, so it is not offered yet.
+    await openThrough(page, second!.id);
+    await page.goto(contentsOf(second!.id));
+
+    const onward = page.getByRole('link', { name: `${third!.id} →` });
+    await expect(onward).toHaveCount(0);
+
+    // Read one frame of it, and the way on appears.
+    await page.goto(`${contentsOf(second!.id)}/1`);
+    await page.waitForFunction(
+      ([key, at]) => {
+        const raw = window.localStorage.getItem(key!);
+        return raw !== null && JSON.parse(raw).positions?.[at!] !== undefined;
+      },
+      [KEY, `${track}/${second!.id}`] as const,
+    );
+    await page.goto(contentsOf(second!.id));
+    await expect(onward).toHaveCount(1);
+  });
+
+  test('a reader who already has a place in a program keeps it, however they got there @core', async ({
+    page,
+  }) => {
+    /*
+      The safety valve, at the layer a unit test cannot reach: a record that names a
+      program and NOT the one before it — which is every record written before this rule
+      existed, and any record that reached this browser from another machine (ADR-0019).
+      The door cannot shut behind a reader who is already through it.
+    */
+    await page.addInitScript(
+      ([key, value]) => window.localStorage.setItem(key!, value!),
+      [
+        KEY,
+        JSON.stringify({
+          version: 1,
+          positions: { [`${track}/${third!.id}`]: { language: 'en', step: 2 } },
+        }),
+      ] as const,
+    );
+
+    await page.goto(contentsOf(third!.id));
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(third!.titles['en']!);
+
+    // Its tile says where they are rather than what opens it — and the program it skipped
+    // is still shut, because a place opens the door the reader is in and not the corridor
+    // behind them.
+    await page.goto('/');
+    await expect(tileFor(page, third!.id).getByText('at frame 2', { exact: true })).toBeVisible();
+    await expect(tileFor(page, second!.id).getByRole('link')).toHaveCount(0);
+  });
+});
