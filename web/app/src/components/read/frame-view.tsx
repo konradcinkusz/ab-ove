@@ -15,7 +15,7 @@ import { KeyName, KeysDetails } from './keys-details.tsx';
 import { PlaceRow } from './place-row.tsx';
 import { RememberPosition } from './remember-position.tsx';
 import { RevealLabel } from './reveal-label.tsx';
-import { RichText } from './rich-text.tsx';
+import { RichInline, RichText } from './rich-text.tsx';
 import { YouWrote } from './you-wrote.tsx';
 
 export interface FrameViewProps {
@@ -138,6 +138,19 @@ export function FrameView({
       where the two language sets are kept apart on purpose.
     */
     <article className={styles.page} lang={language}>
+      {/*
+        A HEADING NOBODY SEES, for the reader who navigates by headings. The frame renders
+        no visible title — the place row says where the reader is and the owner's complaint
+        was side text — so heading navigation found nothing on a frame at all, and a screen
+        reader's "list headings" answered with the foot's `Keys`. This is the frame's name,
+        off the page (the visually-hidden idiom, worksheet.module.css): the program's title
+        and the position, the same two facts the row shows, said once for the landmark.
+      */}
+      <h1 className={styles.title}>
+        <RichInline language={language} text={say(unit.titles, language)} />{' '}
+        <span lang={chrome.language}>· {chrome.position(step.n, unit.steps.length)}</span>
+      </h1>
+
       {/*
         The keyboard path, and the reason a program can be READ from the keyboard rather
         than merely reached by one: without it a reader tabs past the crumb, the edition

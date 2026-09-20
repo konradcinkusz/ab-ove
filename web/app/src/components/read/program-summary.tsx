@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { ConsentControl } from '@/components/consent/consent-control';
 import { say } from '@/lib/content/bundle';
 import type { Bundle, Route, Unit } from '@/lib/content/schema';
 import { chromeFor } from '@/lib/i18n/chrome';
@@ -153,6 +154,18 @@ export function ProgramSummary({
           <Link href={`/lab/${lab.id}`}>{chrome.labOptional}</Link>
         </p>
       ) : null}
+
+      {/*
+        THE INVITATION, WHERE A READER HAS JUST FINISHED A PROGRAM. The index asks below
+        forty-seven tiles, where almost nobody scrolls; this is the one moment the reader
+        has something the instrument is about — the frames they just worked — and the ask
+        is still an invitation rather than a gate: the same component, the same three
+        states, the same one record (ADR-0022), so a reader who has answered anywhere is
+        not asked here, and a reader who answers here is not asked on the index. Below the
+        list and above the foot, absent from the first paint, where appearing moves
+        nothing a reader is about to press.
+      */}
+      <ConsentControl language={chrome.language} />
 
       <nav aria-label={chrome.footNav} className={summaryStyles.foot} lang={chrome.language}>
         <span className={summaryStyles.footSide}>

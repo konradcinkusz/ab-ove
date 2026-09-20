@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { track } from './support/bundle.ts';
+
 /**
  * JOURNEY — being asked, and being left alone.
  *
@@ -61,6 +63,30 @@ test.describe('the ask', () => {
     await expect(panel).toContainText('not a column, not a hash, not a join away');
     // The sentence that makes declining safe to do.
     await expect(panel).toContainText('You will not be asked again');
+  });
+
+  test('it is also made where a program ends, and one answer covers both @core', async ({ page }) => {
+    /*
+      The index asks below forty-seven tiles. A program's summary is the moment a reader
+      has just done the thing the instrument is about, so the same invitation is there
+      too — the same component reading the same record, which is what "one answer" means:
+      declining on either page is declining everywhere, and nothing asks twice.
+    */
+    const summary = `/read/${track}/F01/en/summary`;
+    await page.goto(summary);
+    await expect(invitation(page)).toBeVisible();
+    await expect(page.locator('section', { has: invitation(page) })).toContainText(
+      'whether your answer matched the book',
+    );
+
+    await page.getByRole('button', { name: /No thanks/i }).click();
+    await expect(invitation(page)).toHaveCount(0);
+
+    await page.goto('/');
+    await expect(invitation(page), 'the index asked again after the summary was answered').toHaveCount(0);
+
+    await page.goto(summary);
+    await expect(invitation(page)).toHaveCount(0);
   });
 
   test('the two answers are equally easy to give @core', async ({ page }) => {

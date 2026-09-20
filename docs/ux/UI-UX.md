@@ -29,7 +29,7 @@ something is in the reader loop at all.
 | `/about` | what the product is, the anti-goal, the loop, the integration panel | nothing |
 | `/read/<track>/<unit>/<lang>` | a program's contents: its headings, and the filled way in — frame 1, or the reader's own place | nothing |
 | `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a navigation | nothing |
-| `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, and the way into the next one | nothing |
+| `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, the consent invitation, and the way into the next one | nothing |
 | `/lab/<id>` | the book's exercises under Pyodide — reached from P01's summary only, and on its way out ([ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md)) | nothing |
 | `/login` | a form that posts credentials to this app's own BFF | an identity service |
 | `/account` | the reader's own progress, export and deletion | an account |
@@ -95,7 +95,9 @@ Its parts, in order:
    the page to exactly one.
 4. **The consent invitation**, last, absent from the first paint, and an invitation rather
    than a gate — a reader who came to read reaches the programs first and the question
-   afterwards.
+   afterwards. The same invitation is on a program's summary, below the list, where a
+   reader has just finished the frames the instrument is about; one record, so an answer
+   on either page is the answer on both (ADR-0022, Consequences).
 
 `/read` is a 308 to this page and the deep links under it do not move.
 
@@ -224,6 +226,10 @@ that switching moves nothing, and the foot's `Keys` list is the whole map with a
 a key that means something else elsewhere. **The two keys and the typing-state hint were
 decided in ADR-0041 and shipped later than the rest of it** — this paragraph described them
 for a while before `frame-keys.tsx` had them, and `specs/reading.spec.ts` now presses both.
+
+The frame carries a heading nobody sees: the program's title and the position, in a
+visually-hidden `<h1>`, so heading navigation lands on the frame's name rather than on the
+foot's `Keys`.
 
 The row is a `<div>`. It must not be a `<nav>` — `language-switch.spec.ts` counts navigations
 containing a `[lang]` descendant and expects one — and it was a `<p>`, which **cannot contain

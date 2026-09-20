@@ -74,6 +74,22 @@
 }
 
 
+/*
+ * The frame's heading, off the page — the standard visually-hidden idiom (the worksheet's
+ * live region uses the same one). Clipped to a pixel and absolute, which `narrow-screen.
+ * spec.ts`'s sweep exempts by exactly that shape; it is the one absolutely positioned
+ * element on the frame and it cannot overlap anything, because it has no size to.
+ */
+.title {
+  clip-path: inset(50%);
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
 .reveal {
   background: var(--accent);
   border: 0;
