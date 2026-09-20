@@ -43,6 +43,13 @@
  * THE ACCOUNTS ARE IN `accounts.mts` AND NOT HERE, because this file listens at its top
  * level: a spec importing them from here would start a second fixture inside the Playwright
  * worker and die on EADDRINUSE. See that file.
+ *
+ * REGISTRATION MAKES THIS FIXTURE STATEFUL, which it was not before. `POST /register` adds
+ * to the account list this process holds, exactly as spending a recovery code removes from
+ * it — in memory, per process, and gone when the run ends. That is the property the
+ * registration journey needs: an account made on one page has to be signable-in on the
+ * next, and a fixture that forgot it between two requests would fail a test about an
+ * application that works.
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
@@ -73,6 +80,15 @@ const jwks = {
     publicKey.export({ format: 'jwk' }),
   ),
 };
+
+/**
+ * The accounts this PROCESS knows: the fixtures, plus whatever `POST /register` has added.
+ *
+ * A copy rather than a mutation of the import, because `accounts.mts` is data that several
+ * specs read and one of them asserting on a list another test had appended to would be a
+ * test whose result depended on the order the runner chose.
+ */
+const accounts: FixtureAccount[] = [...ACCOUNTS];
 
 const b64url = (value: string) => Buffer.from(value).toString('base64url');
 
@@ -110,7 +126,13 @@ function accessTokenFor(account: FixtureAccount) {
     jti: randomUUID(),
     [NAMEID_CLAIM]: account.id,
     [NAME_CLAIM]: account.email,
-    [ROLE_CLAIM]: roleClaim(account.roles),
+    /*
+     * ABSENT for an account with no roles, rather than an empty array — `BuildClaimsAsync`
+     * adds one claim PER ROLE, so a user with none contributes no claim at all and there is
+     * nothing for the serialiser to collapse. It matters now that registration exists: a
+     * just-registered account has no role, and `POST /auth/register` grants none.
+     */
+    ...(account.roles.length > 0 ? { [ROLE_CLAIM]: roleClaim(account.roles) } : {}),
     iss: ISSUER,
     aud: AUDIENCE,
     iat: now,
@@ -128,6 +150,14 @@ function accessTokenFor(account: FixtureAccount) {
  * be mistaken for a session would not be able to prove that this app does not mistake it.
  */
 const TWO_FACTOR_AUDIENCE_SUFFIX = ':2fa';
+
+/**
+ * `ConsentSettings`' defaults — the versions a registration must accept, and the only thing
+ * `GET /consents/versions` discloses. Written here rather than derived, because the point of
+ * the endpoint is that the frontend does NOT carry a copy: a spec that computed these from
+ * the app's own code could not catch the app hard-coding them.
+ */
+const CONSENT_VERSIONS = { terms: '2026-01-01', privacy: '2026-01-01', cookies: '2026-01-01' };
 
 /** Five minutes, which is `TokenService.TwoFactorChallengeMinutes`. */
 const CHALLENGE_SECONDS = 300;
@@ -204,7 +234,7 @@ function accountForChallenge(token: unknown): FixtureAccount | undefined {
     return undefined;
   }
 
-  return ACCOUNTS.find((candidate) => candidate.id === claims['sub']);
+  return accounts.find((candidate) => candidate.id === claims['sub']);
 }
 
 const server = createServer(async (request, response) => {
@@ -231,6 +261,113 @@ const server = createServer(async (request, response) => {
     return json(response, 200, { status: 'Healthy', service: 'AuthService' });
   }
 
+  /*
+   * `GetConsentVersions`, which is anonymous upstream and has to be: `Register` refuses any
+   * registration that does not accept the EXACT versions the instance is configured with,
+   * and a sign-up form has no token yet. The values are `ConsentSettings`' own defaults.
+   */
+  if (request.method === 'GET' && url.pathname === '/api/v1/auth/consents/versions') {
+    return json(response, 200, CONSENT_VERSIONS);
+  }
+
+  /*
+   * `AuthController.Register`, IN ITS OWN ORDER OF CHECKS — model validation, then the
+   * consent, then the user store. The order is not cosmetic: a request that fails two of
+   * them must be told about the same one upstream would name, or the web app's translation
+   * table is being tested against an answer authservice would never give.
+   */
+  if (request.method === 'POST' && url.pathname === '/api/v1/auth/register') {
+    let body: {
+      email?: unknown;
+      password?: unknown;
+      acceptedTermsVersion?: unknown;
+      acceptedPrivacyVersion?: unknown;
+    };
+    try {
+      body = JSON.parse(await readBody(request)) as typeof body;
+    } catch {
+      return json(response, 400, { error: 'Invalid request' });
+    }
+
+    const email = typeof body.email === 'string' ? body.email.trim() : '';
+    const password = typeof body.password === 'string' ? body.password : '';
+
+    /*
+     * THE ANNOTATION FAILURES, IN THE SHAPE `[ApiController]` PRODUCES — `errors` as an
+     * OBJECT keyed by field, inside a ValidationProblemDetails, and NOT the list the
+     * controller's own refusals use further down.
+     *
+     * This is the sharp edge of the register contract and it is not visible in
+     * `AuthController.Register`'s source: the automatic model-state filter answers BEFORE
+     * the action body runs, so its own `if (!ModelState.IsValid)` branch never executes and
+     * the shape it would have written never appears. Captured from a real v0.3.1; a fixture
+     * that emitted the list here would have agreed with a consumer that was wrong.
+     */
+    const invalid = (fields: Record<string, string[]>) =>
+      json(response, 400, {
+        title: 'One or more validation errors occurred.',
+        status: 400,
+        errors: fields,
+      });
+
+    // `[EmailAddress]` on `RegisterRequest`.
+    if (!email.includes('@')) return invalid({ Email: ['Invalid email format'] });
+
+    // `[StringLength(100, MinimumLength = 8)]`, which is also an annotation and therefore
+    // also the object shape — where every rule below it is Identity's and is the list.
+    if (password.length < 8 || password.length > 100) {
+      return invalid({ Password: ['Password must be between 8 and 100 characters'] });
+    }
+
+    // Identity's own policy, from authservice's Program.cs: an upper, a lower, a digit and
+    // a non-alphanumeric. The SENTENCES are `IdentityErrorDescriber`'s, because the web app
+    // has nothing else to read — there is no error code on the wire.
+    const failures = [
+      /[a-z]/.test(password) ? null : "Passwords must have at least one lowercase ('a'-'z').",
+      /[A-Z]/.test(password) ? null : "Passwords must have at least one uppercase ('A'-'Z').",
+      /[0-9]/.test(password) ? null : "Passwords must have at least one digit ('0'-'9').",
+      /[^a-zA-Z0-9]/.test(password)
+        ? null
+        : 'Passwords must have at least one non alphanumeric character.',
+    ].filter((entry): entry is string => entry !== null);
+    if (failures.length > 0) return json(response, 400, { errors: failures });
+
+    if (
+      body.acceptedTermsVersion !== CONSENT_VERSIONS.terms ||
+      body.acceptedPrivacyVersion !== CONSENT_VERSIONS.privacy
+    ) {
+      return json(response, 400, {
+        errors: ['You must accept the current Terms of Use and Privacy Policy to register.'],
+      });
+    }
+
+    if (accounts.some((candidate) => candidate.email.toLowerCase() === email.toLowerCase())) {
+      // `IdentityErrorDescriber.DuplicateEmail`, which is the sentence the web app matches
+      // on to tell a reader their account already exists rather than that their address is
+      // malformed. Upstream quotes the address into it; so does this.
+      return json(response, 400, { errors: [`Email '${email}' is already taken.`] });
+    }
+
+    const account: FixtureAccount = {
+      id: `fixture-registered-${randomUUID()}`,
+      email,
+      password,
+      // NONE. `Register` calls `CreateAsync` and never `AddToRoleAsync`, which is why
+      // `src/AbOvo.Seed` exists: a role is granted afterwards, through the admin surface.
+      roles: [],
+    };
+    accounts.push(account);
+
+    // 200 with tokens, which is what a deployment that cannot send verification email
+    // answers — and the one the AppHost produces, since it configures no mail provider.
+    return json(response, 200, {
+      accessToken: accessTokenFor(account),
+      refreshToken: `fixture-refresh-${randomUUID()}`,
+      expiresIn: 3600,
+      tokenType: 'Bearer',
+    });
+  }
+
   if (request.method === 'POST' && url.pathname === '/api/v1/auth/login') {
     let body: { email?: unknown; password?: unknown };
     try {
@@ -239,7 +376,7 @@ const server = createServer(async (request, response) => {
       return json(response, 400, { error: 'Invalid request' });
     }
 
-    const account = ACCOUNTS.find((candidate) => candidate.email === body.email);
+    const account = accounts.find((candidate) => candidate.email === body.email);
 
     // The status and the body shape are `AuthController.Login`'s. It answers 401 with this
     // message for both an unknown email and a wrong password — deliberately, so the reply

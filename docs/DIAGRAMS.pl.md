@@ -136,7 +136,7 @@ których odmawia
 [`../tests/AbOvo.Api.Tests/ArchitectureTests.cs`](../tests/AbOvo.Api.Tests/ArchitectureTests.cs).
 
 ```mermaid
-%% Układ rozwiązania: cztery projekty .NET, jedna przestrzeń pnpm i to, co wolno referować.
+%% Układ rozwiązania: projekty .NET, jedna przestrzeń pnpm i to, co wolno referować.
 %% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
 
 %% STRZAŁKI TO REFERENCJE MIĘDZY PROJEKTAMI, A SEDNEM SĄ TE NIEOBECNE. Ze wspólnego jądra
@@ -150,11 +150,12 @@ których odmawia
 
 flowchart TD
   subgraph dotnet["AbOvo.sln"]
-    APPHOST["AbOvo.AppHost<br/>deweloperski korzeń kompozycji<br/>postgres, authservice, api, web"]
+    APPHOST["AbOvo.AppHost<br/>deweloperski korzeń kompozycji<br/>postgres, authservice, api, web, seed"]
     API["AbOvo.Api<br/>minimal API, EF Core<br/>Program.cs jest manifestem"]
     CONTRACTS["AbOvo.Contracts<br/>rekordy żądań i odpowiedzi<br/>bez zachowania"]
     KERNEL["AbOvo.ServiceDefaults<br/>wspólne jądro<br/>uwierzytelnianie, CORS, limity,<br/>health, OpenAPI, migracje"]
     TESTS["AbOvo.Api.Tests<br/>jednostkowe, integracyjne w pamięci,<br/>reguły architektury"]
+    SEED["AbOvo.Seed<br/>lokalne konta przykładowe<br/>uruchamiane z pulpitu,<br/>nigdy przy starcie"]
   end
 
   subgraph node["web/ - jedna przestrzeń pnpm"]
@@ -167,6 +168,7 @@ flowchart TD
   end
 
   APPHOST --> API
+  APPHOST --> SEED
   API --> CONTRACTS
   API --> KERNEL
   TESTS --> API
@@ -177,7 +179,7 @@ flowchart TD
   KERNEL -.->|"odrzucane przez ArchitectureTests"| API
   KERNEL -.->|"odrzucane przez ArchitectureTests"| CONTRACTS
 
-  linkStyle 7,8 stroke:#b45309,stroke-dasharray: 4 4;
+  linkStyle 8,9 stroke:#b45309,stroke-dasharray: 4 4;
 ```
 
 ### A3. Jeden origin — każde żądanie, które wolno wykonać przeglądarce
@@ -206,9 +208,9 @@ flowchart LR
   BROWSER["Przeglądarka czytelnika"]
 
   subgraph origin["Własny origin aplikacji webowej"]
-    PAGES["Strony<br/>/ /about /read /lab<br/>/login /account /instrument"]
+    PAGES["Strony<br/>/ /about /read /lab<br/>/login /register /account /instrument"]
     CONFIG["/api/config<br/>adresy w czasie żądania<br/>nigdy NEXT_PUBLIC_*"]
-    LOGIN["/api/auth/login<br/>/api/auth/2fa<br/>poświadczenia w, status z"]
+    LOGIN["/api/auth/login<br/>/api/auth/2fa<br/>/api/auth/register<br/>poświadczenia w, status z"]
     SESSION["/api/auth/session<br/>ciasteczka z tokenów,<br/>które klient już ma"]
     PROXY["/api/proxy/[...path]<br/>jedyna droga do backendu"]
   end

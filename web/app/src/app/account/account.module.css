@@ -2,7 +2,7 @@
  * The account page.
  *
  * A plain HTML form with no client component behind it, so everything here is ordinary CSS
- * against the same tokens the rest of the product uses. Most of it is `login-form.module.css`
+ * against the same tokens the rest of the product uses. Most of it is `credentials-form.module.css`
  * with different class names, and that duplication is deliberate: a shared form stylesheet
  * would couple two pages that have no reason to change together, and CSS Modules give each
  * page its own scope precisely so a rule on one cannot reach the other.

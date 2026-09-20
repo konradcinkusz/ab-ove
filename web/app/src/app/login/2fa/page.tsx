@@ -4,7 +4,7 @@ import { readChallenge } from '@/lib/server/challenge';
 import { safeRedirectTarget } from '@/lib/redirect-target';
 import { signInProblem } from '@/lib/sign-in-problem';
 
-import styles from '../login-form.module.css';
+import styles from '../../credentials-form.module.css';
 
 /**
  * The second step of a sign-in: the code.

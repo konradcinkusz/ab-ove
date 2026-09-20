@@ -136,7 +136,7 @@ are references that
 refuses.
 
 ```mermaid
-%% The solution layout: four .NET projects, one pnpm workspace, and what may reference what.
+%% The solution layout: the .NET projects, one pnpm workspace, and what may reference what.
 %% ONE DIAGRAM PER FILE. ASCII ONLY. See a1-system-context.mmd for why no comment line here
 %% is a bare %% marker.
 
@@ -151,11 +151,12 @@ refuses.
 
 flowchart TD
   subgraph dotnet["AbOvo.sln"]
-    APPHOST["AbOvo.AppHost<br/>development composition root<br/>postgres, authservice, api, web"]
+    APPHOST["AbOvo.AppHost<br/>development composition root<br/>postgres, authservice, api, web, seed"]
     API["AbOvo.Api<br/>minimal API, EF Core<br/>Program.cs is a manifest"]
     CONTRACTS["AbOvo.Contracts<br/>request and response records<br/>no behaviour"]
     KERNEL["AbOvo.ServiceDefaults<br/>the shared kernel<br/>auth, CORS, rate limits,<br/>health, OpenAPI, migrations"]
     TESTS["AbOvo.Api.Tests<br/>unit, in-memory integration,<br/>architecture rules"]
+    SEED["AbOvo.Seed<br/>the local example accounts<br/>started from the dashboard,<br/>never at startup"]
   end
 
   subgraph node["web/ - one pnpm workspace"]
@@ -168,6 +169,7 @@ flowchart TD
   end
 
   APPHOST --> API
+  APPHOST --> SEED
   API --> CONTRACTS
   API --> KERNEL
   TESTS --> API
@@ -178,7 +180,7 @@ flowchart TD
   KERNEL -.->|"refused by ArchitectureTests"| API
   KERNEL -.->|"refused by ArchitectureTests"| CONTRACTS
 
-  linkStyle 7,8 stroke:#b45309,stroke-dasharray: 4 4;
+  linkStyle 8,9 stroke:#b45309,stroke-dasharray: 4 4;
 ```
 
 ### A3. One origin — every request the browser is allowed to make
@@ -206,9 +208,9 @@ flowchart LR
   BROWSER["Reader's browser"]
 
   subgraph origin["The web app's own origin"]
-    PAGES["Pages<br/>/ /about /read /lab<br/>/login /account /instrument"]
+    PAGES["Pages<br/>/ /about /read /lab<br/>/login /register /account /instrument"]
     CONFIG["/api/config<br/>addresses at request time<br/>never NEXT_PUBLIC_*"]
-    LOGIN["/api/auth/login<br/>/api/auth/2fa<br/>credentials in, status out"]
+    LOGIN["/api/auth/login<br/>/api/auth/2fa<br/>/api/auth/register<br/>credentials in, status out"]
     SESSION["/api/auth/session<br/>cookies from tokens<br/>a client already holds"]
     PROXY["/api/proxy/[...path]<br/>the one path to any backend"]
   end
