@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { AccountControl } from '@/components/account/account-control';
 import { ConsentControl } from '@/components/consent/consent-control';
-import { groupsOf, say, sectionSpans } from '@/lib/content/bundle';
+import { groupsOf, say, sectionSpans, unitBefore } from '@/lib/content/bundle';
 import { editionsOffered } from '@/lib/content/chosen-edition';
 import type { Bundle } from '@/lib/content/schema';
 import { FALLBACK_LANGUAGE, chromeFor, endonym } from '@/lib/i18n/chrome';
@@ -11,6 +11,7 @@ import { ClearWorksheets } from '../read/clear-controls.tsx';
 import { ForgetProgress, ResumeLast, type Limits } from '../read/resume.tsx';
 
 import styles from './program-grid.module.css';
+import { TileEntry } from './tile-entry.tsx';
 import { TilePosition } from './tile-position.tsx';
 
 export interface ProgramGridProps {
@@ -170,35 +171,55 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
                         sections > 0 ? ` · ${chrome.sections(sections)}` : ''
                       }`;
 
+                      /*
+                        The program that opens this one, read off the manifest rather than
+                        off the id (ADR-0048; `unitBefore` says what P07's insertion did to
+                        the arithmetic). `undefined` for the book's first program, which is
+                        the one tile that is never shut.
+                      */
+                      const previous = unitBefore(bundle, unit.id)?.id;
+
                       return (
-                        <li className={styles.tile} key={unit.id}>
+                        /*
+                          `id="p-<unit>"` is where a reader bounced off a shut program
+                          lands (`program-gate.tsx` redirects to this fragment): the tile
+                          they asked for, carrying the one sentence that explains the
+                          bounce. Prefixed for the reason the contents page prefixes its
+                          section anchors — a bare `P01` is a name this page does not own.
+                        */
+                        <li className={styles.tile} id={`p-${unit.id}`} key={unit.id}>
                           <div className={styles.idRow}>
                             <span className={styles.tileId}>{unit.id}</span>
                             {/*
-                              Where the reader is in this program, if anywhere — text, in
-                              the id's register, arriving after hydration into a row that
+                              Where the reader is in this program, if anywhere — or, if the
+                              program is not open to them yet, the one that opens it. Text,
+                              in the id's register, arriving after hydration into a row that
                               already has its height. See the component for what it is
                               deliberately not.
                             */}
                             <TilePosition
                               language={chrome.language}
                               last={unit.steps.length}
+                              previous={previous}
                               track={bundle.track.id}
                               unit={unit.id}
                             />
                           </div>
-                          <span className={styles.titles}>
-                            {shown.map((language) => (
-                              <Link
-                                className={styles.title}
-                                href={`/read/${bundle.track.id}/${unit.id}/${language}`}
-                                key={language}
-                                lang={language}
-                              >
-                                {say(unit.titles, language)}
-                              </Link>
-                            ))}
-                          </span>
+                          {/*
+                            The way in, which is a link only while the reader may take it.
+                            The titles are the CONTENT's, one per shown edition, so they are
+                            resolved here and handed over — the component's own note says
+                            why deciding the element on the client is worth that.
+                          */}
+                          <TileEntry
+                            editions={shown.map((language) => ({
+                              language,
+                              title: say(unit.titles, language),
+                            }))}
+                            previous={previous}
+                            track={bundle.track.id}
+                            unit={unit.id}
+                          />
                           <p className={styles.meta}>{meta}</p>
                         </li>
                       );

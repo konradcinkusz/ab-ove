@@ -357,6 +357,20 @@ interface Strings {
    * stored frame and that link is the resume control.
    */
   readonly atFrame: (n: number) => string;
+  /**
+   * On a tile the reader cannot enter yet: `opens after P06` (ADR-0048).
+   *
+   * IT NAMES THE PROGRAM THAT OPENS THIS ONE, which is the whole of what a shut door owes
+   * a reader — one move, and it is a move they can make. A bare "locked" would say the
+   * same thing and leave them looking for the key; a count of what is left to read would
+   * be the progress ADR-0041 refuses, in the one slot that refusal is easiest to lose.
+   *
+   * It takes the program's ID and never its title: the id is what the tile beside it
+   * already shows, it is language-neutral, and it is what the reader will scan the grid
+   * for. Titles are the CONTENT's language and this sentence is the CHROME's, so a
+   * mixed-edition line would read in two voices.
+   */
+  readonly opensAfter: (unit: string) => string;
 }
 
 /**
@@ -523,6 +537,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     groupLabels: { F: 'Foundation', P: 'Main sequence' },
     sectionsLabel: 'Sections',
     atFrame: (n) => `at frame ${n}`,
+    opensAfter: (unit) => `opens after ${unit}`,
     backToLastFrame: '← Back to the frame',
     labOptional: 'This program also has computer exercises in Python, optional',
   },
@@ -679,6 +694,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     groupLabels: { F: 'Podstawy', P: 'Część główna' },
     sectionsLabel: 'Sekcje',
     atFrame: (n) => `na ramce ${n}`,
+    opensAfter: (unit) => `dostępne po ${unit}`,
     backToLastFrame: '← Wróć do ramki',
     labOptional: 'Ten program ma też ćwiczenia komputerowe w Pythonie, opcjonalne',
   },
@@ -811,6 +827,7 @@ export interface Chrome {
   readonly groupLabels: Readonly<Record<string, string>>;
   readonly sectionsLabel: string;
   readonly atFrame: (n: number) => string;
+  readonly opensAfter: (unit: string) => string;
 }
 
 /** The controls for a reader of `language`, falling back to English rather than failing. */
