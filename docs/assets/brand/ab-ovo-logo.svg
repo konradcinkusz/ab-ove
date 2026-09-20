@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 261 100" width="261" height="100" role="img" aria-labelledby="ab-ovo-logo-title">
+  <title id="ab-ovo-logo-title">ab ovo</title>
+  <!--
+    LIGHT-THEME LOCKUP. The dark-theme twin is ab-ovo-logo-dark.svg, and README.md picks
+    between the two with a <picture> element keyed on prefers-color-scheme. That is the only
+    theme mechanism GitHub honours: its Markdown sanitiser strips a style element out of an
+    inline SVG, so one self-switching file would render correctly in one theme and wrongly in
+    the other.
+
+    The mark is an egg that is also a zero, barred by the line a reader writes an answer on.
+    That is the whole product in one figure: ab ovo is "from the egg", the book is Mathematics
+    from Zero, and a frame asks for a written answer before it tells you anything.
+
+    Colours are the app's own tokens from web/app/src/app/globals.css, ink #12151b for the egg
+    and accent #1f4f8b for the rule, so the README and the running product agree.
+
+    The wordmark is a system serif, because globals.css says this estate ships no webfont to
+    anybody. Systems disagree about serif metrics, so textLength pins the drawn width: the
+    lockup is 261 units wide wherever it renders, and letter-spacing absorbs the difference
+    instead of the layout.
+  -->
+  <g transform="translate(16 18)" fill="none" stroke="#12151b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M32 9C40.5 9 49 22.5 49 34.5C49 46 41.5 55 32 55C22.5 55 15 46 15 34.5C15 22.5 23.5 9 32 9Z"/>
+    <path d="M5 41H59" stroke="#1f4f8b"/>
+  </g>
+  <text x="95" y="68" font-family="Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Times New Roman', Times, serif" font-size="50" fill="#12151b" textLength="145" lengthAdjust="spacing">ab ovo</text>
+</svg>

@@ -432,9 +432,12 @@ choice was to propagate the typo into names that are expensive to change, or to 
 derivation once, deliberately, and fix the cheap end. The owner has confirmed the intended
 name is `ab-ovo`.
 
-**Exit.** The owner renames the repository to `ab-ovo`. GitHub redirects the old name, so
-clones, links and badge URLs continue to work in the interim and nothing has to be timed
-around the rename.
+**Exit.** The owner renames the repository to `ab-ovo`, which is one action in GitHub's
+settings. GitHub's redirect runs from an **old** name to a new one once the rename has
+happened, so it carries clones, links and remotes forward afterwards — but it cannot resolve
+a name that has never existed, so nothing may be written against `ab-ovo` before the rename
+if something fetches it at render time. `README.md`'s badge row names `ab-ove` for that
+reason (ADR-0005, amended 2026-09-20, after the row rendered as `404` and `NOT_FOUND`).
 
 **Recorded in.** [ADR-0005](../adr/0005-slug-ab-ovo.md).
 
