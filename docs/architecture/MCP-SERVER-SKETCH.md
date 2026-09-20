@@ -254,28 +254,22 @@ would be a second, unguarded door past a guard that would still be green.
 
 ---
 
-## 6. `@ab-ovo/web-kit` — the exit condition
+## 6. `@ab-ovo/web-kit` — the exit condition, discharged
 
-The root `web/package.json` already records the rule: *"The @ab-ovo/web-kit package of §7 is
-deliberately NOT here yet: the kit is what stops two apps diverging, so it is created when
-the SECOND app arrives."*
+This section used to record why the kit was not created yet and what would trigger it. The
+trigger fired — `reveal.ts` took a second import from `@ab-ovo/app` beside `content.ts`'s
+existing one — and
+[ADR-0053](../adr/0053-the-web-kit-package-is-extracted-on-its-own-exit-condition.md) is the
+record of the extraction itself: what moved (`bundle.ts`, `schema.ts`, `validate.ts`,
+`have-bundle.ts`), what stayed in `@ab-ovo/app` and why, and what verified that nothing's
+behaviour changed.
 
-**This is the second app, and the kit is not created here.** That is scope, not
-disagreement: the content library is imported by app code, by
-`web/app/scripts/prepare-lab-assets.mjs` (ADR-0032) and by the unit tier, so moving it is a
-refactor with its own diff and its own review.
-
-What is done instead is to make that refactor cheap and to make skipping it visible:
-**exactly one file reaches across the boundary at run time**, `web/mcp/src/content.ts`,
-which re-exports what this package uses. The extraction redirects the specifiers in that
-file and touches nothing else here. (`reveal.ts` and its test import the schema's *types*
-from the application directly — erased at run time, and the one crossing the sentence above
-does not count; a kit would take those specifiers with it.)
-
-**Exit condition:** the kit is extracted before a third consumer of the content library
-exists, or before anything in `web/mcp` needs a second import from `@ab-ovo/app` — whichever
-comes first. A second crossing is the point at which "one file" stops being true and the
-divergence the kit exists to prevent has somewhere to start.
+**What is true now, for a reader of this file rather than of the ADR:** this package depends
+on `@ab-ovo/web-kit` as an ordinary workspace package. `content.ts` still exists and still
+does real work — `BundleSource`, `ContentUnavailable`, `fixtureBundles()` — but its
+specifiers at the top now name `@ab-ovo/web-kit` rather than a relative path three
+directories up, and `reveal.ts` / `reveal.test.ts` import their types from the same place.
+Nothing else in this package reaches into `@ab-ovo/app` any more, and nothing needs to.
 
 ---
 

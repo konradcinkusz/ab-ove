@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 
+import { allBundles } from '@ab-ovo/web-kit';
+
 import { CourseList } from '@/components/programs/course-list';
-import { allBundles } from '@/lib/content/bundle';
 import { chosenEdition } from '@/lib/content/chosen-edition';
 import { FALLBACK_LANGUAGE, chromeFor } from '@/lib/i18n/chrome';
 
@@ -15,7 +16,7 @@ import { FALLBACK_LANGUAGE, chromeFor } from '@/lib/i18n/chrome';
  * the page a reader uses to choose a course works under exactly the conditions the reader
  * loop is required to work under (ADR-0004). It is rendered per request for the reason the
  * index is — `searchParams` is a request-time API in Next 16 — and the property that
- * rendering mode gives up is held by `lib/content/bundle.test.ts` rather than by a build.
+ * rendering mode gives up is held by `@ab-ovo/web-kit`'s `bundle.test.ts` rather than by a build.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * WHY THIS ROUTE EXISTS RATHER THAN A SECOND SWITCH ON `/`. The index already carries the

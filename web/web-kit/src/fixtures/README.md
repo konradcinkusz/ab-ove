@@ -10,7 +10,7 @@ bundle is the only blocked item in the whole plan (issue #8, and the book's issu
 paraphrase written for this file. A copy of real frames would be a second copy of something
 that has a source, and the two would drift the first time the source moved — silently,
 because nothing would compare them. That is the defect
-[ADR-0008](../../../../../../docs/adr/0008-content-is-a-versioned-bundle.md) exists to
+[ADR-0008](../../../../docs/adr/0008-content-is-a-versioned-bundle.md) exists to
 prevent, and it does not stop applying because the copy is small.
 
 It exercises every shape the validator checks: both declared languages throughout, two
@@ -31,7 +31,7 @@ A fixture with one list would have been satisfied by either.
 
 It is a fixture in the same strict sense: paraphrase, not a copy of the book. What the book
 really contains is counted rather than reproduced, in
-[the schema-2 request](../../../../../../docs/architecture/CONTENT-SCHEMA-V2-REQUEST.md).
+[the schema-2 request](../../../../docs/architecture/CONTENT-SCHEMA-V2-REQUEST.md).
 
 ### Why the explanation is in this file and not in the bundle
 

@@ -1,6 +1,11 @@
 {
   "//": [
     "FRONTEND-BFF.md §7 — a member of the workspace above, which owns the only lockfile.",
+    "`@ab-ovo/web-kit` is the loader, the schema types and the validator, extracted out of",
+    "this package's own src/lib/content the day @ab-ovo/mcp needed them too — see",
+    "web/web-kit/package.json for what moved and why the rest of lib/content did not.",
+    "It is a workspace dependency, not counted against the external-package budget below.",
+    "",
     "Dependency count is deliberately tiny (REPO-BASELINE.md §4b publishes these counts):",
     "next + react + react-dom are the framework, and exactly two dependencies sit on top.",
     "`jose` is there because FRONTEND-BFF.md §4 names jwtVerify as the thing that separates",
@@ -28,8 +33,8 @@
     "",
     "The node floor is 22.18.0 and it is this package's own requirement rather than an",
     "echo of the workspace's. `prebuild` runs scripts/prepare-lab-assets.mjs, which since",
-    "ADR-0032 imports src/lib/content/bundle.ts and runtime-assets.ts directly — reading",
-    "the application's own modules rather than keeping a second copy of which bundles are",
+    "ADR-0032 imports allBundles from @ab-ovo/web-kit and runtime-assets.ts (still local)",
+    "directly — reading the loader rather than keeping a second copy of which bundles are",
     "served. That needs Node's TypeScript type stripping, which is on by default from",
     "22.18.0 and behind a flag before it. On 22.5 this package would install, and `pnpm",
     "build` would die in prebuild on a syntax error in a .ts file, which reads as a broken",
@@ -114,6 +119,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ab-ovo/web-kit": "workspace:*",
     "jose": "6.2.12",
     "katex": "0.18.7",
     "marked": "18.0.13",

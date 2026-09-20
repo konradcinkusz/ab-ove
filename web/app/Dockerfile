@@ -133,8 +133,8 @@ COPY --from=builder --chown=nextjs:nodejs /workspace/app/.next/static ./app/.nex
 COPY --from=builder --chown=nextjs:nodejs /workspace/app/public ./app/public
 
 # The THIRD thing tracing cannot know about, and for a sharper reason than the two above:
-# `lib/content/bundle.ts` reads the compiled content bundle with `fs.readFileSync` at
-# request time, which is not an `import` or a `require` — nothing in Next's dependency
+# `@ab-ovo/web-kit`'s `bundle.ts` reads the compiled content bundle with `fs.readFileSync`
+# at request time, which is not an `import` or a `require` — nothing in Next's dependency
 # graph ever points at this file, so `output: 'standalone'`'s tracer has no way to know it
 # is needed and never copies it. Without this line every `/read/**` route 500s in this
 # image alone, because bundle.ts's own candidate paths do resolve to something under

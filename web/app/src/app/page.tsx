@@ -1,5 +1,6 @@
+import { allBundles } from '@ab-ovo/web-kit';
+
 import { ProgramGrid } from '@/components/programs/program-grid';
-import { allBundles } from '@/lib/content/bundle';
 import { chosenEdition } from '@/lib/content/chosen-edition';
 import { chosenTrack, shownBundles } from '@/lib/content/chosen-track';
 
@@ -22,7 +23,7 @@ import { chosenTrack, shownBundles } from '@/lib/content/chosen-track';
  * page into dynamic rendering. What that gives up is the old `/read`'s incidental guarantee
  * that a bundle which fails to validate FAILS THE BUILD rather than reaching a reader.
  *
- * The guarantee is not lost, it has moved somewhere better: `lib/content/bundle.test.ts`
+ * The guarantee is not lost, it has moved somewhere better: `@ab-ovo/web-kit`'s `bundle.test.ts`
  * asserts that the pinned bundle validates and that `allBundles()` returns one per pin, and
  * `pnpm --dir web test` runs in CI on every pull request. A unit test holds that property
  * whatever this page's rendering mode is, where the prerender held it only for as long as

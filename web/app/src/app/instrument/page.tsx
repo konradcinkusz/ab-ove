@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { allBundles, say } from '@/lib/content/bundle';
+import { allBundles, say } from '@ab-ovo/web-kit';
+
 import { LABS } from '@/lib/lab/protocol';
 
 import styles from './instrument.module.css';

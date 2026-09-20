@@ -23,7 +23,7 @@ import './globals.css';
   every page of the application inherits it, so a reader on the courses page or on a second
   course's frame had a tab saying they were somewhere else. What ab-ovo IS, is a way of
   working programmed-learning courses; which courses a deployment carries is `PINS`, in
-  `lib/content/bundle.ts`, and a deployment that pins two must not have one of them in the
+  `@ab-ovo/web-kit`'s `bundle.ts`, and a deployment that pins two must not have one of them in the
   title of the other's pages. The first course is named in the description, where it is a
   fact about this deployment rather than a claim about the product.
 */

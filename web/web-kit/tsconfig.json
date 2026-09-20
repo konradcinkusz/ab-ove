@@ -1,0 +1,27 @@
+// The same strict family as @ab-ovo/app and @ab-ovo/mcp, minus everything that is Next's —
+// @ab-ovo/mcp's own tsconfig.json is the direct precedent, copied rather than re-derived.
+//
+// `allowImportingTsExtensions` is not a style choice: the unit tier runs `node --test` over
+// .ts directly, and Node's ESM resolver needs the real file name.
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["esnext"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowJs": false,
+    "noEmit": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": ["src/**/*.ts"]
+}

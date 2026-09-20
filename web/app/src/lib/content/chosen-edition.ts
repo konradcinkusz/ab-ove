@@ -1,4 +1,4 @@
-import type { Bundle } from './schema.ts';
+import type { Bundle } from '@ab-ovo/web-kit';
 
 /**
  * Which edition the index is showing, when the index is a grid rather than a list.

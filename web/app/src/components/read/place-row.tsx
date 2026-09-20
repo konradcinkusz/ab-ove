@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
-import type { SectionSpan } from '@/lib/content/bundle';
-import type { Section } from '@/lib/content/schema';
+import type { Section, SectionSpan } from '@ab-ovo/web-kit';
+
 import type { Chrome } from '@/lib/i18n/chrome';
 
 import { FrameJumper } from './frame-jumper.tsx';

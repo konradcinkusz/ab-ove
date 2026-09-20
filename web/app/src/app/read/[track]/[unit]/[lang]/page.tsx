@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
+import { bundleFor, languageIn, say, unitIn } from '@ab-ovo/web-kit';
+
 import { ProgramContents } from '@/components/read/program-contents';
-import { bundleFor, languageIn, say, unitIn } from '@/lib/content/bundle';
 
 /**
  * One program's contents, in one language.

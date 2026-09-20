@@ -25,10 +25,10 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 
-import schemaDocument from './content-schema.v1.json' with { type: 'json' };
-import fixture from './fixtures/book-p01.bundle.json' with { type: 'json' };
+import schemaDocument from '@ab-ovo/web-kit/content-schema.v1.json' with { type: 'json' };
+import fixture from '@ab-ovo/web-kit/fixtures/book-p01.bundle.json' with { type: 'json' };
+import { allBundles, validateBundle, type Bundle } from '@ab-ovo/web-kit';
 
-import { allBundles } from './bundle.ts';
 import {
   RUNTIME_PACKAGES,
   declaredRuntimes,
@@ -38,8 +38,6 @@ import {
   type PyodideLock,
   type RuntimeDeclaration,
 } from './runtime-assets.ts';
-import type { Bundle } from './schema.ts';
-import { validateBundle } from './validate.ts';
 
 /**
  * The installed Pyodide, resolved the same way `prepare-lab-assets.mjs` resolves it.

@@ -18,7 +18,7 @@
  * pin. The tests that exercise the LOADER's own mechanism (`PINS`, `tagFor`, `allBundles`,
  * caching) do go through `bundleFor()`, against whatever is actually pinned, and skip
  * rather than fail when nothing has been fetched yet — see `skipWithoutBundle` in
- * `lib/content/have-bundle.ts`, which also refuses to skip in CI.
+ * `have-bundle.ts`, beside it in this package, which also refuses to skip in CI.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 import assert from 'node:assert/strict';

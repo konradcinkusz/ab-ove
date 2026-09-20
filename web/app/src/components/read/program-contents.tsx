@@ -1,9 +1,8 @@
 import Link from 'next/link';
 
-import { ThemeSwitch } from '@/components/theme/theme-switch';
-import { say, sectionSpans, unitBefore } from '@/lib/content/bundle';
-import type { Bundle, Unit } from '@/lib/content/schema';
+import { say, sectionSpans, unitBefore, type Bundle, type Unit } from '@ab-ovo/web-kit';
 
+import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { chromeFor } from '@/lib/i18n/chrome';
 
 import styles from './contents.module.css';

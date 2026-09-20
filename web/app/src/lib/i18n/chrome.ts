@@ -237,7 +237,7 @@ interface Strings {
    * THE WORD FOR A TRACK, AND THE ONLY PLACE IT IS SAID TO A READER.
    *
    * ab-ovo carries several courses — a course is a whole work, compiled from its own
-   * content repository at its own pin (`PINS`, in `lib/content/bundle.ts`), and what a
+   * content repository at its own pin (`PINS`, in `@ab-ovo/web-kit`'s `bundle.ts`), and what a
    * reader chooses between on `/courses` is those. The content's own word for one is
    * *track*: it is in the schema, in `/read/<track>/<unit>/<lang>` and in every MCP tool
    * call, and it has never been on a screen. It should not start now — *track* names a
@@ -400,7 +400,7 @@ interface Strings {
   /**
    * THE INDEX FOR A READER WHO CAME BACK.
    *
-   * The names for the id prefixes `groupsOf()` (lib/content/bundle.ts) divides the
+   * The names for the id prefixes `groupsOf()` (`@ab-ovo/web-kit`'s `bundle.ts`) divides the
    * programs by — that function knows the letters and deliberately not the words, because
    * a word is in a language and the content library has none. A prefix with no entry here
    * is grouped without a heading, which is what a third track's `X07` should get.

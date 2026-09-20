@@ -16,7 +16,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import fixture from '../content/fixtures/book-p01.bundle.json' with { type: 'json' };
+import fixture from '@ab-ovo/web-kit/fixtures/book-p01.bundle.json' with { type: 'json' };
 
 import { LABS, P01, labFor } from './protocol.ts';
 

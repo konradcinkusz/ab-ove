@@ -22,7 +22,7 @@ tego warte.
 
 **Pobranie jest pierwsze nie bez powodu.** `web/content/` jest wyprowadzone, a nie commitowane,
 i testy sprawdzające całą książkę inaczej pominęłyby się po cichu — zielony ptaszek nad
-asercją, której nikt nie postawił. `web/app/src/lib/content/have-bundle.ts` odmawia w ogóle
+asercją, której nikt nie postawił. `web/web-kit/src/have-bundle.ts` odmawia w ogóle
 załadowania się, gdy paczki brakuje, a `CI` jest ustawione, więc uczciwym wynikiem w pipeline
 jest czerwień, a nie pominięcie.
 

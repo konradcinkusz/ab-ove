@@ -7,7 +7,7 @@
  * thing on this side of a version bump.
  *
  * Skips rather than fails when no bundle has been fetched yet, on `bundle.test.ts`'s own
- * precedent (`skipWithoutBundle`, in `lib/content/have-bundle.ts`) — this file has the same
+ * precedent (`skipWithoutBundle`, in `@ab-ovo/web-kit`'s `have-bundle.ts`) — this file has the same
  * reason: a machine that has not
  * run `scripts/fetch-book-content.sh` has nothing to render, and that is a setup step
  * missing, not a defect in this code.
@@ -15,11 +15,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { PINS, bundleFor, say } from './bundle.ts';
+import { PINS, bundleFor, say, skipWithoutBundle, type Bundle } from '@ab-ovo/web-kit';
+
 import { KNOWN_BLOCK_KINDS, KNOWN_INLINE_KINDS, collectTokenKinds, parseBody, parseInline } from './markdown.ts';
 import { liftMaths, renderMathSpan, restoreRaw, splitPlaceholders } from './maths.ts';
-import type { Bundle } from './schema.ts';
-import { skipWithoutBundle } from './have-bundle.ts';
 
 // ── liftMaths / splitPlaceholders / restoreRaw ─────────────────────────────────────────
 

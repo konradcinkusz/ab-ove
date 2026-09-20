@@ -1,24 +1,21 @@
 /**
- * THE ONLY FILE IN THIS PACKAGE THAT REACHES INTO @ab-ovo/app.
+ * THE CONTENT LIBRARY BOUNDARY — imported from @ab-ovo/web-kit rather than reimplemented.
  *
- * The content library — the loader, the validator that refuses rather than degrades, and
- * the schema types — lives at app/src/lib/content. Reimplementing any of it here would be
- * the defect the root package.json names when it says @ab-ovo/web-kit exists to stop two
- * apps diverging: two loaders would disagree about a bundle eventually, and the one that
- * disagreed quietly would be this one.
+ * The loader, the validator that refuses rather than degrades, and the schema types used
+ * to live at app/src/lib/content and be reached with a relative import across the package
+ * boundary; they now live in @ab-ovo/web-kit, which @ab-ovo/app also depends on, so the
+ * two cannot quietly disagree about what a bundle is.
  *
- * So there is one import boundary and it is this module — the test fixtures included, which
- * is why `fixtures` is exported from here rather than imported directly by the unit tier.
- * When the kit is extracted, the specifiers below are what move.
+ * The test fixture is still handled here rather than by the unit tier directly, which is
+ * why `fixtures` is exported from this module — `fixtureBundles()` below needs the RAW
+ * JSON, unvalidated, because validating it is part of what it is testing.
  */
-import fixture from '../../app/src/lib/content/fixtures/book-p01.v2.bundle.json' with { type: 'json' };
-import { allBundles, bundleFor } from '../../app/src/lib/content/bundle.ts';
-import { validateBundle } from '../../app/src/lib/content/validate.ts';
-import type { Bundle } from '../../app/src/lib/content/schema.ts';
+import fixture from '@ab-ovo/web-kit/fixtures/book-p01.v2.bundle.json' with { type: 'json' };
+import { allBundles, bundleFor, validateBundle, type Bundle } from '@ab-ovo/web-kit';
 
-export { groupsOf, languageIn, say, stepIn, tagFor, unitIn } from '../../app/src/lib/content/bundle.ts';
-export type { ProgramGroup } from '../../app/src/lib/content/bundle.ts';
-export type { Bundle, Exercise, Route, Step, Text, Unit } from '../../app/src/lib/content/schema.ts';
+export { groupsOf, languageIn, say, stepIn, tagFor, unitIn } from '@ab-ovo/web-kit';
+export type { ProgramGroup } from '@ab-ovo/web-kit';
+export type { Bundle, Exercise, Route, Step, Text, Unit } from '@ab-ovo/web-kit';
 
 /**
  * Where a tool handler gets its content.

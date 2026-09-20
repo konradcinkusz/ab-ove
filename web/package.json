@@ -6,9 +6,11 @@
     "a repo that scaffolded the apps first and never got the workspace: four apps, two in",
     "pnpm, two on standalone npm with their own lockfiles, three CI setup blocks.",
     "There is exactly ONE lockfile and it is next to this file, never inside app/.",
-    "The @ab-ovo/web-kit package of §7 is deliberately NOT here yet: the kit is what stops",
-    "two apps diverging, so it is created when the SECOND app arrives. Until then app/ is",
-    "the only copy of the BFF code and there is nothing for it to drift from."
+    "The @ab-ovo/web-kit package of §7 was deliberately not here until the SECOND app",
+    "arrived: the kit is what stops two apps diverging, and app/ was the only copy of the",
+    "BFF code with nothing to drift from until mcp/ needed the same loader. It now lives",
+    "at web-kit/ — see its own package.json for what moved out of app/src/lib/content and",
+    "why the rest stayed."
   ],
   "name": "ab-ovo-web-workspace",
   "version": "0.0.0",

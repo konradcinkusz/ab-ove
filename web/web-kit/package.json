@@ -1,0 +1,76 @@
+{
+  "//": [
+    "FRONTEND-BFF.md §7 — a member of the workspace above, which owns the only lockfile.",
+    "THIS IS THE KIT the root package.json said would arrive 'when the second app",
+    "arrives': @ab-ovo/mcp is that second app, and it has been reaching one file into",
+    "@ab-ovo/app (src/content.ts, 'the only file in this package that reaches into",
+    "@ab-ovo/app') since it was written. That file said what would move on the day this",
+    "package existed — see its own header, now out of date on purpose until this commit",
+    "updates it too. Docs updated in the same commit: docs/architecture/MCP-SERVER-SKETCH.md",
+    "§6, this package.json's own former home in web/package.json and web/mcp/package.json.",
+    "",
+    "WHAT LIVES HERE, and why the line is drawn where it is: the loader (bundle.ts), the",
+    "schema types (schema.ts) and the validator that refuses rather than degrades",
+    "(validate.ts) — content.ts's own three-part description of what a second consumer",
+    "needs, taken literally rather than as a chance to move more. Rendering (maths.ts,",
+    "markdown.ts), edition/track selection for the index UI (chosen-edition.ts,",
+    "chosen-track.ts) and lab-runtime asset staging (runtime-assets.ts) stay in",
+    "@ab-ovo/app: none of them is 'the loader, the validator or the schema types', and",
+    "@ab-ovo/mcp needs none of them — it returns the book's own text to a model, never a",
+    "rendered page. have-bundle.ts moved too, alongside bundle.ts rather than staying in",
+    "@ab-ovo/app: it is loader test infrastructure (skip-locally-refuse-in-CI for the",
+    "tests that exercise the real pinned bundle), and leaving it behind would have made",
+    "this package's own bundle.test.ts reach BACKWARDS into @ab-ovo/app for it — the one",
+    "shape this extraction exists to rule out.",
+    "",
+    "NO RUNTIME DEPENDENCY. bundle.ts, schema.ts, validate.ts and have-bundle.ts import",
+    "only node:fs and each other — checked, not assumed, the same standard",
+    "REPO-BASELINE.md §4b holds every other package in this workspace to.",
+    "",
+    "SHIPPED AS RAW TypeScript, no build step — @ab-ovo/mcp's own precedent for a package",
+    "nothing publishes. `exports` points straight at src/index.ts; Node's type stripping",
+    "reads it directly under `node --test`, and @ab-ovo/app's Next build reads it because",
+    "it is named in next.config.mjs's `transpilePackages` — webpack/Turbopack only",
+    "transpile a workspace package's TypeScript when told to; an untranspiled one fails",
+    "the build the first time it is imported, not silently.",
+    "",
+    "Three more `exports` entries hand out raw JSON no barrel should pre-parse:",
+    "`./fixtures/*` is @ab-ovo/mcp's content.ts building its unit-tier BundleSource —",
+    "validateBundle(fixture) is part of what it is testing, so the fixture must arrive",
+    "unvalidated — and @ab-ovo/app's own runtime-assets.test.ts and lab/protocol.test.ts,",
+    "which need the same fixture for the same reason, one package over. The two",
+    "`content-schema.v*.json` entries are runtime-assets.test.ts's own direct read of the",
+    "document validate.ts otherwise reads internally."
+  ],
+  "name": "@ab-ovo/web-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./fixtures/*": "./src/fixtures/*",
+    "./content-schema.v1.json": "./src/content-schema.v1.json",
+    "./content-schema.v2.json": "./src/content-schema.v2.json"
+  },
+  "scripts": {
+    "//test": [
+      "Same unit tier as its two consumers: node --test runs .ts directly through Node",
+      "22's type stripping. Wired into ci.yml in the same commit as this package."
+    ],
+    "test": "node --test 'src/**/*.test.ts'",
+    "//lint": [
+      "No lint script, on @ab-ovo/mcp's own precedent: pnpm -r skips a member that does",
+      "not declare one, and a script that echoes instead of linting is the defect",
+      "TESTING-STRATEGY.md §9 names for a test entry point that lies. @ab-ovo/app lints",
+      "through eslint-config-next, which is Next's and not this package's."
+    ],
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.2",
+    "typescript": "5.9.3"
+  }
+}

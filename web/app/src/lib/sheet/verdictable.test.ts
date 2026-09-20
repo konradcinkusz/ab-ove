@@ -28,11 +28,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { PINS, bundleFor, say } from '../content/bundle.ts';
-import type { Bundle } from '../content/schema.ts';
+import { PINS, bundleFor, say, skipWithoutBundle, type Bundle } from '@ab-ovo/web-kit';
 
 import { bookNumberOf } from './number.ts';
-import { skipWithoutBundle } from '../content/have-bundle.ts';
 import fixture from './verdictable.json' with { type: 'json' };
 
 

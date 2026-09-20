@@ -10,6 +10,9 @@ importers:
 
   app:
     dependencies:
+      '@ab-ovo/web-kit':
+        specifier: workspace:*
+        version: link:../web-kit
       jose:
         specifier: 6.2.12
         version: 6.2.12
@@ -56,9 +59,21 @@ importers:
 
   mcp:
     dependencies:
+      '@ab-ovo/web-kit':
+        specifier: workspace:*
+        version: link:../web-kit
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0
         version: 1.30.0(zod@4.6.5)
+    devDependencies:
+      '@types/node':
+        specifier: 22.20.2
+        version: 22.20.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  web-kit:
     devDependencies:
       '@types/node':
         specifier: 22.20.2

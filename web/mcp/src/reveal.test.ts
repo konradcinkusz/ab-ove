@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import type { Step, Unit } from '../../app/src/lib/content/schema.ts';
+import type { Step, Unit } from '@ab-ovo/web-kit';
 import { advance, current, explain, serve } from './reveal.ts';
 import type { Cursor } from './reveal.ts';
 

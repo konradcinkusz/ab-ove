@@ -1,12 +1,12 @@
 import Link from 'next/link';
 
+import { groupsOf, say, sectionSpans, unitBefore, type Bundle } from '@ab-ovo/web-kit';
+
 import { AccountControl } from '@/components/account/account-control';
 import { ConsentControl } from '@/components/consent/consent-control';
 import { ThemeSwitch } from '@/components/theme/theme-switch';
-import { groupsOf, say, sectionSpans, unitBefore } from '@/lib/content/bundle';
 import { editionsOffered } from '@/lib/content/chosen-edition';
 import { shownBundles } from '@/lib/content/chosen-track';
-import type { Bundle } from '@/lib/content/schema';
 import { FALLBACK_LANGUAGE, chromeFor, endonym } from '@/lib/i18n/chrome';
 import { coursesHref, indexHref } from '@/lib/index-href';
 

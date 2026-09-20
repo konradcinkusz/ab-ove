@@ -75,7 +75,7 @@ way to notice.
 **One course is pinned today: *Mathematics from Zero for the AI Engineer***, in English and
 Polish; what it contains is measured two paragraphs down. Which courses a deployment carries
 is `PINS` in
-[`web/app/src/lib/content/bundle.ts`](web/app/src/lib/content/bundle.ts), derived from the
+[`web/web-kit/src/bundle.ts`](web/web-kit/src/bundle.ts), derived from the
 content pin in `web/content/book.lock.json`; the reading surface is written for several and
 narrows to one ([ADR-0048](docs/adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)),
 and adding a second is content work rather than a redesign — the lock file has to carry a

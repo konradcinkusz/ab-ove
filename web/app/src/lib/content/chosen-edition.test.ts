@@ -11,8 +11,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import type { Bundle } from '@ab-ovo/web-kit';
+
 import { chosenEdition, editionsOffered } from './chosen-edition.ts';
-import type { Bundle } from './schema.ts';
 
 /**
  * Two tracks, declared in opposite orders, so that a test about ORDER cannot pass by

@@ -53,7 +53,7 @@ import { keyOf, type ProgramRef, type Progress } from './store.ts';
  * A program, and the program the book puts immediately before it.
  *
  * `previous` is `undefined` for the first program of a track, and it is an ADJACENCY read
- * off the manifest (`unitBefore`, in `lib/content/bundle.ts`) rather than an id with one
+ * off the manifest (`unitBefore`, in `@ab-ovo/web-kit`'s `bundle.ts`) rather than an id with one
  * subtracted from it. The book renumbered its own main sequence once already when P07 was
  * inserted; an id is a name, not an index, and `P07 - 1` is not a program.
  */

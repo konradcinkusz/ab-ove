@@ -1,4 +1,4 @@
-import type { Bundle } from './schema.ts';
+import type { Bundle } from '@ab-ovo/web-kit';
 
 /**
  * Which course the index is showing, when the platform carries more than one.

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
-import { say } from '@/lib/content/bundle';
-import type { Bundle } from '@/lib/content/schema';
+import { say, type Bundle } from '@ab-ovo/web-kit';
+
 import { FALLBACK_LANGUAGE, chromeFor, endonym } from '@/lib/i18n/chrome';
 import { indexHref } from '@/lib/index-href';
 
