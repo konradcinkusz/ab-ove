@@ -93,20 +93,21 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
             {chrome.about}
           </Link>
           <ResumeLast language={chrome.language} limits={limits} />
-          <ForgetProgress language={chrome.language} />
           {/*
-            Beside `Forget where I am` and deliberately not folded into it. ADR-0017 defends
-            one-click forgetting because what it destroys is an integer per program, and it
-            names its own limit: the argument "stops holding the moment the record holds
-            anything a reader cannot trivially rebuild". A worksheet is that — the reader's
-            own working — so it takes a separate control and two presses. Both render
-            nothing when there is nothing to clear, so the row grows no dead control.
+            THE TWO DESTRUCTIVE CONTROLS, AFTER THE RESUME LINK AND NOT BESIDE IT. Both are
+            two presses (`use-two-step.ts`): the worksheets are the reader's own working and
+            nothing brings them back, and the place reaches the account since #11, so
+            forgetting it is no longer undone by reading one frame (ADR-0047). *Forget where
+            I am* is last of the two — furthest from the filled link a returning reader is
+            reaching for, which is ADR-0017's own placement rule. Both render nothing when
+            there is nothing to clear, so the row grows no dead control.
           */}
           <ClearWorksheets
             confirmLabel={chrome.clearWorksheetsConfirm}
             label={chrome.clearWorksheets}
             language={chrome.language}
           />
+          <ForgetProgress language={chrome.language} />
           <AccountControl language={chrome.language} returnTo={returnTo} />
         </nav>
       </header>

@@ -223,11 +223,11 @@ test.describe('local progress', () => {
     expect(shift, 'the control changing hands moved the page under the reader').toBeLessThan(0.01);
   });
 
-  test('a reader can be forgotten, and stays forgotten @core', async ({ page }) => {
+  test('a reader can be forgotten, in two presses, and stays forgotten @core', async ({ page }) => {
     // A product that remembers a reader with no way to be forgotten is the local half of
-    // what issue #13 owes the account. One click, because what it destroys is one integer
-    // and one language tag per program — see resume.tsx for why that argument stops holding
-    // the day the record holds more.
+    // what issue #13 owes the account. TWO presses, because since #11 the record reaches
+    // the account and reading one frame here does not bring back the phone's place —
+    // ADR-0047, which is where ADR-0017's one-click argument said it would stop holding.
     await readUpTo(page, 'en', STOPPED_AT!);
     await page.goto('/read');
     await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
@@ -238,8 +238,18 @@ test.describe('local progress', () => {
       `/read` (issue #14) and then failed with a strict-mode violation naming three
       buttons — which is the good outcome: an unnamed locator that had silently started
       clicking the wrong control would have left this test green and meaningless.
+
+      The first press arms and destroys nothing: the control renames itself to say what
+      the second will do, and the reader's place is still there — on the page and in the
+      store. A one-click implementation fails on the first assertion below.
     */
     await page.getByRole('button', { name: 'Forget where I am' }).click();
+    const armed = page.getByRole('button', { name: 'Forget it — on every device' });
+    await expect(armed).toBeVisible();
+    await expect(resumeOn(page, 'en', STOPPED_AT!), 'one press forgot the reader').toHaveCount(1);
+    expect(await page.evaluate((key) => window.localStorage.getItem(key), KEY)).not.toBeNull();
+
+    await armed.click();
     await expect(resumeOn(page, 'en', STOPPED_AT!), 'the control survived being forgotten').toHaveCount(0);
 
     // And it was the STORE that was cleared, not the screen: a reload is the only assertion

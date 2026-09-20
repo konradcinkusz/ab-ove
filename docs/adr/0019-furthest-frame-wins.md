@@ -95,10 +95,12 @@ else. The resurrection is therefore unreachable rather than unlikely.
 
 This also answers the question [`resume.tsx`](../../web/app/src/components/read/resume.tsx)
 left open: the argument for having no confirmation on that control was "what is destroyed is
-rebuilt by reading one frame", and that stopped being true here. The answer is still no
-confirmation and the reason has changed — this is now the only control that makes the product
-forget a reader, and a destructive control behind a modal is a privacy control that is
-measurably less used.
+rebuilt by reading one frame", and that stopped being true here. The answer at the time was
+still no confirmation, for a changed reason — this is now the only control that makes the
+product forget a reader, and a destructive control behind a modal is a privacy control that
+is measurably less used. That reason is about a modal, and
+[ADR-0047](0047-forgetting-is-two-presses-because-it-reaches-the-account.md) keeps it while
+making the control two presses: a renaming control under the pointer, not a dialog.
 
 ### A failed sync is not surfaced
 

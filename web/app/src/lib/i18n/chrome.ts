@@ -202,6 +202,12 @@ interface ConsentStrings {
 interface Strings {
   readonly answer: string;
   readonly forget: string;
+  /**
+   * The second press of *Forget where I am*, which is the one that destroys anything. It
+   * names the reach — every device — because that is what changed when the record grew an
+   * account copy (ADR-0047); a bare "are you sure" says nothing a reader can weigh.
+   */
+  readonly forgetConfirm: string;
   readonly signIn: string;
   readonly signOut: string;
   readonly account: string;
@@ -370,6 +376,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   en: {
     answer: 'Answer',
     forget: 'Forget where I am',
+    forgetConfirm: 'Forget it \u2014 on every device',
     signIn: 'Sign in',
     signOut: 'Sign out',
     account: 'Account',
@@ -398,7 +405,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       removesAccount: 'The account itself, at the identity service.',
       staysTitle: 'What stays',
       stays:
-        'This browser keeps its own copy of where you are in the book, and you can carry on reading with no account at all. If you want that cleared too, use \u2018Forget where I am\u2019 on the reading page \u2014 a separate control, because it is a separate thing.',
+        'This browser keeps its own copy of where you are in the book, and you can carry on reading with no account at all. If you want that cleared too, use \u2018Forget where I am\u2019 on the programs page \u2014 a separate control, because it is a separate thing.',
       cannotReachTitle: 'What this cannot reach',
       cannotReach:
         'The instrument measures how a frame does, never how a reader does: an outcome carries no reader on it, so no row of it knows it was yours and no deletion can find one. That is deliberate \u2014 it is what makes a rate safe to publish \u2014 and the price is that a contribution already folded into a rate cannot be taken back out.',
@@ -522,6 +529,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   pl: {
     answer: 'Odpowiedź',
     forget: 'Zapomnij, gdzie jestem',
+    forgetConfirm: 'Zapomnij \u2014 na ka\u017cdym urz\u0105dzeniu',
     signIn: 'Zaloguj się',
     signOut: 'Wyloguj się',
     account: 'Konto',
@@ -550,7 +558,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       removesAccount: 'Samo konto, w serwisie to\u017csamo\u015bci.',
       staysTitle: 'Co zostaje',
       stays:
-        'Ta przegl\u0105darka zachowuje w\u0142asn\u0105 kopi\u0119 tego, gdzie jeste\u015b w ksi\u0105\u017cce, i mo\u017cesz czyta\u0107 dalej bez konta. Je\u015bli chcesz wyczy\u015bci\u0107 tak\u017ce j\u0105, u\u017cyj \u201eZapomnij, gdzie jestem\u201d na stronie lektury \u2014 to osobny przycisk, bo to osobna rzecz.',
+        'Ta przegl\u0105darka zachowuje w\u0142asn\u0105 kopi\u0119 tego, gdzie jeste\u015b w ksi\u0105\u017cce, i mo\u017cesz czyta\u0107 dalej bez konta. Je\u015bli chcesz wyczy\u015bci\u0107 tak\u017ce j\u0105, u\u017cyj \u201eZapomnij, gdzie jestem\u201d na stronie program\u00f3w \u2014 to osobny przycisk, bo to osobna rzecz.',
       cannotReachTitle: 'Czego to nie dosi\u0119gnie',
       cannotReach:
         'Instrument mierzy, jak radzi sobie ramka, nigdy jak radzi sobie czytelnik: wynik nie niesie ze sob\u0105 \u017cadnego czytelnika, wi\u0119c \u017caden jego wiersz nie wie, \u017ce by\u0142 tw\u00f3j, i \u017cadne usuni\u0119cie go nie znajdzie. Tak to zaprojektowano \u2014 dzi\u0119ki temu wska\u017anik mo\u017cna bezpiecznie publikowa\u0107 \u2014 a cen\u0105 jest to, \u017ce wk\u0142adu wliczonego ju\u017c do wska\u017anika nie da si\u0119 z niego wycofa\u0107.',
@@ -734,6 +742,12 @@ export interface Chrome {
   readonly language: string;
   readonly answer: string;
   readonly forget: string;
+  /**
+   * The second press of *Forget where I am*, which is the one that destroys anything. It
+   * names the reach — every device — because that is what changed when the record grew an
+   * account copy (ADR-0047); a bare "are you sure" says nothing a reader can weigh.
+   */
+  readonly forgetConfirm: string;
   readonly signIn: string;
   readonly signOut: string;
   readonly account: string;

@@ -66,14 +66,18 @@ navigation from a frame instead of two.
 
 Its parts, in order:
 
-1. **The top row** — the wordmark, a link to `/about`, the resume and forget controls, and
-   the account control. Everything but the first two is read from the browser and arrives
-   after the first paint, so the row extends rather than the page moving
-   (the constraint issue #7 put on the resume controls). The resume control — `F01 ·
-   Continue at frame 12` — is the index's one filled control: for a reader who has been
-   here before it is the page's primary action, and it used to be the faintest thing on
-   it. It is padded outwards and the padding given back as margin, so the row it arrives
-   in does not grow.
+1. **The top row** — the wordmark, a link to `/about`, the resume control, the two
+   destructive controls, and the account control, in that order. Everything but the first
+   two is read from the browser and arrives after the first paint, so the row extends
+   rather than the page moving (the constraint issue #7 put on the resume controls). The
+   resume control — `F01 · Continue at frame 12` — is the index's one filled control: for
+   a reader who has been here before it is the page's primary action, and it used to be
+   the faintest thing on it. It is padded outwards and the padding given back as margin,
+   so the row it arrives in does not grow. *Clear my worksheets* and *Forget where I am*
+   are both two presses — the control renames itself to say what the second press does,
+   and reverts in five seconds — and *Forget* is the last of them, furthest from the link
+   a returning reader is reaching for
+   ([ADR-0047](../adr/0047-forgetting-is-two-presses-because-it-reaches-the-account.md)).
 2. **The heading and the edition switch**, sharing a line. The switch has three positions —
    each edition, and *both* — and *both* is what a reader who has chosen nothing is looking
    at. A choice is `/?lang=<edition>`: visible, linkable, leaveable, and never inferred.

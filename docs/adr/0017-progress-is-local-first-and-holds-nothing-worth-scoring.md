@@ -105,6 +105,13 @@ measures it on both pages.
 is handed the length of every program it lists, so a stored place past the end of a
 shortened program is clamped and a place in a program no longer listed is dropped.
 
+**"Forget is one click" reached its own exit.** The paragraph above says the argument stops
+holding when the record holds something a reader cannot trivially rebuild, and names #11's
+synchronisation as that moment. #11 shipped, forgetting now destroys the account copy too,
+and [ADR-0047](0047-forgetting-is-two-presses-because-it-reaches-the-account.md) makes the
+control two presses — a renaming control rather than the modal this file argued against —
+and moves it back to the end of the row, where this file put it.
+
 **The store is one more thing #12 has to check is not queried.** It is in the browser, so no
 server query can reach it — which makes that gate trivially true today and is the reason to
 write the gate now rather than when a server copy exists.
