@@ -25,7 +25,8 @@ something is in the reader loop at all.
 
 | Route | What it is | Needs |
 | --- | --- | --- |
-| `/` | the landing page: every program as a tile, in the book's own runs, and the edition switch | nothing |
+| `/` | the landing page: every program as a tile, in the book's own runs, the edition switch, and the narrowing to one course | nothing |
+| `/courses` | the courses this deployment carries, each with its length and its editions, and the way into one ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) | nothing |
 | `/about` | what the product is, the anti-goal, the loop, the integration panel | nothing |
 | `/read/<track>/<unit>/<lang>` | a program's contents: its headings, and the filled way in — frame 1, or the reader's own place | nothing |
 | `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a navigation | nothing |
@@ -37,8 +38,15 @@ something is in the reader loop at all.
 | `/healthz` | the app's own liveness | nothing |
 | `/api/*` | the BFF: config, auth, session, and the one proxy to any backend | — |
 
-**The first five are the whole product for a reader who never signs in**, and that is a
+**The first six are the whole product for a reader who never signs in**, and that is a
 requirement rather than an accident.
+
+**A *course* is a whole work and a *program* is one of its forty-seven units.** The two
+words are minutes apart in the same chrome row, so they are worth separating once here: a
+course is what `PINS` pins and what `/courses` lists — its own content repository, its own
+compiled bundle, its own tag — and a program is what a reader works, a frame at a time, from
+the index. The content layer calls a course a *track*, which is the word in the schema, in
+`/read/<track>/<unit>/<lang>` and in the MCP tools, and which no screen says.
 
 **An address that is not a page gets a page of this product's.** `app/not-found.tsx` and
 `app/error.tsx` stand behind the two statuses the routes already answer: a frame number
@@ -66,8 +74,12 @@ navigation from a frame instead of two.
 
 Its parts, in order:
 
-1. **The top row** — the wordmark, a link to `/about`, the resume control, the two
-   destructive controls, and the account control, in that order. Everything but the first
+1. **The top row** — the wordmark, a link to `/courses`, a link to `/about`, the resume
+   control, the two destructive controls, and the account control, in that order. The two
+   links that lead somewhere else come first and the controls that are about this reader
+   follow them; *Courses* is offered whatever the deployment pins, because a page listing
+   one course states what ab-ovo carries where a switch with one position would be a
+   control that cannot move (ADR-0048). Everything but the first
    two is read from the browser and arrives after the first paint, so the row extends
    rather than the page moving (the constraint issue #7 put on the resume controls). The
    resume control — `F01 · Continue at frame 12` — is the index's one filled control: for
@@ -81,7 +93,14 @@ Its parts, in order:
 2. **The heading and the edition switch**, sharing a line. The switch has three positions —
    each edition, and *both* — and *both* is what a reader who has chosen nothing is looking
    at. A choice is `/?lang=<edition>`: visible, linkable, leaveable, and never inferred.
-3. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
+3. **The course's title**, at level two, in each shown edition — and beside it the one
+   control that narrows: *Only this course* on the index that is showing every one,
+   *All courses* on the index narrowed to one. It is absent entirely while the deployment
+   pins a single course, where both labels would lead to the page the reader is on. The
+   narrowing is `/?track=<id>`, beside `?lang=` and independent of it: every position of
+   the edition switch carries the chosen course, and the sign-in return address carries
+   both, so neither choice can undo the other (ADR-0048).
+4. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
    the parts themselves once a bundle carries them (`groupsOf`, in `lib/content/bundle.ts`,
    which the MCP server's `list_programs` shares, so the two surfaces divide the book one
    way). Each run is headed at level three, under the track's title. One tile per program,
@@ -93,13 +112,32 @@ Its parts, in order:
    progress** (ADR-0041): no fraction, no bar, nothing about how far, and not a link,
    because the way back into the frame is the resume control and `progress.spec.ts` holds
    the page to exactly one.
-4. **The consent invitation**, last, absent from the first paint, and an invitation rather
+5. **The consent invitation**, last, absent from the first paint, and an invitation rather
    than a gate — a reader who came to read reaches the programs first and the question
    afterwards. The same invitation is on a program's summary, below the list, where a
    reader has just finished the frames the instrument is about; one record, so an answer
    on either page is the answer on both (ADR-0022, Consequences).
 
 `/read` is a 308 to this page and the deep links under it do not move.
+
+### `/courses` — the courses this deployment carries
+
+`web/app/src/app/courses/page.tsx` over `components/programs/course-list.tsx`. A Server
+Component on the index's own terms: no fetch, no cookie, no backend, everything read from
+the bundles compiled into the app ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)).
+
+One entry per pinned course, carrying its title in each edition it is published in, and a
+line of measured facts under it — how many programs, how many frames across them, and the
+editions themselves, named in their own language. The whole entry is one link, into the
+index narrowed to that course, and **one link is the point**: a program tile has a link per
+edition because a frame's address contains its language, and a course's does not — so
+choosing a course says nothing about which edition the reader reads, and the switch on the
+page it opens still lights nothing until they choose. The chosen edition rides along on
+every link out, so opening this page and leaving it cannot undo the choice that got here.
+
+Its own chrome is the wordmark, *← Programs* and *About ab-ovo*. The way back is the whole
+index rather than a course: a reader who opened this page has not said which course they
+want.
 
 ### `/about` — the product's argument
 
@@ -496,7 +534,7 @@ written.
 | 320 | manual | #78 | Rename the repository to `ab-ovo` | 5.6 |
 | 330 | blocked | #79 | The real content bundle: 47 programs | 2b.1 |
 | 340 | blocked | #80 | A second lab | — |
-| 350 | blocked | #81 | A second track | — |
+| 350 | blocked | #81 | A second track — the content pipeline, not the screens ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) | — |
 
 **Three things this ordering asserts**, each of which is a claim and not a preference:
 

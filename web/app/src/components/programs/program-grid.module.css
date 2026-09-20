@@ -273,3 +273,26 @@
   margin-top: auto;
   padding-top: 0.25rem;
 }
+
+/*
+ * *All courses*, beside the title of the course the index has been narrowed to (ADR-0048).
+ *
+ * Set like the tile's meta rather than like the switch above it: the switch is a control a
+ * reader is choosing among, and this is one way out of a state they are already in. It is
+ * in the same block as the title so it wraps under it on a narrow screen rather than
+ * pushing the title's line, and it is absent entirely when there is nothing to go back to.
+ */
+.allCourses {
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  margin: 0.375rem 0 0;
+}
+
+.allCourses a {
+  color: var(--ink-faint);
+}
+
+.allCourses a:hover,
+.allCourses a:focus-visible {
+  color: var(--accent);
+}

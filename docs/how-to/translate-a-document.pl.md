@@ -41,6 +41,7 @@ albo jedno pojęcie zyska dwie nazwy w jednym majątku.
 | frame | ramka |
 | section | sekcja |
 | program | program |
+| course (a whole work; a *track* in the schema) | kurs |
 | answer | odpowiedź |
 | reader | czytelnik |
 | the reader's place in the book | pozycja w lekturze |
