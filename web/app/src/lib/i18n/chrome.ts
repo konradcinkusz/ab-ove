@@ -232,15 +232,6 @@ interface Strings {
    * move from the first screen.
    */
   readonly about: string;
-  /**
-   * The edition switch's third position, offered only once an edition has been chosen.
-   *
-   * ADR-0015 refused a default edition, and ADR-0036 keeps that refusal by making "no
-   * choice" a real state rather than a state the reader can only reach by clearing a
-   * cookie. Without this label the switch is a trap door: two ways in and no way back to
-   * the page that picks neither.
-   */
-  readonly bothEditions: string;
   readonly contents: string;
   readonly opening: string;
   readonly position: (n: number, total: number) => string;
@@ -427,9 +418,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       problemPasswordRejected: 'That password was not accepted.',
       problemSignedOut: 'Your session ended before this could finish. Sign in and try again.',
       problemProgress:
-        'Your reading position could not be removed, so nothing else was attempted. Your account is untouched. Try again.',
+        'What your account had stored — your reading position, the edition you chose — could not be removed, so nothing else was attempted. Your account is untouched. Try again.',
       problemAccount:
-        'The reading position stored on your account has been removed, but the account itself could not be. It is still yours, and this device still knows where you are in the book. Try again.',
+        'What your account had stored has been removed, but the account itself could not be. It is still yours, and this device still knows where you are in the book. Try again.',
       problemUnconfigured:
         'This deployment has no identity service, so there is no account to delete.',
     },
@@ -443,7 +434,6 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     languageLabel: 'Language',
     programs: 'Programs',
     about: 'About ab-ovo',
-    bothEditions: 'Both editions',
     contents: 'Contents',
     opening: 'Opening',
     position: (n, total) => `${n} of ${total}`,
@@ -581,9 +571,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       problemSignedOut:
         'Twoja sesja zako\u0144czy\u0142a si\u0119, zanim to si\u0119 uda\u0142o doko\u0144czy\u0107. Zaloguj si\u0119 i spr\u00f3buj ponownie.',
       problemProgress:
-        'Nie uda\u0142o si\u0119 usun\u0105\u0107 twojej pozycji w lekturze, wi\u0119c nic wi\u0119cej nie by\u0142o pr\u00f3bowane. Konto pozosta\u0142o nietkni\u0119te. Spr\u00f3buj ponownie.',
+        'Nie uda\u0142o si\u0119 usun\u0105\u0107 tego, co przechowywa\u0142o twoje konto \u2014 pozycji w lekturze i wybranego wydania \u2014 wi\u0119c nic wi\u0119cej nie by\u0142o pr\u00f3bowane. Konto pozosta\u0142o nietkni\u0119te. Spr\u00f3buj ponownie.',
       problemAccount:
-        'Pozycja w lekturze zapisana na koncie zosta\u0142a usuni\u0119ta, ale samego konta nie uda\u0142o si\u0119 usun\u0105\u0107. Nadal nale\u017cy do ciebie, a to urz\u0105dzenie nadal wie, gdzie jeste\u015b w ksi\u0105\u017cce. Spr\u00f3buj ponownie.',
+        'To, co przechowywa\u0142o twoje konto, zosta\u0142o usuni\u0119te, ale samego konta nie uda\u0142o si\u0119 usun\u0105\u0107. Nadal nale\u017cy do ciebie, a to urz\u0105dzenie nadal wie, gdzie jeste\u015b w ksi\u0105\u017cce. Spr\u00f3buj ponownie.',
       problemUnconfigured:
         'To wdro\u017cenie nie ma serwisu to\u017csamo\u015bci, wi\u0119c nie ma konta do usuni\u0119cia.',
     },
@@ -597,7 +587,6 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     languageLabel: 'Język',
     programs: 'Programy',
     about: 'O ab-ovo',
-    bothEditions: 'Obie edycje',
     contents: 'Spis treści',
     opening: 'Wstęp',
     position: (n, total) => `${n} z ${total}`,
@@ -762,7 +751,6 @@ export interface Chrome {
   readonly languageLabel: string;
   readonly programs: string;
   readonly about: string;
-  readonly bothEditions: string;
   readonly contents: string;
   readonly opening: string;
   readonly position: (n: number, total: number) => string;

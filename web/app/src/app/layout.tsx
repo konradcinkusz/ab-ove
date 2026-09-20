@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 
+import { LanguageSync } from '@/components/language/language-sync';
 import { ProgressSync } from '@/components/sync/progress-sync';
 
 import './globals.css';
@@ -56,6 +57,19 @@ export default function RootLayout({
           it is about rather than before it.
         */}
         <ProgressSync />
+        {/*
+          The account's copy of the chosen edition, adopted once per page load (ADR-0048).
+
+          Here for the same structural reason as the sync above — a layout is not remounted
+          by a soft navigation, so one subscriber serves a whole reading session — and for a
+          reason of its own: the index renders the edition out of a cookie, so the component
+          that can correct that cookie from the account has to run on every page, not only
+          on the index a reader may not visit again this session.
+
+          It renders nothing at all, in every state. There is no notice to place and no
+          layout to shift.
+        */}
+        <LanguageSync />
       </body>
     </html>
   );

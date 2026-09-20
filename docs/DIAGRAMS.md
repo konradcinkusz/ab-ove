@@ -290,19 +290,27 @@ flowchart TD
 
 ### A5. What is stored, and what the schema cannot answer
 
-Two tables, each held by three mechanical rules rather than by a promise. The absent
-column — a reader on an outcome row — is the design, and it is what makes a per-reader score
-unbuildable ([ADR-0009](adr/0009-the-instrument-measures-the-book.md),
+Three tables, each held by mechanical rules rather than by a promise. Two are keyed by a
+reader — where they are, and which edition they chose
+([ADR-0048](adr/0048-one-language-control-remembered-and-english-by-default.md)) — and share
+one guard. The absent column on the third — a reader on an outcome row — is the design, and
+it is what makes a per-reader score unbuildable
+([ADR-0009](adr/0009-the-instrument-measures-the-book.md),
 [ADR-0020](adr/0020-no-aggregate-touches-the-progress-store.md)).
 
 ```mermaid
 %% What is stored, and what the schema is designed to be unable to answer.
 %% ONE DIAGRAM PER FILE. ASCII ONLY.
 
-%% TWO TABLES, AND EACH IS HELD BY THREE MECHANICAL RULES RATHER THAN BY A PROMISE.
-%% ReaderProgress says WHERE a reader is and never how they did; FrameOutcome counts a
-%% verdict against a frame and carries no identifier and no timestamp
-%% (ADR-0009, ADR-0020, ADR-0023).
+%% THREE TABLES, AND EACH IS HELD BY MECHANICAL RULES RATHER THAN BY A PROMISE.
+%% ReaderProgress says WHERE a reader is and never how they did; ReaderPreference says which
+%% EDITION they chose and nothing else (ADR-0048); FrameOutcome counts a verdict against a
+%% frame and carries no identifier and no timestamp (ADR-0009, ADR-0020, ADR-0023).
+
+%% THE TWO READER-SCOPED TABLES SHARE ONE GUARD. "How many readers chose Polish" is a
+%% preference rather than a measurement, and it is still a fact arrived at by counting
+%% readers -- so ReaderScopedQueries refuses it on the same terms as "how far has each
+%% reader got".
 
 %% THE ABSENT COLUMN IS THE DESIGN. An outcome has no reader, so nothing can find the rows
 %% that were yours -- which is why deleting an account cannot retract a contribution
@@ -319,6 +327,7 @@ flowchart TD
 
   subgraph apidb["apidb - owned by AbOvo.Api"]
     RP["ReaderProgress<br/>Subject, Track, Unit,<br/>Step, UpdatedAt"]
+    RPF["ReaderPreference<br/>Subject, Language,<br/>UpdatedAt"]
     FO["FrameOutcome<br/>BundleTag, Unit, Step,<br/>Check, Attempt, Verdict,<br/>Count"]
   end
 
@@ -331,9 +340,11 @@ flowchart TD
   RULE3["Closed column lists<br/>an outcome, a duration or<br/>a count of attempts<br/>breaks the build"]
 
   LOCAL -.->|"only with an account"| RP
+  LOCAL -.->|"only with an account"| RPF
   LOCAL -.->|"only with consent"| FO
 
   RULE1 --> RP
+  RULE1 --> RPF
   RULE3 --> RP
   RULE2 --> FO
   RULE3 --> FO
@@ -341,7 +352,7 @@ flowchart TD
   NOPE(["A per-reader score<br/>no column, no key,<br/>no index prepared for it"])
   FO -.->|"unbuildable"| NOPE
 
-  linkStyle 6 stroke:#b45309,stroke-dasharray: 4 4;
+  linkStyle 8 stroke:#b45309,stroke-dasharray: 4 4;
 ```
 
 ---
@@ -619,20 +630,26 @@ sequenceDiagram
 
 ### B6. Deletion — what goes, what stays, what nothing can reach
 
-The progress goes first, and the screen says what no deletion can reach
-([ADR-0021](adr/0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md)). A
-screen that implied otherwise would be claiming a capability the schema was designed not to
-have.
+Everything this service holds for the reader goes first — their place and their chosen
+edition, both under the same subject — and the screen says what no deletion can reach
+([ADR-0021](adr/0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md),
+[ADR-0048](adr/0048-one-language-control-remembered-and-english-by-default.md)). A screen
+that implied otherwise would be claiming a capability the schema was designed not to have.
 
 ```mermaid
 %% Deletion: what goes, what stays, and what no deletion can reach.
 %% ONE DIAGRAM PER FILE. ASCII ONLY.
 
-%% THE PROGRESS GOES FIRST, AND THE SCREEN SAYS WHAT IT CANNOT REACH (ADR-0021). Because an
-%% outcome carries no reader, nothing can find the rows that were yours -- so a contribution
-%% already folded into a rate cannot be retracted. That is the cost of the architectural
-%% absence that makes a per-reader score unbuildable, and the reader is told it rather than
-%% left to assume the opposite.
+%% EVERY READER-SCOPED ROW GOES FIRST, AND THE SCREEN SAYS WHAT IT CANNOT REACH (ADR-0021).
+%% The order is about the SUBJECT: once the identity service has marked the account, nobody
+%% can sign in as that subject again, so anything still filed under it in apidb is
+%% unreachable by any reader for ever. That is true of the chosen edition (ADR-0048) exactly
+%% as it is of the place, which is why both go before the account rather than after.
+
+%% AND BECAUSE AN OUTCOME CARRIES NO READER, nothing can find the rows that were yours -- so
+%% a contribution already folded into a rate cannot be retracted. That is the cost of the
+%% architectural absence that makes a per-reader score unbuildable, and the reader is told it
+%% rather than left to assume the opposite.
 
 %% THE IDENTITY SERVICE MARKS AND SCHEDULES RATHER THAN ERASES. This repository does not own
 %% authdb and does not claim on its behalf; the screen says what the identity service does,
@@ -643,12 +660,12 @@ have.
 
 flowchart TD
   ASK["The reader asks<br/>on /account"]
-  P1["1. DELETE /api/v1/progress<br/>the reader's own rows, gone"]
+  P1["1. DELETE /api/v1/progress<br/>and /api/v1/preferences/language<br/>the reader's own rows, gone"]
   P2["2. The identity service<br/>marks and schedules"]
   P3["3. Local state cleared<br/>position, worksheet, consent"]
   DONE["/account/deleted<br/>says what happened"]
 
-  GONE["What goes<br/>ReaderProgress rows,<br/>the local copy,<br/>the account"]
+  GONE["What goes<br/>ReaderProgress and<br/>ReaderPreference rows,<br/>the local copy,<br/>the account"]
   STAYS["What stays<br/>anonymous tallies already<br/>folded into a rate"]
   CANNOT["What nothing can reach<br/>a FrameOutcome has no reader,<br/>so no query can find yours"]
 
@@ -810,17 +827,18 @@ flowchart TD
 ### C4. Two queries the persistence layer refuses
 
 Mirror images, and not the same rule with a different column on it: one refuses a query that
-spans **readers**, the other a query that spans **texts**
-([ADR-0024](adr/0024-a-rate-and-its-interval-are-one-value-over-one-cell.md)). Both refuse
-before EF compiles the query.
+spans **readers** — over either of the two tables keyed by one — the other a query that spans
+**texts** ([ADR-0024](adr/0024-a-rate-and-its-interval-are-one-value-over-one-cell.md)). Both
+refuse before EF compiles the query.
 
 ```mermaid
 %% Two queries the persistence layer refuses, and the different reason each one has.
 %% ONE DIAGRAM PER FILE. ASCII ONLY.
 
 %% THEY ARE MIRROR IMAGES AND NOT THE SAME RULE WITH A DIFFERENT COLUMN ON IT.
-%% ReaderScopedQueries refuses a query that spans READERS, because a per-reader score is
-%% being made unbuildable (ADR-0009, ADR-0020). BundlePinnedQueries refuses a query that
+%% ReaderScopedQueries refuses a query that spans READERS -- over either of the two tables
+%% keyed by one -- because a per-reader score is being made unbuildable (ADR-0009, ADR-0020,
+%% ADR-0048). BundlePinnedQueries refuses a query that
 %% spans TEXTS, because an average over two wordings of a frame is meaningless rather than
 %% forbidden (ADR-0024) -- it would make the ledger lie about a frame somebody has already
 %% fixed.
@@ -833,7 +851,7 @@ before EF compiles the query.
 %% than a review comment.
 
 flowchart TD
-  Q1["A query over ReaderProgress"]
+  Q1["A query over ReaderProgress<br/>or ReaderPreference"]
   G1{"Does it pin<br/>exactly one reader?"}
   R1["Runs"]
   X1["Refused at run time,<br/>before EF compiles it"]

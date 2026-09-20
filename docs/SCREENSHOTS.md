@@ -53,7 +53,7 @@ were believed.
 ### The place row is the only chrome
 
 The row above the frame carries the program id, the program's title, the section you are in,
-the edition switch, and where you are — `3 / 45`. That frame number is a jumper: press `g` and
+the language control, and where you are — `3 / 45`. That frame number is a jumper: press `g` and
 type a number. **It shows position and never progress**
 ([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md)) — a percentage
 over a book of 47 programs would be a number about the reader, and this product does not make
@@ -65,8 +65,9 @@ those.
 
 The book is set in English and Polish, and the edition is the reader's choice rather than
 something guessed from a header
-([ADR-0015](adr/0015-the-reading-index-has-no-default-language.md)). Switching is a link in
-the place row; it keeps your frame number.
+([ADR-0048](adr/0048-one-language-control-remembered-and-english-by-default.md)). Switching
+is a link in the place row; it keeps your frame number — and it is remembered, so the
+question is asked once rather than on every screen.
 
 ### The worksheet
 
@@ -97,25 +98,28 @@ reader working through a program at night is the normal case.
 
 ### The landing page is the index
 
-![The landing page. A wordmark, links to About and Sign in, an edition switch offering English, polski and Both editions, and a grid of tiles — one per program, each with its id, its title, and how many frames and sections it has. At the foot of the page, a card headed "Help fix the book?" with two buttons.](assets/screenshots/landing-english.png)
+![The landing page. A wordmark, the language control offering English and polski, links to About and Sign in, and a grid of tiles — one per program, each with its id, its title, and how many frames and sections it has. At the foot of the page, a card headed "Help fix the book?" with two buttons.](assets/screenshots/landing-english.png)
 
 The first screen is the thing a reader came for, one navigation from a frame instead of two
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). It is a
-Server Component that makes no fetch, reads no cookie and needs no backend.
+Server Component that makes no fetch and needs no backend; it reads one cookie, this origin's
+own, which is where the reader's chosen edition is kept so that the first paint is already in
+it ([ADR-0048](adr/0048-one-language-control-remembered-and-english-by-default.md)).
 
 The card at the foot is the **consent invitation**, and it is last on purpose: a reader who
 came to read reaches the programs first and the question afterwards. It is an invitation
 rather than a gate, it is three-valued — granted, declined, not yet asked — and it lives in
 the browser ([ADR-0022](adr/0022-consent-is-local-versioned-and-three-valued.md)).
 
-### With no edition chosen, and with one
-
-![The landing page with no edition chosen: each tile carries a title per edition, each its own link.](assets/screenshots/landing-both-editions.png)
-
-*Both editions* is what a reader who has chosen nothing is looking at. A choice is
-`/?lang=<edition>`: visible, linkable, leaveable, and never inferred.
+### In each edition
 
 ![The landing page in the Polish edition: the programs' Polish titles, the Polish chrome.](assets/screenshots/landing-polish.png)
+
+A reader who has chosen nothing reads English. The control at the top of every screen is the
+only way to change that, a choice is `/?lang=<edition>` — visible, linkable, leaveable, never
+inferred from `Accept-Language` — and **it is remembered**: in this browser, and on the
+reader's account when they have one, so the question is asked once rather than on every
+screen (ADR-0048).
 
 ![The landing page in dark mode.](assets/screenshots/landing-dark.png)
 

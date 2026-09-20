@@ -1,10 +1,15 @@
 %% Co jest przechowywane i na jakie pytanie schemat celowo nie potrafi odpowiedzieć.
 %% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
 
-%% DWIE TABELE, A KAŻDĄ TRZYMAJĄ TRZY MECHANICZNE REGUŁY, NIE OBIETNICA. ReaderProgress
-%% mówi, GDZIE jest czytelnik, i nigdy jak mu poszło; FrameOutcome zlicza werdykt przy
-%% ramce i nie niesie ani identyfikatora, ani znacznika czasu
-%% (ADR-0009, ADR-0020, ADR-0023).
+%% TRZY TABELE, A KAŻDĄ TRZYMAJĄ MECHANICZNE REGUŁY, NIE OBIETNICA. ReaderProgress mówi,
+%% GDZIE jest czytelnik, i nigdy jak mu poszło; ReaderPreference mówi, którą EDYCJĘ wybrał, i
+%% nic poza tym (ADR-0048); FrameOutcome zlicza werdykt przy ramce i nie niesie ani
+%% identyfikatora, ani znacznika czasu (ADR-0009, ADR-0020, ADR-0023).
+
+%% DWIE TABELE ZWIĄZANE Z CZYTELNIKIEM DZIELĄ JEDNĄ STRAŻ. "Ilu czytelników wybrało polski"
+%% to preferencja, a nie pomiar, i wciąż jest faktem uzyskanym przez liczenie czytelników -
+%% więc ReaderScopedQueries odmawia go na tych samych zasadach co "jak daleko zaszedł każdy
+%% czytelnik".
 
 %% NIEOBECNA KOLUMNA JEST PROJEKTEM. Wynik nie niesie czytelnika, więc nic nie potrafi
 %% znaleźć wierszy, które były twoje - dlatego usunięcie konta nie cofnie wkładu już
@@ -21,6 +26,7 @@ flowchart TD
 
   subgraph apidb["apidb - należy do AbOvo.Api"]
     RP["ReaderProgress<br/>Subject, Track, Unit,<br/>Step, UpdatedAt"]
+    RPF["ReaderPreference<br/>Subject, Language,<br/>UpdatedAt"]
     FO["FrameOutcome<br/>BundleTag, Unit, Step,<br/>Check, Attempt, Verdict,<br/>Count"]
   end
 
@@ -33,9 +39,11 @@ flowchart TD
   RULE3["Zamknięte listy kolumn<br/>wynik, czas trwania albo liczba<br/>podejść psują build"]
 
   LOCAL -.->|"tylko z kontem"| RP
+  LOCAL -.->|"tylko z kontem"| RPF
   LOCAL -.->|"tylko za zgodą"| FO
 
   RULE1 --> RP
+  RULE1 --> RPF
   RULE3 --> RP
   RULE2 --> FO
   RULE3 --> FO
@@ -43,4 +51,4 @@ flowchart TD
   NOPE(["Ocena pojedynczego czytelnika<br/>brak kolumny, klucza<br/>i indeksu na nią gotowego"])
   FO -.->|"nie do zbudowania"| NOPE
 
-  linkStyle 6 stroke:#b45309,stroke-dasharray: 4 4;
+  linkStyle 8 stroke:#b45309,stroke-dasharray: 4 4;

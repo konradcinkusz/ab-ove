@@ -4,7 +4,17 @@ import { languages, track, uniqueProbeIn, unitNamed } from './support/bundle.ts'
 import { revealTo } from './support/reveal.ts';
 
 /**
- * JOURNEY — reading the same frame in the other edition.
+ * JOURNEY — reading the same frame in the other edition, and being remembered.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * ADR-0048 — ONE CONTROL PER SCREEN, AT THE TOP OF IT, AND IT KEEPS THE ANSWER.
+ *
+ * There were four of these: above the programme grid, on every contents page, on every
+ * summary and in every frame's place row — and none of them remembered anything, so a
+ * reader answered the same question on every screen in the product. What is asserted below
+ * is both halves of the fix: the count (exactly one control, wherever the reader is) and
+ * the memory (one press, and the next screen already agrees).
+ * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * Issue #6's "done when" is one clause: *switching language keeps the reader's position*.
  * Every test below is a version of that, and the reason it is cheap is worth stating,
@@ -36,7 +46,7 @@ const frameAt = (language: string, n: number): string => `${contentsAt(language)
 /** The two editions, as the fixture declares them. */
 const [first, second] = languages as [string, string];
 
-test.describe('the language switch', () => {
+test.describe('the language control', () => {
   test('switching at a frame lands on the SAME frame in the other edition @smoke', async ({
     page,
   }) => {
@@ -124,5 +134,86 @@ test.describe('the language switch', () => {
     await page.goto(frameAt(first, 1));
     await expect(page.locator(`a[href="${frameAt(first, 1)}"]`)).toHaveCount(0);
     await expect(page.locator(`a[href="${frameAt(second, 1)}"]`)).toHaveCount(1);
+  });
+});
+
+/**
+ * The two clauses the owner asked for in as many words: *only and exclusively once at the
+ * top of the page*, and *remembered*.
+ */
+test.describe('one control, remembered', () => {
+  /** Every screen that used to carry a switch of its own, plus the index that had a third. */
+  const screens = [
+    ['the index', '/'],
+    ['a contents page', contentsAt(first)],
+    ['a frame', frameAt(first, 1)],
+    ['a summary', `${contentsAt(first)}/summary`],
+  ] as const;
+
+  for (const [what, where] of screens) {
+    test(`${what} carries exactly one language control @core`, async ({ page }) => {
+      await page.goto(where);
+
+      /*
+        Counted by the thing that makes a control a control: a `<nav>` naming the OTHER
+        edition. Two of them on one screen is the defect this change removed — and it is
+        also, exactly, the ambiguity `place-row.tsx` records as the reason that row is a
+        `<div>` rather than a `<nav>`.
+      */
+      const controls = page
+        .getByRole('navigation')
+        .filter({ has: page.locator(`a[lang="${second}"]`) });
+
+      await expect(controls, `${what} has more than one language control`).toHaveCount(1);
+    });
+  }
+
+  test('the control is in the top of the page, above the reading matter @core', async ({
+    page,
+  }) => {
+    // "At the top" is a requirement and not a decoration, so it is measured rather than
+    // assumed: the control sits above the page's own heading on every screen that has one.
+    for (const where of [contentsAt(first), `${contentsAt(first)}/summary`]) {
+      await page.goto(where);
+
+      const control = page
+        .getByRole('navigation')
+        .filter({ has: page.locator(`a[lang="${second}"]`) })
+        .first();
+      const heading = page.getByRole('heading', { level: 1 }).first();
+
+      const top = (await control.boundingBox())?.y ?? Number.POSITIVE_INFINITY;
+      const title = (await heading.boundingBox())?.y ?? 0;
+
+      expect(top, `the control is below the heading on ${where}`).toBeLessThan(title);
+    }
+  });
+
+  test('one press follows the reader from screen to screen @smoke', async ({ page }) => {
+    /*
+      THE CLAUSE THE WHOLE CHANGE IS FOR, and the one no previous spec could have asserted:
+      the answer is asked for ONCE. A reader switches at a frame, walks up to the index by
+      the links the product gives them, and the index is already in the edition they chose
+      — without the query string, because the query string is what a remembered choice must
+      not depend on.
+    */
+    await page.goto(frameAt(first, 2));
+    await page.locator(`a[href="${frameAt(second, 2)}"]`).click();
+    await expect(page).toHaveURL(new RegExp(`${frameAt(second, 2)}$`));
+
+    await page.goto('/');
+    await expect(
+      page.getByRole('link', { name: unitTitles[second]! }),
+      'the index forgot the edition the reader chose at a frame',
+    ).toHaveAttribute('href', contentsAt(second));
+    await expect(page.getByRole('link', { name: unitTitles[first]! })).toHaveCount(0);
+  });
+
+  test('a reader who has chosen nothing gets English @smoke', async ({ page }) => {
+    // The default, asserted from a context that has never chosen. `first` is the fixture's
+    // own first declared edition and is English for the served bundle; the assertion is on
+    // what the INDEX shows rather than on the string, so it survives a track reordering.
+    await page.goto('/');
+    await expect(page.getByRole('link', { name: unitTitles['en']! })).toBeVisible();
   });
 });

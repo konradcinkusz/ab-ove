@@ -9,8 +9,9 @@ import { track, unitNamed } from './support/bundle.ts';
  * ADR-0036 — THE FIRST SCREEN IS THE INDEX.
  *
  * What used to be here was the product's argument, and it is now at `/about` under
- * `specs/about.spec.ts`. This file asserts what replaced it: a grid of programs, an edition
- * switch that offers and never applies, and the account control at the top of the page.
+ * `specs/about.spec.ts`. This file asserts what replaced it: a grid of programs, one title
+ * per tile in the reader's edition, the one language control in the top row (ADR-0048) and
+ * the account control beside it.
  *
  * The distinction this suite exists to protect is between a page that LISTS programs and a
  * page that REACHES them. The old landing page had one link, to an index, which then had the
@@ -70,63 +71,85 @@ test.describe('landing page', () => {
     await expect(english).toHaveAttribute('href', P01.href.en);
   });
 
-  test('offers both editions and chooses neither until the reader does @smoke', async ({
-    page,
-  }) => {
+  test('opens in English for a reader who has chosen nothing @smoke', async ({ page }) => {
+    /*
+      ADR-0048's first clause, asserted on the page rather than only in a unit. A fresh
+      context has no stored choice and no cookie, so this is the reader arriving for the
+      first time: ONE title per tile, in English, and the other edition's title absent
+      rather than beside it. Both halves matter — an index that added the default without
+      dropping the second title would look like it worked and would still be the
+      ninety-four-title page this change removed.
+
+      `web/app/src/lib/content/chosen-edition.test.ts` covers the same rule at the layer
+      with the logic (P13); this is the half that can only be seen rendered.
+    */
     await page.goto('/');
 
-    /*
-      ADR-0015, still true on a page that now has a switch. A reader who has not chosen sees
-      a title per edition, each the link into that edition — so this asserts BOTH hrefs,
-      which is the assertion a default would break. The day somebody adds `?? 'en'` to the
-      resolution, this is the test that fails, and it fails on the page rather than in a
-      unit — `web/app/src/lib/content/chosen-edition.test.ts` covers the same rule at the
-      layer with the logic (P13).
-    */
     await expect(page.getByRole('link', { name: P01.en })).toHaveAttribute('href', P01.href.en);
-    await expect(page.getByRole('link', { name: P01.pl })).toHaveAttribute('href', P01.href.pl);
+    await expect(page.getByRole('link', { name: P01.pl })).toHaveCount(0);
   });
 
   test('narrows the grid to the edition a reader asks for @core', async ({ page }) => {
     await page.goto('/?lang=pl');
 
-    // The chosen edition is there and the other one is gone. Both halves matter: a switch
-    // that added a title without removing the other would look like it worked.
     await expect(page.getByRole('link', { name: P01.pl })).toHaveAttribute('href', P01.href.pl);
     await expect(page.getByRole('link', { name: P01.en })).toHaveCount(0);
 
-    // And the switch says which position is live, with the attribute a screen reader reads
-    // rather than with a class only a stylesheet can see.
-    await expect(page.getByRole('link', { name: 'polski' })).toHaveAttribute(
-      'aria-current',
-      'true',
-    );
+    // And the control says which position is live, with the attribute a screen reader reads
+    // rather than with a class only a stylesheet can see. The current edition is not a link
+    // at all, which is why this locates it by attribute and not by role.
+    await expect(page.locator('[aria-current="true"][lang="pl"]')).toHaveCount(1);
+  });
+
+  test('remembers the edition the reader picked, with nothing in the URL @core', async ({
+    page,
+  }) => {
+    /*
+      THE CLAUSE THE WHOLE CHANGE IS FOR. Four switches existed because none of them kept
+      the answer; this asserts that one press is enough and that the reader never has to
+      press it again.
+
+      It goes back to the BARE `/` afterwards — not `/?lang=pl` — because the query string
+      is exactly what a remembered choice must not depend on. A reader types the site's
+      address, or opens a bookmark from before they chose, and still gets their own edition.
+    */
+    await page.goto('/');
+    await page.getByRole('link', { name: 'polski' }).click();
+    await expect(page.getByRole('link', { name: P01.pl })).toBeVisible();
+
+    await page.goto('/');
+    await expect(page.getByRole('link', { name: P01.pl })).toHaveAttribute('href', P01.href.pl);
+    await expect(page.getByRole('link', { name: P01.en })).toHaveCount(0);
+
+    // And the way back is the same control, in the same corner. A choice that could not be
+    // undone as easily as it was made would be worse than the default it replaced.
+    await page.getByRole('link', { name: 'English' }).click();
+    await page.goto('/');
+    await expect(page.getByRole('link', { name: P01.en })).toBeVisible();
+  });
+
+  test('lets a link override what the reader remembers @core', async ({ page }) => {
+    // Two people have to be able to look at the same page. A preference that beat a shared
+    // link would make that impossible — which is the property every deep link in this
+    // product has, and the reason the URL sits above the memory in the precedence.
+    await page.goto('/');
+    await page.getByRole('link', { name: 'polski' }).click();
+    await expect(page.getByRole('link', { name: P01.pl })).toBeVisible();
+
+    await page.goto('/?lang=en');
+    await expect(page.getByRole('link', { name: P01.en })).toBeVisible();
+    await expect(page.getByRole('link', { name: P01.pl })).toHaveCount(0);
   });
 
   test('treats an edition the book does not have as no choice at all @core', async ({ page }) => {
     // A typo in a query string is a reader's slip, not a deployment fault. The honest
-    // response is the page that picks neither — NOT a 404, and above all not a quiet
-    // fallback to English, which is the one outcome that would look correct to whoever
-    // wrote the typo and be wrong for the reader ADR-0015 is about.
+    // response is a page that renders — NOT a 404 and not a throw — and with nothing
+    // remembered that is the English index.
     const response = await page.goto('/?lang=de');
     expect(response?.status(), 'an unknown edition is not an error').toBe(200);
 
     await expect(page.getByRole('link', { name: P01.en })).toHaveAttribute('href', P01.href.en);
-    await expect(page.getByRole('link', { name: P01.pl })).toHaveAttribute('href', P01.href.pl);
-  });
-
-  test('lets a reader who chose an edition get back to the page that picks neither @core', async ({
-    page,
-  }) => {
-    await page.goto('/?lang=en');
     await expect(page.getByRole('link', { name: P01.pl })).toHaveCount(0);
-
-    // The third position. Without it the switch is a trap door — two ways in and no way back
-    // — and "no edition chosen" becomes a state a reader can only reach by editing the URL.
-    await page.getByRole('link', { name: 'Both editions' }).click();
-
-    await expect(page.getByRole('link', { name: P01.en })).toBeVisible();
-    await expect(page.getByRole('link', { name: P01.pl })).toBeVisible();
   });
 
   test('carries the account control and the way to the product’s argument @core', async ({
@@ -152,11 +175,12 @@ test.describe('landing page', () => {
     const signIn = page.getByRole('link', { name: 'Sign in' });
     await expect(signIn).toBeVisible();
 
-    // Signing in returns the reader to where they were, and the redirect target is a
-    // property worth asserting rather than assuming: this is the one page in the product
-    // whose location includes a query string, and the plain `usePathname()` answer would
-    // silently drop the reader's chosen edition on the way back from the form.
-    await expect(signIn).toHaveAttribute('href', '/login?redirect=%2F');
+    // Signing in returns the reader to where they were, EDITION AND ALL, and the redirect
+    // target is a property worth asserting rather than assuming: this is the one page in the
+    // product whose location can include a query string, and the plain `usePathname()`
+    // answer would silently drop the edition on the way back from the form. It carries the
+    // default too — a reader who has chosen nothing is still reading an edition (ADR-0048).
+    await expect(signIn).toHaveAttribute('href', '/login?redirect=%2F%3Flang%3Den');
 
     await page.goto('/?lang=pl');
     await expect(page.getByRole('link', { name: 'Zaloguj się' })).toHaveAttribute(
@@ -187,7 +211,8 @@ test.describe('landing page', () => {
     await expect(foundation).toHaveCount(1);
     await expect(foundation.getByRole('link', { name: P01.en })).toHaveCount(0);
 
-    // The headings follow the chosen edition, as every other word of chrome does (ADR-0016).
+    // The headings follow the chosen edition, as every other word of chrome does (ADR-0016,
+    // unconditional since ADR-0048: this page always has a reader edition to follow).
     await page.goto('/?lang=pl');
     await expect(page.getByRole('heading', { level: 3 })).toHaveText(['Podstawy', 'Cz\u0119\u015b\u0107 g\u0142\u00f3wna']);
   });

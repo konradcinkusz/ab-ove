@@ -1,14 +1,14 @@
 import Link from 'next/link';
 
+import { LanguageChoice } from '@/components/language/language-choice';
 import { say, sectionSpans } from '@/lib/content/bundle';
 import type { Bundle, Unit } from '@/lib/content/schema';
-
 import { chromeFor } from '@/lib/i18n/chrome';
+import { editionHrefs } from '@/lib/language/hrefs';
 
 import styles from './contents.module.css';
 import { EntryControl, StartAfresh } from './entry-control.tsx';
 import { KeysDetails } from './keys-details.tsx';
-import { LanguageSwitch } from './language-switch.tsx';
 import { RichInline } from './rich-text.tsx';
 
 export interface ProgramContentsProps {
@@ -85,18 +85,35 @@ export function ProgramContents({
         the first paint, and extending a line moves nothing where adding a block would move
         everything under it.
       */}
-      <p className={styles.crumb} lang={chrome.language}>
-        <Link href="/">{chrome.programsCrumb}</Link>
+      {/*
+        A `<div>` AND NOT A `<p>`, since ADR-0048 put the language control in this row. The
+        control is a `<nav>`, `<p>` cannot legally contain one, and the parser closes the
+        paragraph when it meets it — which React reports as a hydration mismatch and pays
+        for by regenerating the whole client tree. `place-row.tsx`'s header has the full
+        finding; it cost a PR to notice, because nothing looks broken when it happens.
+      */}
+      <div className={styles.crumb} lang={chrome.language}>
+        <span className={styles.crumbSide}>
+          <Link href="/">{chrome.programsCrumb}</Link>
+          {/*
+            THE LANGUAGE CONTROL — this screen's only one, at the top of it. It sits beside
+            the way back rather than on a line of its own, which is the line ADR-0048
+            removed: a block between the crumb and the programme's title, on every contents
+            page, saying nothing the reader had not already been asked twice.
+          */}
+          <LanguageChoice
+            current={language}
+            hrefs={editionHrefs(
+              bundle.track.languages,
+              (other) => `/read/${track}/${unit.id}/${other}`,
+            )}
+            label={chrome.languageLabel}
+            labelLanguage={chrome.language}
+            languages={bundle.track.languages}
+          />
+        </span>
         <StartAfresh language={language} last={unit.steps.length} track={track} unit={unit.id} />
-      </p>
-
-      <LanguageSwitch
-        current={language}
-        hrefFor={(other) => `/read/${track}/${unit.id}/${other}`}
-        label={chrome.languageLabel}
-        labelLanguage={chrome.language}
-        languages={bundle.track.languages}
-      />
+      </div>
 
       <h1 className={styles.programTitle}>
         <RichInline language={language} text={say(unit.titles, language)} />

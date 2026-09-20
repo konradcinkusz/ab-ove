@@ -65,6 +65,7 @@ var openWriteApi = app.MapGroup("/api/v1").WithTags("v1")
 
 publicApi.MapSystemEndpoints();
 authApi.MapProgressEndpoints();
+authApi.MapPreferenceEndpoints();
 openWriteApi.MapOutcomeEndpoints();
 
 // The instrument's read, and the admin group's first endpoint. Nothing on it is about a

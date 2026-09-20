@@ -7,7 +7,8 @@ import { expect, type Page } from '@playwright/test';
  * the second does it. A spec that clicked once would be asserting that a primed control
  * has done nothing — which is a property, and `progress.spec.ts` asserts it in as many
  * words — so every journey that wants the record gone goes through here, and the two
- * labels are the English ones because the index has no reader edition (ADR-0015).
+ * labels are the English ones because a test context has chosen no edition and the index
+ * therefore opens in English (ADR-0048).
  */
 export async function forgetWhereIAm(page: Page): Promise<void> {
   const control = page.getByRole('button', { name: 'Forget where I am' });

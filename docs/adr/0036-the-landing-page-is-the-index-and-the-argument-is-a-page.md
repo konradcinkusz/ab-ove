@@ -95,11 +95,16 @@ in now has to click *About ab-ovo*. The judgement is that a reader deciding whet
 what the system measures will look for that page, and a reader who came to work a program
 should not have to read past it first.
 
-**The switch is the thing to watch.** ADR-0015's objection to a toggle was that its lit
-position is a default by construction, and the third position is the whole of the answer to
-that. A later change that drops *both*, remembers the last choice in a cookie, or reads
-`Accept-Language` reintroduces exactly the silent editorial pick both ADRs refuse — and
-would be a decision needing its own file, not a convenience.
+**The switch was the thing to watch, and it is the thing that moved.** ADR-0015's objection
+to a toggle was that its lit position is a default by construction, and the third position
+was the whole of the answer to that. This paragraph said that a later change dropping *both*
+or remembering the choice in a cookie "would be a decision needing its own file, not a
+convenience". It got one:
+[ADR-0048](0048-one-language-control-remembered-and-english-by-default.md) drops the third
+position, defaults to English and remembers the choice in the browser and on the account. The
+switch this ADR added is gone with it — there is now one language control, shared by every
+screen, in the top row. `Accept-Language` is still not read, which is the half of the warning
+that stands unchanged.
 
 **One page's measure widens.** The grid uses its own stylesheet at 62rem rather than the
 `--measure` column every reading page shares. That is deliberate and confined: a frame is

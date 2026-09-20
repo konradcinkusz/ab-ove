@@ -25,16 +25,19 @@ along gets nothing, and paper has no way to notice.
 This application cannot notice either, and it does not try. What it does is make skimming
 *cost* something: the answer is not on the page, so there is nothing to glance at.
 
-## Step 1 — choose an edition, and mean it
+## Step 1 — choose an edition, once
 
-![The landing page with the edition switch offering English, polski, and Both editions.](../assets/screenshots/landing-english.png)
+![The landing page with the language control offering English and polski.](../assets/screenshots/landing-english.png)
 
-The switch has three positions — each edition, and *both*. **Both** is what you see having
-chosen nothing, and it is not a default dressed up as a choice: there is no default
-([ADR-0015](../adr/0015-the-reading-index-has-no-default-language.md)). Nothing reads your
-`Accept-Language` header and decides for you.
+The control is at the top of every screen in the product, and there is exactly one of it.
+The site opens in **English** and says so plainly rather than guessing: nothing reads your
+`Accept-Language` header and decides for you
+([ADR-0048](../adr/0048-one-language-control-remembered-and-english-by-default.md)).
 
-A choice is a URL — `/?lang=en` — so it is visible, linkable and leaveable.
+Press *polski* and you are reading Polish — on this screen, on the contents page, in every
+frame, and the next time you come back. The choice is kept in your browser, and on your
+account too if you sign in, so this is the only time this tutorial asks you about it. A
+choice is also a URL — `/?lang=pl` — so it stays visible, linkable and leaveable.
 
 Pick **F01 — Numbers, powers and roots**. Every reader starts there.
 

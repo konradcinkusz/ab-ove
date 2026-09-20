@@ -5,11 +5,12 @@ namespace AbOvo.Api.Persistence;
 /// <summary>
 /// P3 — this service owns <c>apidb</c>, and no other service opens a connection to it.
 /// <para>
-/// It carries one entity: <see cref="ReaderProgress"/>, arriving with the ticket that needed
-/// it (issue #11) rather than with the template. INIT-GENERIC-TEMPLATE.md §12 — "No sample
-/// domain model … inventing entities for a product you have not been told about produces
-/// code the first ticket deletes." The mechanism was wired and proven first; this is the
-/// first thing to use it.
+/// Every entity here arrived with the ticket that needed it rather than with the template.
+/// INIT-GENERIC-TEMPLATE.md §12 — "No sample domain model … inventing entities for a product
+/// you have not been told about produces code the first ticket deletes." <see
+/// cref="ReaderProgress"/> came with issue #11, <see cref="FrameOutcome"/> with issue #15,
+/// and <see cref="ReaderPreference"/> with the one language control (ADR-0048). The
+/// mechanism was wired and proven before any of them.
 /// </para>
 /// </summary>
 public sealed class AbOvoDbContext(DbContextOptions<AbOvoDbContext> options) : DbContext(options)
@@ -23,6 +24,12 @@ public sealed class AbOvoDbContext(DbContextOptions<AbOvoDbContext> options) : D
     /// The instrument's store (issue #15). Counts, never events — see <see cref="FrameOutcome"/>.
     /// </summary>
     public DbSet<FrameOutcome> FrameOutcomes => Set<FrameOutcome>();
+
+    /// <summary>
+    /// Which edition each reader chose (ADR-0048). A preference, never a measurement — see
+    /// <see cref="ReaderPreference"/>.
+    /// </summary>
+    public DbSet<ReaderPreference> ReaderPreferences => Set<ReaderPreference>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -92,6 +99,28 @@ public sealed class AbOvoDbContext(DbContextOptions<AbOvoDbContext> options) : D
              * (check, attempt, passed) is exactly what they aggregate over.
              */
             entity.HasIndex(o => new { o.BundleTag, o.Track, o.Unit, o.Step });
+        });
+
+        modelBuilder.Entity<ReaderPreference>(entity =>
+        {
+            /*
+             * THE SUBJECT IS THE WHOLE KEY, AND THAT IS THE UNIQUENESS RULE RATHER THAN A
+             * CONSEQUENCE OF IT. One reader has one chosen edition. A surrogate id with a
+             * unique index would say the same thing and would let a second row exist for as
+             * long as it took somebody to write an insert that skipped the index — and two
+             * rows here is a state no tie-break can resolve, because both would carry a
+             * timestamp and neither would be the reader's answer.
+             *
+             * It is also why there is no index to add. The only query this service makes is
+             * "this caller's row", which is a primary-key lookup; a query over everybody's
+             * chosen edition would be a fact about readers, which ADR-0009 §1 refuses, and
+             * it gets no access path here to make it cheap.
+             */
+            entity.HasKey(p => p.Subject);
+
+            entity.Property(p => p.Subject).HasMaxLength(64).IsRequired();
+            entity.Property(p => p.Language).HasMaxLength(16).IsRequired();
+            entity.Property(p => p.UpdatedAt).IsRequired();
         });
     }
 }

@@ -53,16 +53,20 @@ test.describe('no backend', () => {
       a program is one click away — asserted as the href into the reading route, because a
       grid that rendered tiles linking nowhere would pass every weaker form of this test.
 
-      Both editions, because the index that picks neither is the one a reader arrives at, and
-      neither of those two links may depend on a service that is not there (ADR-0015).
+      Both editions, one at a time: the index shows the reader's own (ADR-0048), and neither
+      edition may be reachable only when a service this deployment does not have is up. The
+      language control is the whole path between them and it is a plain link, so it works
+      here for the same reason the tiles do.
     */
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
     for (const language of ['en', 'pl']) {
+      await page.goto(`/?lang=${language}`);
       await expect(
         page.getByRole('link', { name: P01.titles[language]! }),
         `the ${language} link into P01 is not on the index`,
       ).toHaveAttribute('href', `/read/${track}/P01/${language}`);
     }
+    await page.goto('/');
 
     // And the way to the product's argument is still there, so a reader who wants to know
     // what this is before working a frame is not stranded by a missing service either.

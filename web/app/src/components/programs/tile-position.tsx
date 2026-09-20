@@ -13,7 +13,7 @@ export interface TilePositionProps {
   readonly unit: string;
   /** The program's length, so a place past the end of a shortened program is clamped. */
   readonly last: number;
-  /** The chrome's language — the index has no reader edition of its own (ADR-0015). */
+  /** The index's edition, which the chrome follows (ADR-0016, unconditional since ADR-0048). */
   readonly language: string;
 }
 

@@ -1,11 +1,16 @@
 %% Usunięcie konta: co znika, co zostaje i czego żadne usunięcie nie dosięgnie.
 %% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
 
-%% MIEJSCE W LEKTURZE ZNIKA PIERWSZE, A EKRAN MÓWI, CZEGO NIE DOSIĘGNIE (ADR-0021). Wynik
-%% nie niesie czytelnika, więc nic nie potrafi znaleźć wierszy, które były twoje - a zatem
-%% wkładu wliczonego już do wskaźnika nie da się wycofać. To jest cena strukturalnej
-%% nieobecności, dzięki której ocena pojedynczego czytelnika jest nie do zbudowania, i
-%% czytelnik ją słyszy, zamiast zakładać coś przeciwnego.
+%% KAŻDY WIERSZ ZWIĄZANY Z CZYTELNIKIEM ZNIKA PIERWSZY, A EKRAN MÓWI, CZEGO NIE DOSIĘGNIE
+%% (ADR-0021). Kolejność wynika z PODMIOTU: gdy serwis tożsamości oznaczy konto, nikt już nie
+%% zaloguje się jako ten podmiot, więc cokolwiek pozostanie pod nim w apidb, jest na zawsze
+%% poza zasięgiem czytelnika. Dotyczy to wybranej edycji (ADR-0048) dokładnie tak jak miejsca
+%% w lekturze - i dlatego oba znikają przed kontem, a nie po nim.
+
+%% A PONIEWAŻ WYNIK NIE NIESIE CZYTELNIKA, nic nie potrafi znaleźć wierszy, które były twoje
+%% - a zatem wkładu wliczonego już do wskaźnika nie da się wycofać. To jest cena
+%% strukturalnej nieobecności, dzięki której ocena pojedynczego czytelnika jest nie do
+%% zbudowania, i czytelnik ją słyszy, zamiast zakładać coś przeciwnego.
 
 %% SERWIS TOŻSAMOŚCI OZNACZA I PLANUJE, A NIE WYMAZUJE. To repozytorium nie posiada authdb i
 %% nie składa deklaracji w jego imieniu; ekran mówi, co robi serwis tożsamości, jego
@@ -15,12 +20,12 @@
 
 flowchart TD
   ASK["Czytelnik prosi<br/>na /account"]
-  P1["1. DELETE /api/v1/progress<br/>wiersze tego czytelnika, znikają"]
+  P1["1. DELETE /api/v1/progress<br/>i /api/v1/preferences/language<br/>wiersze tego czytelnika, znikają"]
   P2["2. Serwis tożsamości<br/>oznacza i planuje"]
   P3["3. Stan lokalny czyszczony<br/>miejsce, arkusz, zgoda"]
   DONE["/account/deleted<br/>mówi, co się stało"]
 
-  GONE["Co znika<br/>wiersze ReaderProgress,<br/>kopia lokalna,<br/>konto"]
+  GONE["Co znika<br/>wiersze ReaderProgress<br/>i ReaderPreference,<br/>kopia lokalna,<br/>konto"]
   STAYS["Co zostaje<br/>anonimowe zliczenia już<br/>wliczone do wskaźnika"]
   CANNOT["Czego nic nie dosięgnie<br/>FrameOutcome nie ma czytelnika,<br/>więc żadne zapytanie nie znajdzie twoich"]
 

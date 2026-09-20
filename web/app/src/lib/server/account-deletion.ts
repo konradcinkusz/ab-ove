@@ -45,6 +45,17 @@ import { deleteAccount, type DeleteAccountOutcome, type FetchLike } from './dele
 /** `AbOvo.Api`'s progress endpoint — the whole record for the bearer's subject. */
 const PROGRESS_PATH = '/api/v1/progress';
 
+/**
+ * `AbOvo.Api`'s other reader-scoped row: the edition they chose (ADR-0048).
+ *
+ * IT IS DELETED HERE AND NOT ONLY BECAUSE IT IS TIDY. The ordering argument below is that
+ * a row left in `apidb` under a subject that can never sign in again is unreachable by any
+ * reader for ever — and that argument is about the SUBJECT, not about the progress table.
+ * The day this service grew a second table keyed by one, a deletion that cleared only the
+ * first became the defect the whole ordering exists to prevent, one table over.
+ */
+const PREFERENCE_PATH = '/api/v1/preferences/language';
+
 const DEFAULT_TIMEOUT_MS = 45_000;
 
 function timeoutMs(): number {
@@ -65,9 +76,36 @@ export type ProgressOutcome =
  * token and there is no route that takes one, "because an endpoint that let a caller name
  * whose progress they wanted is an endpoint whose authorization is a parameter".
  */
-export async function forgetStoredProgress(
+export function forgetStoredProgress(
   accessToken: string,
   fetchImpl: FetchLike = fetch,
+): Promise<ProgressOutcome> {
+  return forgetRowsAt(PROGRESS_PATH, accessToken, fetchImpl);
+}
+
+/**
+ * The same, for the reader's chosen edition. `PreferenceEndpoints`' delete is idempotent
+ * for this caller's benefit: a retry after a half-failed deletion must not look like a new
+ * failure on the screen that is telling somebody their account is gone.
+ */
+export function forgetStoredPreference(
+  accessToken: string,
+  fetchImpl: FetchLike = fetch,
+): Promise<ProgressOutcome> {
+  return forgetRowsAt(PREFERENCE_PATH, accessToken, fetchImpl);
+}
+
+/**
+ * One DELETE against `AbOvo.Api`, over whichever of the reader's rows the path names.
+ *
+ * Written once rather than twice because the two calls differ only in the path: the
+ * candidate walk, the timeout, the 401/403 collapse and the failure text are the same
+ * decisions for both, and a second copy is a second place for them to drift.
+ */
+async function forgetRowsAt(
+  path: string,
+  accessToken: string,
+  fetchImpl: FetchLike,
 ): Promise<ProgressOutcome> {
   const candidates = backendCandidates('api');
   let last: ProgressOutcome = { kind: 'unavailable', reason: 'no api is configured' };
@@ -77,7 +115,7 @@ export async function forgetStoredProgress(
     const timer = setTimeout(() => controller.abort(), timeoutMs());
 
     try {
-      const response = await fetchImpl(`${base}${PROGRESS_PATH}`, {
+      const response = await fetchImpl(`${base}${path}`, {
         method: 'DELETE',
         headers: { accept: 'application/json', authorization: `Bearer ${accessToken}` },
         redirect: 'manual',
@@ -116,6 +154,12 @@ export async function forgetStoredProgress(
  * other has to say "your account is untouched and your reading position on this device is
  * untouched, but the copy on the account could not be removed". A reader who is told the
  * first when the second is true will not try the one thing that would fix it.
+ *
+ * IT COVERS BOTH OF `AbOvo.Api`'s READER ROWS and stays ONE member, which is a decision
+ * rather than an oversight. The place and the chosen edition fail the same way, for the
+ * same reason, and the instruction to the reader is identical — so a second member would
+ * be a distinction nothing acts on, in return for a sentence nobody could write differently.
+ * The screen's wording says "what your account had stored" for exactly this reason.
  */
 export type AccountDeletionOutcome =
   | { readonly kind: 'deleted' }
@@ -127,9 +171,11 @@ export type AccountDeletionOutcome =
   /** The progress is gone and the account is not. Recoverable: the reader can try again. */
   | { readonly kind: 'account-not-removed'; readonly reason: string };
 
-/** The two calls, injected, so the ORDER is a thing a test can assert rather than read. */
+/** The calls, injected, so the ORDER is a thing a test can assert rather than read. */
 export interface DeletionSteps {
   readonly forgetProgress: (accessToken: string) => Promise<ProgressOutcome>;
+  /** The reader's chosen edition (ADR-0048) — `AbOvo.Api`'s other reader-scoped row. */
+  readonly forgetPreference: (accessToken: string) => Promise<ProgressOutcome>;
   readonly deleteAccount: (
     accessToken: string,
     password: string | null,
@@ -138,11 +184,12 @@ export interface DeletionSteps {
 
 const LIVE: DeletionSteps = {
   forgetProgress: (accessToken) => forgetStoredProgress(accessToken),
+  forgetPreference: (accessToken) => forgetStoredPreference(accessToken),
   deleteAccount: (accessToken, password) => deleteAccount(accessToken, password),
 };
 
 /**
- * Remove the reader's stored progress, then their account.
+ * Remove everything `AbOvo.Api` holds for the reader, then their account.
  *
  * It does NOT clear the session cookies and does not touch the browser: this function is
  * the part with the decision in it, and keeping it free of `next/headers` is what lets the
@@ -158,11 +205,21 @@ export async function deleteReaderAccount(
   password: string | null,
   steps: DeletionSteps = LIVE,
 ): Promise<AccountDeletionOutcome> {
-  const progress = await steps.forgetProgress(accessToken);
+  /*
+    BOTH OF THIS SERVICE'S READER ROWS, AND BOTH BEFORE THE ACCOUNT. The ordering argument
+    above is about the SUBJECT: once authservice has marked the account deleted, nobody can
+    sign in as that subject again, so anything still filed under it in `apidb` is
+    unreachable for ever. That is true of the chosen edition exactly as it is of the place,
+    which is why the second call is here rather than after the account — and why a failure
+    in it stops the operation rather than being swallowed as the lesser of the two rows.
+  */
+  for (const forget of [steps.forgetProgress, steps.forgetPreference]) {
+    const removed = await forget(accessToken);
 
-  if (progress.kind === 'unauthenticated') return { kind: 'unauthenticated' };
-  if (progress.kind === 'unavailable') {
-    return { kind: 'progress-not-removed', reason: progress.reason };
+    if (removed.kind === 'unauthenticated') return { kind: 'unauthenticated' };
+    if (removed.kind === 'unavailable') {
+      return { kind: 'progress-not-removed', reason: removed.reason };
+    }
   }
 
   const account = await steps.deleteAccount(accessToken, password);

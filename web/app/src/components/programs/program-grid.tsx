@@ -2,10 +2,12 @@ import Link from 'next/link';
 
 import { AccountControl } from '@/components/account/account-control';
 import { ConsentControl } from '@/components/consent/consent-control';
+import { LanguageChoice } from '@/components/language/language-choice';
 import { groupsOf, say, sectionSpans } from '@/lib/content/bundle';
 import { editionsOffered } from '@/lib/content/chosen-edition';
 import type { Bundle } from '@/lib/content/schema';
-import { FALLBACK_LANGUAGE, chromeFor, endonym } from '@/lib/i18n/chrome';
+import { chromeFor } from '@/lib/i18n/chrome';
+import { editionHrefs } from '@/lib/language/hrefs';
 
 import { ClearWorksheets } from '../read/clear-controls.tsx';
 import { ForgetProgress, ResumeLast, type Limits } from '../read/resume.tsx';
@@ -16,11 +18,11 @@ import { TilePosition } from './tile-position.tsx';
 export interface ProgramGridProps {
   readonly bundles: readonly Bundle[];
   /**
-   * The edition the reader asked for, or `undefined` for the index that picks neither.
-   * Resolved by `chosenEdition`, which is where every way of supplying a bad one collapses
-   * to the same answer.
+   * The edition to render. Always a language since ADR-0048 — what the URL asked for, else
+   * what this browser remembers, else English — and resolved by `chosenEdition`, which is
+   * where every way of supplying a bad one collapses to the same answer.
    */
-  readonly chosen: string | undefined;
+  readonly chosen: string;
 }
 
 /**
@@ -35,21 +37,26 @@ export interface ProgramGridProps {
  * move from working one, which is the thing the old first screen asked them to read past.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * THE EDITION IS CHOSEN BY THE READER OR BY NOBODY.
+ * ONE EDITION, ONE TITLE PER TILE, AND THE CONTROL FOR IT IS IN THE TOP ROW.
  *
- * ADR-0015 refused a default edition and this page keeps that refusal: `chosen` is
- * `undefined` until a reader picks one in the switch, and until then every tile carries a
- * title per edition, each in its own language, each the link into it. The switch is what
- * ADR-0036 adds and it is offered rather than applied — a reader who has not touched it is
- * looking at a page that has made no editorial claim about which edition of the book is
- * the real one.
+ * ADR-0015 refused a default edition, so what stood here rendered every tile's title TWICE
+ * — once per edition, each half a link — and offered a three-position switch whose third
+ * position was "neither". Ninety-four titles for forty-seven programmes, and the reader who
+ * picked one found the question waiting for them again on the next screen, because nothing
+ * kept the answer.
  *
- * The furniture follows the choice once there is one (ADR-0016), and is English until then.
- * That is not a third rule: ADR-0016 says the controls follow the reader's edition, and on
- * a page with no reader edition there is nothing to follow.
+ * ADR-0048 reversed it. `chosen` is now always a language: English unless the reader has
+ * said otherwise, and what they say is remembered (`lib/language/store.ts`). Each tile
+ * carries one title, in that edition, and the control that changes it is `LanguageChoice`
+ * in the row at the top of the page — the same control in the same place on every screen in
+ * this application, and the only one.
+ *
+ * The furniture follows the edition (ADR-0016), which is now unconditional: there is always
+ * a reader edition for it to follow.
  */
 export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.Element {
-  const chrome = chromeFor(chosen ?? FALLBACK_LANGUAGE);
+  const chrome = chromeFor(chosen);
+  const editions = editionsOffered(bundles);
 
   /*
     How long each program is, so a reader whose stored place is past the end of a shortened
@@ -71,7 +78,7 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
     Built here because the server already knows the answer, which is what keeps that control
     out of `useSearchParams()` and every other page that renders it statically rendered.
   */
-  const returnTo = chosen ? `/?lang=${encodeURIComponent(chosen)}` : '/';
+  const returnTo = `/?lang=${encodeURIComponent(chosen)}`;
 
   return (
     <main className={styles.page} lang={chrome.language}>
@@ -88,70 +95,104 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
           link shorter on the first paint and does not move when the answer arrives — the
           reason it is at the END of the row rather than the start.
         */}
-        <nav className={styles.chrome} aria-label={chrome.programs}>
-          <Link className={styles.chromeLink} href="/about">
-            {chrome.about}
-          </Link>
-          <ResumeLast language={chrome.language} limits={limits} />
+        {/*
+          THE CHROME ROW IS A `<div>` HOLDING TWO NAVIGATIONS, AND THAT IS NOT A STYLE
+          CHOICE.
+
+          The language control is a `<nav>` with its own accessible name. It used to sit
+          INSIDE the destinations' `<nav>`, which is legal HTML and wrong in the way
+          `place-row.tsx` records: two navigations containing a `[lang]` descendant make the
+          control ambiguous to anybody — a screen reader listing landmarks, and
+          `language-choice.spec.ts`, which counts them and found this. The fix is the same
+          one that row made: the container is a plain element, and the navigations inside it
+          are siblings.
+        */}
+        <div className={styles.chrome}>
           {/*
-            THE TWO DESTRUCTIVE CONTROLS, AFTER THE RESUME LINK AND NOT BESIDE IT. Both are
-            two presses (`use-two-step.ts`): the worksheets are the reader's own working and
-            nothing brings them back, and the place reaches the account since #11, so
-            forgetting it is no longer undone by reading one frame (ADR-0047). *Forget where
-            I am* is last of the two — furthest from the filled link a returning reader is
-            reaching for, which is ADR-0017's own placement rule. Both render nothing when
-            there is nothing to clear, so the row grows no dead control.
+            THE LANGUAGE CONTROL, AT THE TOP, AND THE ONLY ONE ON THIS PAGE (ADR-0048). It
+            is first in the row because it qualifies everything below it — every title on
+            this screen is in the edition it names — where `About`, the resume link and the
+            account are destinations. Its href carries the edition in the query, so it works
+            with script disabled; the click is what makes the answer stick.
           */}
-          <ClearWorksheets
-            confirmLabel={chrome.clearWorksheetsConfirm}
-            label={chrome.clearWorksheets}
-            language={chrome.language}
+          <LanguageChoice
+            current={chosen}
+            hrefs={editionHrefs(editions, (other) => `/?lang=${encodeURIComponent(other)}`)}
+            label={chrome.languageLabel}
+            labelLanguage={chrome.language}
+            languages={editions}
           />
-          <ForgetProgress language={chrome.language} />
-          <AccountControl language={chrome.language} returnTo={returnTo} />
-        </nav>
+
+          <nav className={styles.chromeLinks} aria-label={chrome.programs}>
+            <Link className={styles.chromeLink} href="/about">
+              {chrome.about}
+            </Link>
+            <ResumeLast language={chrome.language} limits={limits} />
+            {/*
+              THE TWO DESTRUCTIVE CONTROLS, AFTER THE RESUME LINK AND NOT BESIDE IT. Both
+              are two presses (`use-two-step.ts`): the worksheets are the reader's own
+              working and nothing brings them back, and the place reaches the account since
+              #11, so forgetting it is no longer undone by reading one frame (ADR-0047).
+              *Forget where I am* is last of the two — furthest from the filled link a
+              returning reader is reaching for, which is ADR-0017's own placement rule. Both
+              render nothing when there is nothing to clear, so the row grows no dead
+              control.
+            */}
+            <ClearWorksheets
+              confirmLabel={chrome.clearWorksheetsConfirm}
+              label={chrome.clearWorksheets}
+              language={chrome.language}
+            />
+            <ForgetProgress language={chrome.language} />
+            <AccountControl language={chrome.language} returnTo={returnTo} />
+          </nav>
+        </div>
       </header>
 
+      {/*
+        The section label, alone on its line now: the edition switch that used to share it
+        is one control in the row above (ADR-0048), so there is nothing left for this row to
+        hold apart. It stays a row rather than becoming a bare `<h1>` because the heading's
+        own rule and spacing live on `.headingRow`, and a reader would see the grid move for
+        a change that is not about the grid.
+      */}
       <div className={styles.headingRow}>
         <h1 className={styles.heading}>{chrome.programs}</h1>
-        <EditionSwitch
-          both={chrome.bothEditions}
-          chosen={chosen}
-          editions={editionsOffered(bundles)}
-          label={chrome.languageLabel}
-        />
       </div>
 
       {bundles.map((bundle) => {
-        // The editions this track has, narrowed to the one chosen if there is one. Read from
-        // the TRACK rather than from the switch, so a track that does not publish the chosen
-        // edition shows the editions it does have instead of an empty tile.
-        const editions = chosen
-          ? bundle.track.languages.filter((language) => language === chosen)
-          : bundle.track.languages;
-        const shown = editions.length > 0 ? editions : bundle.track.languages;
+        /*
+          ONE EDITION PER TRACK, AND IT IS READ FROM THE TRACK RATHER THAN FROM THE CONTROL.
+
+          A track that does not publish the chosen edition falls back to its own first
+          declared one instead of rendering an empty tile — the bundle's order, not this
+          application's opinion. That case does not arise for the pinned content, where both
+          tracks publish both editions; it arises the day one does not, and the honest answer
+          then is the edition that track HAS rather than a blank where a title should be.
+        */
+        const shown = bundle.track.languages.includes(chosen)
+          ? chosen
+          : (bundle.track.languages[0] ?? chosen);
 
         return (
           <section key={bundle.track.id}>
             <div className={styles.track}>
-              {shown.map((language) => (
-                <h2 className={styles.trackTitle} key={language} lang={language}>
-                  {say(bundle.track.titles, language)}
-                </h2>
-              ))}
+              <h2 className={styles.trackTitle} lang={shown}>
+                {say(bundle.track.titles, shown)}
+              </h2>
             </div>
 
             {/*
               GROUPED, THE WAY PR4's INDEX WAS AND THE GRID FORGOT TO BE. `groupsOf` breaks
               the programs where the book does — its parts once a bundle carries them, the
               id prefix until then — and a returning reader scans two headed runs rather
-              than forty-seven tiles. The heading is the part's own title in each shown
+              than forty-seven tiles. The heading is the part's own title in the shown
               edition, or this application's word for the prefix; a prefix it has no word
               for is grouped without one. One group is a list, and gets no heading.
             */}
             {groupsOf(bundle).map((group) => {
               const label = group.part
-                ? shown.map((language) => say(group.part!.titles, language)).join(' · ')
+                ? say(group.part.titles, shown)
                 : group.prefix
                   ? chrome.groupLabels[group.prefix]
                   : undefined;
@@ -159,7 +200,7 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
               return (
                 <div key={group.key || 'all'}>
                   {label ? (
-                    <h3 className={styles.groupLabel} lang={group.part ? undefined : chrome.language}>
+                    <h3 className={styles.groupLabel} lang={group.part ? shown : chrome.language}>
                       {label}
                     </h3>
                   ) : null}
@@ -188,16 +229,13 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
                             />
                           </div>
                           <span className={styles.titles}>
-                            {shown.map((language) => (
-                              <Link
-                                className={styles.title}
-                                href={`/read/${bundle.track.id}/${unit.id}/${language}`}
-                                key={language}
-                                lang={language}
-                              >
-                                {say(unit.titles, language)}
-                              </Link>
-                            ))}
+                            <Link
+                              className={styles.title}
+                              href={`/read/${bundle.track.id}/${unit.id}/${shown}`}
+                              lang={shown}
+                            >
+                              {say(unit.titles, shown)}
+                            </Link>
                           </span>
                           <p className={styles.meta}>{meta}</p>
                         </li>
@@ -226,64 +264,5 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
       */}
       <ConsentControl language={chrome.language} />
     </main>
-  );
-}
-
-/**
- * The edition switch, above the grid, offering and never applying.
- *
- * ──────────────────────────────────────────────────────────────────────────────────────
- * IT HAS THREE POSITIONS AND ONE OF THEM IS "NEITHER", WHICH IS WHAT KEEPS ADR-0015 TRUE.
- *
- * A two-position switch has a default by construction — whichever one is lit when the
- * reader arrives — and ADR-0015's objection to a default is that it is invisible to the
- * reader who happens to share it. So the page a reader arrives at lights neither, and
- * `bothEditions` is how they get back to it after choosing. No cookie, no `Accept-Language`
- * and nothing remembered: the choice is in the URL, where the reader can see it, link to it
- * and leave it.
- * ──────────────────────────────────────────────────────────────────────────────────────
- *
- * LINKS RATHER THAN BUTTONS, so the switch works with JavaScript off and each position is a
- * URL a reader can share. Each language is named in its own language (`endonym`), because
- * the reader reaching for this control is exactly the one who cannot read the current page.
- */
-function EditionSwitch({
-  both,
-  chosen,
-  editions,
-  label,
-}: {
-  readonly both: string;
-  readonly chosen: string | undefined;
-  readonly editions: readonly string[];
-  readonly label: string;
-}): React.JSX.Element | null {
-  // One edition is not a choice, and a switch offering it would be furniture that does
-  // nothing. A track that publishes a second one makes this appear without a code change.
-  if (editions.length < 2) return null;
-
-  return (
-    <nav aria-label={label} className={styles.editions}>
-      {editions.map((language) => (
-        <Link
-          aria-current={language === chosen ? 'true' : undefined}
-          className={styles.edition}
-          href={`/?lang=${encodeURIComponent(language)}`}
-          key={language}
-          lang={language}
-        >
-          {endonym(language)}
-        </Link>
-      ))}
-      {/*
-        The way back to the page that picks neither. It is a link even when it is the
-        current position: all three positions are the same kind of thing, and a control
-        that turns into plain text when you are on it is one a reader has to re-learn.
-        `aria-current` is what says which one is live, and it says it for this one too.
-      */}
-      <Link aria-current={chosen ? undefined : 'true'} className={styles.edition} href="/">
-        {both}
-      </Link>
-    </nav>
   );
 }

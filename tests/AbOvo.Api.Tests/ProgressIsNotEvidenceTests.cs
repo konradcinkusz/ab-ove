@@ -135,6 +135,52 @@ public sealed class ProgressIsNotEvidenceTests
 
         using var deleted = await client.DeleteAsync("/api/v1/progress", token);
         Assert.True(deleted.IsSuccessStatusCode, $"DELETE was refused: {deleted.StatusCode}");
+
+        // And the preference group's three, for the same reason: a rule written slightly too
+        // tightly takes a whole feature down rather than one query.
+        using var chose = await client.PutAsJsonAsync(
+            "/api/v1/preferences/language",
+            new Contracts.PreferenceUpdate { Language = "pl" },
+            token);
+        Assert.True(chose.IsSuccessStatusCode, $"PUT was refused: {chose.StatusCode}");
+
+        using var chosen = await client.GetAsync("/api/v1/preferences/language", token);
+        Assert.True(chosen.IsSuccessStatusCode, $"GET was refused: {chosen.StatusCode}");
+
+        using var forgotten = await client.DeleteAsync("/api/v1/preferences/language", token);
+        Assert.True(forgotten.IsSuccessStatusCode, $"DELETE was refused: {forgotten.StatusCode}");
+    }
+
+    /// <summary>
+    /// The guard covers the SECOND reader-scoped table too (ADR-0048).
+    ///
+    /// <para>
+    /// "How many readers chose Polish" is a preference and not a measurement, and it is
+    /// still a fact arrived at by counting readers — so it is refused on the same terms as
+    /// "how far has each reader got". This is the test that would have been missing had the
+    /// new table been added without widening the rule, and the failure it catches is a
+    /// silent one: a count that works.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task A_query_that_spans_readers_preferences_is_refused()
+    {
+        var token = TestContext.Current.CancellationToken;
+
+        // "How many readers do we have?" — through the other door.
+        Assert.NotNull(await Ask(db => db.ReaderPreferences.CountAsync(token)));
+
+        // "Which edition is the popular one?" The question this product does not answer,
+        // because answering it means counting readers.
+        Assert.NotNull(await Ask(db => db.ReaderPreferences
+            .GroupBy(p => p.Language)
+            .Select(g => new { g.Key, Readers = g.Count() })
+            .ToListAsync(token)));
+
+        // And the other direction, without which the assertions above prove nothing: the
+        // service's own lookup is a primary-key read and is allowed.
+        Assert.Null(await Ask(db => db.ReaderPreferences
+            .SingleOrDefaultAsync(p => p.Subject == Reader, token)));
     }
 
     // ── 2. The absence ──────────────────────────────────────────────────────────────────

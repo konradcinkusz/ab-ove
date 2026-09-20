@@ -80,6 +80,7 @@ test('a status this application does not translate names the status', () => {
 function spy(
   progress: ProgressOutcome,
   account: DeleteAccountOutcome,
+  preference: ProgressOutcome = { kind: 'forgotten' },
 ): { readonly calls: string[]; readonly steps: DeletionSteps } {
   const calls: string[] = [];
   return {
@@ -89,6 +90,10 @@ function spy(
         calls.push('progress');
         return progress;
       },
+      forgetPreference: async () => {
+        calls.push('preference');
+        return preference;
+      },
       deleteAccount: async () => {
         calls.push('account');
         return account;
@@ -97,11 +102,14 @@ function spy(
   };
 }
 
-test('the progress is removed before the account is asked for', async () => {
+test('every row this service holds is removed before the account is asked for', async () => {
   const { calls, steps } = spy({ kind: 'forgotten' }, { kind: 'deleted' });
 
   assert.deepEqual(await deleteReaderAccount('token', 'pw', steps), { kind: 'deleted' });
-  assert.deepEqual(calls, ['progress', 'account']);
+  // The chosen edition is in this list for the same reason the place is: once authservice
+  // has marked the account deleted, nobody can sign in as that subject again, so a row left
+  // behind under it is unreachable by any reader for ever (ADR-0048).
+  assert.deepEqual(calls, ['progress', 'preference', 'account']);
 });
 
 test('a failed progress removal leaves the account untouched', async () => {
@@ -116,6 +124,21 @@ test('a failed progress removal leaves the account untouched', async () => {
   assert.deepEqual(calls, ['progress'], 'authservice must not have been asked');
 });
 
+test('a failed preference removal leaves the account untouched too', async () => {
+  // The same argument one table over, and it is the one a new reader-scoped table would
+  // break silently: a deletion that cleared the place, skipped the edition and went on to
+  // close the account leaves a row nobody can ever reach.
+  const { calls, steps } = spy({ kind: 'forgotten' }, { kind: 'deleted' }, {
+    kind: 'unavailable',
+    reason: 'api answered 500',
+  });
+
+  const outcome = await deleteReaderAccount('token', 'pw', steps);
+
+  assert.equal(outcome.kind, 'progress-not-removed');
+  assert.deepEqual(calls, ['progress', 'preference'], 'authservice must not have been asked');
+});
+
 test('a wrong password costs the synced copy and nothing else', async () => {
   // It is recoverable BECAUSE local progress survives losing a session (ADR-0019): the
   // browser still holds every position, and the next sync finds an empty remote and pushes
@@ -125,7 +148,7 @@ test('a wrong password costs the synced copy and nothing else', async () => {
   assert.deepEqual(await deleteReaderAccount('token', 'wrong', steps), {
     kind: 'password-rejected',
   });
-  assert.deepEqual(calls, ['progress', 'account']);
+  assert.deepEqual(calls, ['progress', 'preference', 'account']);
 });
 
 test('an account authservice has never heard of is a completed deletion', async () => {

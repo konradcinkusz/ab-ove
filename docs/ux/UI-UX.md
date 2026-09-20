@@ -25,7 +25,7 @@ something is in the reader loop at all.
 
 | Route | What it is | Needs |
 | --- | --- | --- |
-| `/` | the landing page: every program as a tile, in the book's own runs, and the edition switch | nothing |
+| `/` | the landing page: every program as a tile, in the book's own runs, in the reader's edition | nothing |
 | `/about` | what the product is, the anti-goal, the loop, the integration panel | nothing |
 | `/read/<track>/<unit>/<lang>` | a program's contents: its headings, and the filled way in — frame 1, or the reader's own place | nothing |
 | `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a navigation | nothing |
@@ -78,16 +78,20 @@ Its parts, in order:
    and reverts in five seconds — and *Forget* is the last of them, furthest from the link
    a returning reader is reaching for
    ([ADR-0047](../adr/0047-forgetting-is-two-presses-because-it-reaches-the-account.md)).
-2. **The heading and the edition switch**, sharing a line. The switch has three positions —
-   each edition, and *both* — and *both* is what a reader who has chosen nothing is looking
-   at. A choice is `/?lang=<edition>`: visible, linkable, leaveable, and never inferred.
+2. **The heading**, alone on its line. The edition switch that used to share it is gone: the
+   language is **one control, in the top row, on every screen in the product**
+   ([ADR-0048](../adr/0048-one-language-control-remembered-and-english-by-default.md)), and
+   it has one position per edition and no third. A reader who has chosen nothing reads
+   English. A choice is `/?lang=<edition>` — visible, linkable, leaveable, never inferred
+   from `Accept-Language` — and it is **remembered**: in this browser, and on the reader's
+   account when there is one, so the question is asked once rather than on every screen.
 3. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
    the parts themselves once a bundle carries them (`groupsOf`, in `lib/content/bundle.ts`,
    which the MCP server's `list_programs` shares, so the two surfaces divide the book one
    way). Each run is headed at level three, under the track's title. One tile per program,
-   carrying the program's id, its title, and how many frames and sections it has; with no
-   edition chosen a tile carries a title per edition, each its own link; with one chosen it
-   carries that edition's title and the whole tile is the target. A tile whose program the
+   carrying the program's id, its title in the reader's edition, and how many frames and
+   sections it has; the whole tile is the target. (It carried a title *per edition* until
+   ADR-0048, which is where the first screen's ninety-four titles came from.) A tile whose program the
    reader has a place in says so beside the id — `at frame 12` — as text arriving after
    hydration into a row that already has its height. It is a **position and never a
    progress** (ADR-0041): no fraction, no bar, nothing about how far, and not a link,
@@ -231,7 +235,7 @@ The frame carries a heading nobody sees: the program's title and the position, i
 visually-hidden `<h1>`, so heading navigation lands on the frame's name rather than on the
 foot's `Keys`.
 
-The row is a `<div>`. It must not be a `<nav>` — `language-switch.spec.ts` counts navigations
+The row is a `<div>`. It must not be a `<nav>` — `language-choice.spec.ts` counts navigations
 containing a `[lang]` descendant and expects one — and it was a `<p>`, which **cannot contain
 a `<nav>`**, so hydration failed on every frame page in the book until it was measured.
 `hydration.spec.ts` is the guard. [ADR-0041](../adr/0041-the-reading-surface-shows-position-and-never-progress.md).
@@ -386,9 +390,9 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   paper (WCAG 1.4.11), and the teaching frame's dotted rule stays faint, so the two marks
   no longer look the same.
 - **Every control on a line of small type is a finger tall.** The place row's links, the
-  frame number, the edition switch, the foot's links and the index's edition switch are
-  padded to about 44 px and given the space back with a matching negative margin, so the
-  hit area grew and nothing on the page moved.
+  frame number, the language control and the foot's links are padded to about 44 px and
+  given the space back with a matching negative margin, so the hit area grew and nothing on
+  the page moved.
 - **The reveal says when it is under way.** It is the one navigation that is never
   prefetched, so it always costs a round trip; while the next frame is on its way the
   control dims and its cursor says so (`reveal-label.tsx`, Next's `useLinkStatus`).
