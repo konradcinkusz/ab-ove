@@ -27,6 +27,7 @@ something is in the reader loop at all.
 | --- | --- | --- |
 | `/` | the landing page: every program as a tile, in the book's own runs, and the edition switch | nothing |
 | `/about` | what the product is, the anti-goal, the loop, the integration panel | nothing |
+| `/read/<track>/<unit>/<lang>` | a program's contents: its headings, and the filled way in — frame 1, or the reader's own place | nothing |
 | `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a navigation | nothing |
 | `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, and the way into the next one | nothing |
 | `/lab/<id>` | the book's exercises under Pyodide — reached from P01's summary only, and on its way out ([ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md)) | nothing |
@@ -164,6 +165,19 @@ integration, each with a `live`/`degraded` badge and the detail string the API s
 **unreachable** — which is *not an error state*. "No API answered" is a supported
 configuration of this product, so the panel says so plainly and repeats that nothing on the
 page depends on it.
+
+### `/read/<track>/<unit>/<lang>` — a program's contents
+
+`components/read/program-contents.tsx`. The program's headings, each linking at the frame it
+opens on, and nothing from any frame — a heading carries no question and no answer, which is
+the contents page's own rule. **Its one filled control follows the reader**: *Start at
+frame 1* for a reader who has not, *Continue at frame N* for one who has, in the edition
+they were actually in. Server-rendered as the start and swapped after hydration in place —
+same element, same class — so the page moves by nothing when the record is read
+(`progress.spec.ts` holds it to the index's shift bound). The crumb row's quiet *Start at
+frame 1* appears only beside a *Continue*, so the page has exactly one link to the reader's
+frame and always one to the first. The foot carries the two neighbouring programs and the
+key map.
 
 ### `/read/<track>/<unit>/<lang>/<step>` — one frame
 

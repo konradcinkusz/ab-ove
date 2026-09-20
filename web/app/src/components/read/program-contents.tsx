@@ -6,9 +6,9 @@ import type { Bundle, Unit } from '@/lib/content/schema';
 import { chromeFor } from '@/lib/i18n/chrome';
 
 import styles from './contents.module.css';
+import { EntryControl, StartAfresh } from './entry-control.tsx';
 import { KeysDetails } from './keys-details.tsx';
 import { LanguageSwitch } from './language-switch.tsx';
-import { ResumeHere } from './resume.tsx';
 import { RichInline } from './rich-text.tsx';
 
 export interface ProgramContentsProps {
@@ -78,18 +78,16 @@ export function ProgramContents({
         surface was side text, of which a crumb naming the product is the purest kind. The
         wordmark still leads home from the index, which is the page it belongs on.
 
-        The resume control sits at the right-hand end of this row rather than in a block of
-        its own — it is read from the browser, so it cannot exist in the first paint, and
-        extending a line moves nothing where adding a block would move everything under it.
+        The right-hand end of this row used to carry the resume control; it carries the
+        quiet *Start at frame 1* now, and only for a reader who has a place — the filled
+        control at the foot of the list is the one that follows the reader
+        (`entry-control.tsx`). Either way it is read from the browser, so it cannot exist in
+        the first paint, and extending a line moves nothing where adding a block would move
+        everything under it.
       */}
       <p className={styles.crumb} lang={chrome.language}>
         <Link href="/">{chrome.programsCrumb}</Link>
-        <ResumeHere
-          language={language}
-          last={unit.steps.length}
-          track={track}
-          unit={unit.id}
-        />
+        <StartAfresh language={language} last={unit.steps.length} track={track} unit={unit.id} />
       </p>
 
       <LanguageSwitch
@@ -162,9 +160,12 @@ export function ProgramContents({
         </>
       ) : null}
 
-      <Link className={styles.start} href={at(1)} lang={chrome.language}>
-        {chrome.startAtFrame(1)}
-      </Link>
+      {/*
+        The page's one filled control: *Start at frame 1* for a reader who has not, and
+        *Continue at frame N* for one who has — the primary action follows the reader
+        rather than always pointing at the beginning.
+      */}
+      <EntryControl language={language} last={unit.steps.length} track={track} unit={unit.id} />
 
       <nav aria-label={chrome.footNav} className={styles.foot} lang={chrome.language}>
         <span className={styles.footSide}>

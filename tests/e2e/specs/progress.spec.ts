@@ -153,11 +153,25 @@ test.describe('local progress', () => {
     await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(0);
   });
 
-  test('a program’s contents offer that program’s own place @core', async ({ page }) => {
+  test('a program’s contents offer that program’s own place, as the page’s filled control @core', async ({
+    page,
+  }) => {
     await readUpTo(page, 'en', STOPPED_AT!);
     await page.goto(contentsAt('en'));
 
-    await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
+    const resume = resumeOn(page, 'en', STOPPED_AT!);
+    await expect(resume).toHaveCount(1);
+
+    /*
+      THE FILLED ONE. The page used to fill `Start at frame 1` for everybody and put the
+      reader's own place in the crumb as a small link, so the reader coming back found the
+      primary action pointing at the wrong frame. The filled control is the one that
+      follows the reader; asserted by its fill rather than by a class, because the class
+      is the mechanism and the fill is what the reader sees.
+    */
+    await expect(resume).toHaveText(`Continue at frame ${STOPPED_AT}`);
+    const fill = await resume.evaluate((node) => getComputedStyle(node).backgroundColor);
+    expect(fill, 'the resume control is not the filled one').not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
 
     // And the way in for a reader who has not started is still there beside it: resuming is
     // an addition to the loop, never a replacement for its front door.
@@ -167,6 +181,46 @@ test.describe('local progress', () => {
     // be asserting the fixture's section layout rather than the claim. The claim is that a
     // way in exists.
     await expect(page.locator(`a[href="${frameAt('en', 1)}"]`).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Start at frame 1' })).toHaveCount(1);
+  });
+
+  test('a program’s contents start at frame 1 for a reader with no place in it @core', async ({
+    page,
+  }) => {
+    // The positive control: without a record the filled control is the front door and there
+    // is no `Continue`, and no second `Start` either — one way in, said once.
+    await page.goto(contentsAt('en'));
+    const start = page.getByRole('link', { name: 'Start at frame 1' });
+    await expect(start).toHaveCount(1);
+    await expect(start).toHaveAttribute('href', frameAt('en', 1));
+    await expect(page.getByRole('link', { name: /continue at frame/i })).toHaveCount(0);
+  });
+
+  test('the contents page’s control changing hands shifts nothing @core', async ({ page }) => {
+    // The filled control is server-rendered as `Start at frame 1` and becomes `Continue at
+    // frame N` after hydration: same element, same class, a label and an href. The same
+    // bound the index is held to below, because the swap is exactly the shape of a shift.
+    await readUpTo(page, 'en', STOPPED_AT!);
+
+    await page.addInitScript(() => {
+      const scope = window as unknown as { __shift: number };
+      scope.__shift = 0;
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries() as unknown as {
+          value: number;
+          hadRecentInput: boolean;
+        }[]) {
+          if (!entry.hadRecentInput) scope.__shift += entry.value;
+        }
+      }).observe({ type: 'layout-shift', buffered: true });
+    });
+
+    await page.goto(contentsAt('en'));
+    await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveText(`Continue at frame ${STOPPED_AT}`);
+    await page.waitForTimeout(700);
+
+    const shift = await page.evaluate(() => (window as unknown as { __shift: number }).__shift);
+    expect(shift, 'the control changing hands moved the page under the reader').toBeLessThan(0.01);
   });
 
   test('a reader can be forgotten, and stays forgotten @core', async ({ page }) => {

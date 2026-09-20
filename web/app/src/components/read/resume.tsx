@@ -6,12 +6,13 @@ import { useSyncExternalStore } from 'react';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { serverSnapshot, snapshot, subscribe } from '@/lib/progress/client';
 import { forgetEverywhere } from '@/lib/progress/sync';
-import { positionIn } from '@/lib/progress/store';
 
 import styles from './resume.module.css';
 
 /**
- * The controls that read a reader's own record back to them.
+ * The index's controls that read a reader's own record back to them. The contents page's
+ * own — the filled control that follows the reader, and the quiet way back to frame 1 —
+ * are in `entry-control.tsx`, where the reasoning about a position at the last step lives.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * THEY APPEAR WITHOUT MOVING ANYTHING, WHICH IS WHY THEY LIVE IN THE CRUMB ROW.
@@ -76,62 +77,6 @@ export function ResumeLast({ limits, language }: ResumeLastProps): React.JSX.Ele
       lang={chrome.language}
     >
       {last.unit} · {chrome.continueAtFrame(step)}
-    </Link>
-  );
-}
-
-export interface ResumeHereProps {
-  readonly track: string;
-  readonly unit: string;
-  readonly last: number;
-  readonly language: string;
-}
-
-/**
- * A program's own control, on its contents page.
- *
- * It links to the edition the reader was actually in, which may not be the edition of the
- * contents page they are looking at — that is the record being right rather than the
- * control being inconsistent, and #6 made the edition part of the position for this reason.
- *
- * ──────────────────────────────────────────────────────────────────────────────────────
- * IT OFFERS THE FRAME AT THE LAST STEP TOO, AND THAT WAS TRIED THE OTHER WAY FIRST.
- *
- * The obvious improvement is to send a reader whose position is N to `/summary` instead —
- * "continue at frame 45" being a poor answer to "I have finished". It was written, and
- * then removed, for two reasons that are worth keeping written down.
- *
- * A POSITION OF N DOES NOT MEAN FINISHED. The store holds a frame number, so "read the
- * last frame" and "opened the summary" are the same record; `program-summary.tsx` declines
- * to write one at all precisely because N would be a lie on a deep link. Branching a
- * control on a value that cannot carry the distinction is guessing with extra steps.
- *
- * AND THE TWO RESUME CONTROLS MUST AGREE. `ResumeLast` on the index and `ResumeHere` on a
- * contents page look identical and mean the same thing, so one of them quietly leading
- * somewhere else is worse for a reader than either destination is better. The hand-off to
- * the summary is already the last frame's own filled control and its `→`, which are the
- * two places a reader who has just finished is actually looking.
- * ──────────────────────────────────────────────────────────────────────────────────────
- */
-export function ResumeHere({
-  track,
-  unit,
-  last,
-  language,
-}: ResumeHereProps): React.JSX.Element | null {
-  const progress = useProgress();
-  const chrome = chromeFor(language);
-
-  const here = positionIn(progress, { track, unit }, last);
-  if (!here) return null;
-
-  return (
-    <Link
-      className={styles.resume}
-      href={`/read/${track}/${unit}/${here.language}/${here.step}`}
-      lang={chrome.language}
-    >
-      {chrome.continueAtFrame(here.step)}
     </Link>
   );
 }
