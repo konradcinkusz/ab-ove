@@ -88,21 +88,58 @@ empty file is not a check*.
 
 | Tool | Moves? | What it does |
 | --- | --- | --- |
-| `list_programs` | no | Tracks, programs, languages, and where the reader is in each |
-| `open_program` | no | Start or resume; returns the step the reader is on |
+| `list_programs` | no | Tracks, programs by title, editions, and where the reader is in each |
+| `open_program` | no | Start or resume, in the edition asked for or the one the reader was in; returns the step they are on |
 | `current_step` | no | Re-show the current step without reconstructing it from chat |
-| `submit_answer` | **yes** | Records the answer, returns the next step — which opens with the book's answer to the one just done |
+| `submit_answer` | **yes** | Records the answer to the step it names, returns the next step — which opens with the book's answer to the one just done |
 | `review_step` | no | An earlier step, refused beyond the furthest |
 
 **There is no tool that takes an arbitrary step number and returns it.** `review_step` takes
 one and runs it through the same gate.
 
+**Every step says where it is.** A rendered step opens with the reading surface's place row,
+one transport over — `P01 · How a computer stores a number › Scientific notation · step 5
+of 48` — and the banner that follows names the step it answers. The first version printed a
+number and no name, and `list_programs` printed ids: a reader thirty steps in had nothing to
+call the program, and a reader choosing one had nothing to choose by. The reader-facing
+closing line names no tool; the assistant has the tool's own description for that.
+
+**Fewer arguments, and none whose answer is discarded.** `track` may be left out when the
+server carries one track, which `list_programs` shows; a program id matches in any case and
+is filed under the bundle's own spelling. `language` is needed the first time a program is
+opened — the refusal names the editions and says to ask the reader — and may be left out to
+resume; a different edition on resume switches, keeps the step (frame-for-frame parity is
+what makes that safe) and says so. The first version required the edition on every call and
+then discarded it whenever a place existed, so the model asked a question whose answer went
+nowhere.
+
+**The service keeps its edition on a tie, so the API store keeps the switch.** A write at
+the same step is answered with the account's edition (`ProgressEndpoints`, and
+`reconcile.ts` in the reading surface says why: *"frame 40, in Polish"* is one fact). The
+surface has no problem with that because the edition it shows is in the URL; here it is in
+the cursor. So `ApiCursorStore` keeps a switch made on the current step in the process, for
+that step only, writes it to the account with the next step, and drops it the moment the
+account's step moves past — another machine reading on, whose edition travels with its step.
+
+**The sentences around a step are English in every edition.** The place line's *step n of
+N*, the answer banner and the closing line are the server's, not the book's, and they have
+one language; the step itself is in the reader's edition. The host's model relays them. A
+table like the reading surface's `chrome.ts` is the fix, when a reader of the Polish edition
+asks for it.
+
+**`submit_answer` names the step it answers, so a retry cannot advance twice.** A host that
+timed out and called again used to move the reader two steps: the skipped step's body was
+never shown while its answer arrived in the next banner. A submit for a step the reader is
+no longer on records nothing and hands back the step they are on — an ordinary result. A
+step with no cue asks nothing, and needs no answer to go on from; the first version demanded
+one there too, so the assistant invented a word or put a question nobody had asked.
+
 **A refusal by the gate is an ordinary result, not an error.** `reveal.ts` said from the
 start that `not-reached` "is NOT an error — it is the product working", and the first tool
 layer sent it with `isError: true` anyway, along with a finished program; a host paints that
 red and a model apologises for it. Now only an argument that names nothing — a track, a
-program, an edition or a step number the book does not have, an empty answer — is an error.
-The gate's sentence and the end of a program travel as results.
+program, an edition or a step number the book does not have, an empty answer to a step that
+asked for one — is an error. The gate's sentence and the end of a program travel as results.
 
 **A deployment with no book answers with the fix.** The loader's throw for a bundle that was
 never fetched used to reach the host as a JSON-RPC error on the reader's first call, carrying

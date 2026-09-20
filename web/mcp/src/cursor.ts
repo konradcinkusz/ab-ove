@@ -24,6 +24,13 @@ export interface CursorStore {
   read(track: string, unit: string): Promise<Cursor | undefined>;
 
   /**
+   * Every place the reader has, in one call. `list_programs` used to ask `read()` once per
+   * program — forty-seven GETs of the same list against the API store — and this is the
+   * one request it makes instead.
+   */
+  readAll(): Promise<readonly Cursor[]>;
+
+  /**
    * Report a step reached. Returns the record AS IT NOW STANDS, which may be further along
    * than what was written — that is the merge, and the caller adopts the answer.
    */
@@ -42,10 +49,19 @@ export function isIdentifier(value: string): boolean {
   return IDENTIFIER.test(value);
 }
 
-/** Furthest-wins, applied locally so the in-memory store behaves like the service. */
+/**
+ * Furthest-wins, applied locally so the in-memory store behaves like the service on the
+ * one thing that matters to the gate: THE STEP NEVER LOWERS.
+ *
+ * The edition follows the latest write. The service resolves a tie by keeping the
+ * account's edition (ADR-0019), because there a tie means two machines disagreeing; here
+ * there is one reader in one process, and a write carrying a different edition at the
+ * same step is that reader switching editions on purpose, which `open_program` offers.
+ * Keeping the old edition would make the switch a request the store quietly ignored.
+ */
 export function furthest(existing: Cursor | undefined, incoming: Cursor): Cursor {
   if (!existing) return incoming;
-  return incoming.step > existing.step ? incoming : existing;
+  return { ...incoming, step: Math.max(existing.step, incoming.step) };
 }
 
 /**
@@ -61,6 +77,10 @@ export class MemoryCursorStore implements CursorStore {
 
   async read(track: string, unit: string): Promise<Cursor | undefined> {
     return this.#rows.get(MemoryCursorStore.#key(track, unit));
+  }
+
+  async readAll(): Promise<readonly Cursor[]> {
+    return [...this.#rows.values()];
   }
 
   async save(cursor: Cursor): Promise<Cursor> {
@@ -92,10 +112,49 @@ interface ProgressRecordJson {
 export class ApiCursorStore implements CursorStore {
   readonly #baseUrl: string;
   readonly #bearer: () => string;
+  readonly #fetch: typeof fetch;
 
-  constructor(baseUrl: string, bearer: () => string) {
+  /**
+   * THE EDITION AT A TIE, WHICH THE SERVICE DOES NOT CARRY.
+   *
+   * The service adopts a write's language only with a further step (`update.Step >
+   * existing.Step`, and reconcile.ts in the reading surface says why: "frame 40, in
+   * Polish" is one fact and not two). So a reader who switches editions ON the step they
+   * are on writes a record the service answers with the old edition, and the next read
+   * would switch them back. The reading surface has no such problem because the edition it
+   * shows is in the URL; here it is in the cursor, and the cursor is this store's.
+   *
+   * So the switch is kept here, for that step only, the way the surface keeps it in the
+   * address bar: it is written to the account with the next step, which the service then
+   * adopts whole, and it is dropped the moment the account's step moves past it — that is
+   * another machine reading on, and its edition travels with its step. One reader per
+   * process (`server.ts` binds one token), so the key needs no reader in it; a store that
+   * served several would have to add one.
+   */
+  readonly #editionAt = new Map<string, { readonly step: number; readonly language: string }>();
+
+  /** `fetchImpl` is injectable so the unit tier can count requests without a network. */
+  constructor(baseUrl: string, bearer: () => string, fetchImpl: typeof fetch = fetch) {
     this.#baseUrl = baseUrl.replace(/\/+$/, '');
     this.#bearer = bearer;
+    this.#fetch = fetchImpl;
+  }
+
+  static #key(track: string, unit: string): string {
+    return `${track}/${unit}`;
+  }
+
+  /** The account's row, with the edition this process switched to on that same step. */
+  #adopt(row: ProgressRecordJson): Cursor {
+    const key = ApiCursorStore.#key(row.track, row.unit);
+    const kept = this.#editionAt.get(key);
+    if (kept && kept.step !== row.step) this.#editionAt.delete(key);
+    return {
+      track: row.track,
+      unit: row.unit,
+      language: kept && kept.step === row.step ? kept.language : row.language,
+      step: row.step,
+    };
   }
 
   #headers(): Record<string, string> {
@@ -106,15 +165,19 @@ export class ApiCursorStore implements CursorStore {
     };
   }
 
-  async read(track: string, unit: string): Promise<Cursor | undefined> {
-    const response = await fetch(`${this.#baseUrl}/api/v1/progress`, {
+  async readAll(): Promise<readonly Cursor[]> {
+    const response = await this.#fetch(`${this.#baseUrl}/api/v1/progress`, {
       headers: this.#headers(),
     });
     if (!response.ok) throw new Error(`progress read failed: ${response.status}`);
 
     const body = (await response.json()) as { records?: readonly ProgressRecordJson[] };
-    const row = body.records?.find((r) => r.track === track && r.unit === unit);
-    return row ? { track: row.track, unit: row.unit, language: row.language, step: row.step } : undefined;
+    return (body.records ?? []).map((row) => this.#adopt(row));
+  }
+
+  async read(track: string, unit: string): Promise<Cursor | undefined> {
+    // The service answers the whole list either way, so one read is one list.
+    return (await this.readAll()).find((row) => row.track === track && row.unit === unit);
   }
 
   async save(cursor: Cursor): Promise<Cursor> {
@@ -122,7 +185,7 @@ export class ApiCursorStore implements CursorStore {
       throw new Error('a track and a unit are short identifiers: letters, digits, dot, dash, underscore');
     }
 
-    const response = await fetch(
+    const response = await this.#fetch(
       `${this.#baseUrl}/api/v1/progress/${encodeURIComponent(cursor.track)}/${encodeURIComponent(cursor.unit)}`,
       {
         method: 'PUT',
@@ -135,6 +198,14 @@ export class ApiCursorStore implements CursorStore {
     // A ProgressRecord, not a ProgressResponse — read from ProgressEndpoints rather than
     // assumed, because the read and the write deliberately answer different shapes.
     const row = (await response.json()) as ProgressRecordJson;
-    return { track: row.track, unit: row.unit, language: row.language, step: row.step };
+
+    // The service kept its edition on a tie: keep the reader's here, for this step.
+    const key = ApiCursorStore.#key(row.track, row.unit);
+    if (row.step === cursor.step && row.language !== cursor.language) {
+      this.#editionAt.set(key, { step: row.step, language: cursor.language });
+    } else {
+      this.#editionAt.delete(key);
+    }
+    return this.#adopt(row);
   }
 }

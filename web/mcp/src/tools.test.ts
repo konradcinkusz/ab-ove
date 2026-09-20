@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import { MemoryCursorStore } from './cursor.ts';
 import { ContentUnavailable, fixtureBundles, say, unitIn } from './content.ts';
-import type { BundleSource, Text } from './content.ts';
+import type { Bundle, BundleSource, Text } from './content.ts';
 import {
   ANSWER_CONTRACT,
   EPHEMERAL_NOTE,
@@ -62,13 +62,23 @@ function everyAnswerInTheBundle(): { label: string; text: string }[] {
   return found;
 }
 
-/** Run the whole tool surface and return everything it said. */
+/**
+ * Run the whole tool surface without moving the reader, and return everything it said.
+ * The two calls that LOOK like they might move — a resume with no edition named, and a
+ * retried submit for the step before this one — are here because each renders a step,
+ * and the step each renders must be the reader's own.
+ */
 async function everythingSaid(d: ReturnType<typeof deps>): Promise<string> {
   const said: string[] = [];
   said.push((await handle('list_programs', {}, d)).text);
+  said.push((await handle('open_program', { unit: UNIT }, d)).text);
   said.push((await handle('current_step', { track: TRACK, unit: UNIT }, d)).text);
   for (let n = 1; n <= program().steps.length + 2; n += 1) {
     said.push((await handle('review_step', { track: TRACK, unit: UNIT, step: n }, d)).text);
+  }
+  const here = await d.cursors.read(TRACK, UNIT);
+  if (here && here.step > 1) {
+    said.push((await handle('submit_answer', { unit: UNIT, step: here.step - 1, answer: 'again' }, d)).text);
   }
   return said.join('\n');
 }
@@ -122,10 +132,17 @@ test('no tool says an unreached answer, at any point in the program', async () =
     if (furthest < total) {
       const moved = await handle(
         'submit_answer',
-        { track: TRACK, unit: UNIT, answer: 'the reader wrote this' },
+        { track: TRACK, unit: UNIT, step: furthest, answer: 'the reader wrote this' },
         d,
       );
       assert.ok(!moved.isError, moved.text);
+      // The move's own result renders the step just reached, whose opening answers the
+      // step just left — and nothing beyond it.
+      for (const answer of answers()) {
+        if (answer.n > furthest + 1) {
+          assert.ok(!moved.text.includes(answer.text), `submitting step ${furthest} said the answer opening step ${answer.n}`);
+        }
+      }
     }
   }
 });
@@ -152,15 +169,32 @@ test('no quiz or exercise answer is ever emitted, at any cursor', async () => {
       assert.ok(!said.includes(answer.text), `${answer.label} was emitted to the reader`);
     }
     if (furthest < total) {
-      await handle('submit_answer', { track: TRACK, unit: UNIT, answer: 'the reader wrote this' }, d);
+      await handle('submit_answer', { track: TRACK, unit: UNIT, step: furthest, answer: 'the reader wrote this' }, d);
     }
   }
 });
 
+test('the fixture opens with a step that asks nothing and follows it with one that does', () => {
+  // The shape the submit tests below lean on, asserted before they do: a fixture whose
+  // first step grew a cue would move the empty-answer refusal onto the wrong step and the
+  // "asks nothing" test would pass by accident.
+  const [first, second] = program().steps;
+  assert.ok(first && !first.cue, 'step 1 must carry no cue');
+  assert.ok(second?.cue, 'step 2 must carry a cue');
+});
+
+/** Open P01 in English and go past its prose opening, to the first step that asks. */
+async function atTheFirstQuestion(d: ReturnType<typeof deps>): Promise<void> {
+  await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
+  const moved = await handle('submit_answer', { track: TRACK, unit: UNIT, step: 1 }, d);
+  assert.ok(!moved.isError, moved.text);
+  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 2);
+}
+
 test('submitting advances exactly one step', async () => {
   const d = deps();
   await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
-  await handle('submit_answer', { track: TRACK, unit: UNIT, answer: 'x' }, d);
+  await handle('submit_answer', { track: TRACK, unit: UNIT, step: 1, answer: 'x' }, d);
 
   const cursor = await d.cursors.read(TRACK, UNIT);
   assert.equal(cursor?.step, 2);
@@ -168,23 +202,70 @@ test('submitting advances exactly one step', async () => {
 
 test('submitting echoes the answer back verbatim', async () => {
   const d = deps();
-  await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
+  await atTheFirstQuestion(d);
 
   const written = "2^53, and I'm not sure why";
-  const result = await handle('submit_answer', { track: TRACK, unit: UNIT, answer: written }, d);
+  const result = await handle('submit_answer', { track: TRACK, unit: UNIT, step: 2, answer: written }, d);
   assert.ok(result.text.includes(written), 'the reader must be able to see what was recorded');
+  assert.match(result.text, /answer to step 2/, 'the recorded line names the step it answers');
 });
 
-test('an empty answer is refused with a sentence aimed at the assistant', async () => {
+test('an empty answer to a step that asks is refused with a sentence aimed at the assistant', async () => {
   const d = deps();
-  await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
+  await atTheFirstQuestion(d);
 
-  const result = await handle('submit_answer', { track: TRACK, unit: UNIT, answer: '   ' }, d);
+  const result = await handle('submit_answer', { track: TRACK, unit: UNIT, step: 2, answer: '   ' }, d);
   assert.ok(result.isError);
   assert.match(result.text, /do not answer the step for them/i);
 
   const cursor = await d.cursors.read(TRACK, UNIT);
-  assert.equal(cursor?.step, 1, 'a refused submit must not move the reader');
+  assert.equal(cursor?.step, 2, 'a refused submit must not move the reader');
+});
+
+test('a step that asks nothing needs no answer, and says nothing was recorded', async () => {
+  // The book's teaching frames. The first version demanded a non-empty answer here too,
+  // so the assistant invented a word or put a question to the reader that nobody asked.
+  const d = deps();
+  await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
+
+  const result = await handle('submit_answer', { track: TRACK, unit: UNIT, step: 1 }, d);
+  assert.ok(!result.isError, result.text);
+  assert.match(result.text, /Step 1 asked nothing, so nothing was recorded/);
+  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 2);
+});
+
+test('a submit that does not name its step is refused, and does not move the reader', async () => {
+  const d = deps();
+  await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
+
+  const result = await handle('submit_answer', { track: TRACK, unit: UNIT, answer: 'x' }, d);
+  assert.ok(result.isError);
+  assert.match(result.text, /needs "step"/);
+  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 1);
+});
+
+test('a retried submit does not move the reader twice', async () => {
+  // A host that times out and calls again used to advance the reader two steps: the
+  // skipped step's body was never shown while its answer arrived in the next banner.
+  const d = deps();
+  await atTheFirstQuestion(d);
+
+  const again = await handle('submit_answer', { track: TRACK, unit: UNIT, step: 1, answer: 'once more' }, d);
+  assert.ok(!again.isError, 'a retry is not a fault');
+  assert.match(again.text, /Nothing recorded/);
+  assert.match(again.text, /already answered/);
+  assert.match(again.text, /step 2 of 4/, 'the step the reader is actually on comes back');
+  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 2);
+});
+
+test('a submit for a step ahead of the reader is refused the same way', async () => {
+  const d = deps();
+  await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
+
+  const ahead = await handle('submit_answer', { track: TRACK, unit: UNIT, step: 3, answer: 'x' }, d);
+  assert.ok(!ahead.isError);
+  assert.match(ahead.text, /on step 1, not step 3\./);
+  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 1);
 });
 
 test('review_step refuses a step beyond the furthest, says it is the method, and is not an error', async () => {
@@ -213,10 +294,10 @@ test('finishing the program is not an error either', async () => {
   await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
   const total = program().steps.length;
   for (let n = 1; n < total; n += 1) {
-    await handle('submit_answer', { track: TRACK, unit: UNIT, answer: 'x' }, d);
+    await handle('submit_answer', { track: TRACK, unit: UNIT, step: n, answer: 'x' }, d);
   }
 
-  const last = await handle('submit_answer', { track: TRACK, unit: UNIT, answer: 'x' }, d);
+  const last = await handle('submit_answer', { track: TRACK, unit: UNIT, step: total, answer: 'x' }, d);
   assert.ok(!last.isError, 'a reader who finished the book was told the server had failed');
   assert.match(last.text, /finished/);
   assert.equal((await d.cursors.read(TRACK, UNIT))?.step, total);
@@ -291,9 +372,109 @@ test('a language the track is not published in is refused, and the options are n
 test('reopening resumes where the reader was rather than restarting', async () => {
   const d = deps();
   await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
-  await handle('submit_answer', { track: TRACK, unit: UNIT, answer: 'x' }, d);
+  await handle('submit_answer', { track: TRACK, unit: UNIT, step: 1, answer: 'x' }, d);
 
   const reopened = await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
-  assert.match(reopened.text, /Resuming/);
+  assert.match(reopened.text, /Resuming "P01" at step 2\./);
   assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 2);
+});
+
+test('resuming needs no edition; a first opening does, and is told which exist', async () => {
+  const d = deps();
+
+  const unopened = await handle('open_program', { track: TRACK, unit: UNIT }, d);
+  assert.ok(unopened.isError);
+  assert.match(unopened.text, /needs an edition/);
+  assert.match(unopened.text, /en, pl/);
+  assert.match(unopened.text, /Ask the reader/);
+  assert.equal(await d.cursors.read(TRACK, UNIT), undefined, 'nothing was opened');
+
+  await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
+  await handle('submit_answer', { track: TRACK, unit: UNIT, step: 1 }, d);
+
+  const resumed = await handle('open_program', { track: TRACK, unit: UNIT }, d);
+  assert.ok(!resumed.isError, resumed.text);
+  assert.match(resumed.text, /Resuming "P01" at step 2\./);
+  assert.equal((await d.cursors.read(TRACK, UNIT))?.language, LANG);
+});
+
+test('switching edition keeps the step, says so, and renders in the new one', async () => {
+  const d = deps();
+  await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
+  await handle('submit_answer', { track: TRACK, unit: UNIT, step: 1 }, d);
+
+  const switched = await handle('open_program', { track: TRACK, unit: UNIT, language: 'pl' }, d);
+  assert.ok(!switched.isError, switched.text);
+  assert.match(switched.text, /switched to the "pl" edition/);
+  assert.ok(switched.text.includes(say(program().titles, 'pl')), 'the place line is in Polish');
+
+  const cursor = await d.cursors.read(TRACK, UNIT);
+  assert.deepEqual([cursor?.step, cursor?.language], [2, 'pl']);
+});
+
+test('the track can be left out when the server carries one', async () => {
+  const d = deps();
+  const opened = await handle('open_program', { unit: UNIT, language: LANG }, d);
+  assert.ok(!opened.isError, opened.text);
+  assert.match(opened.text, /Starting "P01"/);
+
+  const here = await handle('current_step', { unit: UNIT }, d);
+  assert.ok(!here.isError, here.text);
+});
+
+test('with several tracks the call must name one, and the refusal names them', async () => {
+  const bundle = BUNDLES.for(TRACK)!;
+  const other: Bundle = { ...bundle, track: { ...bundle.track, id: 'another-track' } };
+  const two: BundleSource = {
+    for: (id) => (id === TRACK ? bundle : id === other.track.id ? other : undefined),
+    all: () => [bundle, other],
+  };
+  const d = { cursors: new MemoryCursorStore(), bundles: two };
+
+  const unnamed = await handle('open_program', { unit: UNIT, language: LANG }, d);
+  assert.ok(unnamed.isError);
+  assert.match(unnamed.text, /several tracks/);
+  assert.match(unnamed.text, /math-for-ai-engineers, another-track/);
+
+  const named = await handle('open_program', { track: 'another-track', unit: UNIT, language: LANG }, d);
+  assert.ok(!named.isError, named.text);
+});
+
+test('a program id in any case is the program, filed under its own spelling', async () => {
+  const d = deps();
+  const opened = await handle('open_program', { unit: 'p01', language: LANG }, d);
+  assert.ok(!opened.isError, opened.text);
+  assert.match(opened.text, /Starting "P01"/);
+
+  assert.ok(await d.cursors.read(TRACK, 'P01'), 'the place is keyed by the bundle\'s spelling');
+  assert.equal(await d.cursors.read(TRACK, 'p01'), undefined, 'and not by the reader\'s');
+});
+
+test('every rendered step opens with where it is: program, title, section, position', async () => {
+  const d = deps();
+  const opened = await handle('open_program', { unit: UNIT, language: LANG }, d);
+  assert.ok(
+    opened.text.includes('## P01 · How a computer stores a number › Scientific notation, in base two · step 1 of 4'),
+    opened.text,
+  );
+
+  await handle('submit_answer', { unit: UNIT, step: 1 }, d);
+  const third = await handle('submit_answer', { unit: UNIT, step: 2, answer: 'x' }, d);
+  assert.ok(third.text.includes('› The gap grows with the magnitude · step 3 of 4'), third.text);
+  assert.match(third.text, /The book's answer to step 2/, 'the banner names the step it answers');
+});
+
+test('list_programs names the programs, in every edition until the reader has chosen one', async () => {
+  const d = deps();
+
+  const before = await handle('list_programs', {}, d);
+  assert.ok(before.text.includes('Mathematics from Zero for the AI Engineer'), before.text);
+  assert.ok(
+    before.text.includes('P01 · How a computer stores a number · Jak komputer przechowuje liczbę — 4 steps — not opened'),
+    before.text,
+  );
+
+  await handle('open_program', { unit: UNIT, language: 'pl' }, d);
+  const after = await handle('list_programs', {}, d);
+  assert.ok(after.text.includes('P01 · Jak komputer przechowuje liczbę — 4 steps — at step 1 of 4'), after.text);
 });

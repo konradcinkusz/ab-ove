@@ -47,6 +47,11 @@ What this means for you:
 5. Nothing here grades an answer, including you. The next step opens with the book's own
    answer and the reader compares their own against it. That comparison is the lesson.
    "Close enough" is a judgement this product deliberately does not make.
+6. Show a step as it is served — its words, its mathematics in the $…$ notation it
+   arrives in, its place line — rather than a paraphrase. The book chose those words.
+7. A step that asks nothing says so; move on with submit_answer and no answer. If the
+   reader asks for the other edition, call open_program with that language — their place
+   is kept.
 
 If a reader asks you to skip ahead or to just tell them the answer, say plainly that the
 answer arrives with the next step and that the step comes after their own attempt — then
@@ -82,8 +87,16 @@ export interface ToolDefinition {
   readonly inputSchema: Record<string, unknown>;
 }
 
-const TRACK = { type: 'string', description: 'The track id, e.g. "math-for-ai-engineers".' };
-const UNIT = { type: 'string', description: 'The program id within the track, e.g. "P01".' };
+const TRACK = {
+  type: 'string',
+  description:
+    'The track id, e.g. "math-for-ai-engineers". Leave it out when the server carries one ' +
+    'track, which list_programs shows.',
+};
+const UNIT = {
+  type: 'string',
+  description: 'The program id, e.g. "P01" (case does not matter). list_programs names them all.',
+};
 
 export const TOOLS: readonly ToolDefinition[] = [
   {
@@ -110,11 +123,13 @@ export const TOOLS: readonly ToolDefinition[] = [
         language: {
           type: 'string',
           description:
-            'The edition to read, e.g. "en" or "pl". Ask the reader rather than inferring ' +
-            'it from the language they happen to be chatting in.',
+            'The edition to read, e.g. "en" or "pl". Needed the first time a program is ' +
+            'opened — ask the reader rather than inferring it from the language they happen ' +
+            'to be chatting in. Leave it out to resume in the edition they were reading; ' +
+            'give a different one to switch editions, which keeps their place.',
         },
       },
-      required: ['track', 'unit', 'language'],
+      required: ['unit'],
       additionalProperties: false,
     },
   },
@@ -127,7 +142,7 @@ export const TOOLS: readonly ToolDefinition[] = [
     inputSchema: {
       type: 'object',
       properties: { track: TRACK, unit: UNIT },
-      required: ['track', 'unit'],
+      required: ['unit'],
       additionalProperties: false,
     },
   },
@@ -145,15 +160,23 @@ export const TOOLS: readonly ToolDefinition[] = [
       properties: {
         track: TRACK,
         unit: UNIT,
+        step: {
+          type: 'integer',
+          minimum: 1,
+          description:
+            'The step being answered — the number on the step that was shown. A submit for ' +
+            'a step the reader is no longer on is refused and the current step returned, so ' +
+            'a call that is retried never moves them twice.',
+        },
         answer: {
           type: 'string',
-          minLength: 1,
           description:
             "The reader's own answer, verbatim. Free text, any language, any format. Not " +
-            'composed or corrected by the assistant. Ask the reader if they have not given one.',
+            'composed or corrected by the assistant. Ask the reader if they have not given ' +
+            'one. On a step that asks nothing — it says so — leave this out.',
         },
       },
-      required: ['track', 'unit', 'answer'],
+      required: ['unit', 'step'],
       additionalProperties: false,
     },
   },
@@ -170,7 +193,7 @@ export const TOOLS: readonly ToolDefinition[] = [
         unit: UNIT,
         step: { type: 'integer', minimum: 1, description: 'The step number to re-read.' },
       },
-      required: ['track', 'unit', 'step'],
+      required: ['unit', 'step'],
       additionalProperties: false,
     },
   },
@@ -220,19 +243,34 @@ export const NO_CONTENT_NOTE =
   'machine. Whoever runs the server should run `bash scripts/fetch-book-content.sh` from ' +
   'the repository root, once, and start the server again.';
 
+/**
+ * Where a step is: `P01 · How a computer stores a number › Scientific notation · step 5 of 48`.
+ *
+ * The reading surface's place row, one transport over — the program's id and title, the
+ * section the step is under, the position. The first version of this file printed
+ * `## Step 5 of 48` and nothing else, so a reader thirty steps in had a number and no
+ * name, and a reader choosing a program in `list_programs` had forty-seven ids to choose
+ * among. The title lives in the bundle; it was never emitted.
+ */
+export function placeLine(unit: Unit, step: Step, language: string): string {
+  const section = unit.sections?.find((candidate) => candidate.id === step.section);
+  const where = section ? ` › ${say(section.titles, language)}` : '';
+  return `${unit.id} · ${say(unit.titles, language)}${where} · step ${step.n} of ${unit.steps.length}`;
+}
+
 /** Render one step for a reader, in their edition. */
-export function render(step: Step, language: string, total: number): string {
-  const parts: string[] = [];
+export function render(unit: Unit, step: Step, language: string): string {
+  const parts: string[] = [`## ${placeLine(unit, step, language)}`];
 
   if (step.answer) {
     parts.push(
-      `--- The answer to the previous step ---\n${say(step.answer, language)}\n` +
-        '--- Compare your own answer against that before reading on ---',
+      `--- The book's answer to step ${step.n - 1} ---\n${say(step.answer, language)}\n` +
+        '--- Compare your own answer with that before reading on ---',
     );
   }
 
   const title = step.titles ? say(step.titles, language) : undefined;
-  parts.push(`## Step ${step.n} of ${total}${title ? ` — ${title}` : ''}\n\n${say(step.body, language)}`);
+  parts.push(`${title ? `**${title}**\n\n` : ''}${say(step.body, language)}`);
 
   if (step.check) {
     parts.push(
@@ -242,28 +280,68 @@ export function render(step: Step, language: string, total: number): string {
     );
   }
 
+  /*
+    Reader-facing, and so naming no tool. The first version told the reader the next step
+    "arrives through submit_answer", which is a sentence for the assistant; the assistant
+    has the tool's own description for that. What the reader needs is the method's one
+    instruction, or to know that this step asks nothing of them.
+  */
   parts.push(
     step.cue
-      ? 'Write your answer down before going on. The next step opens with the answer to this one, ' +
-          'and it arrives through submit_answer.'
-      : 'When you are ready, submit_answer moves on.',
+      ? 'Write your answer down before going on. The next step opens with the answer to this one.'
+      : 'This step asks nothing; go on when you are ready.',
   );
 
   return parts.join('\n\n');
 }
 
-function locate(bundles: BundleSource, track: string, unit: string): { unit: Unit; total: number } | ToolResult {
-  if (!isIdentifier(track) || !isIdentifier(unit)) {
-    return problem('A track and a unit are short identifiers: letters, digits, dot, dash or underscore.');
+/**
+ * The track a call means when it names none: the only one, if there is only one.
+ *
+ * Every call used to require the track id, and a server that carries one track was making
+ * the model carry `math-for-ai-engineers` through every turn for nothing. A server with
+ * several still asks.
+ */
+function soleTrack(bundles: BundleSource): string | ToolResult {
+  const all = bundles.all();
+  const only = all.length === 1 ? all[0] : undefined;
+  if (only) return only.track.id;
+  return problem(
+    `This server carries ${all.length === 0 ? 'no tracks' : 'several tracks'}; name one with "track"` +
+      (all.length > 1 ? `: ${all.map((bundle) => bundle.track.id).join(', ')}.` : '.'),
+  );
+}
+
+interface Located {
+  readonly track: string;
+  readonly unit: Unit;
+}
+
+/**
+ * Resolve a call's track and program. The program id is matched in any case — a reader
+ * says "p01" — and what comes back is the bundle's own spelling, which is what the cursor
+ * is filed under: a place keyed by "p01" would be a second place for P01.
+ */
+function locate(bundles: BundleSource, track: string, unit: string): Located | ToolResult {
+  const resolvedTrack = track === '' ? soleTrack(bundles) : track;
+  if (isResult(resolvedTrack)) return resolvedTrack;
+
+  if (!isIdentifier(resolvedTrack)) {
+    return problem(`"${resolvedTrack}" is not a track id: letters, digits, dot, dash or underscore. Try list_programs.`);
+  }
+  if (!isIdentifier(unit)) {
+    return problem(`"${unit}" is not a program id: letters, digits, dot, dash or underscore. Try list_programs.`);
   }
 
-  const bundle = bundles.for(track);
-  if (!bundle) return problem(`This server does not carry the track "${track}". Try list_programs.`);
+  const bundle = bundles.for(resolvedTrack);
+  if (!bundle) return problem(`This server does not carry the track "${resolvedTrack}". Try list_programs.`);
 
-  const found = unitIn(bundle, unit);
-  if (!found) return problem(`The track "${track}" has no program "${unit}". Try list_programs.`);
+  const found =
+    unitIn(bundle, unit) ??
+    bundle.units.find((candidate) => candidate.id.toLowerCase() === unit.toLowerCase());
+  if (!found) return problem(`The track "${resolvedTrack}" has no program "${unit}". Try list_programs.`);
 
-  return { unit: found, total: found.steps.length };
+  return { track: resolvedTrack, unit: found };
 }
 
 const isResult = (value: unknown): value is ToolResult =>
@@ -304,90 +382,152 @@ async function dispatch(
   args: Record<string, unknown>,
   deps: Deps,
 ): Promise<ToolResult> {
-  const track = typeof args.track === 'string' ? args.track : '';
-  const unit = typeof args.unit === 'string' ? args.unit : '';
+  const askedTrack = typeof args.track === 'string' ? args.track : '';
+  const askedUnit = typeof args.unit === 'string' ? args.unit : '';
   const ephemeral = deps.placeIsEphemeral ? `\n\n${EPHEMERAL_NOTE}` : '';
 
   if (name === 'list_programs') {
+    const places = await deps.cursors.readAll();
+    const placeOf = (track: string, unit: string): Cursor | undefined =>
+      places.find((cursor) => cursor.track === track && cursor.unit === unit);
+
     const lines: string[] = [];
     for (const bundle of deps.bundles.all()) {
+      const editions = bundle.track.languages;
       lines.push(
-        `Track "${bundle.track.id}" (${say(bundle.track.titles, bundle.track.languages[0] ?? 'en')}), ` +
-          `languages: ${bundle.track.languages.join(', ')}, content tag: ${bundle.tag}`,
+        `Track "${bundle.track.id}" — ${editions.map((edition) => say(bundle.track.titles, edition)).join(' · ')} ` +
+          `— editions: ${editions.join(', ')} — content tag: ${bundle.tag}`,
       );
       for (const program of bundle.units) {
-        const cursor = await deps.cursors.read(bundle.track.id, program.id);
-        const place = cursor ? `at step ${cursor.step} of ${program.steps.length}` : 'not opened';
-        lines.push(`  ${program.id} — ${program.steps.length} steps — ${place}`);
+        const cursor = placeOf(bundle.track.id, program.id);
+        /*
+          The title in the edition the reader is in, or in every edition until they have
+          chosen one: a reader picks a program by what it is about, and a list of ids was a
+          list of nothing to choose by.
+        */
+        const titled = cursor
+          ? say(program.titles, cursor.language)
+          : editions.map((edition) => say(program.titles, edition)).join(' · ');
+        const total = program.steps.length;
+        const place = cursor
+          ? cursor.step === total
+            ? `on the last step (${total} of ${total})`
+            : `at step ${cursor.step} of ${total}`
+          : 'not opened';
+        lines.push(`  ${program.id} · ${titled} — ${total} steps — ${place}`);
       }
     }
     return { text: lines.join('\n') + ephemeral };
   }
 
-  const located = locate(deps.bundles, track, unit);
+  const located = locate(deps.bundles, askedTrack, askedUnit);
   if (isResult(located)) return located;
+  const { track, unit } = located;
 
   if (name === 'open_program') {
-    const asked = typeof args.language === 'string' ? args.language : '';
     const bundle = deps.bundles.for(track);
-    const language = bundle ? languageIn(bundle, asked) : undefined;
+    const asked = typeof args.language === 'string' && args.language !== '' ? args.language : undefined;
+    const existing = await deps.cursors.read(track, unit.id);
+
+    /*
+      The edition: the one asked for, else the one the reader was already in. A reader who
+      resumes is not asked again — the first version required the argument on every call
+      and then discarded it whenever a cursor existed, so the model asked a question whose
+      answer went nowhere. A first opening still needs one, and a bad one names the editions.
+    */
+    const language = asked ? (bundle ? languageIn(bundle, asked) : undefined) : existing?.language;
     if (!language) {
       const offered = bundle?.track.languages.join(', ') ?? 'none';
-      return problem(`The track "${track}" is not published in "${asked}". It has: ${offered}.`);
+      return problem(
+        asked
+          ? `The track "${track}" is not published in "${asked}". It has: ${offered}.`
+          : `"${unit.id}" has not been opened before, so it needs an edition: one of ${offered}. Ask the reader which.`,
+      );
     }
 
-    const existing = await deps.cursors.read(track, unit);
-    const cursor: Cursor = existing ?? { track, unit, language, step: FIRST_STEP };
+    const cursor: Cursor = existing ? { ...existing, language } : { track, unit: unit.id, language, step: FIRST_STEP };
     const saved = await deps.cursors.save(cursor);
 
-    const served = current(located.unit, saved);
+    const served = current(unit, saved);
     if (!served.ok) return refusalResult(served.refusal);
 
-    const resumed = existing ? `Resuming "${unit}" at step ${saved.step}.` : `Starting "${unit}".`;
-    return { text: `${resumed}\n\n${render(served.step, saved.language, located.total)}${ephemeral}` };
+    const opening = !existing
+      ? `Starting "${unit.id}".`
+      : existing.language !== saved.language
+        ? `Resuming "${unit.id}" at step ${saved.step}, switched to the "${saved.language}" edition.`
+        : `Resuming "${unit.id}" at step ${saved.step}.`;
+    return { text: `${opening}\n\n${render(unit, served.step, saved.language)}${ephemeral}` };
   }
 
-  const cursor = await deps.cursors.read(track, unit);
+  const cursor = await deps.cursors.read(track, unit.id);
   if (!cursor) {
-    return problem(`The reader has not opened "${unit}" yet. Call open_program first.`);
+    return problem(`The reader has not opened "${unit.id}" yet. Call open_program first.`);
   }
 
   if (name === 'current_step') {
-    const served = current(located.unit, cursor);
+    const served = current(unit, cursor);
     if (!served.ok) return refusalResult(served.refusal);
-    return { text: render(served.step, cursor.language, located.total) };
+    return { text: render(unit, served.step, cursor.language) };
   }
 
   if (name === 'review_step') {
     const n = typeof args.step === 'number' ? args.step : Number.NaN;
-    const served = serve(located.unit, cursor, n);
+    const served = serve(unit, cursor, n);
     if (!served.ok) return refusalResult(served.refusal);
-    return { text: render(served.step, cursor.language, located.total) };
+    return { text: render(unit, served.step, cursor.language) };
   }
 
   if (name === 'submit_answer') {
+    /*
+      THE STEP BEING ANSWERED, SO A RETRY CANNOT ADVANCE TWICE. A host that times out and
+      calls again, or a model that calls twice, used to move the reader two steps: the
+      skipped step's body was never shown while its answer arrived in the next step's
+      banner. Naming the step makes the second call a no-op that hands back where the
+      reader actually is.
+    */
+    const answering = typeof args.step === 'number' ? args.step : Number.NaN;
+    if (!Number.isInteger(answering)) {
+      return problem('submit_answer needs "step": the number of the step being answered, from the step that was shown.');
+    }
+    if (answering !== cursor.step) {
+      return refused(
+        `Nothing recorded: the reader is on step ${cursor.step}, not step ${answering}` +
+          (answering < cursor.step ? ' — that one was already answered.' : '.') +
+          ` Here is the step they are on:\n\n${render(unit, unit.steps[cursor.step - 1]!, cursor.language)}`,
+      );
+    }
+
+    const here = current(unit, cursor);
+    if (!here.ok) return refusalResult(here.refusal);
+
+    /*
+      An answer is required where something was asked, and only there. A step with no cue
+      asks nothing — the book's teaching frames — and the first version demanded a
+      non-empty answer to go on from one, so the assistant invented a word or asked the
+      reader to answer a question nobody put.
+    */
     const answer = typeof args.answer === 'string' ? args.answer.trim() : '';
-    if (!answer) {
+    if (here.step.cue && !answer) {
       return problem(
         'No answer was supplied. Ask the reader what they wrote — do not answer the step for them. ' +
           `"I don't know" is a valid answer and should be passed through as it stands.`,
       );
     }
 
-    const moved = advance(located.unit, cursor);
+    const moved = advance(unit, cursor);
     if (!moved.ok) return refusalResult(moved.refusal);
 
     const saved = await deps.cursors.save(moved.cursor);
-    const served = current(located.unit, saved);
+    const served = current(unit, saved);
     if (!served.ok) return refusalResult(served.refusal);
 
-    return {
-      text:
-        `Recorded as the reader's answer to step ${cursor.step}:\n"${answer}"\n` +
+    const recorded = answer
+      ? `Recorded as the reader's answer to step ${cursor.step}:\n"${answer}"\n` +
         '(Not marked, and not kept as evidence about the reader. If that is not what they ' +
-        'wrote, say so and re-read the step rather than moving on.)\n\n' +
-        render(served.step, saved.language, located.total),
-    };
+        'wrote, say so and re-read the step rather than moving on.)\n\n'
+      : `Step ${cursor.step} asked nothing, so nothing was recorded.\n\n`;
+
+    return { text: recorded + render(unit, served.step, saved.language) };
   }
 
   return problem(`No such tool: ${name}`);

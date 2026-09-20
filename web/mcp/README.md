@@ -71,22 +71,31 @@ shows a place says so too**, because a reader of an MCP host sees results and ne
 
 ## The first three calls
 
-1. `list_programs` — every program the server carries and how far the reader is in each.
-2. `open_program` — start one, or resume it; the step the reader is on comes back.
-3. `submit_answer` — the reader's own words, verbatim; the next step comes back, and it
-   opens with the book's answer to the one just done.
+1. `list_programs` — every program the server carries, by title, and how far the reader is
+   in each.
+2. `open_program` — start one, or resume it; the step the reader is on comes back, and every
+   step opens with where it is: program, title, section, step *n* of *N*. The first time a
+   program is opened it needs an edition (`language`); after that the edition is remembered,
+   and naming a different one switches, at the same step.
+3. `submit_answer` — the reader's own words, verbatim, with the number of the step they
+   answer; the next step comes back, and it opens with the book's answer to the one just
+   done. A step that asks nothing says so, and goes on with no answer.
+
+`track` can be left out: this server carries one. A program id is matched in any case.
 
 What a refusal looks like: ask `review_step` for a step past the furthest and the answer is a
 sentence saying the method is working — an ordinary result, not an error, and the host shows
-it as one. A step number the program does not have is an error, because it names nothing.
+it as one. So is a submit for a step the reader is no longer on: nothing is recorded, and the
+step they are on comes back, which is what makes a retried call safe. A step number the
+program does not have is an error, because it names nothing.
 
 ## The tools
 
 `list_programs`, `open_program`, `current_step`, `submit_answer`, `review_step`.
 
-Only `submit_answer` moves the reader forward, and it requires the reader's own answer as
-free text. Nothing grades it: the next step opens with the book's answer and the comparison
-is the reader's to make (ADR-0010).
+Only `submit_answer` moves the reader forward, and on a step that asks for one it requires
+the reader's own answer as free text. Nothing grades it: the next step opens with the book's
+answer and the comparison is the reader's to make (ADR-0010).
 
 ## Tests
 
