@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 2,
+  "tag": "fixture-0-v2",
+  "track": {
+    "id": "math-for-ai-engineers",
+    "titles": {
+      "en": "Mathematics from Zero for the AI Engineer",
+      "pl": "Matematyka od zera dla inżyniera AI"
+    },
+    "languages": [
+      "en",
+      "pl"
+    ]
+  },
+  "units": [
+    {
+      "id": "P01",
+      "titles": {
+        "en": "How a computer stores a number",
+        "pl": "Jak komputer przechowuje liczbę"
+      },
+      "sections": [
+        {
+          "id": "scientific-notation-base-two",
+          "titles": {
+            "en": "Scientific notation, in base two",
+            "pl": "Notacja naukowa o podstawie dwa"
+          },
+          "firstStep": 1
+        },
+        {
+          "id": "the-gap-grows",
+          "titles": {
+            "en": "The gap grows with the magnitude",
+            "pl": "Odstęp rośnie wraz z rzędem wielkości"
+          },
+          "firstStep": 3
+        }
+      ],
+      "steps": [
+        {
+          "n": 1,
+          "kind": "prose",
+          "section": "scientific-notation-base-two",
+          "body": {
+            "en": "A floating-point number is scientific notation with the ten changed to a two and the digits capped. Nothing else about it is new.",
+            "pl": "Liczba zmiennoprzecinkowa to notacja naukowa, w której dziesiątkę zastąpiono dwójką, a liczbę cyfr ograniczono. Nic poza tym nie jest nowe."
+          }
+        },
+        {
+          "n": 2,
+          "kind": "frame",
+          "section": "scientific-notation-base-two",
+          "body": {
+            "en": "Three fields carry it: a sign, an exponent and a significand. Which of the three decides how PRECISE the number is, and which decides how LARGE it can be?",
+            "pl": "Niosą ją trzy pola: znak, wykładnik i mantysa. Które z nich decyduje o PRECYZJI liczby, a które o tym, jak DUŻA może ona być?"
+          },
+          "cue": true
+        },
+        {
+          "n": 3,
+          "kind": "frame",
+          "section": "the-gap-grows",
+          "answer": {
+            "en": "The significand carries the precision; the exponent carries the size.",
+            "pl": "Mantysa niesie precyzję, wykładnik niesie rozmiar."
+          },
+          "body": {
+            "en": "So the digits are fixed and the exponent slides. Work out what that does to the distance between one stored number and the next as the numbers get bigger.",
+            "pl": "Cyfr jest więc stała liczba, a wykładnik się przesuwa. Ustal, co to robi z odległością między kolejnymi przechowywanymi liczbami, gdy liczby rosną."
+          },
+          "cue": true
+        },
+        {
+          "n": 4,
+          "kind": "frame",
+          "section": "the-gap-grows",
+          "answer": {
+            "en": "The gap grows with the magnitude, doubling at every power of two.",
+            "pl": "Odstęp rośnie wraz z rzędem wielkości, podwajając się przy każdej potędze dwójki."
+          },
+          "body": {
+            "en": "Measure it yourself rather than taking it from this page.",
+            "pl": "Zmierz to samodzielnie, zamiast brać z tej strony."
+          },
+          "check": {
+            "lab": "P01",
+            "exercise": "gap"
+          }
+        }
+      ],
+      "routes": [
+        {
+          "kind": "quiz",
+          "labels": {
+            "en": "What are the three fields of a float?",
+            "pl": "Jakie są trzy pola liczby zmiennoprzecinkowej?"
+          },
+          "from": 2,
+          "to": 3,
+          "answer": {
+            "en": "A float is a sign, an exponent and a significand, and the significand is where the precision lives.",
+            "pl": "Liczba zmiennoprzecinkowa to znak, wykładnik i mantysa, a precyzja mieszka w mantysie."
+          }
+        },
+        {
+          "kind": "outcome",
+          "labels": {
+            "en": "Say which field carries precision and which carries size",
+            "pl": "Powiedzieć, które pole niesie precyzję, a które rozmiar"
+          },
+          "from": 1,
+          "to": 3
+        },
+        {
+          "kind": "summary",
+          "labels": {
+            "en": "The gap between stored numbers grows with the magnitude",
+            "pl": "Odstęp między przechowywanymi liczbami rośnie wraz z rzędem wielkości"
+          },
+          "from": 3,
+          "to": 4
+        }
+      ],
+      "part": {
+        "id": "II",
+        "titles": {
+          "en": "Number, precision and cost",
+          "pl": "Liczba, precyzja i koszt"
+        }
+      },
+      "exercises": [
+        {
+          "kind": "test",
+          "n": 1,
+          "body": {
+            "en": "What does `0.1 + 0.2 == 0.3` evaluate to, and why?",
+            "pl": "Co zwraca `0.1 + 0.2 == 0.3` i dlaczego?"
+          },
+          "answer": {
+            "en": "`False`. Neither $0.1$ nor $0.2$ is representable, so the sum is one gap away from $0.3$.",
+            "pl": "`False`. Ani $0,1$, ani $0,2$ nie jest reprezentowalne, więc suma leży o jeden odstęp od $0,3$."
+          }
+        },
+        {
+          "kind": "test",
+          "n": 2,
+          "body": {
+            "en": "Give the gap between consecutive doubles at $1$.",
+            "pl": "Podaj odstęp między sąsiednimi liczbami podwójnej precyzji przy $1$."
+          },
+          "answer": {
+            "en": "$2^{-52}$, about $\\\\num{2.22e-16}$.",
+            "pl": "$2^{-52}$, około $\\\\num{2,22e-16}$."
+          }
+        },
+        {
+          "kind": "further",
+          "n": 1,
+          "body": {
+            "en": "A total stands at $\\\\num{100}$ in `bf16`. What is the smallest contribution that can move it?",
+            "pl": "Suma wynosi $\\\\num{100}$ w `bf16`. Jaki jest najmniejszy składnik, który ją ruszy?"
+          },
+          "answer": {
+            "en": "Half the gap AT THAT MAGNITUDE, not half an epsilon of the total — $100$ sits at the bottom of its binade, where the rule of thumb is furthest out.",
+            "pl": "Połowa odstępu PRZY TEJ WIELKOŚCI, a nie połowa epsilona sumy — $100$ leży na dole swojej binady, gdzie reguła kciuka myli się najbardziej."
+          }
+        }
+      ]
+    }
+  ],
+  "labs": [
+    {
+      "id": "P01",
+      "runtime": "stdlib",
+      "exercises": [
+        "gap",
+        "epsilon",
+        "tenth",
+        "orders",
+        "threshold",
+        "store",
+        "coin"
+      ]
+    }
+  ]
+}

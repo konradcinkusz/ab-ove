@@ -380,7 +380,7 @@ written.
 | 100 | probe | #56 | Does a canonical form give a stable digest | — |
 | 110 | blocked | #57 | How many of the book's answers are checkable at all | — |
 | 120 | decision | #58 | Does a frame accept the reader's answer (a new ADR) | — |
-| 130 | feature | #59 | Schema v2: the answer model | — |
+| 130 | feature | #59 | Schema v2 — **defined, and it is not the answer model.** #58 was resolved so that the answer field needs no schema change at all, so what v2 carries instead is the two things a v1 bundle cannot render: a Quiz route's question and answer (370 routes carry neither), and the book's third stage (395 Test exercises and 376 Further problems per edition). Nothing renders from it until a compiler emits one; the request is in `docs/architecture/CONTENT-SCHEMA-V2-REQUEST.md` | [ADR-0046](../adr/0046-schema-2-carries-the-books-third-stage.md) |
 | 140 | feature | #60 | The answer field, and a verdict computed in the browser | — |
 | 150 | feature | #61 | The answer verdict reaches the existing tally | [ADR-0045](../adr/0045-a-worksheet-answer-is-one-cell-and-a-blank-fails-it.md) |
 | 160 | feature | #62 | The counter-metric: revealed without answering — **folded into 150 rather than built.** A cell of its own could only ever carry `passed: false`, so its rate was 0% by construction, and it pooled into the first-attempt measure on the eleven frames of P01 where a lab check and a cue frame coincide. A blank now fails the same cell a wrong answer fails. What is genuinely lost — telling a give-up from a miss — wants a field outside the score, and is owed | [ADR-0045](../adr/0045-a-worksheet-answer-is-one-cell-and-a-blank-fails-it.md) §3 |
