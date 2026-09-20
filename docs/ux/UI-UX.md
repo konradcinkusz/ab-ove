@@ -375,8 +375,15 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   companion for backgrounds. They mean *this integration is present* and *this one is
   absent*, and they are not decoration to be borrowed for anything else.
 - **`--accent` is a single blue**, used for links and emphasis.
-- **Dark mode via `prefers-color-scheme`**, as a full token swap. Not an afterthought: a
-  reader working through a program at night is the normal case.
+- **Dark mode as a full token swap, and a three-position switch over it.** Not an
+  afterthought: a reader working through a program at night is the normal case, and so is
+  one working it at a desk under a lamp. `System` is `prefers-color-scheme` and is the
+  default; `Light` and `Dark` are the reader's own answer, held in their browser and applied
+  before the first paint. The system position is the ABSENCE of `data-theme` rather than a
+  third value of it, which is what keeps the swap working with no JavaScript at all
+  ([ADR-0048](../adr/0048-the-theme-is-a-choice-and-the-system-is-a-position.md)). The switch
+  is in the index's chrome row and in the foot of the frame, the contents page and the
+  summary — before the keyboard map, which stays last on every page.
 - **Focus is a ring, never a brightness.** Every filled control — the reveal, the contents
   page's start, the shell pages' way in, the two forms' submit — wears a two-colour ring
   on `:focus-visible` (paper, then the control's own colour), because a ten-percent

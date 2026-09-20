@@ -11,6 +11,41 @@
  * The type stack below is therefore the reader's own system fonts.
  */
 
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * THE THEME HAS THREE POSITIONS AND THE STYLESHEET IMPLEMENTS ALL THREE (ADR-0048).
+ *
+ * `:root` below is the LIGHT palette and the document's starting point. The dark palette is
+ * applied twice, and the two blocks are what the three positions are made of:
+ *
+ *   no `data-theme`          the reader has chosen nothing, so `prefers-color-scheme`
+ *                            decides — which is what this file did before the switch
+ *                            existed, and what it still does with JavaScript switched off.
+ *   `data-theme="light"`     the media query is excluded by `:not()`, so the light palette
+ *                            above stands even on a machine set to dark.
+ *   `data-theme="dark"`      the second block applies whatever the machine says.
+ *
+ * The attribute is put there before the first paint by the inline script in `layout.tsx`
+ * (`lib/theme/boot.ts`), so a reader's choice is in the FIRST paint rather than arriving a
+ * frame after it.
+ *
+ * THE DARK PALETTE IS WRITTEN OUT TWICE, AND THAT DUPLICATION IS DELIBERATE RATHER THAN
+ * OVERLOOKED. CSS has no way to give one declaration block two selectors when one of them is
+ * media-gated, and the two alternatives both cost more than the repetition does:
+ *
+ *   - `light-dark()` would collapse both blocks into one value per token, and it is
+ *     Baseline NEWLY available rather than widely available — a browser that does not know
+ *     the function does not fall back to a colour, it drops the declaration, and this page
+ *     would render with no tokens at all. That is a legibility failure on an unknown share
+ *     of readers to save twelve lines (P8: degrade legibly).
+ *   - Resolving `system` to a concrete `light`/`dark` in the boot script would leave one
+ *     block, and would make dark mode a thing that only happens when JavaScript runs.
+ *
+ * So the repetition stays and is held by a test instead of by attention:
+ * `lib/theme/tokens.test.ts` reads this file and fails if the two dark blocks stop agreeing,
+ * or if a colour token gains a light value with no dark one.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
 :root {
   --ink: #12151b;
   --ink-soft: #464f5d;
@@ -33,11 +68,22 @@
   --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
     'Liberation Mono', monospace;
 
-  color-scheme: light dark;
+  /*
+   * The RESOLVED scheme, not `light dark`.
+   *
+   * `light dark` tells the browser this page handles both and leaves the choice to the
+   * system — which is right for the first position and wrong for the other two: a reader who
+   * asked for light on a dark machine would get a light page with dark form fields, dark
+   * scrollbars and a dark caret, because those are painted by the browser from this property
+   * and not from the tokens above. Each position therefore states the scheme it means, and
+   * the native furniture follows the page.
+   */
+  color-scheme: light;
 }
 
+/* Position one: no choice made, so the reader's own system decides. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --ink: #e8e6e1;
     --ink-soft: #b3b0a9;
     --ink-faint: #8a8781;
@@ -50,7 +96,27 @@
     --live-soft: #16281f;
     --degraded: #d9ab5e;
     --degraded-soft: #2a2317;
+
+    color-scheme: dark;
   }
+}
+
+/* Position three: the reader asked for dark, whatever the machine says. */
+:root[data-theme='dark'] {
+  --ink: #e8e6e1;
+  --ink-soft: #b3b0a9;
+  --ink-faint: #8a8781;
+  --paper: #14161a;
+  --paper-raised: #1b1e24;
+  --rule: #2c3038;
+  --accent: #8fb6e8;
+  --accent-soft: #1b2634;
+  --live: #74c79a;
+  --live-soft: #16281f;
+  --degraded: #d9ab5e;
+  --degraded-soft: #2a2317;
+
+  color-scheme: dark;
 }
 
 *,

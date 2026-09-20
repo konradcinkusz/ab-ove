@@ -1,0 +1,76 @@
+/*
+ * The theme switch. Deliberately the same weight as the edition switch beside it
+ * (`language-switch.module.css`): three words in the page's furniture, not three buttons.
+ * A reader touches it once a season, and it must not compete with the reveal.
+ */
+.switch {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/*
+ * NO FONT OF ITS OWN, on `language-switch.module.css`'s reasoning applied to two places at
+ * once. This control renders in the index's chrome row, which is set in `--font-ui`, and in
+ * the foot of three reading screens, which are set in the reading serif. A family declared
+ * here would be right in one of them and conspicuous in the other; inheriting is what makes
+ * it look like the words beside it wherever it is put.
+ */
+
+/*
+ * A button that reads as text. `font: inherit` and no border, exactly as the worksheet's
+ * own `.clear` control does — the element is a button because pressing it does something
+ * here rather than going somewhere, and that is a fact for the accessibility tree rather
+ * than a look.
+ */
+.option {
+  background: none;
+  border: 0;
+  color: var(--ink-faint);
+  cursor: pointer;
+  font: inherit;
+  /* A finger's worth of target on a line of small type — place-row.module.css says why. */
+  margin: -0.75rem -0.375rem;
+  padding: 0.75rem 0.375rem;
+}
+
+.option:hover,
+.option:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * THE LIVE POSITION IS READ OFF `<html>`, NOT OFF THIS COMPONENT'S STATE.
+ *
+ * `lib/theme/boot.ts` sets `data-theme` before the first paint, so this rule is already
+ * true in the document the browser paints — where a class from React would arrive after
+ * hydration and the underline would jump one control along in front of the reader. It is
+ * the same mechanism `keys-details.module.css` uses to show one spelling of a chord.
+ *
+ * ABSENCE IS THE SYSTEM POSITION (`store.ts`'s `attributeFor`), which is why the first
+ * selector is a `:not()` rather than `[data-theme='system']`: no attribute is what a
+ * document goes out with, and what a reader with no JavaScript keeps.
+ *
+ * `aria-current` would be the wrong attribute to hang this on — these are not links to a
+ * place — so `aria-pressed` carries the state to a screen reader and this carries it to
+ * everybody else. The two can differ for the few milliseconds before hydration, and the
+ * component's own header says so.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
+:global(:root:not([data-theme])) .option[data-position='system'],
+:global(:root[data-theme='light']) .option[data-position='light'],
+:global(:root[data-theme='dark']) .option[data-position='dark'] {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
+}
+
+/* Paper has one theme. The same rule the worksheet's clear control carries. */
+@media print {
+  .switch {
+    display: none;
+  }
+}

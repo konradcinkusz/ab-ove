@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { AccountControl } from '@/components/account/account-control';
 import { ConsentControl } from '@/components/consent/consent-control';
+import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { groupsOf, say, sectionSpans } from '@/lib/content/bundle';
 import { editionsOffered } from '@/lib/content/chosen-edition';
 import type { Bundle } from '@/lib/content/schema';
@@ -92,6 +93,20 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
           <Link className={styles.chromeLink} href="/about">
             {chrome.about}
           </Link>
+          {/*
+            HOW A READER TURNS ON LIGHT MODE (ADR-0048), and the only control in this row
+            that is fully rendered on the server.
+
+            It sits after the one link that is always here and before everything that is
+            not, and that is placement rather than order of arrival: everything after it — the resume link, the two destructive controls, the account
+            — is read out of this browser and cannot exist in the first paint, so each of
+            them EXTENDS this line when it lands. A control that is in the markup from the
+            start belongs before them, where nothing can push it sideways.
+
+            It is three words of furniture and not a filled control, on `EditionSwitch`'s
+            reasoning below: a reader touches it once and then wants it out of the way.
+          */}
+          <ThemeSwitch language={chrome.language} />
           <ResumeLast language={chrome.language} limits={limits} />
           {/*
             THE TWO DESTRUCTIVE CONTROLS, AFTER THE RESUME LINK AND NOT BESIDE IT. Both are
