@@ -44,7 +44,15 @@ export interface ResumeLastProps {
   readonly language: string;
 }
 
-/** The index's control: back to the program the reader was last in. */
+/**
+ * The index's control: back to the program the reader was last in.
+ *
+ * THE ONE FILLED CONTROL ON THE INDEX. For a reader who has been here before it is the
+ * primary action on the page — everything else is a way to start something — and it was
+ * rendered as the faintest thing on it, a small link in the header's row of faint links.
+ * It is filled now, the way the reveal and the contents page's *Start* are, and it still
+ * arrives after hydration into a row that does not grow (resume.module.css says how).
+ */
 export function ResumeLast({ limits, language }: ResumeLastProps): React.JSX.Element | null {
   const progress = useProgress();
   const chrome = chromeFor(language);
@@ -63,7 +71,7 @@ export function ResumeLast({ limits, language }: ResumeLastProps): React.JSX.Ele
 
   return (
     <Link
-      className={styles.resume}
+      className={styles.resumeFilled}
       href={`/read/${last.track}/${last.unit}/${last.language}/${step}`}
       lang={chrome.language}
     >

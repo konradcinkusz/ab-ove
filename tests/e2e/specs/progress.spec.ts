@@ -103,6 +103,37 @@ test.describe('local progress', () => {
     expect(stored, 'the place was not kept in the browser').toBeTruthy();
   });
 
+  test('the index says which program the reader is in, on its tile, as a position @core', async ({
+    page,
+  }) => {
+    /*
+      A returning reader's question at the index is "which one was I in", and forty-seven
+      tiles used to answer it with nothing. The tile now says `at frame N` — a POSITION and
+      never a progress (ADR-0041): no fraction, no bar, nothing about how far. And it is
+      text, not a link: the count of links back into the stored frame stays at one, which
+      is the resume control, so the assertion in the journey above still holds by the
+      letter.
+    */
+    await readUpTo(page, 'en', STOPPED_AT!);
+    await page.goto('/');
+
+    const tile = page.locator('li', { has: page.getByRole('link', { name: program.titles['en']! }) });
+    await expect(tile).toHaveCount(1);
+    const marker = tile.getByText(`at frame ${STOPPED_AT}`, { exact: true });
+    await expect(marker).toBeVisible();
+    await expect(marker.locator('a'), 'the marker must not be a second way in').toHaveCount(0);
+    await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
+
+    // No other tile carries a marker: the reader has been in one program.
+    await expect(page.getByText(/^at frame \d+$/)).toHaveCount(1);
+
+    // Nothing on the page says how far that is, in any of the ways ADR-0041 forbids.
+    const body = await page.locator('body').innerText();
+    expect(body).not.toMatch(/\d+\s*%/);
+    expect(body).not.toMatch(/\d+ of \d+ read/i);
+    await expect(page.getByRole('progressbar')).toHaveCount(0);
+  });
+
   test('a reader who has read nothing is offered nothing @core', async ({ page }) => {
     // The positive control for the test above. Without it, an index that always rendered a
     // resume link to frame 1 would satisfy the journey and mean nothing.
@@ -204,8 +235,10 @@ test.describe('local progress', () => {
     });
 
     await page.goto('/read');
-    // The control really did arrive, so the number below is about a page that changed.
+    // The controls really did arrive — the filled resume link in the header and the tile's
+    // marker in the grid — so the number below is about a page that changed twice.
     await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
+    await expect(page.getByText(`at frame ${STOPPED_AT}`, { exact: true })).toBeVisible();
     await page.waitForTimeout(700);
 
     const shift = await page.evaluate(() => (window as unknown as { __shift: number }).__shift);

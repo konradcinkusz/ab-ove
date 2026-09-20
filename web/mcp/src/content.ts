@@ -16,7 +16,8 @@ import { allBundles, bundleFor } from '../../app/src/lib/content/bundle.ts';
 import { validateBundle } from '../../app/src/lib/content/validate.ts';
 import type { Bundle } from '../../app/src/lib/content/schema.ts';
 
-export { languageIn, say, stepIn, tagFor, unitIn } from '../../app/src/lib/content/bundle.ts';
+export { groupsOf, languageIn, say, stepIn, tagFor, unitIn } from '../../app/src/lib/content/bundle.ts';
+export type { ProgramGroup } from '../../app/src/lib/content/bundle.ts';
 export type { Bundle, Exercise, Route, Step, Text, Unit } from '../../app/src/lib/content/schema.ts';
 
 /**

@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { AccountControl } from '@/components/account/account-control';
 import { ConsentControl } from '@/components/consent/consent-control';
-import { say, sectionSpans } from '@/lib/content/bundle';
+import { groupsOf, say, sectionSpans } from '@/lib/content/bundle';
 import { editionsOffered } from '@/lib/content/chosen-edition';
 import type { Bundle } from '@/lib/content/schema';
 import { FALLBACK_LANGUAGE, chromeFor, endonym } from '@/lib/i18n/chrome';
@@ -11,6 +11,7 @@ import { ClearWorksheets } from '../read/clear-controls.tsx';
 import { ForgetProgress, ResumeLast, type Limits } from '../read/resume.tsx';
 
 import styles from './program-grid.module.css';
+import { TilePosition } from './tile-position.tsx';
 
 export interface ProgramGridProps {
   readonly bundles: readonly Bundle[];
@@ -139,33 +140,72 @@ export function ProgramGrid({ bundles, chosen }: ProgramGridProps): React.JSX.El
               ))}
             </div>
 
-            <ul className={styles.grid}>
-              {bundle.units.map((unit) => {
-                const sections = sectionSpans(unit).length;
-                const meta = `${chrome.frames(unit.steps.length)}${
-                  sections > 0 ? ` · ${chrome.sections(sections)}` : ''
-                }`;
+            {/*
+              GROUPED, THE WAY PR4's INDEX WAS AND THE GRID FORGOT TO BE. `groupsOf` breaks
+              the programs where the book does — its parts once a bundle carries them, the
+              id prefix until then — and a returning reader scans two headed runs rather
+              than forty-seven tiles. The heading is the part's own title in each shown
+              edition, or this application's word for the prefix; a prefix it has no word
+              for is grouped without one. One group is a list, and gets no heading.
+            */}
+            {groupsOf(bundle).map((group) => {
+              const label = group.part
+                ? shown.map((language) => say(group.part!.titles, language)).join(' · ')
+                : group.prefix
+                  ? chrome.groupLabels[group.prefix]
+                  : undefined;
 
-                return (
-                  <li className={styles.tile} key={unit.id}>
-                    <span className={styles.tileId}>{unit.id}</span>
-                    <span className={styles.titles}>
-                      {shown.map((language) => (
-                        <Link
-                          className={styles.title}
-                          href={`/read/${bundle.track.id}/${unit.id}/${language}`}
-                          key={language}
-                          lang={language}
-                        >
-                          {say(unit.titles, language)}
-                        </Link>
-                      ))}
-                    </span>
-                    <p className={styles.meta}>{meta}</p>
-                  </li>
-                );
-              })}
-            </ul>
+              return (
+                <div key={group.key || 'all'}>
+                  {label ? (
+                    <h3 className={styles.groupLabel} lang={group.part ? undefined : chrome.language}>
+                      {label}
+                    </h3>
+                  ) : null}
+                  <ul className={styles.grid}>
+                    {group.units.map((unit) => {
+                      const sections = sectionSpans(unit).length;
+                      const meta = `${chrome.frames(unit.steps.length)}${
+                        sections > 0 ? ` · ${chrome.sections(sections)}` : ''
+                      }`;
+
+                      return (
+                        <li className={styles.tile} key={unit.id}>
+                          <div className={styles.idRow}>
+                            <span className={styles.tileId}>{unit.id}</span>
+                            {/*
+                              Where the reader is in this program, if anywhere — text, in
+                              the id's register, arriving after hydration into a row that
+                              already has its height. See the component for what it is
+                              deliberately not.
+                            */}
+                            <TilePosition
+                              language={chrome.language}
+                              last={unit.steps.length}
+                              track={bundle.track.id}
+                              unit={unit.id}
+                            />
+                          </div>
+                          <span className={styles.titles}>
+                            {shown.map((language) => (
+                              <Link
+                                className={styles.title}
+                                href={`/read/${bundle.track.id}/${unit.id}/${language}`}
+                                key={language}
+                                lang={language}
+                              >
+                                {say(unit.titles, language)}
+                              </Link>
+                            ))}
+                          </span>
+                          <p className={styles.meta}>{meta}</p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              );
+            })}
           </section>
         );
       })}

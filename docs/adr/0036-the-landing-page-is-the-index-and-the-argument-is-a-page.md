@@ -105,6 +105,17 @@ would be a decision needing its own file, not a convenience.
 `--measure` column every reading page shares. That is deliberate and confined: a frame is
 read and an index is scanned. No reading page changed.
 
+**The grid dropped PR4's grouping, and nothing here said why; it is back.** The list it
+replaced broke the programs where their id prefix changes — *Foundation*, *Main sequence* —
+on the reasoning that forty-seven entries in one list is a scroll rather than an index, and
+the tiles arrived as one grid. The runs are restored as level-three headings under the
+track's title, from `groupsOf` in `lib/content/bundle.ts`, which now also groups by the
+book's own parts when a bundle carries them and which the MCP server's `list_programs`
+shares. A tile also says `at frame 12` beside its id when the reader has a place in that
+program, and the resume control at the top is the page's one filled control: the grid had
+been built for a first visit and forgot the reader who came back. ADR-0041 governs what the
+marker may say.
+
 **The application's own links to the old index point at `/`.** The contents page's crumb
 and the summary screen's two *Programs* links said `/read` and paid the 308 on every
 click; a redirect a reader's bookmark pays once is what the redirect is for, and one the

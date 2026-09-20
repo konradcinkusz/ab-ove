@@ -16,7 +16,7 @@ import { advance, current, explain, serve, FIRST_STEP } from './reveal.ts';
 import type { Cursor, Refusal } from './reveal.ts';
 import type { CursorStore } from './cursor.ts';
 import { isIdentifier } from './cursor.ts';
-import { ContentUnavailable, languageIn, say, unitIn } from './content.ts';
+import { ContentUnavailable, groupsOf, languageIn, say, unitIn } from './content.ts';
 import type { BundleSource, Step, Unit } from './content.ts';
 
 /**
@@ -244,6 +244,13 @@ export const NO_CONTENT_NOTE =
   'the repository root, once, and start the server again.';
 
 /**
+ * The names for the id prefixes `groupsOf` divides a track by — the reading surface's
+ * `chrome.groupLabels`, in the one language this server's own sentences have (§3 of the
+ * sketch). A prefix with no entry is listed without a heading.
+ */
+const GROUP_LABELS: Readonly<Record<string, string>> = { F: 'Foundation', P: 'Main sequence' };
+
+/**
  * Where a step is: `P01 · How a computer stores a number › Scientific notation · step 5 of 48`.
  *
  * The reading surface's place row, one transport over — the program's id and title, the
@@ -398,23 +405,37 @@ async function dispatch(
         `Track "${bundle.track.id}" — ${editions.map((edition) => say(bundle.track.titles, edition)).join(' · ')} ` +
           `— editions: ${editions.join(', ')} — content tag: ${bundle.tag}`,
       );
-      for (const program of bundle.units) {
-        const cursor = placeOf(bundle.track.id, program.id);
-        /*
-          The title in the edition the reader is in, or in every edition until they have
-          chosen one: a reader picks a program by what it is about, and a list of ids was a
-          list of nothing to choose by.
-        */
-        const titled = cursor
-          ? say(program.titles, cursor.language)
-          : editions.map((edition) => say(program.titles, edition)).join(' · ');
-        const total = program.steps.length;
-        const place = cursor
-          ? cursor.step === total
-            ? `on the last step (${total} of ${total})`
-            : `at step ${cursor.step} of ${total}`
-          : 'not opened';
-        lines.push(`  ${program.id} · ${titled} — ${total} steps — ${place}`);
+      /*
+        Grouped where the book is — its parts, or the id prefix — by the same function the
+        index uses, so the two surfaces never divide the book two ways. One group is a
+        list, and gets no heading.
+      */
+      for (const group of groupsOf(bundle)) {
+        const heading = group.part
+          ? editions.map((edition) => say(group.part!.titles, edition)).join(' · ')
+          : group.prefix
+            ? GROUP_LABELS[group.prefix]
+            : undefined;
+        if (heading) lines.push(`  ${heading}`);
+
+        for (const program of group.units) {
+          const cursor = placeOf(bundle.track.id, program.id);
+          /*
+            The title in the edition the reader is in, or in every edition until they have
+            chosen one: a reader picks a program by what it is about, and a list of ids was
+            a list of nothing to choose by.
+          */
+          const titled = cursor
+            ? say(program.titles, cursor.language)
+            : editions.map((edition) => say(program.titles, edition)).join(' · ');
+          const total = program.steps.length;
+          const place = cursor
+            ? cursor.step === total
+              ? `on the last step (${total} of ${total})`
+              : `at step ${cursor.step} of ${total}`
+            : 'not opened';
+          lines.push(`  ${heading ? '  ' : ''}${program.id} · ${titled} — ${total} steps — ${place}`);
+        }
       }
     }
     return { text: lines.join('\n') + ephemeral };

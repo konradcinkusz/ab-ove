@@ -72,3 +72,11 @@ a flag rather than a rewritten string. What it cost: the foot's `Keys` list is l
 says beside `Enter` and the pad's `Ctrl+Enter` where each applies, because one key now means
 two things on one page. `specs/reading.spec.ts` presses both keys; `chrome.test.ts` holds
 every language to the same map.
+
+**The rule reaches the index.** A tile whose program the reader has a place in says `at
+frame 12` beside its id — the same position the place row shows, one page up, so a returning
+reader can see which of forty-seven programs they were in. It is the same test as `[12] /
+45`: a frame number is where they are, and a fraction, a bar, a count of frames read or a
+tick on a finished program would be how they are doing. It is text rather than a link, so
+the index still has exactly one way back into the stored frame, and `progress.spec.ts`
+asserts both halves — the marker is there, and nothing on the page says a percentage.

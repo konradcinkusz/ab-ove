@@ -330,6 +330,22 @@ interface Strings {
   /** The summary screen's own way back, mirroring the frame's crumb. */
   readonly backToLastFrame: string;
   readonly labOptional: string;
+  /**
+   * THE INDEX FOR A READER WHO CAME BACK.
+   *
+   * The names for the id prefixes `groupsOf()` (lib/content/bundle.ts) divides the
+   * programs by — that function knows the letters and deliberately not the words, because
+   * a word is in a language and the content library has none. A prefix with no entry here
+   * is grouped without a heading, which is what a third track's `X07` should get.
+   */
+  readonly groupLabels: Readonly<Record<string, string>>;
+  /**
+   * On a tile whose program has a stored place: `at frame 12`. A POSITION and never a
+   * progress (ADR-0041) — no fraction, no bar, no "12 of 45 read" — and text rather than
+   * a link, because `progress.spec.ts` holds the index to exactly one link back into the
+   * stored frame and that link is the resume control.
+   */
+  readonly atFrame: (n: number) => string;
 }
 
 /**
@@ -492,6 +508,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       'The Test exercises and Further problems for this program are not in this edition of the app yet.',
     nextProgramLabel: 'Next program',
     previousProgramLabel: 'Previous program',
+    groupLabels: { F: 'Foundation', P: 'Main sequence' },
+    atFrame: (n) => `at frame ${n}`,
     backToLastFrame: '← Back to the frame',
     labOptional: 'This program also has computer exercises in Python, optional',
   },
@@ -644,6 +662,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       'Zadania testowe i Dalsze zadania tego programu nie są jeszcze w tej wersji aplikacji.',
     nextProgramLabel: 'Następny program',
     previousProgramLabel: 'Poprzedni program',
+    groupLabels: { F: 'Podstawy', P: 'Część główna' },
+    atFrame: (n) => `na ramce ${n}`,
     backToLastFrame: '← Wróć do ramki',
     labOptional: 'Ten program ma też ćwiczenia komputerowe w Pythonie, opcjonalne',
   },
@@ -767,6 +787,8 @@ export interface Chrome {
   readonly previousProgramLabel: string;
   readonly backToLastFrame: string;
   readonly labOptional: string;
+  readonly groupLabels: Readonly<Record<string, string>>;
+  readonly atFrame: (n: number) => string;
 }
 
 /** The controls for a reader of `language`, falling back to English rather than failing. */

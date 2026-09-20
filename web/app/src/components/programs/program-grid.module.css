@@ -120,6 +120,27 @@
   margin: 0 0 1.25rem;
 }
 
+/*
+ * `Foundation` / `Main sequence` — or the book's own part titles once a bundle carries
+ * them. Set like the page's `Programs` heading rather than like a title: it divides a
+ * list, it does not introduce a section of prose. An `<h3>` under the track's `<h2>`, so a
+ * heading list reads Programs › the book › its parts; `landing.spec.ts` asserts the `<h1>`
+ * is still the only level-one heading.
+ */
+.groupLabel {
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  margin: 0 0 0.75rem;
+  text-transform: uppercase;
+}
+
+.grid + .groupLabel {
+  margin-top: -1.25rem;
+}
+
 .trackTitle {
   font-size: 1.125rem;
   font-weight: 500;
@@ -163,6 +184,19 @@
   border-color: var(--accent);
 }
 
+/*
+ * The id row: the program's id, and — once the browser has said so — where the reader is
+ * in it. One flex line, so the marker arriving after hydration extends the row rather
+ * than adding one; the row is a text line tall with or without it, which is what keeps
+ * `progress.spec.ts`'s shift bound on the index at zero.
+ */
+.idRow {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+}
+
 .tileId {
   color: var(--ink-faint);
   font-family: var(--font-mono);
@@ -170,6 +204,23 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+/*
+ * `at frame 12`: a position, in the id's own register, and plain text — the tile's one
+ * link is its title, and the way back into the frame is the resume control at the top of
+ * the page. `progress.spec.ts` counts exactly one link to the stored frame on this page.
+ * Empty on the first paint; the non-breaking space holds the line so nothing moves.
+ */
+.tileAt {
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tileAt:empty::before {
+  content: '\00a0';
 }
 
 .titles {

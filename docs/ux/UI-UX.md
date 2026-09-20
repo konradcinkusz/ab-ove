@@ -25,7 +25,7 @@ something is in the reader loop at all.
 
 | Route | What it is | Needs |
 | --- | --- | --- |
-| `/` | the landing page: every program as a tile, and the edition switch | nothing |
+| `/` | the landing page: every program as a tile, in the book's own runs, and the edition switch | nothing |
 | `/about` | what the product is, the anti-goal, the loop, the integration panel | nothing |
 | `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a navigation | nothing |
 | `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, and the way into the next one | nothing |
@@ -68,14 +68,26 @@ Its parts, in order:
 1. **The top row** — the wordmark, a link to `/about`, the resume and forget controls, and
    the account control. Everything but the first two is read from the browser and arrives
    after the first paint, so the row extends rather than the page moving
-   (the constraint issue #7 put on the resume controls).
+   (the constraint issue #7 put on the resume controls). The resume control — `F01 ·
+   Continue at frame 12` — is the index's one filled control: for a reader who has been
+   here before it is the page's primary action, and it used to be the faintest thing on
+   it. It is padded outwards and the padding given back as margin, so the row it arrives
+   in does not grow.
 2. **The heading and the edition switch**, sharing a line. The switch has three positions —
    each edition, and *both* — and *both* is what a reader who has chosen nothing is looking
    at. A choice is `/?lang=<edition>`: visible, linkable, leaveable, and never inferred.
-3. **The grid** — one tile per program, per track, carrying the program's id, its title, and
-   how many frames and sections it has. With no edition chosen a tile carries a title per
-   edition, each its own link; with one chosen it carries that edition's title and the whole
-   tile is the target.
+3. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
+   the parts themselves once a bundle carries them (`groupsOf`, in `lib/content/bundle.ts`,
+   which the MCP server's `list_programs` shares, so the two surfaces divide the book one
+   way). Each run is headed at level three, under the track's title. One tile per program,
+   carrying the program's id, its title, and how many frames and sections it has; with no
+   edition chosen a tile carries a title per edition, each its own link; with one chosen it
+   carries that edition's title and the whole tile is the target. A tile whose program the
+   reader has a place in says so beside the id — `at frame 12` — as text arriving after
+   hydration into a row that already has its height. It is a **position and never a
+   progress** (ADR-0041): no fraction, no bar, nothing about how far, and not a link,
+   because the way back into the frame is the resume control and `progress.spec.ts` holds
+   the page to exactly one.
 4. **The consent invitation**, last, absent from the first paint, and an invitation rather
    than a gate — a reader who came to read reaches the programs first and the question
    afterwards.

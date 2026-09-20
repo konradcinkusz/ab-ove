@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import { MemoryCursorStore } from './cursor.ts';
 import { ContentUnavailable, fixtureBundles, say, unitIn } from './content.ts';
-import type { Bundle, BundleSource, Text } from './content.ts';
+import type { Bundle, BundleSource, Text, Unit } from './content.ts';
 import {
   ANSWER_CONTRACT,
   EPHEMERAL_NOTE,
@@ -477,4 +477,31 @@ test('list_programs names the programs, in every edition until the reader has ch
   await handle('open_program', { unit: UNIT, language: 'pl' }, d);
   const after = await handle('list_programs', {}, d);
   assert.ok(after.text.includes('P01 · Jak komputer przechowuje liczbę — 4 steps — at step 1 of 4'), after.text);
+});
+
+test('list_programs divides the book the way the index does', async () => {
+  // The same `groupsOf` the reading surface uses, through content.ts — one rule, two
+  // surfaces. The fixture has one program, so a three-program track is built from it.
+  const bundle = BUNDLES.for(TRACK)!;
+  const bare: { -readonly [K in keyof Unit]?: Unit[K] } = { ...bundle.units[0]! };
+  delete bare.part;
+  const three: Bundle = {
+    ...bundle,
+    units: [
+      { ...(bare as Unit), id: 'F01' },
+      { ...(bare as Unit), id: 'F02' },
+      { ...(bare as Unit), id: 'P01' },
+    ],
+  };
+  const d = {
+    cursors: new MemoryCursorStore(),
+    bundles: { for: (id: string) => (id === TRACK ? three : undefined), all: () => [three] },
+  };
+
+  const listed = (await handle('list_programs', {}, d)).text.split('\n');
+  const headings = listed.filter((line) => /^  (Foundation|Main sequence)$/.test(line));
+  assert.deepEqual(headings, ['  Foundation', '  Main sequence']);
+  assert.ok(listed.indexOf('  Foundation') < listed.findIndex((line) => line.includes('F01 ·')));
+  assert.ok(listed.indexOf('  Main sequence') < listed.findIndex((line) => line.includes('P01 ·')));
+  assert.ok(listed.findIndex((line) => line.includes('F02 ·')) < listed.indexOf('  Main sequence'));
 });
