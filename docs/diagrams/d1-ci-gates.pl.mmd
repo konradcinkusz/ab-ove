@@ -1,0 +1,48 @@
+%% Bramki, przez które przechodzi zmiana, zanim da się ją scalić, i czego każda odmawia.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% SPRAWDZENIE NIE ISTNIEJE DLATEGO, ŻE ISTNIEJE PLIK KONFIGURACYJNY. Konfiguracja lintera w
+%% drzewie nie dowodzi, że jakikolwiek job ją uruchamia; odpowiedzią jest .github/workflows/,
+%% i z tych plików narysowano ten diagram.
+
+%% JOB AKCEPTACYJNY CZERWIENIEJE, GDY ZABRAKNIE PAKIETU TESTÓW, ZAMIAST GO POMINĄĆ
+%% (E2E-ACCEPTANCE-TESTING.md sekcja 2). Zielony przebieg, który niczego nie sprawdził, jest
+%% dokładnie tą awarią, której ten pakiet ma zapobiegać - dlatego czerwonej bramki nigdy nie
+%% "naprawia się", czyniąc ją warunkową.
+
+%% KSIĄŻKA JEST POBIERANA PRZED WARSTWĄ JEDNOSTKOWĄ, w każdym jobie, który jej potrzebuje.
+%% web/content/ jest wyprowadzone, a nie commitowane, i testy sprawdzające wszystkie 47
+%% programów inaczej pominęłyby się po cichu - zielony ptaszek nad asercją, której nikt nie
+%% postawił.
+
+flowchart TD
+  PR["Pull request"]
+
+  subgraph ci["ci.yml"]
+    DOTNET["dotnet build + test<br/>ostrzeżenia są błędami;<br/>jednostkowe, integracyjne w pamięci,<br/>reguły architektury"]
+    KERNEL["rozmiar jądra<br/>pułap na wiersze kodu<br/>we wspólnym jądrze"]
+    WEB["web lint + build<br/>eslint, tsc po każdym członku<br/>przestrzeni, warstwa jednostkowa,<br/>build produkcyjny"]
+    E2E["e2e<br/>Playwright przeciw prawdziwemu<br/>Postgresowi i prawdziwemu<br/>AbOvo.Api"]
+  end
+
+  SCAN["secret-scan.yml<br/>gitleaks"]
+  CODEQL["codeql.yml<br/>SAST i audyt zależności"]
+  PAGES["pages.yml<br/>odmawia publikacji strony,<br/>która wykonałaby żądanie"]
+
+  MERGE(["Gotowe do scalenia"])
+
+  PR --> DOTNET
+  PR --> KERNEL
+  PR --> WEB
+  PR --> SCAN
+  PR --> CODEQL
+  PR --> PAGES
+  WEB --> E2E
+
+  DOTNET --> MERGE
+  KERNEL --> MERGE
+  WEB --> MERGE
+  E2E --> MERGE
+  SCAN --> MERGE
+  CODEQL --> MERGE
+  PAGES --> MERGE

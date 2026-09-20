@@ -1,0 +1,44 @@
+%% How this documentation is checked and how it is built.
+%% ONE DIAGRAM PER FILE. ASCII ONLY.
+
+%% THE CHECKS RUN ON EVERY PULL REQUEST; THE BUILD RUNS WHEN SOMEBODY ASKS. A document with
+%% no release cadence should not pretend to have one, so the PDF job is workflow_dispatch
+%% and nothing else -- while the lint job, which can tell a contributor their link is broken
+%% before a reviewer does, runs on the pull request that broke it.
+
+%% EVERY DIAGRAM LIVES TWICE ON PURPOSE: inline in docs/DIAGRAMS.md and docs/DIAGRAMS.pl.md,
+%% which is the only form GitHub renders, and as a standalone .mmd, which is the form that
+%% renders to PDF and can be opened on its own. Two copies of anything is a drift surface,
+%% so a check keeps them byte-identical rather than a convention asking people to remember.
+
+%% NOTHING GENERATED IS COMMITTED except the screenshots, and those are committed for one
+%% reason: a document on GitHub cannot render an image that is only a build artifact.
+
+flowchart TD
+  SRC["docs/*.md and docs/*.pl.md<br/>docs/diagrams/*.mmd"]
+
+  subgraph lint["docs.yml - on every pull request"]
+    MD["markdownlint"]
+    LINKS["check-links.mjs<br/>every relative link resolves"]
+    DIAG["check-diagrams.mjs<br/>inline and .mmd agree,<br/>in both languages"]
+    PARITY["check-doc-parity.mjs<br/>both halves exist, and<br/>neither was edited alone"]
+  end
+
+  subgraph build["docs.yml - on workflow_dispatch"]
+    RENDER["render-diagrams.mjs<br/>mmdc, to vector PDF"]
+    TEX["latex-action<br/>English and Polish editions"]
+    SHOTS["screenshots.spec.ts<br/>Playwright, against a<br/>production build"]
+    ART["One run artifact<br/>PDFs, rendered diagrams,<br/>screenshots"]
+  end
+
+  GH["GitHub renders the<br/>Markdown and the Mermaid<br/>with no build step"]
+
+  SRC --> MD
+  SRC --> LINKS
+  SRC --> DIAG
+  SRC --> PARITY
+  SRC --> GH
+  SRC --> RENDER
+  RENDER --> TEX
+  TEX --> ART
+  SHOTS --> ART

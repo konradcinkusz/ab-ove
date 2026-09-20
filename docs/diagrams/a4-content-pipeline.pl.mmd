@@ -1,0 +1,44 @@
+%% Droga treści: z repozytorium książki na ekran czytelnika.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% NIC W TYM ŁAŃCUCHU NIE POWSTAJE TUTAJ. To repozytorium posiada schemat i prezentację;
+%% nie posiada, nie parsuje i nie edytuje plików książki, i nigdy nie parsuje LaTeX-a
+%% (P11, ADR-0008). web/content/ jest wyprowadzone i wyłączone z gita.
+
+%% PRZYPIĘCIE JEST REWIZJĄ, NIE WYDANIEM, I JEST ODSTĘPSTWEM Z WARUNKIEM WYJŚCIA
+%% (ADR-0038): żadne wydanie książki nie niesie jeszcze skompilowanej paczki treści, więc
+%% paczka jest kompilowana tutaj, kompilatorem samej książki, na przypiętym commicie.
+%% Wyjściem jest pierwsze wydanie, które taką paczkę poniesie.
+
+%% GAŁĄŹ Z ROZWIĄZANIAMI JEST POBIERANA I NIGDY NIE SERWOWANA (ADR-0012). Istnieje po to,
+%% by build mógł dowieść, że ćwiczenia są rozwiązywalne; test akceptacyjny sprawdza w obie
+%% strony, że nie trafia do public/.
+
+flowchart TD
+  BOOK[("konradcinkusz/math-for-ai-engineers<br/>przypięte po sha commita")]
+  LOCK["web/content/book.lock.json<br/>przypięcie, lista plików,<br/>skrót na każdy plik"]
+  FETCH["scripts/fetch-book-content.sh<br/>weryfikuje każdy skrót"]
+  ENGINE["web/content/book/<br/>silnik laboratorium, ćwiczenia, rysunki"]
+  COMPILE["lab/tools/content_compile.py<br/>--cross-check wyprowadza ponownie<br/>programy, ramki, odpowiedzi"]
+  BUNDLE["web/content/bundle/bundle.json<br/>47 programów, obie edycje"]
+  SCHEMA["content-schema.v1.json<br/>content-schema.v2.json<br/>nasze, i nie wiedzą nic<br/>o ramkach"]
+  VALIDATE["validateBundle<br/>odrzuca paczkę,<br/>której schemat nie dopuszcza"]
+  PUBLIC["web/app/public/<br/>układane przez build"]
+  FRAME["/read/track/unit/lang/step<br/>jedna ramka, renderowana serwerowo"]
+  SOLUTIONS["lab/solutions/<br/>pobierane, nigdy serwowane"]
+
+  BOOK --> FETCH
+  LOCK --> FETCH
+  FETCH --> ENGINE
+  FETCH --> COMPILE
+  COMPILE --> BUNDLE
+  SCHEMA --> VALIDATE
+  BUNDLE --> VALIDATE
+  VALIDATE --> FRAME
+  ENGINE --> PUBLIC
+  PUBLIC --> FRAME
+  FETCH -.-> SOLUTIONS
+  SOLUTIONS -.->|"dowód tylko w czasie builda"| COMPILE
+
+  classDef derived stroke-dasharray: 5 5;
+  class ENGINE,BUNDLE,PUBLIC derived;

@@ -1,0 +1,46 @@
+%% Co jest przechowywane i na jakie pytanie schemat celowo nie potrafi odpowiedzieć.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% DWIE TABELE, A KAŻDĄ TRZYMAJĄ TRZY MECHANICZNE REGUŁY, NIE OBIETNICA. ReaderProgress
+%% mówi, GDZIE jest czytelnik, i nigdy jak mu poszło; FrameOutcome zlicza werdykt przy
+%% ramce i nie niesie ani identyfikatora, ani znacznika czasu
+%% (ADR-0009, ADR-0020, ADR-0023).
+
+%% NIEOBECNA KOLUMNA JEST PROJEKTEM. Wynik nie niesie czytelnika, więc nic nie potrafi
+%% znaleźć wierszy, które były twoje - dlatego usunięcie konta nie cofnie wkładu już
+%% wliczonego do wskaźnika, i dlatego ekran usuwania mówi to wprost (ADR-0021).
+
+%% NIC, CO CZYTELNIK PISZE NA RAMCE, NIE JEST PRZECHOWYWANE POZA JEGO PRZEGLĄDARKĄ
+%% (ADR-0039). Arkusz, notatnik i płótno są lokalne; taka jest też zgoda (ADR-0022) i takie
+%% jest miejsce w lekturze, dopóki konto go nie zsynchronizuje.
+
+flowchart TD
+  subgraph browser["Własna przeglądarka czytelnika - domyślnie, i to wystarcza"]
+    LOCAL["localStorage<br/>miejsce w lekturze, odpowiedzi<br/>z arkusza, zgoda trójwartościowa"]
+  end
+
+  subgraph apidb["apidb - należy do AbOvo.Api"]
+    RP["ReaderProgress<br/>Subject, Track, Unit,<br/>Step, UpdatedAt"]
+    FO["FrameOutcome<br/>BundleTag, Unit, Step,<br/>Check, Attempt, Verdict,<br/>Count"]
+  end
+
+  subgraph authdb["authdb - należy do authservice"]
+    ACC["Konta i poświadczenia<br/>to repozytorium ich nie czyta"]
+  end
+
+  RULE1["ReaderScopedQueries<br/>zapytanie, które nie przypina<br/>jednego czytelnika, jest odrzucane<br/>zanim EF je skompiluje"]
+  RULE2["BundlePinnedQueries<br/>zapytanie przez wiele wersji<br/>paczki jest odrzucane"]
+  RULE3["Zamknięte listy kolumn<br/>wynik, czas trwania albo liczba<br/>podejść psują build"]
+
+  LOCAL -.->|"tylko z kontem"| RP
+  LOCAL -.->|"tylko za zgodą"| FO
+
+  RULE1 --> RP
+  RULE3 --> RP
+  RULE2 --> FO
+  RULE3 --> FO
+
+  NOPE(["Ocena pojedynczego czytelnika<br/>brak kolumny, klucza<br/>i indeksu na nią gotowego"])
+  FO -.->|"nie do zbudowania"| NOPE
+
+  linkStyle 6 stroke:#b45309,stroke-dasharray: 4 4;

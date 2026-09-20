@@ -1,0 +1,37 @@
+%% Jedna ramka i dlaczego odpowiedzi nie ma na stronie, zamiast być na niej ukrytą.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% TO JEST CAŁY MECHANIZM PRODUKTU. Ramka Strouda prosi o coś ZANIM cokolwiek powie, a
+%% kolejna ramka otwiera się odpowiedzią, którą miało się już zapisać. Czytelnik, który
+%% przelatuje wzrokiem, nie dostaje nic, a papier nie ma jak tego zauważyć.
+
+%% ODSŁONIĘCIE JEST NAWIGACJĄ, NIE PRZEŁĄCZNIKIEM. Ramka jest komponentem serwerowym bez
+%% granicy klienta wokół niej, więc odpowiedź na ramkę N renderuje ŻĄDANIE o ramkę N+1 i nic
+%% wcześniej. Czytelnik, który otworzy inspektor, nie znajdzie jej nigdzie; prefetch jest
+%% wyłączony, więc nie ma jej także na łączu. Obie połowy są sprawdzane testem i obie
+%% widziano, jak czerwienieją, zanim w nie uwierzono.
+
+%% DLACZEGO NIE WIDŻET ROZWIJANY. Cokolwiek renderuje odpowiedź do dokumentu i chowa ją
+%% CSS-em albo JavaScriptem, jest podpowiedzią, którą przeglądarka już ma. Wersja
+%% strukturalna kosztuje jedną nawigację i nie da się jej obejść.
+
+sequenceDiagram
+  autonumber
+  participant R as Czytelnik
+  participant B as Przeglądarka
+  participant S as Serwer Next.js
+  participant C as Skompilowana paczka treści
+
+  R->>B: otwiera /read/track/unit/lang/N
+  B->>S: GET ramka N
+  S->>C: krok N
+  C-->>S: polecenie dla N, odpowiedź dla N-1
+  S-->>B: HTML z poleceniem N<br/>i odpowiedzią N-1
+  Note over B: odpowiedzi na N nie ma<br/>w żadnym elemencie, atrybucie,<br/>skrypcie ani prefetchu
+  R->>B: zapisuje odpowiedź
+  R->>B: odwraca ramkę
+  B->>S: GET ramka N+1
+  S->>C: krok N+1
+  C-->>S: polecenie dla N+1, odpowiedź dla N
+  S-->>B: teraz, i dopiero teraz, odpowiedź na N
+  R->>R: porównuje to, co napisał,<br/>z tym, co mówi książka

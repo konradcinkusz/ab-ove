@@ -1,0 +1,56 @@
+%% Pętla czytelnika ab-ovo.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% KAŻDE POLE TEGO DIAGRAMU DZIAŁA BEZ KONTA I BEZ BACKENDU. To pierwszy wymóg produktu, nie
+%% optymalizacja: ramki są serwowane razem z witryną jako wersjonowana paczka
+%% (ADR-0008, ADR-0038), a wszystko, co czytelnik napisze, zostaje w jego przeglądarce
+%% (ADR-0039).
+
+%% GAŁĄŹ PRACY BYŁA KIEDYŚ PYTHONEM I JUŻ NIE JEST (ADR-0040). Kazała czytelnikowi książki
+%% matematycznej pisać kod, dosięgła jednego programu z czterdziestu siedmiu i kosztowała
+%% 6,4 MB oraz dwie sekundy startu przy każdej wizycie. Zastąpił ją arkusz: linia
+%% odpowiedzi, notatnik liczący arytmetykę (ADR-0042) i płótno (ADR-0043). Żadne z nich nie
+%% jest językiem i wszystkie trzy są opcjonalne.
+
+%% Dwie kropkowane krawędzie wychodzące z pętli to jedyne miejsca, gdzie pojawia się serwer,
+%% i żadna nie leży na ścieżce: konto synchronizuje miejsce w lekturze między maszynami i
+%% nic poza tym, a wynik trafia gdziekolwiek tylko wtedy, gdy czytelnik się zgodził. Obu
+%% może nie być i pętla jest taka sama.
+
+%% CZEGO CELOWO NIE NARYSOWANO: kroku oceniania. Kolejna ramka otwiera się odpowiedzią i
+%% czytelnik porównuje. Maszyna może powiedzieć "zgadza się z książką" tam, gdzie cała
+%% odpowiedź książki to jedna liczba, i nie mówi nigdy nic innego - nigdy "źle" (ADR-0039).
+%% Nic nie ocenia tego porównania i nie jest wołany żaden model językowy (ADR-0010).
+%% Porównanie JEST nauczaniem.
+
+flowchart TD
+  START(["Otwórz program"])
+  READ["Przeczytaj ramkę<br/>jedna myśl, czasem jeden wiersz"]
+  ASKS{"Czy ta ramka<br/>o coś czytelnika<br/>prosi?"}
+  WORK["Rozwiąż to<br/>notatnik liczy wyrażenie,<br/>płótno przyjmuje szkic"]
+  COMMIT["Zapisz odpowiedź<br/>zanim odwrócisz"]
+  REVEAL["Odsłoń kolejną ramkę<br/>otwiera się odpowiedzią"]
+  COMPARE{"Czy się zgadza?"}
+  BACK["Cofnij się o ramkę"]
+  NEXT["Czytaj dalej"]
+  SUMMARY["Podsumowanie i Czy potrafisz?<br/>na końcu programu"]
+  SYNC["Konto<br/>synchronizuje miejsce w lekturze<br/>między maszynami"]
+  INST["Instrument<br/>wynik przy ramce, podejściu<br/>i sprawdzeniu,<br/>nigdy przy czytelniku"]
+
+  START --> READ
+  READ --> ASKS
+  ASKS -->|"nie"| NEXT
+  ASKS -->|"tak"| COMMIT
+  COMMIT --> REVEAL
+  WORK --> COMMIT
+  COMMIT -.->|"opcjonalnie, obok linii"| WORK
+  REVEAL --> COMPARE
+  COMPARE -->|"nie"| BACK
+  BACK --> READ
+  COMPARE -->|"tak"| NEXT
+  NEXT --> READ
+  NEXT -->|"ostatnia ramka"| SUMMARY
+  SUMMARY --> START
+
+  NEXT -.->|"opcjonalnie, faza 3"| SYNC
+  COMPARE -.->|"zgoda, faza 4"| INST

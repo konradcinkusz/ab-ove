@@ -1,0 +1,43 @@
+%% Jeden origin: każde żądanie przeglądarki i dwa, których jej nie wolno wykonać.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% DWIE PRZERYWANE STRZAŁKI SĄ NARYSOWANE DLATEGO, ŻE NIE WOLNO IM ISTNIEĆ.
+%% FRONTEND-BFF.md sekcja 1: przeglądarka rozmawia z własnym originem aplikacji i z niczym
+%% więcej - nie z API, nie z authservice, nie z CDN, nie z krojem pisma. Dlatego ten majątek
+%% nie konfiguruje CORS po stronie frontendu, a potrzeba takiej konfiguracji oznaczałaby, że
+%% reguła została już złamana.
+
+%% BEARER NIGDY NIE TRAFIA DO DOKUMENTU. /api/auth/login przyjmuje poświadczenia i zwraca
+%% status; tokeny powstają wewnątrz procesu Next.js i są ustawiane jako ciasteczka HttpOnly
+%% (ADR-0018). /api/proxy usuwa przychodzący nagłówek Authorization i wstrzykuje bearer
+%% odczytany z ciasteczka, po stronie serwera.
+
+flowchart LR
+  BROWSER["Przeglądarka czytelnika"]
+
+  subgraph origin["Własny origin aplikacji webowej"]
+    PAGES["Strony<br/>/ /about /read /lab<br/>/login /account /instrument"]
+    CONFIG["/api/config<br/>adresy w czasie żądania<br/>nigdy NEXT_PUBLIC_*"]
+    LOGIN["/api/auth/login<br/>/api/auth/2fa<br/>poświadczenia w, status z"]
+    SESSION["/api/auth/session<br/>ciasteczka z tokenów,<br/>które klient już ma"]
+    PROXY["/api/proxy/[...path]<br/>jedyna droga do backendu"]
+  end
+
+  APISVC["AbOvo.Api"]
+  AUTHSVC["authservice"]
+  CDN(["Dowolna strona trzecia<br/>krój pisma, skrypt, ikona"])
+
+  BROWSER --> PAGES
+  BROWSER --> CONFIG
+  BROWSER --> LOGIN
+  BROWSER --> SESSION
+  BROWSER --> PROXY
+
+  PROXY -->|"prefiks auth/ usunięty"| AUTHSVC
+  PROXY -->|"cała reszta"| APISVC
+  LOGIN -->|"po stronie serwera"| AUTHSVC
+
+  BROWSER -.->|"nigdy"| APISVC
+  BROWSER -.->|"nigdy"| CDN
+
+  linkStyle 8,9 stroke:#b45309,stroke-dasharray: 4 4;

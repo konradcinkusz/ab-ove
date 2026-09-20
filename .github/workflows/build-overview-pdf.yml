@@ -6,6 +6,20 @@
 # forty times this week. Building it nightly would say it has a nightly audience. It has
 # neither: somebody wants the current paper, occasionally, and presses the button.
 #
+# TWO EDITIONS, ONE ARTIFACT. docs/papers/ holds ab-ovo-overview.tex and its Polish sibling
+# ab-ovo-overview.pl.tex. They are built by one step each and uploaded together, so a reader
+# downloads a bundle rather than hunting for the run that built the other language. The
+# Polish edition carries babel[polish] for hyphenation and typographic conventions; the TeX
+# Live the action runs already has it, so nothing is installed here for it.
+#
+# THE DIAGRAMS ARE RENDERED BEFORE ANY LaTeX RUNS, and the order is load-bearing rather than
+# tidy. Both papers include figures by \includegraphics from docs/diagrams/rendered/, which is
+# gitignored build output: the .mmd sources are the one copy of each diagram, and redrawing
+# them in TikZ for the PDF would be two sources of truth for one picture. Without this step
+# the build dies on the first \includegraphics whose file is not there. npm ci rather than
+# npm install, so the renderer is the version the lockfile records rather than whatever the
+# registry's floating latest happens to be on the day somebody presses the button.
+#
 # THE PDF IS A RUN ARTIFACT AND IS NOT COMMITTED. Two reasons, and the second is the one
 # that matters. A committed PDF is a binary in every diff, and it is a second copy of a
 # document whose source is already in the repository — so the day they disagree, nothing
@@ -38,34 +52,52 @@ permissions:
 
 jobs:
   build:
-    name: ab-ovo-overview.pdf
+    name: ab-ovo-overview.pdf, both editions
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
       PAPER_DIR: docs/papers
       PAPER_FILE: ab-ovo-overview.tex
+      PAPER_FILE_PL: ab-ovo-overview.pl.tex
+      NODE_VERSION: '22'
     steps:
       - uses: actions/checkout@v4
 
       # Fail here, with the path, rather than letting latexmk report a missing file from
       # inside a container three steps later. The person who pressed the button is
       # standing at the run page, and this is the sentence that tells them what to do.
-      - name: Require the source
+      - name: Require the sources
         shell: bash
         env:
           ENGINE: ${{ inputs.engine }}
         run: |
           set -euo pipefail
-          if [ ! -f "$PAPER_DIR/$PAPER_FILE" ]; then
-            echo "::error file=$PAPER_DIR/$PAPER_FILE::$PAPER_DIR/$PAPER_FILE does not exist. This workflow renders that file and nothing else; it does not search for a paper."
-            exit 1
-          fi
-          echo "Building $PAPER_DIR/$PAPER_FILE with $ENGINE."
+          for paper in "$PAPER_FILE" "$PAPER_FILE_PL"; do
+            if [ ! -f "$PAPER_DIR/$paper" ]; then
+              echo "::error file=$PAPER_DIR/$paper::$PAPER_DIR/$paper does not exist. This workflow renders the two named editions and nothing else; it does not search for a paper."
+              exit 1
+            fi
+          done
+          echo "Building $PAPER_DIR/$PAPER_FILE and $PAPER_DIR/$PAPER_FILE_PL with $ENGINE."
+
+      # The figures. See the header for why this comes first and why it is `npm ci`.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install the documentation tooling
+        run: npm ci
+
+      - name: Render the diagrams the papers include
+        run: npm run render:diagrams
 
       # latexmk drives the run, so multi-pass documents resolve their own references,
       # table of contents and bibliography without this file counting passes. The action
       # runs a full TeX Live, so a \usepackage the paper adds later needs no change here.
-      - name: Compile
+      - name: Compile the English edition
         uses: xu-cheng/latex-action@v3
         with:
           working_directory: ${{ env.PAPER_DIR }}
@@ -73,15 +105,28 @@ jobs:
           latexmk_use_xelatex: ${{ inputs.engine == 'xelatex' }}
           latexmk_use_lualatex: ${{ inputs.engine == 'lualatex' }}
 
+      # One step per root file, which is the estate's shape for this and not a limitation of
+      # the action: a failure then names the edition that failed, rather than a directory in
+      # which something did.
+      - name: Compile the Polish edition
+        uses: xu-cheng/latex-action@v3
+        with:
+          working_directory: ${{ env.PAPER_DIR }}
+          root_file: ${{ env.PAPER_FILE_PL }}
+          latexmk_use_xelatex: ${{ inputs.engine == 'xelatex' }}
+          latexmk_use_lualatex: ${{ inputs.engine == 'lualatex' }}
+
       # if-no-files-found: error. A compile that "succeeded" and produced no PDF is a
       # failure that would otherwise be reported as a green run with an empty artifact —
       # the same shape as every other silent pass this repository's gates are built to
       # refuse.
-      - name: Upload the PDF
+      - name: Upload the PDFs
         uses: actions/upload-artifact@v4
         with:
           name: ab-ovo-overview-${{ github.sha }}
-          path: ${{ env.PAPER_DIR }}/ab-ovo-overview.pdf
+          path: |
+            ${{ env.PAPER_DIR }}/ab-ovo-overview.pdf
+            ${{ env.PAPER_DIR }}/ab-ovo-overview.pl.pdf
           if-no-files-found: error
           retention-days: 90
 

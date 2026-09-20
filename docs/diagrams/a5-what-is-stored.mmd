@@ -1,0 +1,46 @@
+%% What is stored, and what the schema is designed to be unable to answer.
+%% ONE DIAGRAM PER FILE. ASCII ONLY.
+
+%% TWO TABLES, AND EACH IS HELD BY THREE MECHANICAL RULES RATHER THAN BY A PROMISE.
+%% ReaderProgress says WHERE a reader is and never how they did; FrameOutcome counts a
+%% verdict against a frame and carries no identifier and no timestamp
+%% (ADR-0009, ADR-0020, ADR-0023).
+
+%% THE ABSENT COLUMN IS THE DESIGN. An outcome has no reader, so nothing can find the rows
+%% that were yours -- which is why deleting an account cannot retract a contribution
+%% already folded into a rate, and why the deletion screen says so (ADR-0021).
+
+%% NOTHING A READER WRITES ON A FRAME IS STORED ANYWHERE BUT THEIR OWN BROWSER (ADR-0039).
+%% The worksheet, the pad and the canvas are local; so is consent (ADR-0022) and so is
+%% position until an account synchronises it.
+
+flowchart TD
+  subgraph browser["The reader's own browser - the default, and enough"]
+    LOCAL["localStorage<br/>position, worksheet answers,<br/>consent, three-valued"]
+  end
+
+  subgraph apidb["apidb - owned by AbOvo.Api"]
+    RP["ReaderProgress<br/>Subject, Track, Unit,<br/>Step, UpdatedAt"]
+    FO["FrameOutcome<br/>BundleTag, Unit, Step,<br/>Check, Attempt, Verdict,<br/>Count"]
+  end
+
+  subgraph authdb["authdb - owned by authservice"]
+    ACC["Accounts and credentials<br/>this repository never reads them"]
+  end
+
+  RULE1["ReaderScopedQueries<br/>a query that does not pin<br/>one reader is refused<br/>before EF compiles it"]
+  RULE2["BundlePinnedQueries<br/>a query that spans<br/>bundle tags is refused"]
+  RULE3["Closed column lists<br/>an outcome, a duration or<br/>a count of attempts<br/>breaks the build"]
+
+  LOCAL -.->|"only with an account"| RP
+  LOCAL -.->|"only with consent"| FO
+
+  RULE1 --> RP
+  RULE3 --> RP
+  RULE2 --> FO
+  RULE3 --> FO
+
+  NOPE(["A per-reader score<br/>no column, no key,<br/>no index prepared for it"])
+  FO -.->|"unbuildable"| NOPE
+
+  linkStyle 6 stroke:#b45309,stroke-dasharray: 4 4;

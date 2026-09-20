@@ -136,7 +136,7 @@ variable would make it a deployment detail.
 
 **`Pooled` exists, and ADR-0024 §2 forbids pooling — so the difference is stated rather than
 left to be noticed.** That rule refuses pooling across checks or attempts for a rate reported
-*as a rate*, because those observations share a reader and the interval's arithmetic assumes
+_as a rate_, because those observations share a reader and the interval's arithmetic assumes
 they do not. The attempt is held fixed here; the checks are not. The consequence is carried
 rather than hidden: the pooled interval is narrower than the truth, so the blend takes a bound
 rather than a variance, and the result is reported as a **score to rank by** rather than as a
@@ -155,8 +155,8 @@ reporting every cell. That is the honest outcome and it is visible rather than s
 `ScoresOver` reads `Attempt == 1` over `FrameOutcome` rows, and those rows have one way in:
 `reportRun` in `web/app/src/lib/instrument/report.ts` posts a run's verdicts to
 `POST /api/v1/outcomes`, and `OutcomeEndpoints` is the only writer of that table. So the
-measure this ADR weights at 0.35 is *whether this frame's checks passed on the run the browser
-counted as first* — over the frames a check's docstring names, never over the book's frames
+measure this ADR weights at 0.35 is _whether this frame's checks passed on the run the browser
+counted as first_ — over the frames a check's docstring names, never over the book's frames
 generally. A frame that no lab reaches has no first-attempt cell at all, for the same
 structural reason §4 gives for a frame no check carries forward, and the two absences compose:
 the scored set is the frames a lab both **reaches** and **carries forward**. ADR-0023's own
@@ -168,7 +168,7 @@ rather than measured in the strict sense.
 unmeasured.** The pairing rule wants the pressurable measure caught by something its
 degenerate strategy cannot also move ([ADR-0009](0009-the-instrument-measures-the-book.md)
 §3), and for a reading surface the obvious candidate is a reveal ratio: `docs/ux/UI-UX.md`
-carries it as planned work under the name *the counter-metric: revealed without answering*,
+carries it as planned work under the name _the counter-metric: revealed without answering_,
 and [ADR-0012](0012-solutions-are-never-served-to-the-browser.md) says of the lab-shaped twin
 that such a row "cannot arrive by accident". `frame-view.tsx` renders the `\dotline` row
 `aria-hidden="true"` and with no input, and says that is _"a decision rather than an

@@ -18,7 +18,7 @@ not be built.
 **Reproduced before it was fixed**, by giving `prepare-lab-assets.mjs` the layout the
 builder stage has — the context root as `/workspace`, `app/` beneath it, nothing above:
 
-```
+```text
 prepare-lab-assets: content/book.lock.json was not found at <ctx>/../content/book.lock.json
   The lab engine is fetched from the book at a pinned revision, not authored here.
   Fix:  bash scripts/fetch-book-content.sh

@@ -1,0 +1,87 @@
+// markdownlint-cli2 configuration — the documentation's mechanical floor.
+//
+// WHAT A LINTER IS FOR HERE, AND WHAT IT IS NOT. It cannot tell whether a document is true,
+// which is the failure this repository actually pays for. What it can do is keep the
+// mechanical things consistent so that a diff is a diff of meaning: a heading that skipped a
+// level, a list that changed marker halfway down, a link with no text in it. Every rule
+// switched off below is switched off with a reason, because a disabled rule with no reason is
+// indistinguishable from one somebody disabled to make their own commit pass.
+{
+  "globs": ["**/*.md"],
+  "ignores": [
+    "node_modules/**",
+    "web/**/node_modules/**",
+    "tests/e2e/node_modules/**",
+    // Derived, fetched and gitignored — not authored here, so not this repository's to lint
+    // (ADR-0008).
+    "web/content/book/**"
+  ],
+  "config": {
+    "default": true,
+
+    // MD013 line-length: OFF. This repository wraps its prose at 100 columns by hand and the
+    // .editorconfig says so; a table row or a long URL that cannot be wrapped is not a defect,
+    // and a rule that fires on those trains people to add inline disables.
+    "MD013": false,
+
+    // MD024 duplicate headings: allowed when they are not siblings. The ADRs all carry
+    // Status / Context / Decision / Consequences, and the how-to guides all end in "See also".
+    // Those are the template working, not a collision.
+    "MD024": { "siblings_only": true },
+
+    // MD033 inline HTML: OFF. The README carries a badge row and a "back to top" anchor, and
+    // docs/ux/UI-UX.md keeps superseded reasoning in an HTML comment on purpose. Prohibiting
+    // the tag would delete the reasoning rather than improve it.
+    "MD033": false,
+
+    // MD018 no-space-after-hash: OFF. This repository refers to issues as `#21`, `#52`, `#55`,
+    // and a paragraph that happens to begin with one is not a heading — CommonMark requires the
+    // space, so GitHub renders those lines as the text they are. The rule is a heuristic for a
+    // typo this corpus does not make, and it fires on the convention instead.
+    "MD018": false,
+
+    // MD026 trailing punctuation in a heading: OFF. Headings here are often whole sentences
+    // ("Status: nothing is deployed", "A check does not exist because a config file exists."),
+    // which is a deliberate voice rather than an accident to strip.
+    "MD026": false,
+
+    // MD034 bare URLs: ON, which is the default, and worth naming: an autolinked bare URL
+    // renders on GitHub and does not in several of the other places these documents are read.
+    // Write <https://...>.
+
+    // MD038 spaces inside a code span: OFF. Several documents quote a line of code WITH its
+    // indentation — `    return 0.0` — because the indentation is the thing being discussed.
+    // Trimming it to satisfy the rule would delete the point of the quotation.
+    "MD038": false,
+
+    // MD041 first line must be a top-level heading: OFF. README.md opens with the anchor the
+    // badge row's "back to top" link targets, and that anchor has to be the first line for the
+    // link to work.
+    "MD041": false,
+
+    // MD046 code block style: fenced, always. An indented block is invisible in a diff when
+    // the surrounding list indentation changes, and every recipe in docs/how-to/ is a fenced
+    // block a reader copies.
+    "MD046": { "style": "fenced" },
+
+    // MD048 code fence style: OFF, for one specific and unavoidable case. A fenced block whose
+    // CONTENT is a fenced block — every recipe in docs/how-to/add-a-diagram.md that shows what
+    // a diagram section looks like — has to open with the other marker, so one document
+    // legitimately carries both. Forcing a single marker would make that example unwritable.
+    "MD048": false,
+
+    // MD049/MD050 emphasis and strong style: CONSISTENT WITHIN A FILE rather than one style
+    // across the repository. Both conventions are already in use here — the ADRs reach for
+    // underscores, the guides for asterisks — and rewriting either set would put a hundred
+    // cosmetic lines into a diff that is supposed to be about something. Within one document
+    // the mixture is a typo, and that is what this catches.
+    "MD049": { "style": "consistent" },
+    "MD050": { "style": "consistent" },
+
+    // MD060 table pipe padding: OFF. GitHub renders `| a | b |` and `|a|b|` identically, both
+    // appear in this repository already, and a rule that fires on hundreds of table cells
+    // teaches people to skim the linter's output — which is how the genuine findings in the
+    // same run get missed.
+    "MD060": false
+  }
+}

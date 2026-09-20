@@ -1,0 +1,42 @@
+%% One origin: every request the browser makes, and the two it is not allowed to make.
+%% ONE DIAGRAM PER FILE. ASCII ONLY.
+
+%% THE TWO DASHED ARROWS ARE DRAWN BECAUSE THEY MUST NOT EXIST. FRONTEND-BFF.md section 1:
+%% the browser talks to the web app's own origin and to nothing else -- not the API, not
+%% authservice, not a CDN, not a font. That is why this estate configures no CORS on the
+%% frontend's account, and why needing one would mean the rule had already been broken.
+
+%% THE BEARER NEVER REACHES THE DOCUMENT. /api/auth/login takes credentials and returns a
+%% status; the tokens are minted into the Next.js process and set as HttpOnly cookies
+%% (ADR-0018). /api/proxy strips an inbound Authorization header and injects the bearer it
+%% reads from the cookie, server side.
+
+flowchart LR
+  BROWSER["Reader's browser"]
+
+  subgraph origin["The web app's own origin"]
+    PAGES["Pages<br/>/ /about /read /lab<br/>/login /account /instrument"]
+    CONFIG["/api/config<br/>addresses at request time<br/>never NEXT_PUBLIC_*"]
+    LOGIN["/api/auth/login<br/>/api/auth/2fa<br/>credentials in, status out"]
+    SESSION["/api/auth/session<br/>cookies from tokens<br/>a client already holds"]
+    PROXY["/api/proxy/[...path]<br/>the one path to any backend"]
+  end
+
+  APISVC["AbOvo.Api"]
+  AUTHSVC["authservice"]
+  CDN(["Any third party<br/>font, script, icon"])
+
+  BROWSER --> PAGES
+  BROWSER --> CONFIG
+  BROWSER --> LOGIN
+  BROWSER --> SESSION
+  BROWSER --> PROXY
+
+  PROXY -->|"prefix auth/ stripped"| AUTHSVC
+  PROXY -->|"everything else"| APISVC
+  LOGIN -->|"server side"| AUTHSVC
+
+  BROWSER -.->|"never"| APISVC
+  BROWSER -.->|"never"| CDN
+
+  linkStyle 8,9 stroke:#b45309,stroke-dasharray: 4 4;

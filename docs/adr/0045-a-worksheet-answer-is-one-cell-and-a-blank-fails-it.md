@@ -59,7 +59,9 @@ that this frame survived to where it is needed. File every worksheet answer unde
 frame anybody answered in the unit, frame 3 looks carried by frame 12, `carrying` selects
 frame 3's own cell, and
 
-    Teaching = 0.35·r + 0.65·r = r
+```text
+Teaching = 0.35·r + 0.65·r = r
+```
 
 a score that is entirely the pressurable measure while presenting as a blend.
 

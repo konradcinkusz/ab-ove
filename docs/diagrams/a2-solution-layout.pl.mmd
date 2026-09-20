@@ -1,0 +1,42 @@
+%% Układ rozwiązania: cztery projekty .NET, jedna przestrzeń pnpm i to, co wolno referować.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% STRZAŁKI TO REFERENCJE MIĘDZY PROJEKTAMI, A SEDNEM SĄ TE NIEOBECNE. Ze wspólnego jądra
+%% (AbOvo.ServiceDefaults) nie wychodzi żadna strzałka, bo P2 czyni je wyłącznie
+%% instalacją, a tests/AbOvo.Api.Tests/ArchitectureTests.cs odmawia referencji z niego do
+%% AbOvo.Api i AbOvo.Contracts. Biblioteka .Core, która zaczęła jako wspólna instalacja,
+%% a skończyła jako wspólna domena, została w tym majątku opłacona już dwa razy.
+
+%% AbOvo.AppHost JEST WYŁĄCZNIE DEWELOPERSKI (P1). Składa system na laptopie; nie jest
+%% wdrożoną topologią, którą opisuje flyio/*.fly.toml i której nigdy nie zastosowano.
+
+flowchart TD
+  subgraph dotnet["AbOvo.sln"]
+    APPHOST["AbOvo.AppHost<br/>deweloperski korzeń kompozycji<br/>postgres, authservice, api, web"]
+    API["AbOvo.Api<br/>minimal API, EF Core<br/>Program.cs jest manifestem"]
+    CONTRACTS["AbOvo.Contracts<br/>rekordy żądań i odpowiedzi<br/>bez zachowania"]
+    KERNEL["AbOvo.ServiceDefaults<br/>wspólne jądro<br/>uwierzytelnianie, CORS, limity,<br/>health, OpenAPI, migracje"]
+    TESTS["AbOvo.Api.Tests<br/>jednostkowe, integracyjne w pamięci,<br/>reguły architektury"]
+  end
+
+  subgraph node["web/ - jedna przestrzeń pnpm"]
+    APP["@ab-ovo/app<br/>strony Next.js i BFF"]
+    MCP["web/mcp<br/>serwer nad tą samą paczką treści"]
+  end
+
+  subgraph accept["tests/e2e"]
+    E2E["Playwright<br/>steruje buildem produkcyjnym"]
+  end
+
+  APPHOST --> API
+  API --> CONTRACTS
+  API --> KERNEL
+  TESTS --> API
+  TESTS --> KERNEL
+  APP --> MCP
+  E2E -.->|"po HTTP, bez referencji do źródeł"| APP
+
+  KERNEL -.->|"odrzucane przez ArchitectureTests"| API
+  KERNEL -.->|"odrzucane przez ArchitectureTests"| CONTRACTS
+
+  linkStyle 7,8 stroke:#b45309,stroke-dasharray: 4 4;

@@ -1,0 +1,44 @@
+%% The content pipeline: from the book's repository to a frame on the reader's screen.
+%% ONE DIAGRAM PER FILE. ASCII ONLY.
+
+%% NOTHING IN THIS CHAIN IS AUTHORED HERE. This repository owns the schema and the
+%% presentation; it does not own, parse or edit the book's files, and it never parses LaTeX
+%% (P11, ADR-0008). web/content/ is derived and gitignored.
+
+%% THE PIN IS A REVISION, NOT A RELEASE, AND THAT IS A DEVIATION WITH AN EXIT CONDITION
+%% (ADR-0038): no release of the book carries a compiled bundle yet, so the bundle is
+%% compiled here from the book's own compiler at a pinned commit. The exit is the first
+%% release that carries one.
+
+%% THE SOLUTIONS BRANCH IS FETCHED AND NEVER SERVED (ADR-0012). It exists so the build can
+%% prove the exercises solvable; an acceptance test asserts in both directions that it does
+%% not reach public/.
+
+flowchart TD
+  BOOK[("konradcinkusz/math-for-ai-engineers<br/>pinned by commit sha")]
+  LOCK["web/content/book.lock.json<br/>the pin, the file list,<br/>a digest per file"]
+  FETCH["scripts/fetch-book-content.sh<br/>verifies every digest"]
+  ENGINE["web/content/book/<br/>lab engine, exercises, figures"]
+  COMPILE["lab/tools/content_compile.py<br/>--cross-check re-derives<br/>programs, frames, answers"]
+  BUNDLE["web/content/bundle/bundle.json<br/>47 programs, both editions"]
+  SCHEMA["content-schema.v1.json<br/>content-schema.v2.json<br/>owned here, knows nothing<br/>about frames"]
+  VALIDATE["validateBundle<br/>refuses a bundle<br/>the schema does not admit"]
+  PUBLIC["web/app/public/<br/>staged by the build"]
+  FRAME["/read/track/unit/lang/step<br/>one frame, server rendered"]
+  SOLUTIONS["lab/solutions/<br/>fetched, never served"]
+
+  BOOK --> FETCH
+  LOCK --> FETCH
+  FETCH --> ENGINE
+  FETCH --> COMPILE
+  COMPILE --> BUNDLE
+  SCHEMA --> VALIDATE
+  BUNDLE --> VALIDATE
+  VALIDATE --> FRAME
+  ENGINE --> PUBLIC
+  PUBLIC --> FRAME
+  FETCH -.-> SOLUTIONS
+  SOLUTIONS -.->|"build-time proof only"| COMPILE
+
+  classDef derived stroke-dasharray: 5 5;
+  class ENGINE,BUNDLE,PUBLIC derived;

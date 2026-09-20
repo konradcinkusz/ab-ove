@@ -4,6 +4,12 @@ Read [`README.md`](README.md) for what the system is and [`AGENTS.md`](AGENTS.md
 invariants — this file is how to work on it. An automated contributor needs both of those
 and [`.github/agents/README.md`](.github/agents/README.md) as well.
 
+**If you would rather be shown than told**, [`docs/tutorials/03-contribute-a-change.md`](docs/tutorials/03-contribute-a-change.md)
+is this file walked through end to end, including watching two of the gates below refuse
+something — which is the part that does not survive being read about.
+[`docs/START-HERE.md`](docs/START-HERE.md) is the front door to everything else, and both
+exist in Polish.
+
 ---
 
 ## Set up, once
@@ -55,6 +61,7 @@ pnpm --dir web lint
 pnpm --dir web typecheck
 pnpm --dir web build
 bash scripts/scan-secrets.sh --staged
+npm install && npm run lint:docs      # links, diagram pairing, EN/PL parity, markdownlint
 ```
 
 `ci.yml` fetches before Restore for the same reason, and the distinction is worth having:
@@ -81,6 +88,8 @@ pnpm --dir tests/e2e run test:smoke
 | `secret-scan.yml` | gitleaks, on the PR's commits **and** on the history reachable from `main` | both, because either alone leaves a door |
 | `codeql.yml` | SAST over both runtimes, and a dependency audit | pull requests **and weekly** — an advisory published after the last commit makes an unchanged repository newly vulnerable, and nothing commit-triggered would ever notice |
 | `flyio.yml` | build once, deploy in order | a `v*` tag and nothing else. A branch push is a save; a deploy is an act, and a tag is the record of it |
+| `docs.yml` | every relative link resolves, every diagram's three copies agree and each one parses, and no bilingual document had one half edited alone | every pull request touching a document, and every push to `main`; the screenshot capture is `workflow_dispatch` only |
+| `pages.yml` | refuses to publish `site/index.html` if it would make any external request | pushes to `main` and pull requests touching the page |
 
 Three properties of these gates are deliberate and should not be "fixed":
 
@@ -188,6 +197,14 @@ date; the register is a record, not a to-do list.
 - **Measure numbers; do not remember them.** Where a document must carry one — the kernel
   line count is the live example — it carries a date and names the instrument that produces
   it.
+
+**And one that is no longer a habit, because it is a check.** Part of `docs/` is bilingual —
+the front door, the tutorials, the how-to guides, the diagrams and the picture tour — and
+`docs.yml` fails a commit that edits one half of a pair alone. No script can verify that a
+translation is *correct*; this verifies that somebody looked, which is the failure that
+actually bites: a wrong command fixed in one language and left wrong in the other, with
+nothing going red. [`docs/how-to/translate-a-document.md`](docs/how-to/translate-a-document.md)
+carries the list and the vocabulary to match.
 
 ---
 

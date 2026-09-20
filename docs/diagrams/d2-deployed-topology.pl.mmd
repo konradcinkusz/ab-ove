@@ -1,0 +1,47 @@
+%% Wdrożona topologia, która nie istnieje: cztery aplikacje Fly opisane i nigdy zastosowane.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% NIC NIE JEST WDROŻONE. Żadna aplikacja Fly nie istnieje, żaden obraz nie został
+%% opublikowany, żaden sekret nie został ustawiony. Każde pole poniżej jest z tego powodu
+%% przerywane, i to jest pierwsza rzecz, o której AGENTS.md prosi, by nie pisać zdania
+%% przeciwnego.
+
+%% APLIKACJA STANOWA NIE MA PUBLICZNEGO NASŁUCHU (P7) i nie dostanie go. Postgres jest
+%% osiągalny przez sieć prywatną Fly, z laptopa przez tunel, gdy w ogóle trzeba go osiągnąć.
+
+%% ZBUDUJ RAZ, WDRAŻAJ WIELE RAZY (P12). Obraz nie niesie żadnego adresu: aplikacja webowa
+%% czyta je w czasie działania z /api/config, i dlatego jest jeden obraz, a nie jeden na
+%% środowisko.
+
+%% APPHOST TO NIE JEST TEN OBRAZEK. Daje authservice port na hoście i wydawcę po zwykłym
+%% HTTP, czego wdrożona instancja mieć nie może. Wnioskowanie o tym, co jest wdrożone, z
+%% src/AbOvo.AppHost/AppHost.cs czyta nie ten plik.
+
+flowchart TD
+  READER["Czytelnik w internecie"]
+
+  subgraph fly["Fly.io - opisane przez flyio/*.fly.toml, nigdy zastosowane"]
+    WEB["ab-ovo-web<br/>Next.js, jedyny publiczny<br/>nasłuch, z którego korzysta czytelnik"]
+    API["ab-ovo-api<br/>AbOvo.Api"]
+    AUTH["ab-ovo-authservice<br/>przypięty zewnętrzny obraz"]
+    PG[("ab-ovo-postgres<br/>bez publicznego nasłuchu,<br/>wolumen, --ha=false")]
+  end
+
+  GHCR[("ghcr.io<br/>obrazy zbudowane raz")]
+  TAG["Tag wersji"]
+  DEPLOY[".github/workflows/flyio.yml"]
+
+  READER -->|"HTTPS"| WEB
+  WEB -->|"6PN"| API
+  WEB -->|"6PN"| AUTH
+  API -->|"6PN, JWKS"| AUTH
+  API -->|"6PN, .internal:5432"| PG
+  AUTH -->|"6PN, .internal:5432"| PG
+
+  TAG --> DEPLOY
+  DEPLOY --> GHCR
+  GHCR --> WEB
+  GHCR --> API
+
+  classDef notdeployed stroke-dasharray: 5 5;
+  class WEB,API,AUTH,PG notdeployed;

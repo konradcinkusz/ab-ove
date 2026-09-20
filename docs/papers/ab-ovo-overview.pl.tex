@@ -1,0 +1,298 @@
+% =====================================================================================
+%  ab-ovo-overview.pl.tex  --  POLSKA EDYCJA ab-ovo-overview.tex
+%
+%  TO NIE JEST ARTYKUL NAUKOWY I NIE POWSTAL POD STANDARDEM RESEARCH-DOCUMENTATION.
+%
+%  Powiedzenie tego tutaj, wprost i na gorze, jest sednem tego komentarza. Dokument jest
+%  zlozony jak artykul, bo zlozony przeglad latwiej komus wreczyc niz katalog markdowna, a
+%  czytelnik, ktory pomyli forme z gatunkiem, bedzie oczekiwal rzeczy, ktorych ten dokument
+%  nie ma i nie moze deklarowac: pytania badawczego, metody, danych, wyniku, sekcji o
+%  zagrozeniach dla trafnosci, przegladu prac pokrewnych ani odkrycia, ktore da sie cytowac.
+%  Nie ma zadnej z nich. To jest PRZEGLAD PROJEKTU.
+%
+%  NIE WNOSI TEZ ZADNEGO FAKTU, ktorego nie niesie jego zrodlo w markdownie. Kazde zdanie
+%  ponizej stoi w README.md, docs/architecture/00-ARCHITECTURE.md, docs/adr/ albo
+%  docs/ux/UI-UX.md, i to te pliki sa zrodlem prawdy. Jesli ten papier i ktorys z nich sie
+%  nie zgadzaja, racje ma markdown, a ten plik jest nieaktualny.
+%
+%  JEST SIOSTRZANA EDYCJA ANGIELSKA, ab-ovo-overview.tex, i to ona jest oryginalem. Ta
+%  edycja nie jest niezaleznym tlumaczeniem: slownictwo jest dobrane tak, by zgadzalo sie z
+%  tym, ktorym produkt juz mowi do polskiego czytelnika (web/app/src/lib/i18n/chrome.ts) i
+%  z docs/START-HERE.pl.md. Inaczej jedno pojecie zyskaloby dwie polskie nazwy w jednym
+%  majatku. Identyfikatory kodu - sciezki tras, nazwy klas, nazwy plikow - zostaja po
+%  angielsku w obu edycjach, bo to sa prawdziwe nazwy.
+%
+%  DRYF, KTORY PRZYJMUJEMY. Kuratorska prezentacja dokumentu markdown nie jest
+%  przeksztalceniem mechanicznym, wiec nic nie wymusza, by edycja jednego pliku dosiegla
+%  drugiego. Zapisujemy to jako przyjeta konsekwencje, a nie udajemy, ze pokrywa to jakas
+%  konwencja. Gdyby obie edycje rozjechaly sie widocznie wiecej niz raz, tanie mechaniczne
+%  sprawdzenie (diff naglowkow sekcji) jest wlasciwa odpowiedzia, a nie pelna regula
+%  sprzezenia zmian.
+%
+%  BUILD. .github/workflows/build-overview-pdf.yml renderuje ten plik i jego angielskie
+%  rodzenstwo na workflow_dispatch i na niczym wiecej, i wrzuca oba PDF-y jako jeden
+%  artefakt przebiegu. PDF NIGDY NIE JEST COMMITOWANY: zacommitowany PDF jest binarka w
+%  kazdym diffie i druga kopia dokumentu, ktorego zrodlo juz tu jest.
+%
+%  SILNIK. W odroznieniu od edycji angielskiej ten plik ZAWIERA ZNAKI SPOZA ASCII, bo
+%  polszczyzna bez diakrytykow to zla polszczyzna. Kompiluje sie pod pdflatex-em ze
+%  standardowym TeX Live dzieki inputenc[utf8], fontenc[T1] i babel[polish]; babel jest tym,
+%  co daje tej edycji poprawne dzielenie wyrazow i polskie konwencje typograficzne, a bez
+%  niego tekst bylby przetlumaczony, ale wciaz skladany po angielsku.
+%
+%  JEDEN ZAKAZANY ZNAK. Babel[polish] czyni " znakiem aktywnym, wiec ten plik nie uzywa go
+%  nigdzie w tresci; cudzyslow sklada sie jako ,, i ''. Ten komentarz jest jedynym
+%  miejscem, gdzie o tym mowa, i najtansza wersja tej reguly.
+%
+%  RYSUNKI SA RENDEROWANE, A NIE RYSOWANE TUTAJ. Kazdy z nich to diagram Mermaida, ktorego
+%  zrodlem jest docs/diagrams/<id>-<slug>.pl.mmd - to samo zrodlo, ktore docs/DIAGRAMS.pl.md
+%  renderuje na GitHubie, trzymane identycznie przez scripts/check-diagrams.mjs. Uruchom
+%  `node scripts/render-diagrams.mjs` PRZED latexmk-iem; workflow tak robi, a bez tego build
+%  umiera na pierwszym \includegraphics.
+% =====================================================================================
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[polish]{babel}
+\usepackage[a4paper,margin=28mm]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{ab-ovo: platforma edukacyjna, która zamyka w sobie\\
+\emph{Matematykę od zera dla inżyniera AI}}
+\author{konradcinkusz}
+\date{20 września 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+ab-ovo to platforma edukacyjna zbudowana wokół książki złożonej z 47 programów nauczania
+programowanego, po angielsku i po polsku, wraz z ćwiczeniami komputerowymi tej książki. Ten
+dokument jest przeglądem projektu: czym system jest, czym celowo nie jest, co istnieje dziś w
+repozytorium i co jest planowane. Nie jest artykułem naukowym i nie podaje żadnego wyniku.
+Każde zdanie w nim pochodzi z dokumentacji markdown repozytorium, która jest źródłem prawdy;
+gdy oba się nie zgadzają, rację ma markdown. Rysunki są własnymi diagramami repozytorium,
+wyrenderowanymi z tych samych źródeł, które renderuje GitHub.
+\end{abstract}
+
+\section{Czym jest ab-ovo}
+
+Książka, którą zamyka w sobie, stoi na mechanizmie, którego papier nie potrafi wymusić. Ramka
+Strouda prosi czytelnika o coś \emph{zanim} cokolwiek mu powie, a kolejna ramka otwiera się
+odpowiedzią, którą miał już zapisać. Czytelnik, który przelatuje wzrokiem, nie dostaje z tej
+struktury nic, a drukowana strona nie ma jak tego zauważyć.
+
+ab-ovo jest oprogramowaniem, które ma jak. Czytelnik czyta ramkę, zobowiązuje się do
+odpowiedzi i odsłania kolejną ramkę, która otwiera się odpowiedzią. Odsłonięcie jest nawigacją,
+a nie przełącznikiem, więc odpowiedź na ramkę widoczną na ekranie renderuje żądanie o kolejną
+i nic wcześniej: nie ma jej w dokumencie, zamiast być w nim ukrytą, a czytelnik, który otworzy
+inspektor, nie znajdzie niczego. Tam, gdzie ramka o coś prosi, pod nią stoi arkusz --- linia
+odpowiedzi, notatnik liczący arytmetykę, płótno do szkicu --- a wszystkie trzy są opcjonalne i
+lokalne dla przeglądarki czytelnika. Ćwiczenia komputerowe książki robi się w osobnym panelu
+laboratorium, w którym Python działa we własnej przeglądarce czytelnika; opuściły one pętlę
+lektury celowo, bo czytelnik książki matematycznej nie powinien musieć pisać kodu, żeby
+odpowiedzieć na ramkę.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.78\linewidth]{../diagrams/rendered/b1-reader-loop.pl.pdf}
+\caption{Pętla czytelnika. Każde pole działa bez konta i bez backendu; dwie kropkowane
+krawędzie z niej wychodzące to jedyne miejsca, gdzie pojawia się serwer, i żadna nie leży na
+ścieżce.}
+\end{figure}
+
+Pierwszy wymóg produktu ogranicza wszystko inne w tym dokumencie: \textbf{pętla czytelnika
+działa bez konta i bez backendu.} Ramki są serwowane razem z witryną jako wersjonowana paczka
+treści, ćwiczenia działają po stronie klienta, a nic, co czytelnik pisze na ramce, nie jest
+przechowywane nigdzie poza jego własną przeglądarką. Konto dokłada synchronizację pozycji w
+lekturze między maszynami i nic więcej.
+
+\section{Czym celowo nie jest}
+
+System zbiera wyniki, a wyniki o uczeniu się dryfują ku byciu wynikami o uczących się, bo to
+jest łatwiejsza liczba do wyprodukowania i ta, która wygląda jak postęp. Odpowiedzią projektu
+jest antycel wypowiedziany na górze README, nad funkcjami, i wymuszony strukturalną
+nieobecnością, a nie polityką:
+
+\begin{quote}
+Instrument mierzy \textbf{książkę}, nigdy czytelnika.
+\end{quote}
+
+Użyteczne pytanie, na które odpowiada, brzmi: \emph{gdzie ta książka marnuje czas czytelnika},
+a nie \emph{który czytelnik jest najgorszy}. Konkretnie, i w formie, którą przeszukanie kodu
+może sfalsyfikować: nie ma widoku pojedynczego czytelnika i dodanie go nie jest planowane; nie
+ma endpointu, którego trasa albo parametr zapytania nazywa osobę; i nie ma tabeli, z której
+dałoby się zbudować ocenę czytelnika. Wyniki są zapisywane przy ramce w danej wersji paczki,
+przy podejściu i przy przebiegu sprawdzenia --- przy artefakcie, nigdy przy osobie --- a wiersz
+wyniku nie niesie ani identyfikatora, ani znacznika czasu, bo wiersze, których czasy biegną po
+kolei przez jeden program, odtwarzają sesję, nikogo nie nazywając.
+
+Pozycja czytelnika w lekturze jest jedyną rzeczą, jaką ten majątek przechowuje o osobie, i
+mówi, gdzie ona jest, a nigdy jak jej poszło. Każdą z dwóch tabel trzymają trzy mechaniczne
+reguły, a nie obietnica: zamknięta lista kolumn, przez co miara czytelnika psuje build; każdy
+klucz i indeks zaczynający się od czytelnika w jednej tabeli, a od wersji paczki w drugiej;
+oraz zapytanie, które nie przypina dokładnie jednego z nich, odrzucane w czasie działania,
+zanim ORM je skompiluje. Każdą widziano, jak czegoś odmawia, zanim w nią uwierzono.
+
+Czytelnik słyszy także, co go ta nieobecność kosztuje --- a tego strukturalna nieobecność nie
+potrafi dostarczyć sama: ponieważ wynik nie niesie czytelnika, nic nie potrafi znaleźć
+wierszy, które były jego, więc usunięcie konta nie cofnie wkładu już wliczonego do wskaźnika.
+Ekran usuwania mówi dokładnie to, obok tego, co usunięcie faktycznie usuwa.
+
+Dwie dalsze odmowy są zapisane jako decyzje, a nie zostawione jako preferencje. Nigdzie w
+pętli czytelnika nie jest wołany żaden model językowy: nauczaniem jest porównanie z kolejną
+ramką, a osąd modelu wniósłby własny wskaźnik błędu w materiał dowodowy używany do poprawiania
+książki. I nie ma grywalizacji, bo seria jest powodem, by ruszyć liczbę, która nie jest
+uczeniem się.
+
+\section{Stan: nic nie jest wdrożone}
+
+Repozytorium stoi na \emph{buduje się, testy zielone, obrazy się budują}. Nie ma działającej
+instancji, pod żadnym adresem, dla nikogo. Cztery pliki \code{fly.toml} opisują topologię,
+której nigdy nie zastosowano, a żaden z obrazów kontenerów nigdy nie został opublikowany.
+
+Istnieje za to powierzchnia lektury nad całą książką: każdy program w obu edycjach, jedna
+ramka na ekran, z własną prozą i matematyką książki; wiersz miejsca, który jest jedyną obudową
+i którego numer ramki jest skokiem; oraz arkusz na każdej ramce, która o coś prosi. Za tym:
+API, aplikacja webowa, której strona startowa jest indeksem programów, pakiet akceptacyjny
+Playwrighta i bramki CI, które złapałyby regresję w którymkolwiek z tych elementów.
+
+Model domeny jest mały i przyszedł późno celowo. Encje wymyślone przed ticketem, który ich
+potrzebuje, są kodem, który pierwszy prawdziwy ticket kasuje, więc kontekst trwałości nie
+trzymał żadnej, dopóki synchronizacja nie potrzebowała jednej. Dziś trzyma pozycję czytelnika w
+lekturze i zliczenie wyników przy ramce --- i nic więcej.
+
+\section{Kształt repozytorium}
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Ścieżka} & \textbf{Czym jest} \\
+\midrule
+\code{src/AbOvo.AppHost}        & Korzeń kompozycji. Tylko deweloperski; nie jest topologią produkcyjną. \\
+\code{src/AbOvo.ServiceDefaults} & Wspólne jądro: instalacja przekrojowa, pod pułapem rozmiaru. \\
+\code{src/AbOvo.Contracts}      & DTO przekraczające granicę serwisu. \\
+\code{src/AbOvo.Api}            & Serwis HTTP. Posiada jedną logiczną bazę. Weryfikuje tokeny; nie wydaje żadnych. \\
+\code{tests/AbOvo.Api.Tests}    & Jednostkowe i integracyjne w pamięci, plus reguły architektury. Bez kontenera. \\
+\code{tests/e2e}                & Pakiet akceptacyjny Playwrighta; własny pakiet i własny lockfile. \\
+\code{web/}                     & Przestrzeń pnpm. Jedna aplikacja Next.js i jej backend-for-frontend. \\
+\code{flyio/}                   & Wdrożona topologia, opisana i nigdy niezastosowana. \\
+\code{docs/}                    & Architektura, decyzje, UX, diagramy i ten papier. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Powierzchnia HTTP jest zorganizowana według autoryzacji, a nie według funkcji, i korzeń
+kompozycji czyta się jak jej manifest. Grupa publiczna niesie gotowość, żywotność i endpoint
+opisujący wdrożenie. Grupa uwierzytelniona niesie własną pozycję czytelnika w lekturze, w tym
+jej usunięcie. Grupa administracyjna niesie wskaźniki, które czyta widok autora. Czwarta grupa
+nie jest czwartym członkiem tej triady: niesie jeden zapis anonimowy --- wynik --- bo zgoda nie
+jest kontem, a instrument wymagający tokenu mierzyłby książkę doświadczaną przez posiadaczy
+kont i nazywał to książką. Bierze jawny limit tempa, który bierze grupa uwierzytelniona,
+zamiast spadać do limitu globalnego, bo sonda, która dostanie odmowę z powodu limitu, wypada z
+rotacji razem z maszyną.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.92\linewidth]{../diagrams/rendered/a3-one-origin.pl.pdf}
+\caption{Każde żądanie, które wolno wykonać przeglądarce. Dwie strzałki narysowane dlatego, że
+nie wolno im istnieć, są tu regułą: przeglądarka rozmawia z własnym originem aplikacji webowej
+i z niczym więcej, i dlatego po stronie frontendu nie konfiguruje się CORS.}
+\end{figure}
+
+\section{Architektura i to, gdzie odchodzi od konstytucji}
+
+Repozytorium jest budowane wobec architektury referencyjnej trzymanej w osobnym repozytorium
+standardów, a \code{docs/architecture/00-ARCHITECTURE.md} przechodzi jej piętnaście zasad po
+tym drzewie --- odwołując się do konstytucji, a nie kopiując jej, bo skopiowana zasada jest
+drugą kopią, która się dezaktualizuje.
+
+Trzy własności warto nazwać w przeglądzie. Opcjonalne integracje \textbf{degradują się
+widocznie}: wdrożenie bez żadnych poświadczeń startuje, serwuje i nazywa to, czego nie ma, w
+trzech renderowaniach produkowanych z jednego źródła. Wspólne jądro jest trzymane przy
+instalacji przez dwa mechanizmy, a nie przez prozę --- bramkę rozmiaru w CI i test
+architektury sprawdzający, że nie referuje ono żadnego typu serwisu i nie deklaruje modelu
+trwałości. I żaden adres nie jest wkompilowany w żaden artefakt: frontend czyta swoją
+konfigurację w czasie żądania, więc jeden obraz obsługuje każde środowisko.
+
+Ten dokument niesie także \textbf{rejestr odstępstw}, w którym każdy wiersz ma datę, powód i
+warunek wyjścia. Co jest w nim zapisane dzisiaj: automatyka wersji zależności zadeklarowana i
+wyłączona; bramka rozmiaru licząca wiersze kodu, a nie surowe, żeby zasada wymagająca
+uzasadnienia w komentarzach nie wydawała budżetu zasady ograniczającej rozmiar; Python w
+przeglądarce, czego standardy nie popierają dowodem; nazwa repozytorium będąca literówką i
+nazwa systemu, która nią nie jest; jedno API Aspire oznaczone jako wyłącznie ewaluacyjne,
+użyte w pliku wyłącznie deweloperskim; skrypt lustrzany skanu sekretów, który nie jest jeden
+do jednego ze swoim jobem CI; oraz paczka treści kompilowana tutaj z książki na przypiętej
+rewizji, bo żadne wydanie książki jeszcze takiej nie niesie. Ten ostatni warunek wyjścia jest
+najprostszy w całym rejestrze: pierwsze wydanie, które poniesie paczkę.
+
+Odstępstwo bez warunku wyjścia jest dryfem, a nie decyzją, i dlatego ta kolumna istnieje.
+
+\section{Plan}
+
+Pięć faz, uszeregowanych w \code{docs/ux/UI-UX.md} tak, by sesja dostarczająca podnosiła
+decyzję, a nie wyprowadzała jej na nowo. Wcześniejsze fazy wylądowały; lista jest trzymana w
+pierwotnej kolejności, bo uzasadnienie tej kolejności jest w niej częścią użyteczną.
+
+\begin{enumerate}[leftmargin=2em,itemsep=2pt]
+  \item \textbf{Panel laboratorium.} Ćwiczenia, w przeglądarce. Największy kawałek, który nie
+        potrzebuje ani backendu, ani paczki treści, i dlatego jest pierwszy.
+  \item \textbf{Schemat treści i widok ramki.} Jego druga połowa była \emph{zablokowana} na
+        opublikowaniu paczki treści przez książkę --- jedynej zewnętrznej zależności planu ---
+        i została odblokowana przez skompilowanie paczki tutaj, na przypiętej rewizji, własnym
+        kompilatorem książki i jej własną kontrolą krzyżową. To jest odstępstwo z warunkiem
+        wyjścia, a nie rozwiązanie tej zależności. Fikstura napisana na pierwszą połowę
+        zostaje jako kontrola warstwy jednostkowej: test, którego wejściem jest badana rzecz,
+        dowodzi mniej.
+  \item \textbf{Pozycja w lekturze i konta.} Najpierw lokalnie; konto to synchronizuje.
+  \item \textbf{Instrument.} Zgoda dobrowolna i wersjonowana; wyniki przy artefaktach; każdy
+        wskaźnik niosący swój przedział.
+  \item \textbf{Edycja otwartoźródłowa.} Jednorazowa, nieodwracalna bramka, uporządkowana
+        według nieodwracalności, w której pełny skan historii pod kątem sekretów blokuje każdą
+        inną pozycję.
+\end{enumerate}
+
+\section{Gdzie są dokumenty}
+
+\begin{description}[leftmargin=0pt,itemsep=1pt]
+  \item[\code{docs/START-HERE.pl.md}] Drzwi frontowe, po polsku i po angielsku: którego z
+        czterech rodzajów dokumentu potrzebujesz i gdzie on jest.
+  \item[\code{README.md}] Czym system jest, jak uruchomić go jednym poleceniem, i antycele,
+        wypowiedziane przed funkcjami.
+  \item[\code{docs/architecture/00-ARCHITECTURE.md}] Przejście zasada po zasadzie, rejestr
+        odstępstw i znane luki.
+  \item[\code{docs/adr/}] Decyzje, po jednym pliku na każdą, wraz z tym, co kosztowały.
+  \item[\code{docs/DIAGRAMS.pl.md}] Cały system jako diagramy, w czterech częściach, po polsku
+        i po angielsku. Każdy istnieje w treści dokumentu --- jedyna forma, którą renderuje
+        GitHub --- oraz jako samodzielny \code{.mmd}, z którego renderowane są rysunki tego
+        papieru.
+  \item[\code{docs/SCREENSHOTS.pl.md}] Produkt ekran po ekranie, po polsku i po angielsku,
+        uchwycony z buildu produkcyjnego przez pakiet akceptacyjny.
+  \item[\code{docs/tutorials/}, \code{docs/how-to/}] Dwujęzyczne w całości: lekcje na pierwsze
+        uruchomienie i przepisy na zadanie już zrozumiane.
+  \item[\code{docs/ux/UI-UX.md}] Ekrany tak, jak zbudowane, i uszeregowany backlog.
+  \item[\code{AGENTS.md}, \code{CONTRIBUTING.md}, \code{SECURITY.md}] Praca w repozytorium i
+        to, co robić, gdy sekret wyląduje w historii.
+\end{description}
+
+\vspace{1em}
+\noindent\rule{\linewidth}{0.4pt}
+
+\small
+\noindent
+Ten dokument nie zapisuje żadnego własnego pomiaru i nie stawia twierdzenia, którego nie
+stawia już markdown repozytorium. Jest renderowany na żądanie ręcznym workflow, a powstający
+PDF nie jest commitowany.
+
+\end{document}

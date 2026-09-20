@@ -1,0 +1,41 @@
+{
+  "//": [
+    "REPOSITORY TOOLING ONLY. This is a .NET and pnpm repository; nothing here ships in any",
+    "container, and no project references it. It exists so the documentation checks have a",
+    "pinned version Dependabot tracks, instead of an npx invocation nobody updates.",
+    "",
+    "WHY npm AND NOT pnpm, IN A REPOSITORY WHOSE APPLICATION USES pnpm. web/ is a pnpm",
+    "workspace and this file is deliberately NOT a member of it (see pnpm-workspace.yaml,",
+    "whose packages list names web/app and web/mcp and nothing above them). A loose",
+    "package.json at the root that joined that workspace would put markdownlint and",
+    "mermaid-cli into the lint, typecheck and build surface of the application, and would put",
+    "the application's lockfile in the path of a documentation change. The two dependency",
+    "sets have nothing to do with each other, so they get two lockfiles and two tools.",
+    "FRONTEND-BFF.md section 7's rule -- one package manager, ALL apps members of one",
+    "workspace -- is about APPS. This is not one.",
+    "",
+    "NOTHING HERE RUNS IN THE APPLICATION'S CI JOBS. .github/workflows/docs.yml is the only",
+    "workflow that installs it, and ci.yml never sees it."
+  ],
+  "name": "ab-ovo-docs-tooling",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Documentation tooling for ab-ovo: markdown lint, link and parity checks, diagram pairing, and the Mermaid renderer the LaTeX editions include.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "lint:docs": "npm run lint:md && npm run lint:links && npm run lint:diagrams && npm run lint:parity",
+    "lint:md": "markdownlint-cli2",
+    "lint:links": "node scripts/check-links.mjs",
+    "lint:diagrams": "node scripts/check-diagrams.mjs",
+    "lint:parity": "node scripts/check-doc-parity.mjs",
+    "render:diagrams": "node scripts/render-diagrams.mjs"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "11.16.0",
+    "markdownlint-cli2": "0.23.2"
+  }
+}

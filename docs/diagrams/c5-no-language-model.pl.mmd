@@ -1,0 +1,37 @@
+%% Czego w pętli celowo nie ma: modelu językowego, oceniania, widoku pojedynczego czytelnika.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% ŻADEN MODEL JĘZYKOWY NIE JEST WOŁANY NIGDZIE (ADR-0010). Ani do oceny odpowiedzi, ani do
+%% objaśnienia ramki, ani do wygenerowania podpowiedzi. Książka nauczania programowanego
+%% działa, bo ramka przed twoją przygotowała cię na tę; wygenerowana parafraza jest inną
+%% książką, a oceniający, który czasem myli się w sposób niefalsyfikowalny, jest gorszy niż
+%% taki, który nie mówi nic.
+
+%% NIC NIE OCENIA TEGO PORÓWNANIA. Kolejna ramka otwiera się odpowiedzią i czytelnik
+%% porównuje. Tam, gdzie cała odpowiedź książki to jedna liczba, maszyna może powiedzieć
+%% "zgadza się z książką" i nie mówi nigdy nic innego - nigdy "źle" (ADR-0039).
+
+%% ANTYCELE SĄ TWIERDZENIAMI O KODZIE, NIE INTENCJAMI. Każdy staje się fałszywy w chwili,
+%% gdy ktoś dowiezie to, czego zaprzecza - i to czyni je wartymi spisania.
+
+flowchart LR
+  ANSWER["Odpowiedź czytelnika"]
+  BOOK["Odpowiedź książki,<br/>na kolejnej ramce"]
+  READER["Czytelnik porównuje"]
+
+  ANSWER --> READER
+  BOOK --> READER
+
+  LLM(["Model językowy<br/>oceniający odpowiedź"])
+  GRADE(["Ocena<br/>tego porównania"])
+  LEADER(["Ranking, tablica wyników,<br/>ocena pojedynczego<br/>czytelnika"])
+  ROUTE(["Trasa API albo parametr<br/>zapytania nazywający<br/>osobę"])
+  SORT(["Sortowanie<br/>po autorze"])
+
+  READER -.-> LLM
+  READER -.-> GRADE
+  READER -.-> LEADER
+  READER -.-> ROUTE
+  READER -.-> SORT
+
+  linkStyle 2,3,4,5,6 stroke:#b45309,stroke-dasharray: 4 4;

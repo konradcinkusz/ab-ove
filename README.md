@@ -534,19 +534,47 @@ table that decides which hostname reaches what.
 Documentation lives in this repository and records **reasoning**, not just steps (P14). If
 a document here tells you what to type and not why, it is incomplete.
 
+> ### → [**docs/START-HERE.md**](docs/START-HERE.md) · [**wersja polska**](docs/START-HERE.pl.md)
+>
+> The front door. There is a lot of documentation here and it is not all the same kind of
+> thing; that page sorts it by what you are doing — learning, working, looking something up,
+> or trying to understand why — and sends you to the right one.
+
+**Part of it is bilingual, and which part is a decision rather than an accident.** The book
+this product carries is set in English and Polish, so what a *reader* or a first-time
+contributor meets first exists in both: the front door, the tutorials, the how-to guides, the
+diagrams and the picture tour. The decision log and the architecture register are English only,
+because they move constantly and a half-maintained translation of a decision log is a second
+decision log that disagrees with the first. [`scripts/check-doc-parity.mjs`](scripts/check-doc-parity.mjs)
+holds the list, and fails a commit that edits one half of a pair alone.
+
 | Document | What it answers |
 | --- | --- |
+| [docs/START-HERE.md](docs/START-HERE.md) 🇬🇧 🇵🇱 | Which of the four kinds of document you need, and where it is. |
+| [docs/DIAGRAMS.md](docs/DIAGRAMS.md) 🇬🇧 🇵🇱 | The whole system as diagrams, in four parts: architecture, the reader loop, the instrument, delivery. |
+| [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md) 🇬🇧 🇵🇱 | What the product looks like, screen by screen, captured from a production build. |
+| [docs/tutorials/](docs/tutorials/) 🇬🇧 🇵🇱 | First run, reading a program properly, and making a change that passes every gate. |
+| [docs/how-to/](docs/how-to/) 🇬🇧 🇵🇱 | Recipes: the tests, the content bundle, a diagram, the screenshots, the docs build, a translation. |
 | [docs/architecture/00-ARCHITECTURE.md](docs/architecture/00-ARCHITECTURE.md) | This repository measured against the constitution, P1 to P15 — plus the **deviation register**, every row with a date, a reason and an exit condition. |
 | [docs/adr/](docs/adr/) | The decisions, one file each, with the consequences that came with them. |
 | [docs/ux/UI-UX.md](docs/ux/UI-UX.md) | The screens as scaffolded, and the ranked backlog. |
 | [docs/architecture/MCP-SERVER-SKETCH.md](docs/architecture/MCP-SERVER-SKETCH.md) | The MCP server: the gate that makes an unreached answer unselectable, the tool surface, and what a deployed shape still needs. |
-| [docs/diagrams/](docs/diagrams/) | The system, and the reader loop. One Mermaid diagram per file. |
-| [docs/papers/ab-ovo-overview.tex](docs/papers/ab-ovo-overview.tex) | A project overview as a typeset paper. Rendered by a manual workflow; the PDF is never committed. |
+| [docs/diagrams/](docs/diagrams/) | One Mermaid diagram per file, in both languages — the reusable half of what `docs/DIAGRAMS.md` renders. |
+| [docs/papers/ab-ovo-overview.tex](docs/papers/ab-ovo-overview.tex) 🇬🇧 🇵🇱 | A project overview as a typeset paper, in both editions. Rendered by a manual workflow; the PDF is never committed. |
 | [AGENTS.md](AGENTS.md) | What an AI agent working in this repository must know before it changes anything. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to build it, what the gates check, and how a decision gets recorded. |
 | [SECURITY.md](SECURITY.md) | How to report something, and what to do when a secret lands in history. |
 | [scripts/README.md](scripts/README.md) | Onboarding, every environment variable by tier, and worked recipes for the partial operations. |
 | [flyio/README.md](flyio/README.md) | The topology, and which address reaches what. |
+
+**The documentation has gates of its own**, and they run on the pull request rather than on
+somebody's memory ([.github/workflows/docs.yml](.github/workflows/docs.yml)): every relative
+link resolves, every diagram's three copies agree and every one of them parses, and no
+bilingual document has had one half edited alone.
+
+```bash
+npm install && npm run lint:docs    # exactly what that workflow runs
+```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

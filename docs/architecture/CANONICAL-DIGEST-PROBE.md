@@ -156,7 +156,7 @@ Engine default configuration:
 | E7 | `2x` | `\frac{` | diff | ok diff | ok diff | ok diff | ok diff | ok diff | ok diff |
 | E8 | `2x` | `2x.` | same | ok same | ok same | ok same | ok same | ok same | ok same |
 
-```
+```text
                  correct   equivalences missed                          distinct answers COLLIDED
 canonical        37/54     15/32  A2 A3 A13 A15 A16 B1 B3 B3b B4 B5      2/22  A4 A5
                                   B6 B8 B9 B11 B12
@@ -212,7 +212,7 @@ stage that recognises fewest equivalences of any measured.
 `expand` and under nothing else. `simplify` leaves it alone while expanding the neighbouring
 shapes:
 
-```
+```text
 (a+b)^2      .simplify  ->  ["Power",["Add","a","b"],2]
 (a+b)(a+b)   .simplify  ->  ["Add",["Power","a",2],["Power","b",2],["Multiply",2,"a","b"]]
 (x-1)(x+1)   .simplify  ->  ["Add",["Power","x",2],-1]
@@ -227,7 +227,7 @@ byte-identical forms at 0.100.0 and at 0.131.3. What it does not close is the ne
 There is no semantic equality to fall back on either — `isEqual` returns `undefined`, not
 `false`, for every symbolic pair tried:
 
-```
+```text
 (a+b)^2             vs a^2+2ab+b^2       isSame=false  isEqual=undefined
 x+x                 vs 2x                isSame=false  isEqual=undefined
 \sigma(1-\sigma)    vs \sigma-\sigma^2   isSame=false  isEqual=undefined
@@ -239,7 +239,7 @@ x+x                 vs 2x                isSame=false  isEqual=undefined
 `numeric` and `expand` both score 45 of 54, and beyond a shared core their failures are
 **disjoint** — neither is the other with more applied:
 
-```
+```text
 both fail     A2 A4 A5 A9 A15 A16      all six are numeric-answer cases
 numeric only  B3 B3b B4 B8             the expansions
 expand only   A3 A13 B5                decimal against rational
@@ -258,7 +258,7 @@ right, silently.
 Under the default, a Polish decimal is not an error. It is a tuple, and the engine reports it
 as valid:
 
-```
+```text
 0,5         ->  ["Tuple",0,5]              isValid=true  errors=[]
 2,22e-16    ->  ["Tuple",2,2.2e-15]        isValid=true  errors=[]
 1,5 + 1,5   ->  ["Tuple",1,6,5]            isValid=true  errors=[]
@@ -276,7 +276,7 @@ you which to pick.
 
 What it costs:
 
-```
+```text
 decimalSeparator = ','
    (3, 4)             ->  12       isValid=true
    (3,4)              ->  3.4      isValid=true
@@ -292,7 +292,7 @@ say it works on the first example anybody tries.
 
 Re-running the list with the comma set trades A2, A15 and A16 for D5 and D6:
 
-```
+```text
 decimalSeparator = ','
 canonical        38/54   13/32 missed  A3 A13 B1 B3 B3b B4 B5 B6 B8 B9 B11 B12 D5   3/22 COLLIDED  A4 A5 D6
 simplify         45/54    5/32 missed  A3 A13 B3 B5 D5                              4/22 COLLIDED  A4 A5 A9 D6
@@ -309,7 +309,7 @@ three numeric, all three scoring a wrong answer right.
 
 ### 4f. `isValid` catches syntax, not misreadings
 
-```
+```text
 ""           ->  "Nothing"                                        isValid=true
 "x^10"       ->  ["Multiply",0,"x"]                               isValid=true
 "hello"      ->  ["Multiply","ExponentialE","h","l","l","o"]      isValid=true
@@ -321,7 +321,7 @@ An empty answer is valid. `hello` is the product of Euler's number with four let
 the brace a reader omits is worse than it looks, because LaTeX binds the exponent to one
 character: `x^ab` is read as `b` times `x^a`, so
 
-```
+```text
 x^10  ->  ["Multiply",0,"x"]              x^1 times 0, which is zero
 x^25  ->  ["Multiply",5,["Power","x",2]]  x^2 times 5
 x^99  ->  ["Multiply",9,["Power","x",9]]  x^9 times 9
@@ -370,7 +370,7 @@ parse of `x + x`. No hidden state to defeat.
 All three that moved are expansions the older `N()` performed incidentally and the newer one
 does not:
 
-```
+```text
 numeric::(x-1)(x+1)
   0.100.0 -> ["Add",["Power","x",2],-1]
   0.131.3 -> ["Multiply",["Add","x",-1],["Add","x",1]]

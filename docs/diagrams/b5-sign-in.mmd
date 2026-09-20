@@ -1,0 +1,45 @@
+%% Sign-in: a password, a second factor, and a session the document never holds.
+%% ONE DIAGRAM PER FILE. ASCII ONLY.
+
+%% THE TOKENS ARE NEVER IN THE DOCUMENT (ADR-0018). The form posts CREDENTIALS to this
+%% app's own BFF, which talks to authservice server side and sets HttpOnly cookies. The
+%% alternative -- posting to the identity service and handing a token back to the page --
+%% puts a bearer in a place document.cookie and every script on the page can read.
+
+%% THE CHALLENGE IS A COOKIE AND THE CODE IS THE ONLY THING THE READER SUPPLIES (ADR-0029).
+%% It is scoped like a session cookie and useless as one: it cannot authenticate a request,
+%% it expires in about five minutes, and sign-out clears it. A hidden form field would be a
+%% credential that survives form restore and screenshots.
+
+%% THE REDIRECT PARAMETER IS ACCEPTED ONLY AS A SAME-ORIGIN ABSOLUTE PATH. A value starting
+%% with // or carrying a scheme is discarded: an attacker chooses that string, and a sign-in
+%% page that forwards to it is a phishing redirector with this site's name on it.
+
+%% NO IDENTITY SERVICE CONFIGURED IS A SUPPORTED CONFIGURATION, NOT A BROKEN ONE (P8). The
+%% page says so plainly rather than offering a button that cannot work.
+
+sequenceDiagram
+  autonumber
+  participant R as Reader
+  participant P as /login page
+  participant BFF as /api/auth/*
+  participant AS as authservice
+
+  R->>P: email and password
+  P->>BFF: POST /api/auth/login<br/>credentials, same origin
+  BFF->>AS: sign in, server side
+
+  alt second factor required
+    AS-->>BFF: challenge
+    BFF-->>P: HttpOnly challenge cookie<br/>about five minutes, not a session
+    R->>P: the code, and nothing else
+    P->>BFF: POST /api/auth/2fa
+    BFF->>AS: code plus challenge
+  end
+
+  AS-->>BFF: access and refresh tokens
+  BFF-->>P: Set-Cookie HttpOnly<br/>status only, no token in the body
+  Note over P: the browser never holds a bearer,<br/>and localStorage holds none either
+
+  R->>P: follow ?redirect=
+  Note over P: same-origin absolute path only.<br/>A value starting with two slashes,<br/>or carrying a scheme, is discarded

@@ -1,0 +1,47 @@
+%% The deployed topology, which does not exist: four Fly apps described and never applied.
+%% ONE DIAGRAM PER FILE. ASCII ONLY.
+
+%% NOTHING IS DEPLOYED. No Fly app exists, no image has been published, no secret has been
+%% set. Every box below is dashed for that reason, and it is the first thing AGENTS.md asks
+%% a contributor not to write a sentence against.
+
+%% THE STATEFUL APP HAS NO PUBLIC LISTENER (P7) and will not get one. Postgres is reached
+%% over Fly's private network, from a laptop through a tunnel when it has to be reached at
+%% all.
+
+%% BUILD ONCE, DEPLOY MANY (P12). The image carries no address: the web app reads them at
+%% run time from /api/config, which is why there is one image rather than one per
+%% environment.
+
+%% THE APPHOST IS NOT THIS PICTURE. It gives authservice a host port and a plain-HTTP
+%% issuer, which a deployed instance must not have. Reasoning about what is deployed from
+%% src/AbOvo.AppHost/AppHost.cs reads the wrong file.
+
+flowchart TD
+  READER["A reader on the internet"]
+
+  subgraph fly["Fly.io - described by flyio/*.fly.toml, never applied"]
+    WEB["ab-ovo-web<br/>Next.js, the only<br/>public listener a reader uses"]
+    API["ab-ovo-api<br/>AbOvo.Api"]
+    AUTH["ab-ovo-authservice<br/>pinned external image"]
+    PG[("ab-ovo-postgres<br/>no public listener,<br/>a volume, --ha=false")]
+  end
+
+  GHCR[("ghcr.io<br/>images built once")]
+  TAG["A version tag"]
+  DEPLOY[".github/workflows/flyio.yml"]
+
+  READER -->|"HTTPS"| WEB
+  WEB -->|"6PN"| API
+  WEB -->|"6PN"| AUTH
+  API -->|"6PN, JWKS"| AUTH
+  API -->|"6PN, .internal:5432"| PG
+  AUTH -->|"6PN, .internal:5432"| PG
+
+  TAG --> DEPLOY
+  DEPLOY --> GHCR
+  GHCR --> WEB
+  GHCR --> API
+
+  classDef notdeployed stroke-dasharray: 5 5;
+  class WEB,API,AUTH,PG notdeployed;

@@ -1,0 +1,39 @@
+%% The worksheet: what a frame offers a reader who has to work something out.
+%% ONE DIAGRAM PER FILE. ASCII ONLY.
+
+%% THIS REPLACED THE PYTHON LAB IN THE READER LOOP (ADR-0040). Measured across the book's
+%% answers, effectively none of them is a Python one-liner, and asking a reader of a
+%% mathematics book to write code to answer a frame reached one program of forty-seven.
+
+%% ALL THREE ARE OPTIONAL AND ALL THREE ARE LOCAL. Nothing here is sent anywhere, nothing is
+%% graded, and no language model is called (ADR-0010, ADR-0039). The pad is a calculator and
+%% deliberately not a computer algebra system (ADR-0042); the canvas is strokes and never
+%% opens itself (ADR-0043).
+
+%% A BLANK FAILS THE ANSWER RATHER THAN SKIPPING IT (ADR-0045): a worksheet answer is one
+%% cell, and an empty cell is a reader who did not commit.
+
+flowchart TD
+  FRAME["A frame that asks<br/>for something"]
+  LINE["The answer line<br/>one cell, a commitment"]
+  PAD["The pad<br/>evaluates arithmetic<br/>a calculator, not a CAS"]
+  CANVAS["The canvas<br/>strokes, for a sketch<br/>never opens itself"]
+  COMMIT["Turn the frame"]
+  REVEAL["The next frame opens<br/>with the answer"]
+  MATCH{"Whole answer<br/>is one number?"}
+  SAYS["'matches the book'<br/>and nothing else --<br/>never 'wrong'"]
+  QUIET["Says nothing.<br/>The comparison<br/>is the teaching"]
+  TALLY["Optional, with consent:<br/>one tally against the frame"]
+
+  FRAME --> LINE
+  LINE -.->|"optional, beside the line"| PAD
+  LINE -.->|"optional, beside the line"| CANVAS
+  PAD -.-> LINE
+  CANVAS -.-> LINE
+  LINE --> COMMIT
+  COMMIT --> REVEAL
+  REVEAL --> MATCH
+  MATCH -->|"yes"| SAYS
+  MATCH -->|"no"| QUIET
+  SAYS -.-> TALLY
+  QUIET -.-> TALLY

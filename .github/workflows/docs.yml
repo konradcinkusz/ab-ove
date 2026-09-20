@@ -1,0 +1,276 @@
+# docs.yml — the documentation's own gates, and the build that renders it.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# WHAT THIS WORKFLOW IS FOR, AND WHY IT IS NOT PART OF ci.yml
+#
+# ci.yml answers "does the code work". This answers "is the documentation self-consistent",
+# which is a different question with a different failure mode and a different audience. Its
+# jobs need no .NET, no database and no application build to say something useful, so folding
+# them into ci.yml would put a two-minute answer behind a fifteen-minute queue — and would put
+# a broken link in the same job summary as a failing test, where nobody reading either one is
+# looking for the other.
+#
+# WHAT IT REFUSES, IN ORDER OF HOW OFTEN IT WILL FIRE:
+#
+#   1. A relative link that resolves to nothing. The failure nobody notices until a reader
+#      clicks it, and the one a rename causes silently.
+#   2. A diagram whose three copies have drifted — inline in docs/DIAGRAMS.md, inline in
+#      docs/DIAGRAMS.pl.md, and the standalone .mmd files that the LaTeX editions render.
+#   3. A bilingual document with one half edited and the other left alone. No script can check
+#      that a translation is CORRECT; this checks that somebody looked, which is the failure
+#      that actually bites — a wrong command fixed in one language and left wrong in the other.
+#   4. A diagram that does not parse. GitHub renders an invalid Mermaid block as a code block
+#      rather than erroring, so this is the only thing standing between a broken diagram and a
+#      page that quietly shows source.
+#
+# WHY THE HEAVY JOBS ARE workflow_dispatch AND THE CHECKS ARE NOT. A document with no release
+# cadence should not pretend to have one: rendering a PDF on every push would put a binary on
+# every commit that touched a comma, and the run history would read as forty releases a week.
+# The checks are the mirror image — they can tell a contributor their link is broken before a
+# reviewer has to, so they run on the pull request that broke it.
+#
+# THE SCREENSHOTS ARE THE ONE GENERATED ARTEFACT THIS REPOSITORY COMMITS, and the reason is
+# forced rather than chosen: a Markdown document on GitHub cannot render an image that exists
+# only inside a workflow run's artifact. The `screenshots` job below re-captures them so a
+# maintainer can download the current set and commit whichever ones actually changed; it does
+# not push, because a workflow that rewrites the documentation on its own is a workflow whose
+# diffs nobody reads.
+#
+# THE PDFs ARE BUILT BY build-overview-pdf.yml, NOT HERE, and that separation is deliberate:
+# that workflow already owns the overview paper, offers a choice of TeX engine, and uploads
+# the LaTeX log whatever happened. Building the same document in two places would be two
+# answers to one question.
+# ─────────────────────────────────────────────────────────────────────────────────────────
+
+name: Docs
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      # Every Markdown file, anywhere: the link checker reads the whole tree, so a rename in
+      # one directory breaks a link in another, and a path filter that named only docs/ would
+      # let exactly that through.
+      - '**/*.md'
+      - 'docs/**'
+      - 'scripts/check-diagrams.mjs'
+      - 'scripts/check-doc-parity.mjs'
+      - 'scripts/check-links.mjs'
+      - 'scripts/render-diagrams.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.markdownlint-cli2.jsonc'
+      - '.github/workflows/docs.yml'
+  push:
+    branches: [main]
+    paths:
+      - '**/*.md'
+      - 'docs/**'
+      - 'scripts/check-*.mjs'
+      - 'scripts/render-diagrams.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.markdownlint-cli2.jsonc'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────────────────
+  # The four checks. No browser, no application build, no credential — under a minute, and
+  # it is the job whose failure a contributor can act on without leaving their editor.
+  # ───────────────────────────────────────────────────────────────────────────────────────
+  lint:
+    name: docs lint (links, diagrams, parity)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # fetch-depth: 0 is load-bearing rather than cautious. check-doc-parity.mjs's second
+      # rule needs a merge base with origin/main to diff against, and a shallow clone does not
+      # reach one — it would report "structural parity only" and pass a commit that edited one
+      # half of a bilingual document alone, which is the rule's whole purpose.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # `npm ci`, never `npm install`: the lockfile decides the version, so a run that passes
+      # today passes for the same reason next month. It also installs mermaid-cli's Chromium,
+      # which the render job below needs and this one does not — accepted, because splitting
+      # the install into two package.json files to save a download would be two dependency
+      # sets to keep in step.
+      - name: Install the documentation tooling
+        run: npm ci
+
+      - name: markdownlint
+        run: npm run lint:md
+
+      - name: Every relative link resolves
+        run: npm run lint:links
+
+      - name: Every diagram's three copies agree
+        run: npm run lint:diagrams
+
+      # The base ref turns on the coupling rule. On a push to main there is no pull request to
+      # diff, so the structural half runs alone and says so.
+      - name: Both halves of every bilingual document moved together
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            node scripts/check-doc-parity.mjs "origin/${{ github.base_ref }}"
+          else
+            node scripts/check-doc-parity.mjs
+          fi
+
+  # ───────────────────────────────────────────────────────────────────────────────────────
+  # Every diagram actually parses. The pairing check above proves the three copies AGREE; it
+  # cannot prove any of them is valid Mermaid, and GitHub renders an invalid block as source
+  # rather than erroring — so without this job a broken diagram ships looking like a mistake
+  # nobody made on purpose.
+  # ───────────────────────────────────────────────────────────────────────────────────────
+  diagrams:
+    name: every diagram renders
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install the documentation tooling
+        run: npm ci
+
+      # --no-sandbox is passed by the script itself: the runner runs as a user whose Chromium
+      # sandbox cannot start, and a renderer that fails there fails for a reason that has
+      # nothing to do with the diagram.
+      - name: Render every diagram, both languages
+        run: npm run render:diagrams
+
+      # The PDFs are gitignored build output. They are uploaded anyway, because the cheapest
+      # way to review a changed diagram is to look at it, and a reviewer should not have to
+      # install a renderer to do that.
+      - name: Upload the rendered diagrams
+        uses: actions/upload-artifact@v4
+        with:
+          name: ab-ovo-diagrams-${{ github.sha }}
+          path: docs/diagrams/rendered/*.pdf
+          if-no-files-found: error
+          retention-days: 30
+
+  # ───────────────────────────────────────────────────────────────────────────────────────
+  # The pictures docs/SCREENSHOTS.md shows, re-captured from a real production build.
+  #
+  # MANUAL ONLY. It builds the whole web application and drives a browser, which is minutes
+  # rather than seconds, and its output is a set of PNGs somebody has to LOOK at before
+  # committing — a diff of images is not readable, and a job that committed them itself would
+  # be rewriting the documentation on every run with nobody reviewing the result.
+  # ───────────────────────────────────────────────────────────────────────────────────────
+  screenshots:
+    name: capture the screenshots
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          # The pnpm version is declared once, in web/package.json's packageManager field.
+          package_json_file: web/package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      # web/content/ is derived rather than committed, so without this the application has
+      # nothing to serve and every capture would photograph an error page (ADR-0008).
+      - name: Fetch the book content at its pinned revision
+        run: bash scripts/fetch-book-content.sh
+
+      # A production build, not `next dev` — the same reason ci.yml's e2e job builds one. The
+      # screenshots are of the artifact a reader gets, not of a development server.
+      - name: Install and build the web app
+        run: |
+          pnpm --dir web install --frozen-lockfile
+          pnpm --dir web build
+
+      - name: Install the E2E suite
+        run: pnpm --dir tests/e2e install --frozen-lockfile
+
+      - name: Install Playwright's browser
+        run: pnpm --dir tests/e2e exec playwright install --with-deps chromium
+
+      # The `screenshots` project. It writes into docs/assets/screenshots/ in the working
+      # tree, which is why it is its own project and not part of smoke, core or identity.
+      - name: Capture
+        run: pnpm --dir tests/e2e run screenshots
+
+      - name: Upload the screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: ab-ovo-screenshots-${{ github.sha }}
+          path: docs/assets/screenshots/*.png
+          if-no-files-found: error
+          retention-days: 30
+
+      # Says, in the run summary, which images the capture actually changed — so a maintainer
+      # downloads the artifact knowing what to look at, and commits those rather than all of
+      # them. A commit that rewrites every image because the capture ran is noise in the
+      # history of a directory whose diffs are already unreadable.
+      - name: What changed
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed="$(git status --porcelain -- docs/assets/screenshots || true)"
+          {
+            echo "## Screenshots"
+            echo
+            if [ -z "$changed" ]; then
+              echo "No image changed. The committed set already matches this build."
+            else
+              echo "These images differ from the committed set. Download"
+              echo "**ab-ovo-screenshots-${{ github.sha }}** below, look at them, and commit"
+              echo "the ones that are genuinely different:"
+              echo
+              echo '```text'
+              echo "$changed"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The Playwright report, when a capture failed. A capture fails when the screen it was
+      # about to photograph was not the screen it claims to be, which is a defect in the
+      # application or in the tour — and either way the trace is what says which.
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ab-ovo-screenshots-report-${{ github.sha }}
+          path: tests/e2e/playwright-report
+          if-no-files-found: ignore
+          retention-days: 14

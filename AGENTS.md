@@ -27,10 +27,13 @@ adoption. [`CONTRIBUTING.md`](CONTRIBUTING.md) is the same ground for a human.
    been set. Do not write a sentence, a comment or a document that implies otherwise, and do
    not add a deployment badge.
 
-3. **There is no domain model, and that is deliberate** (INIT-GENERIC-TEMPLATE.md §12).
-   `AbOvoDbContext` declares no entity. Do not add one to make an example work, to
-   demonstrate a pattern, or because a scaffold looks empty. Entities arrive with the ticket
-   that needs them, each with its own migration.
+3. **The domain model is two entities and it stays that size until a ticket says otherwise**
+   (INIT-GENERIC-TEMPLATE.md §12). `AbOvoDbContext` declares `ReaderProgress` — where a reader
+   is — and `FrameOutcome` — a count against a frame. Do not add a third to make an example
+   work, to demonstrate a pattern, or because a scaffold looks empty. Entities arrive with the
+   ticket that needs them, each with its own migration. (This item used to say there was no
+   domain model at all; that stopped being true with #11, and a rule stated against a fact
+   that has moved is a rule nobody can follow.)
 
 4. **The instrument measures the book, never the reader**
    ([ADR-0009](docs/adr/0009-the-instrument-measures-the-book.md)). Do not add a reader,
@@ -84,6 +87,10 @@ adoption. [`CONTRIBUTING.md`](CONTRIBUTING.md) is the same ground for a human.
 | Why a decision was taken | `docs/adr/` |
 | Where this tree departs from the constitution | `docs/architecture/00-ARCHITECTURE.md`, deviation register |
 | What is planned, ranked | `docs/ux/UI-UX.md` |
+| Which document a reader needs | `docs/START-HERE.md` — and its Polish half, which is the same page |
+| What the system looks like as a picture | `docs/DIAGRAMS.md` and `docs/DIAGRAMS.pl.md`; the `.mmd` sources under `docs/diagrams/` |
+| What a screen actually looks like | `docs/SCREENSHOTS.md` — captured from a build, not drawn |
+| Which documents are bilingual | `scripts/check-doc-parity.mjs`, which holds the list and enforces it |
 
 **A check does not exist because a config file exists.** A lint configuration in the tree
 proves nothing about whether any job runs it. Check `.github/workflows/`.
@@ -131,6 +138,7 @@ pnpm --dir web lint
 pnpm --dir web typecheck               # tsc over every workspace member, not just what a route reaches
 pnpm --dir web build
 bash scripts/scan-secrets.sh --staged  # what the pre-commit hook runs
+npm install && npm run lint:docs      # links, diagram pairing, EN/PL parity, markdownlint
 ```
 
 `web/content/book/` is derived rather than committed (ADR-0008), and `ci.yml` fetches
@@ -178,6 +186,23 @@ That is P14, and it is the rule this repository is most often judged by.
 - **Numbers are measured, not remembered.** The kernel line count in
   `docs/architecture/00-ARCHITECTURE.md` carries a date and the instrument that produces it,
   because a figure in a document is stale the moment the next commit lands.
+
+**Three of those rules are mechanical now, and `npm run lint:docs` is what runs them.** It is
+the root `package.json`, deliberately not a member of the `web/` pnpm workspace, and
+`.github/workflows/docs.yml` runs it on every pull request that touches a document:
+
+- **Every relative link resolves.** A rename that breaks one is silent otherwise.
+- **Every diagram exists three times and the three agree** — inline in `docs/DIAGRAMS.md`,
+  inline in `docs/DIAGRAMS.pl.md`, and as `docs/diagrams/<id>-<slug>.mmd` and its `.pl.mmd`
+  twin. A separate job renders each one, because GitHub shows an invalid Mermaid block as
+  source rather than erroring.
+- **Neither half of a bilingual document moves alone.** No script can check that a translation
+  is correct; this checks that somebody looked, which is the failure that actually bites.
+
+So: **if you edit a tutorial, a how-to guide, `START-HERE`, `DIAGRAMS` or `SCREENSHOTS`, edit
+the `.pl` half in the same commit.** `docs/how-to/translate-a-document.md` carries the
+vocabulary to match — the product already speaks Polish in `web/app/src/lib/i18n/chrome.ts`,
+and inventing a second word for a concept it already names is the thing that rule prevents.
 
 ---
 

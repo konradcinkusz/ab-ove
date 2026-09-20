@@ -1,0 +1,43 @@
+%% Gdzie jest czytelnik: miejsce w lekturze, które nie jest postępem, i kto je trzyma.
+%% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
+
+%% POWIERZCHNIA LEKTURY POKAZUJE MIEJSCE, NIGDY POSTĘP (ADR-0041). Procent z książki o
+%% czterdziestu siedmiu programach jest liczbą o czytelniku, a ten produkt takich nie
+%% produkuje. Wiersz miejsca mówi, która ramka której sekcji, a jego numer ramki jest
+%% skokiem.
+
+%% NAJPIERW LOKALNIE, A LOKALNA KOPIA NIE TRZYMA NICZEGO WARTEGO OCENIANIA (ADR-0017). Konto
+%% kupuje jedną rzecz: to samo miejsce na drugiej maszynie. Cała reszta pętli jest taka sama
+%% niezależnie od tego, czy czytelnik je ma.
+
+%% WYGRYWA NAJDALSZA RAMKA (ADR-0019). Dwie maszyny, które się nie zgadzają, to nie konflikt
+%% do rozstrzygnięcia znacznikiem czasu: czytelnik przeczytał do dalszej z dwóch, a
+%% uzgodnienie, które cofnęłoby go, straciłoby lekturę, którą odbył.
+
+flowchart LR
+  subgraph m1["Maszyna A"]
+    LA["localStorage<br/>najdalsza ramka w programie"]
+  end
+
+  subgraph m2["Maszyna B"]
+    LB["localStorage<br/>najdalsza ramka w programie"]
+  end
+
+  subgraph server["Tylko jeśli czytelnik się zalogował"]
+    API["PUT /api/v1/progress/track/unit<br/>GET /api/v1/progress<br/>DELETE /api/v1/progress"]
+    RP[("ReaderProgress<br/>klucz zaczyna się od czytelnika")]
+  end
+
+  RECON["reconcile<br/>wygrywa najdalsza ramka,<br/>nigdy znacznik czasu"]
+
+  LA -->|"przy nawigacji"| RECON
+  LB -->|"przy nawigacji"| RECON
+  RECON -->|"bearer wstrzykuje proxy"| API
+  API --> RP
+  RP --> API
+  API --> RECON
+  RECON --> LA
+  RECON --> LB
+
+  NOACC(["Bez konta:<br/>pętla jest identyczna,<br/>miejsce zostaje lokalnie"])
+  LA -.-> NOACC
