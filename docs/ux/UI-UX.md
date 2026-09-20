@@ -526,6 +526,23 @@ frame *is* the teaching.
 **A mobile app.** The web app is responsive and the loop is text. A second client is a second
 copy of everything above.
 
+**A second TRANSPORT is not a second client** — and the difference is what
+[`docs/architecture/MCP-SERVER-SKETCH.md`](../architecture/MCP-SERVER-SKETCH.md) is
+allowed by. `web/mcp` serves the book to a reader working inside an MCP host, and it is not
+the refusal above because it copies nothing: the content library is imported rather than
+reimplemented, the reader's place is the same `ReaderProgress` row reached over the same
+HTTP API, and it owns no store. What a second copy would mean here is a second loader, a
+second cursor or a second answer to where a reader is — and the sketch's §6 exit condition
+exists so that the first of those cannot arrive quietly.
+
+The reveal is the thing that does NOT travel for free. It is a navigation on the reading
+surface and it is nothing on a transport with no navigation, so the property is rebuilt
+there rather than inherited: a step is served only at or below the reader's furthest, which
+makes an unreached answer unselectable rather than filtered. The note above about the
+service worker applies here with the sign turned over — the acceptance suite asserts over
+the DOM, and a transport that has none needs its own gate or the suite stays green while the
+property does not reach it.
+
 **A service worker that caches or prefetches `/read/` navigations.** Refused, and the reason is
 not performance. The reveal *is* a navigation to step `n + 1`, and `prefetch={false}` on that
 one link exists so the next step's payload — the answer in it — is not on the wire before the

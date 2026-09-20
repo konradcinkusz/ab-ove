@@ -1,0 +1,28 @@
+// The same strict family as @ab-ovo/app, minus everything that is Next's.
+//
+// `allowImportingTsExtensions` is not a style choice here either: the unit tier runs
+// `node --test` over .ts directly, and Node's ESM resolver needs the real file name. The
+// app's own imports-carry-extensions.test.ts records what an extensionless import costs —
+// a module that cannot be unit tested while the application builds perfectly.
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["esnext"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowJs": false,
+    "noEmit": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": ["src/**/*.ts"]
+}

@@ -1,0 +1,49 @@
+{
+  "//": [
+    "FRONTEND-BFF.md §7 — a member of the workspace above, which owns the only lockfile.",
+    "THIS IS THE SECOND APP, and the root package.json says what that triggers: '@ab-ovo/",
+    "web-kit ... is created when the SECOND app arrives.' It is NOT created here, and the",
+    "reason is scope rather than disagreement: the content library this server reuses lives",
+    "in @ab-ovo/app and is imported by app code, by scripts/prepare-lab-assets.mjs and by",
+    "the unit tier, so moving it is a refactor with its own diff and its own review. Until",
+    "it happens, exactly one file here reaches across the boundary — src/content.ts — so",
+    "the extraction is one import to redirect rather than a search. See the exit condition",
+    "in docs/architecture/MCP-SERVER-SKETCH.md §6.",
+    "",
+    "No runtime dependency but the MCP SDK. The gate this server exists to hold is pure",
+    "TypeScript in src/reveal.ts with no imports at all, so the thing most worth testing",
+    "needs no install to test (P13: test at the layer with the logic)."
+  ],
+  "name": "@ab-ovo/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "//test": [
+      "Same unit tier as @ab-ovo/app: node --test runs .ts directly through Node 22's type",
+      "stripping, so this adds no runner and no transform. Wired into ci.yml in the same",
+      "commit as the first test (TESTING-STRATEGY.md §9)."
+    ],
+    "test": "node --test 'src/**/*.test.ts'",
+    "//lint": [
+      "THERE IS DELIBERATELY NO lint SCRIPT. pnpm -r skips a member that does not declare",
+      "one, and a script that echoes instead of linting is the defect TESTING-STRATEGY.md",
+      "§9 names for test entry points -- documentation that lies, green forever, proving",
+      "nothing. @ab-ovo/app lints through eslint-config-next, which is Next's and not this",
+      "package's; a flat config of its own is a follow-up with its own dependency decision.",
+      "See docs/architecture/MCP-SERVER-SKETCH.md section 7."
+    ],
+    "typecheck": "tsc --noEmit",
+    "start": "node src/server.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.2",
+    "typescript": "5.9.3"
+  }
+}
