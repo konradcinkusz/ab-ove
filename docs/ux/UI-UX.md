@@ -603,7 +603,7 @@ other one (OPEN-SOURCE-RELEASE.md §1, §8).*
 | 5.3 | **The README's quick start runs end to end from a clone with zero unwritten prerequisites.** | A stranger with a fresh machine gets a running system, or hits a prerequisite that is written down. |
 | 5.4 | **Check the GHCR packages' visibility** after the first `v*` tag, in each **package's** own settings. | Both are public. A package pushed by CI is created private regardless of the repository's visibility, and "works for me, fails for everyone else" is the signature of it ([ADR-0003](../adr/0003-registry-ghcr.md)). |
 | 5.5 | **Set the repository description and 10–15 lowercase hyphenated topics.** | Neither is repository content; both are a manual step at the flip, and neither can be set by a commit or by CI. |
-| 5.6 | **Rename the repository to `ab-ovo`** ([ADR-0005](../adr/0005-slug-ab-ovo.md)). | The badge row resolves. GitHub redirects the old name, so this can be done at any time — and before going public is the cheapest. |
+| 5.6 | **Rename the repository to `ab-ovo`** ([ADR-0005](../adr/0005-slug-ab-ovo.md)). | Every `ab-ovo` URL in this estate resolves — the advisory link in `SECURITY.md`, the footer in `web/app/src/app/about/page.tsx` and `site/index.html` — and the derivation rule is true again. Not the badge row: that names `ab-ove` and already resolves, because a badge is fetched at render time and a redirect cannot resolve a name that does not exist yet. GitHub redirects the old name afterwards, so the rename can be done at any time and nothing has to be timed around it. |
 
 ---
 

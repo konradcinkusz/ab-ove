@@ -1,42 +1,68 @@
 <a name="readme-top"></a>
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/ab-ovo-logo-dark.svg">
+    <img src="docs/assets/brand/ab-ovo-logo.svg" alt="ab ovo" width="261" height="100">
+  </picture>
+</p>
+
 <!--
+  LOGO — docs/assets/brand/. The mark is an egg that is also a zero, barred by the line a
+  reader writes an answer on: ab ovo is "from the egg", the book is Mathematics from Zero,
+  and a frame asks for a written answer before it tells you anything. Two files rather than
+  one because GitHub's Markdown sanitiser strips a style element out of an inline SVG, so a
+  single file cannot switch itself between themes; <picture> is the mechanism GitHub does
+  honour. Colours are the app's own tokens from web/app/src/app/globals.css, and the
+  wordmark is a system serif because globals.css ships no webfont to anybody.
+
   BADGE ROW — README-BADGES.md §The two zones (item 1). Metadata and status only, in one
   row immediately after the H1 and before the first paragraph. There is no second zone in
-  this file: the sponsorship/follow/star-history footer block is for public/showcase
-  repositories, and this one is private today.
+  this file: the sponsorship/follow/star-history footer block is for showcase repositories,
+  and this is a single-maintainer repository with nothing deployed.
 
-  THREE THINGS THE NEXT PERSON WILL WANT TO KNOW BEFORE "FIXING" THIS ROW.
+  WHY EVERY URL HERE SAYS `ab-ove` WHEN EVERY OTHER NAME IN THIS ESTATE SAYS `ab-ovo`.
 
-  1. The badgen badges query the public GitHub API, so they will render as errors until
-     the repository is public. That is expected, not a broken row — do not delete them to
-     make the render tidy (README-BADGES.md §Why badges at all is about STALE badges, not
-     about badges that are correct and not yet resolvable).
+  ADR-0005 makes the system `ab-ovo` and leaves the repository called `ab-ove` until the
+  owner renames it. This row is the one place that must name the repository as it is
+  **today**, because a badge is a live fetch and not a document: badgen asks the public API
+  for `konradcinkusz/<name>`, and GitHub serves `/<name>/actions/workflows/<file>/badge.svg`
+  itself. A name that does not resolve at render time renders as `404`, as `NOT_FOUND`, or
+  as a broken image — which is exactly what this row did while it pointed at `ab-ovo`.
 
-  2. Every URL says `ab-ovo`, and the repository is `ab-ove` today. That is deliberate and
-     it is recorded in docs/adr/0005-slug-ab-ovo.md: the typo is being renamed away, every
-     derived name in this estate is already `ab-ovo`, and GitHub redirects the old name so
-     nothing breaks in either direction. The badges resolve when the rename lands.
+  The redirect does not help before the rename, and this is the part that earlier revisions
+  of this comment and of ADR-0005 got wrong. GitHub redirects an **old** name to a new one
+  once a rename has happened. It cannot redirect a name that has never existed. So `ab-ovo`
+  URLs 404 until the rename lands, while `ab-ove` URLs resolve directly now and keep
+  resolving through the redirect afterwards. `ab-ove` is the only spelling that is correct
+  on both sides of the rename, which is why it is the spelling used here.
 
-  3. Three CI badges, not four. README-BADGES.md §The standard header row badges the
-     workflows that GATE MERGES — ci.yml, secret-scan.yml and codeql.yml all run on
-     pull_request. flyio.yml runs on a tag and gates nothing; it is a deploy pipeline, and
-     under rule 3 it gets a badge when there is a deployment for it to report. There is no
-     deployment badge for the same reason: nothing is deployed yet.
+  Repository visibility is no longer part of this story either: the repository is public, so
+  the public API and the badge endpoints can both see it.
+
+  After the rename these can be moved to the canonical spelling in one pass —
+  `sed -i 's|konradcinkusz/ab-ove|konradcinkusz/ab-ovo|g' README.md` — but nothing breaks if
+  they are not, so it is tidying rather than repair.
+
+  Three CI badges, not four. README-BADGES.md §The standard header row badges the workflows
+  that GATE MERGES — ci.yml, secret-scan.yml and codeql.yml all run on pull_request.
+  flyio.yml runs on a tag and gates nothing; it is a deploy pipeline, and under rule 3 it
+  gets a badge when there is a deployment for it to report. There is no deployment badge for
+  the same reason: nothing is deployed yet.
 -->
 
 # ab-ovo
 
 [![Ask me anything](https://flat.badgen.net/static/Ask%20me/anything?icon=github&color=black&scale=1.01)](https://github.com/konradcinkusz "Ask me anything")
-[![GitHub license](https://flat.badgen.net/github/license/konradcinkusz/ab-ovo?icon=github&color=black&scale=1.01)](https://github.com/konradcinkusz/ab-ovo/blob/main/LICENSE "GitHub license")
-[![Maintained](https://flat.badgen.net/static/Maintained/yes?icon=github&color=black&scale=1.01)](https://github.com/konradcinkusz/ab-ovo/commits/main "Maintained")
-[![GitHub branches](https://flat.badgen.net/github/branches/konradcinkusz/ab-ovo?icon=github&color=black&scale=1.01)](https://github.com/konradcinkusz/ab-ovo/branches "GitHub branches")
-[![GitHub commits](https://flat.badgen.net/github/commits/konradcinkusz/ab-ovo?icon=github&color=black&scale=1.01)](https://github.com/konradcinkusz/ab-ovo/commits "GitHub commits")
-[![GitHub issues](https://flat.badgen.net/github/issues/konradcinkusz/ab-ovo?icon=github&color=black&scale=1.01)](https://github.com/konradcinkusz/ab-ovo/issues "GitHub issues")
-[![GitHub pull requests](https://flat.badgen.net/github/prs/konradcinkusz/ab-ovo?icon=github&color=black&scale=1.01)](https://github.com/konradcinkusz/ab-ovo/pulls "GitHub pull requests")
-[![CI](https://github.com/konradcinkusz/ab-ovo/actions/workflows/ci.yml/badge.svg)](https://github.com/konradcinkusz/ab-ovo/actions/workflows/ci.yml "CI — build, test and the architecture rules")
-[![Secret scan](https://github.com/konradcinkusz/ab-ovo/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/konradcinkusz/ab-ovo/actions/workflows/secret-scan.yml "Secret scan — gitleaks on every pull request and every push to main")
-[![CodeQL](https://github.com/konradcinkusz/ab-ovo/actions/workflows/codeql.yml/badge.svg)](https://github.com/konradcinkusz/ab-ovo/actions/workflows/codeql.yml "CodeQL — SAST and dependency audit, on pull requests and weekly")
+[![GitHub license](https://flat.badgen.net/github/license/konradcinkusz/ab-ove?icon=github&color=black&scale=1.01)](https://github.com/konradcinkusz/ab-ove/blob/main/LICENSE "GitHub license")
+[![Maintained](https://flat.badgen.net/static/Maintained/yes?icon=github&color=black&scale=1.01)](https://github.com/konradcinkusz/ab-ove/commits/main "Maintained")
+[![GitHub branches](https://flat.badgen.net/github/branches/konradcinkusz/ab-ove?icon=github&color=black&scale=1.01)](https://github.com/konradcinkusz/ab-ove/branches "GitHub branches")
+[![GitHub commits](https://flat.badgen.net/github/commits/konradcinkusz/ab-ove?icon=github&color=black&scale=1.01)](https://github.com/konradcinkusz/ab-ove/commits "GitHub commits")
+[![GitHub issues](https://flat.badgen.net/github/issues/konradcinkusz/ab-ove?icon=github&color=black&scale=1.01)](https://github.com/konradcinkusz/ab-ove/issues "GitHub issues")
+[![GitHub pull requests](https://flat.badgen.net/github/prs/konradcinkusz/ab-ove?icon=github&color=black&scale=1.01)](https://github.com/konradcinkusz/ab-ove/pulls "GitHub pull requests")
+[![CI](https://github.com/konradcinkusz/ab-ove/actions/workflows/ci.yml/badge.svg)](https://github.com/konradcinkusz/ab-ove/actions/workflows/ci.yml "CI — build, test and the architecture rules")
+[![Secret scan](https://github.com/konradcinkusz/ab-ove/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/konradcinkusz/ab-ove/actions/workflows/secret-scan.yml "Secret scan — gitleaks on every pull request and every push to main")
+[![CodeQL](https://github.com/konradcinkusz/ab-ove/actions/workflows/codeql.yml/badge.svg)](https://github.com/konradcinkusz/ab-ove/actions/workflows/codeql.yml "CodeQL — SAST and dependency audit, on pull requests and weekly")
 
 **ab-ovo is a learning platform that encapsulates the book *Mathematics from Zero for the
 AI Engineer* — 47 programs of Stroud programmed-learning frames in English and Polish,
