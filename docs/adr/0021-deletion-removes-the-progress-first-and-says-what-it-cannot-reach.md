@@ -121,7 +121,7 @@ page compiled, rendered and passed every gate, because no gate read the screen a
 would. The section is back, and `tests/e2e/specs/account-deletion.spec.ts` now signs in
 against the fixture issue #29 delivered and asserts all four headings in both editions,
 before the button. That narrows the paragraph above rather than retiring it: the
-*reading* of the screen is proved end to end; the deleting path still is not.
+_reading_ of the screen is proved end to end; the deleting path still is not.
 
 **The three 400s from authservice are separated only by English prose in its source.** They
 are matched positively and loosely, and anything unrecognised becomes `unavailable` rather
