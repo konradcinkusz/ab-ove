@@ -102,9 +102,6 @@ export default async function AccountPage({
           <section className="section">
             <h2>{strings.cannotReachTitle}</h2>
             <p>{strings.cannotReach}</p>
-            {/*
-              True only today, and gated so it cannot quietly stop being true. See
-              when a second entity appears in the model.
           </section>
 
           <section className="section">

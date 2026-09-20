@@ -481,7 +481,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       confirmLabel: (word) => `Wpisz ${word}, aby potwierdzi\u0107`,
       passwordLabel: 'Twoje has\u0142o',
       passwordHint:
-        'Zostaw puste, je\u015bli logujesz si\u0119 przez Google albo GitHub i nigdy nie ustawia\u0142e\u015b has\u0142a.',
+        'Zostaw puste, je\u015bli logujesz si\u0119 przez Google albo GitHub i has\u0142o nigdy nie zosta\u0142o ustawione.',
       submit: 'Usu\u0144 moje konto',
       cancel: 'Zostaw moje konto',
       doneTitle: 'Twojego konta ju\u017c nie ma',
@@ -519,7 +519,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     section: { one: 'sekcja', few: 'sekcje', many: 'sekcji', other: 'sekcji' },
     yourAnswer: 'Twoja odpowiedź',
     writeItDown: 'Zapisz, zanim pójdziesz dalej',
-    youWrote: 'Zapisałeś',
+    // Impersonal on purpose: a second-person past tense in Polish has to pick a gender,
+    // and "Zapisałeś" picked one for every reader. "Zapisano" — recorded — picks none.
+    youWrote: 'Zapisano',
     matchesBook: 'Tak jak w książce',
     writtenBefore: 'zapisane przed odsłonięciem',
     earlierEdition: 'zapisane przy wcześniejszym wydaniu',
@@ -533,7 +535,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     sketchLabel: 'Narysuj swoją odpowiedź',
     sketchGrid: 'Siatka',
     sketchAxes: 'Osie',
-    sketchNone: 'Gładko',
+    sketchNone: 'Bez tła',
     sketchUndo: 'Cofnij',
     sketchClear: 'Wyczyść',
     sketchFull: 'Ten szkic jest już za duży, żeby go zapisać. To, co widać, zostaje do wyjścia z ramki.',

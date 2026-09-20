@@ -105,3 +105,11 @@ vocabulary where it has one (`ramka` for a frame, and the book's `Kolejna ramka.
 cue) and they are one person's Polish everywhere else. That is a real gap and it is cheap to
 close: the strings are eleven entries in one file, and nothing else in the repository needs
 touching to fix one.
+
+**Two Polish strings chose a gender for every reader, and now choose none.** A
+second-person past tense in Polish cannot be written without one — *Zapisałeś* is a man
+who wrote, *Zapisałaś* a woman — so the reveal's label and the deletion screen's password
+hint were addressing half the readers as the other half. Both are impersonal now
+(*Zapisano*; *hasło nigdy nie zostało ustawione*), which is the register Polish interfaces
+use for exactly this reason; the sketch's plain background is *Bez tła* rather than an
+adverb. The strings have still had no native review.

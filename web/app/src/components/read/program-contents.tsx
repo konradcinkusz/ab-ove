@@ -83,7 +83,7 @@ export function ProgramContents({
         extending a line moves nothing where adding a block would move everything under it.
       */}
       <p className={styles.crumb} lang={chrome.language}>
-        <Link href="/read">{chrome.programsCrumb}</Link>
+        <Link href="/">{chrome.programsCrumb}</Link>
         <ResumeHere
           language={language}
           last={unit.steps.length}

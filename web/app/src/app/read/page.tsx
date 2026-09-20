@@ -8,9 +8,10 @@ import { permanentRedirect } from 'next/navigation';
  * A 308 RATHER THAN A DELETED ROUTE, AND RATHER THAN A 307.
  *
  * `/read` has been the way into the programs for the whole life of this application. It is
- * in readers' history and in this repository's own screens — `app/account/page.tsx` sends a
- * cancelled deletion back to it, `app/account/deleted/page.tsx` offers it as "keep
- * reading" — and a 404 for any of those would be this change reaching a reader as a fault.
+ * in readers' history, and it was in this repository's own screens until every in-app link
+ * was pointed at `/` directly (ADR-0036, Consequences) — a redirect a reader's own bookmark
+ * pays once is fine; one the contents crumb paid on every click was not. A 404 here would
+ * still be this change reaching a reader as a fault.
  *
  * PERMANENT, because the move is. A 307 tells a browser and a crawler to keep asking, which
  * is a promise to move it back; a 308 says the index is at `/` now and is the honest

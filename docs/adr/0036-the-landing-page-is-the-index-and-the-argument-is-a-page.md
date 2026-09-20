@@ -105,4 +105,10 @@ would be a decision needing its own file, not a convenience.
 `--measure` column every reading page shares. That is deliberate and confined: a frame is
 read and an index is scanned. No reading page changed.
 
+**The application's own links to the old index point at `/`.** The contents page's crumb
+and the summary screen's two *Programs* links said `/read` and paid the 308 on every
+click; a redirect a reader's bookmark pays once is what the redirect is for, and one the
+product's own chrome paid every time was a round trip for nothing. The redirect itself
+stays, for readers' history and for `specs/landing.spec.ts`, which asserts it.
+
 Not a deviation from the reference architecture; no register row.

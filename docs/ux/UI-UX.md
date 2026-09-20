@@ -39,6 +39,17 @@ something is in the reader loop at all.
 **The first five are the whole product for a reader who never signs in**, and that is a
 requirement rather than an accident.
 
+**An address that is not a page gets a page of this product's.** `app/not-found.tsx` and
+`app/error.tsx` stand behind the two statuses the routes already answer: a frame number
+past the end of a program, a program the book does not have or an edition it is not
+published in is a 404 with the wordmark, one sentence about the shape of a right address
+and the filled way back to the programs; a bundle that will not load is a 500 that says the
+fault is the deployment's, that nothing written in the browser is lost, and offers *Try
+again*. Both are English only, on `/login`'s reasoning. The middleware is private by
+default, so an unknown *top-level* path meets the sign-in redirect first; the pages are met
+under `/read/` and `/lab/`, and anywhere at all once signed in. `specs/navigation.spec.ts`
+asserts the 404's way back.
+
 ### `/` — the landing page, which is the index
 
 `web/app/src/app/page.tsx` over `components/programs/program-grid.tsx`. A Server Component
@@ -119,6 +130,15 @@ The `?redirect=` parameter is accepted **only** as a same-origin absolute path. 
 starting `//` or with a scheme is discarded. It arrives on a query string, which means an
 attacker chooses it, and a sign-in page that forwards to it is a phishing redirector with
 this site's name on it.
+
+**A problem the password cannot fix withdraws the form.** `SignInProblem.retryable`
+(`lib/sign-in-problem.ts`) was written to decide this and, for a while, nothing read it: a
+reader whose sign-in failed on a locked account, an unreachable identity service or a
+token this deployment refuses was handed the form and invited to try again — "the
+interface telling the reader the fault is theirs", in the field's own words. Under those
+problems the page now shows the sentence and a link to a fresh sign-in page instead. The
+two second-factor codes that send a reader back here to start from the password keep the
+form, because on this page the password *is* the way back in; `startsOver` names them.
 
 ### The integration panel
 
@@ -249,8 +269,11 @@ check offer that ADR-0040 removed.
 ### `/account` — the reader's own record
 
 Progress, export, and deletion that deletes. The deletion screen says what goes, what stays,
-and what no deletion can reach — an anonymous outcome already folded into a rate cannot be
-retracted, because nothing can find the rows that were yours.
+what no deletion can reach — an anonymous outcome already folded into a rate cannot be
+retracted, because nothing can find the rows that were yours — and that the account is
+marked and scheduled rather than erased. That fourth sentence was off the page for a
+while, swallowed by a comment nobody closed, and the acceptance suite now signs in against
+the identity fixture to read all four (ADR-0021, Consequences).
 
 ### `/instrument` — the author's view
 

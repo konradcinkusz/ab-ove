@@ -103,7 +103,7 @@ export function ProgramSummary({
         <span>
           <Link href={contentsAt}>{unit.id}</Link>
           {' · '}
-          <Link href="/read">{chrome.programs}</Link>
+          <Link href="/">{chrome.programs}</Link>
         </span>
         <Link href={at(unit.steps.length)}>{chrome.backToLastFrame}</Link>
       </p>
@@ -168,7 +168,7 @@ export function ProgramSummary({
               dead control this project refuses elsewhere, and the index IS where a reader
               who has finished the last program goes.
             */
-            <Link className={styles.start} href="/read">
+            <Link className={styles.start} href="/">
               {chrome.programs}
             </Link>
           )}

@@ -331,5 +331,20 @@ test.describe('navigation', () => {
       const response = await page.request.get(path, { maxRedirects: 0 });
       expect(response.status(), `${path} should be 404`).toBe(404);
     }
+
+    /*
+      AND THE PAGE BEHIND THE STATUS IS THIS PRODUCT'S, WITH THE WAY BACK ON IT. The status
+      used to be the whole assertion, and the document behind it was the framework's bare
+      default — no wordmark, no link, a reader who mistyped a frame number left with nothing
+      to click. `app/not-found.tsx` is the page; what is asserted is the one thing a reader
+      needs from it, located by role and name rather than by its words.
+    */
+    const response = await page.goto(`/read/${track}/NOPE/en`);
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: /open the programs/i }),
+      'the not-found page offers no way back to the index',
+    ).toHaveAttribute('href', '/');
   });
 });

@@ -8,7 +8,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { SIGN_IN_PROBLEMS, signInProblem, type SignInProblemCode } from './sign-in-problem.ts';
+import {
+  SIGN_IN_PROBLEMS,
+  signInProblem,
+  type SignInProblem,
+  type SignInProblemCode,
+} from './sign-in-problem.ts';
 
 const CODES = Object.keys(SIGN_IN_PROBLEMS) as SignInProblemCode[];
 
@@ -78,4 +83,11 @@ test('the second-factor codes each sit on the right side of that line', () => {
     SIGN_IN_PROBLEMS['second-factor-rejected'].title,
     SIGN_IN_PROBLEMS['second-factor-expired'].title,
   );
+
+  // And the two that are not retryable on the code screen are exactly the two that send
+  // the reader back to the password, where the form IS the remedy. `startsOver` is what
+  // `/login` reads to keep offering it under them and to withdraw it under everything else
+  // that is not retryable — a locked account, a token this deployment refuses.
+  const startsOver = CODES.filter((code) => (SIGN_IN_PROBLEMS[code] as SignInProblem).startsOver === true);
+  assert.deepEqual(startsOver.sort(), ['second-factor', 'second-factor-expired']);
 });
