@@ -4,6 +4,7 @@ import { CHECK_NAMES, REGION_NAMES, stubWithSolvedRegion } from './support/lab.j
 import { served, track } from './support/bundle.js';
 import { openThrough } from './support/gate.js';
 import { openPane } from './support/pane.js';
+import { reveal } from './support/reveal.js';
 // SEEDING CONSENT MEANS SEEDING THE VERSION THE PRODUCT ACCEPTS TODAY, so the constant
 // is imported across the package boundary rather than copied as a `2`. The store treats a
 // stale version as never-answered, so a literal here would not fail loudly on the next
@@ -410,7 +411,7 @@ async function writeAndReveal(page: Page, asks: number, text: string | null): Pr
     await answerLine(page).fill(text);
   }
 
-  await page.getByRole('link', { name: /reveal the answer/i }).click();
+  await reveal(page).click();
   await page.waitForURL(`**/${asks + 1}`);
   await settle(page);
 }
@@ -513,7 +514,7 @@ test.describe('the worksheet contributes too', () => {
     await page.goto(readAt(PAIRS.numeric.asks));
     // The control, so this is the same journey as the tests above with the writing removed.
     // Navigating by URL would leave it passing for the reason the helper above records.
-    await page.getByRole('link', { name: /reveal the answer/i }).click();
+    await reveal(page).click();
     await page.waitForURL(`**/${PAIRS.numeric.asks + 1}`);
     await settle(page);
 

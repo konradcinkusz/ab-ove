@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { pickPair, served, track, unitNamed } from './support/bundle.ts';
 import { openThrough } from './support/gate.ts';
 import { openPane, pane } from './support/pane.ts';
-import { revealTo } from './support/reveal.ts';
+import { reveal } from './support/reveal.ts';
 
 /**
  * JOURNEY — committing an answer before turning over, which is the method the book is.
@@ -139,7 +139,7 @@ test.describe('the worksheet', () => {
 
     // Through the reveal, by the control rather than by the URL: the point is the loop a
     // reader walks, not that a route renders.
-    await revealTo(page, at('en', NUMERIC.answers)).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', NUMERIC.answers)}$`));
 
     await expect(
@@ -158,7 +158,7 @@ test.describe('the worksheet', () => {
     // ──────────────────────────────────────────────────────────────────────────────────
     await page.goto(at('en', NUMERIC.asks));
     await line(page, /your answer/i).fill(NUMERIC.number);
-    await revealTo(page, at('en', NUMERIC.answers)).click();
+    await reveal(page).click();
     await expect(page.locator('body')).toContainText(/matches the book/i);
 
     // The same frame, a different number. NOT "wrong", NOT a cross, NOT a score — the
@@ -170,7 +170,7 @@ test.describe('the worksheet', () => {
     const field = line(page, /your answer/i);
     await expect(field, 'clearing did not give the line back').toBeEditable();
     await field.fill(`${NUMERIC.number}00000`);
-    await revealTo(page, at('en', NUMERIC.answers)).click();
+    await reveal(page).click();
 
     await expect(page.locator('body')).toContainText(`${NUMERIC.number}00000`);
     await expect(page.locator('body')).not.toContainText(/matches the book/i);
@@ -192,7 +192,7 @@ test.describe('the worksheet', () => {
      */
     await page.goto(at('en', pair.asking.n));
     await line(page, /your answer/i).fill('committed');
-    await revealTo(page, at('en', pair.answering.n)).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', pair.answering.n)}$`));
 
     await page.goBack();
@@ -217,7 +217,7 @@ test.describe('the worksheet', () => {
     // The dominant path: read, `→`, never type. Nothing is locked and nothing is said.
     const first = program.steps.find((step) => step.cue && step.n > 1)!;
     await page.goto(at('en', first.n));
-    await revealTo(page, at('en', first.n + 1)).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', first.n + 1)}$`));
     await page.goBack();
     await expect(line(page, /your answer/i)).toBeEditable();
@@ -309,7 +309,7 @@ test.describe('the worksheet', () => {
     const target = (n: number): string => `/read/${track}/${found.unit}/pl/${n}`;
     await page.goto(target(found.asks));
     await line(page, /twoja odpowied/i).fill(comma);
-    await revealTo(page, target(found.answers)).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${target(found.answers)}$`));
     await expect(page.locator('body')).toContainText(/tak jak w książce/i);
 
@@ -327,7 +327,7 @@ test.describe('the worksheet', () => {
     */
     await clearTheAnswer(page, /clear my answer/i, /^clear it$/i);
     await line(page, /your answer/i).fill(comma);
-    await revealTo(page, english(found.answers)).click();
+    await reveal(page).click();
     await expect(page.locator('body')).toContainText(/matches the book/i);
   });
 
@@ -345,7 +345,7 @@ test.describe('the worksheet', () => {
 
     await page.goto(at('en', pair.asking.n));
     await line(page, /your answer/i).fill('the reader wrote this and nobody else may see it');
-    await revealTo(page, at('en', pair.answering.n)).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', pair.answering.n)}$`));
     await page.waitForLoadState('networkidle');
 
@@ -608,7 +608,7 @@ test.describe('the worksheet', () => {
 
     expect(await ink(), 'nothing was drawn, so nothing below proves anything').toBeGreaterThan(0);
 
-    await page.getByRole('link', { name: /reveal the answer|next frame/i }).click();
+    await reveal(page).click();
     await page.waitForURL(new RegExp(`/${NUMERIC.answers}$`));
     await openSketch();
     await expect

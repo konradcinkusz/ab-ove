@@ -1,18 +1,27 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 /**
- * THE REVEAL, LOCATED BY WHERE IT GOES AND BY WHERE IT IS.
+ * THE REVEAL, LOCATED BY ITS SHAPE AND ITS PLACE — NEVER BY WHERE IT GOES.
  *
- * Every reading spec finds the reveal by its href rather than by its words —
- * `frame-view.spec.ts` records why the href beats the name: a locator matching the label
- * would be a second copy of the string under test. The bare `a[href="…/n+1"]` that did it
- * was unambiguous while the reveal was the only link on a frame to the next frame.
+ * ADR-0060 made revealing raise a server-side cursor, so `frame-view.tsx`'s main control (and
+ * its "Next section" twin in the foot) is a `<form action={revealStep.bind(...)}>` around a
+ * `<button type="submit">` — a Server Action has no `href` for a locator to match against, on
+ * the same reasoning `frame-view.tsx`'s own header gives for why it can no longer be a bare
+ * `<a>`. Only the hand-off past a program's LAST step — to `/summary` — is still a plain
+ * `<Link>`; `ADR-0060`'s gate covers the reading loop within a program and stops there.
  *
- * It is not any more. The place row's section picker lists every heading of the program,
- * each linking to its first frame — so on the last frame of a section the reveal and the
- * picker's entry for the next section point at the SAME address, and a bare href locator
- * is a strict-mode violation naming two elements. The reveal is the one that is a direct
- * child of the frame's `<article>`; the picker's links are inside a `<details>` in the
- * place row. `article >` is that fact, said once here rather than in every spec.
+ * So this finds the control by STRUCTURE, not destination: a `<form>` that is a direct child
+ * of the frame's `<article>` holds the button; an `<a>` that is a direct child of it is the
+ * summary hand-off. Exactly one of the two renders on any given frame — `frame-view.tsx`'s own
+ * ternary — so `.or()` is safe rather than ambiguous. `article >` is what excludes the place
+ * row's section picker and the reading foot's own "Next section" button, both real elements on
+ * the page that are NOT direct children of `<article>`: the picker's links sit inside a
+ * `<details>` in the place row, and the foot's button sits inside `<nav>` in the reading foot.
+ *
+ * EVERY CALLER ALREADY ASSERTS THE DESTINATION SEPARATELY, with `expect(page).toHaveURL(...)`
+ * immediately after the click — that is what used to make the `href` parameter here a
+ * belt-and-suspenders check rather than the only correctness this suite had, so dropping it
+ * loses no coverage.
  */
-export const revealTo = (page: Page, href: string) => page.locator(`article > a[href="${href}"]`);
+export const reveal = (page: Page): Locator =>
+  page.locator('article > form').getByRole('button').or(page.locator('article > a'));

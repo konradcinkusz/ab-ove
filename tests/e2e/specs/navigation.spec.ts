@@ -8,7 +8,7 @@ import {
   uniqueProbeIn,
   unitNamed,
 } from './support/bundle.ts';
-import { revealTo } from './support/reveal.ts';
+import { reveal } from './support/reveal.ts';
 
 /**
  * JOURNEY — finding a program, opening it, and coming back to the same frame.
@@ -256,7 +256,7 @@ test.describe('navigation', () => {
     // there at all rather than disabled — a disabled control is a thing a reader tries.
     await expect(page.getByRole('link', { name: /previous/i })).toHaveCount(0);
 
-    await revealTo(page, frameAt('en', 2)).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt('en', 2)}$`));
 
     await page.getByRole('link', { name: /previous/i }).click();
@@ -368,12 +368,13 @@ test.describe('navigation', () => {
     }
 
     // And the controls follow the edition, which is what #6 settled: on a Polish frame the
-    // reveal is Polish and says so. Located by href rather than by its words, because a
-    // locator matching the words would be a second copy of the string it is testing.
+    // reveal is Polish and says so. Located by its shape and place rather than by its words,
+    // because a locator matching the words would be a second copy of the string it is
+    // testing.
     for (const language of languages) {
       await page.goto(frameAt(language, 1));
       await expect(
-        revealTo(page, frameAt(language, 2)),
+        reveal(page),
         `the ${language} reveal does not declare the language it is written in`,
       ).toHaveAttribute('lang', language);
     }

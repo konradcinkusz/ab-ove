@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { pickPair, served, track, unitNamed } from './support/bundle.ts';
 import { openThrough } from './support/gate.ts';
-import { revealTo } from './support/reveal.ts';
+import { reveal } from './support/reveal.ts';
 
 /**
  * The frame view, and the one property the whole product rests on.
@@ -37,10 +37,6 @@ const unit = 'F01';
 const program = unitNamed(unit);
 const steps = program.steps;
 const at = (language: string, n: number): string => `/read/${track}/${unit}/${language}/${n}`;
-
-/** The reveal to frame `n` — see specs/support/reveal.ts for why it is not a bare href. */
-const reveal = (page: import('@playwright/test').Page, language: string, n: number) =>
-  revealTo(page, at(language, n));
 
 /** The pair this suite is about, searched for and verified rather than assumed. */
 const pair = pickPair(program);
@@ -108,7 +104,7 @@ test.describe('the frame view', () => {
       answer,
     );
 
-    await reveal(page, 'en', answering.n).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', answering.n)}$`));
 
     // WEB-FIRST for the positive, one-shot for the negative, and the asymmetry is
@@ -141,7 +137,7 @@ test.describe('the frame view', () => {
 
     // The control: after the click it IS fetched, so this test can tell "never fetched"
     // from "the listener never fired".
-    await reveal(page, 'en', answering.n).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', answering.n)}$`));
     expect(wanted.length, 'the listener saw nothing at all, so its silence meant nothing').toBeGreaterThan(0);
   });
@@ -167,7 +163,7 @@ test.describe('the frame view', () => {
       answer,
     );
 
-    await reveal(page, 'pl', answering.n).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${at('pl', answering.n)}$`));
     await expect(page.locator('body')).toContainText(answer);
   });
@@ -205,7 +201,7 @@ test.describe('the frame view', () => {
 
     // The control, and it is the half that makes the negative mean anything: a page that
     // never renders the attribute at all satisfies the line above.
-    await revealTo(page, numericAt('en', NUMERIC.answers)).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${numericAt('en', NUMERIC.answers)}$`));
     expect(
       await page.content(),

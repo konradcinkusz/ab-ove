@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { languages, track, uniqueProbeIn, unitNamed } from './support/bundle.ts';
-import { revealTo } from './support/reveal.ts';
+import { reveal } from './support/reveal.ts';
 
 /**
  * JOURNEY — reading a program, which is the thing the product is for.
@@ -279,19 +279,19 @@ test.describe('reading ergonomics', () => {
       arrived, and a script-focused element does not always count.
     */
     await openReady(page, 'en', 2);
-    const reveal = revealTo(page, at('en', 3));
+    const control = reveal(page);
     for (let presses = 0; presses < 20; presses += 1) {
       await page.keyboard.press('Tab');
-      if (await reveal.evaluate((node) => node === document.activeElement)) break;
+      if (await control.evaluate((node) => node === document.activeElement)) break;
     }
-    await expect(reveal).toBeFocused();
-    const ring = await reveal.evaluate((node) => getComputedStyle(node).boxShadow);
+    await expect(control).toBeFocused();
+    const ring = await control.evaluate((node) => getComputedStyle(node).boxShadow);
     expect(ring, 'the reveal has no visible focus ring').not.toBe('none');
 
     // And the label carries the pending flag the stylesheet dims on — idle here, because
     // the fetch is too quick to catch; the attribute's presence is what says the island is
     // wired to the link at all.
-    await expect(reveal.locator('[data-pending]')).toHaveAttribute('data-pending', 'no');
+    await expect(control.locator('[data-pending]')).toHaveAttribute('data-pending', 'no');
   });
 
   test('the place row, the foot and the panes are a finger tall to press @core', async ({
@@ -420,7 +420,7 @@ test.describe('reading ergonomics', () => {
       }).observe({ type: 'layout-shift', buffered: true });
     });
 
-    await revealTo(page, at('en', heavy.n)).click();
+    await reveal(page).click();
     await page.waitForURL(`**${at('en', heavy.n)}`);
     await expect(page.locator('body')).toContainText(uniqueProbeIn(unit, heavy.n, 'en'));
     await page.waitForTimeout(700);

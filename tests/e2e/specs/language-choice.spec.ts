@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { languages, track, uniqueProbeIn, unitNamed } from './support/bundle.ts';
-import { revealTo } from './support/reveal.ts';
+import { reveal } from './support/reveal.ts';
 
 /**
  * JOURNEY — reading the same frame in the other edition, and being remembered.
@@ -113,9 +113,9 @@ test.describe('the language control', () => {
     const said: Record<string, string> = {};
     for (const language of languages) {
       await page.goto(frameAt(language, 1));
-      const reveal = revealTo(page, frameAt(language, 2));
-      await expect(reveal).toHaveAttribute('lang', language);
-      said[language] = (await reveal.innerText()).trim();
+      const control = reveal(page);
+      await expect(control).toHaveAttribute('lang', language);
+      said[language] = (await control.innerText()).trim();
       expect(said[language]!.length, `the ${language} reveal has no label at all`).toBeGreaterThan(0);
     }
     expect(
