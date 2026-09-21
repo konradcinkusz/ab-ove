@@ -43,7 +43,8 @@ public static class ContentEndpoints
                 var programs = root["units"]!.AsArray()
                     .Select(unit => new ProgramSummary(
                         unit!["id"]!.GetValue<string>(),
-                        ToText(unit["titles"])))
+                        ToText(unit["titles"]),
+                        ToPart(unit["part"])))
                     .ToList();
 
                 return Results.Ok(programs);
@@ -66,7 +67,9 @@ public static class ContentEndpoints
                 return Results.Ok(new UnitSummary(
                     unitNode["id"]!.GetValue<string>(),
                     ToText(unitNode["titles"]),
-                    steps.Count));
+                    steps.Count,
+                    ToSections(unitNode["sections"]),
+                    ToPart(unitNode["part"])));
             })
             .WithName(EndpointNames.GetUnit)
             .WithSummary("A program's title and step count.")
@@ -293,6 +296,29 @@ public static class ContentEndpoints
         }
         return result;
     }
+
+    /// <summary>
+    /// <c>unit.part</c> — Schema v2, absent from a v1 bundle and from any track that has no
+    /// parts (<c>web-kit</c>'s <c>Part</c>). Navigation metadata only: an id and its titles,
+    /// never a step range — the book's own <c>--parts</c> check is the one source for that.
+    /// </summary>
+    private static PartSummary? ToPart(JsonNode? node)
+        => node is null ? null : new PartSummary(node["id"]!.GetValue<string>(), ToText(node["titles"]));
+
+    /// <summary>
+    /// <c>unit.sections</c> — headings and where they start, never the steps under them. A
+    /// unit may open under no heading (a Quiz and an opener precede §1 in every program), so
+    /// an absent array is an empty list rather than a default section invented here.
+    /// </summary>
+    private static List<SectionSummary> ToSections(JsonNode? node)
+        => node is null
+            ? []
+            : node.AsArray()
+                .Select(section => new SectionSummary(
+                    section!["id"]!.GetValue<string>(),
+                    ToText(section["titles"]),
+                    section["firstStep"]!.GetValue<int>()))
+                .ToList();
 
     private static IResult IngestRejected(string detail) => Results.Problem(
         title: "Not a content bundle.",
