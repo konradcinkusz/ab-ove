@@ -80,4 +80,18 @@ export const TWO_FACTOR: FixtureAccount = {
   },
 };
 
-export const ACCOUNTS: readonly FixtureAccount[] = [READER, AUTHOR, TWO_FACTOR];
+/**
+ * The one account with the `Admin` role, ADR-0060's ingestion endpoint requires
+ * (`MapContentAdminEndpoints`, `Program.cs`'s `RequireRole("Admin", "SuperAdmin")`). Not a
+ * reader fixture — nothing in a spec signs in as this account — it exists so
+ * `fixtures/ingest-content.mts` can mint a bearer the same way every other token in this
+ * file is minted, rather than a second, parallel way of producing one.
+ */
+export const ADMIN: FixtureAccount = {
+  id: 'fixture-admin-1',
+  email: 'admin@example.test',
+  password: 'fixture-password-not-a-secret',
+  roles: ['Admin'],
+};
+
+export const ACCOUNTS: readonly FixtureAccount[] = [READER, AUTHOR, TWO_FACTOR, ADMIN];

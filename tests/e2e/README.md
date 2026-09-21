@@ -461,12 +461,18 @@ is gated on an explicit operator statement ("I expect an API here") rather than 
 whether one answered, because a test that quietly passes when the backend is absent cannot
 tell that from a backend that broke.
 
-**CI does not set it, and that did not change when CI grew a backend** (ADR-0035). That test
-is tagged `@core`, so it runs against the `:3000` deployment, which is the one deliberately
-left with no API; the backend the e2e job starts belongs to `:3100`. Turning the variable on
-in CI would mean giving `:3000` an API too, and that would retire the only un-intercepted run
-this suite has against a genuinely backend-less web app — which is the product's first
-requirement, not a gap. It stays a deployment-only switch.
+**CI does not set it, and growing a backend (ADR-0035) then wiring it to both local
+deployments (ADR-0060) did not change that.** That test reads the API through the BFF
+proxy's own `/api/proxy/` route, against a target the operator names explicitly — issue
+#270's ground, a deployed environment, not this runner-local one. `:3000` and `:3100` both
+get `AB_OVO_API_URL` now (reading needs no account, so a live API is no longer the axis they
+differ on — see `playwright.config.ts`'s `apiBaseUrl`), but that is a Server Component's own
+direct, server-side call, a different mechanism from the browser's proxied one this test
+exercises. The genuinely backend-less run this suite still needs is `no-backend.spec.ts`'s —
+a real absence injected in the browser with route interception, deterministic on every run,
+rather than one whole local deployment configured with no API at all. `E2E_EXPECT_API`
+stays a deployment-only switch for that reason, not because CI has nothing configured for it
+to gate.
 
 ### The base URL
 
