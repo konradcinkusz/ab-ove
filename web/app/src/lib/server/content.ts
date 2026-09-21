@@ -29,6 +29,24 @@ const CONTENT_PATH = '/api/v1/content';
  */
 const DEFAULT_TIMEOUT_MS = 8_000;
 
+/**
+ * What a GUESSED rung (`backends.ts`'s own word for internal DNS and `localhost` — rungs 3
+ * and 4, never confirmed reachable by anything an operator said) gets instead of the full
+ * budget above.
+ *
+ * Measured on this suite's own reading spec: one brief stall reaching the CONFIGURED address
+ * was enough to walk the ladder down to `ab-ovo-api.internal`, whose DNS lookup resolves to
+ * nothing anywhere outside a real Fly deployment — and a `.internal` TLD is exactly the shape
+ * that can eat several real seconds failing rather than answering NXDOMAIN at once, on a
+ * runner whose resolver has no authority for it. Charging that guess the SAME eight seconds
+ * as the address an operator actually configured turned one brief hiccup on rung one into a
+ * ladder walk long enough to blow a reader's whole page-load patience — and, inside this
+ * suite, Playwright's test timeout. A guess that was never going to answer should fail fast;
+ * only the configured rung (the first one `backendCandidates` ever returns) has earned the
+ * full budget.
+ */
+const GUESSED_RUNG_TIMEOUT_MS = 1_500;
+
 function timeoutMs(): number {
   const configured = Number.parseInt(process.env.AB_OVO_API_TIMEOUT_MS ?? '', 10);
   return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_TIMEOUT_MS;
@@ -72,8 +90,11 @@ function identityHeaders(identity: ReaderIdentity): Headers {
 
 /**
  * One request against the content API, walking the candidate ladder exactly as
- * `forgetRowsAt`/`deleteAccount` do: every rung gets the full timeout, and only a transport
- * failure or a non-2xx-non-404 status advances to the next one.
+ * `forgetRowsAt`/`deleteAccount` do: only a transport failure or a non-2xx-non-404 status
+ * advances to the next rung. UNLIKE those two, not every rung gets the full timeout — only
+ * the first, CONFIGURED one does (`backendCandidates`'s own ordering guarantee); every rung
+ * after it is a guess (`GUESSED_RUNG_TIMEOUT_MS`'s own doc comment says why a guess earns far
+ * less of a reader's patience than the address an operator actually set).
  */
 async function request<T>(
   method: 'GET' | 'POST',
@@ -85,9 +106,12 @@ async function request<T>(
   const candidates = backendCandidates('api');
   let last: ContentOutcome<T> = { kind: 'unavailable', reason: 'no api is configured' };
 
-  for (const base of candidates) {
+  for (const [index, base] of candidates.entries()) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs());
+    const timer = setTimeout(
+      () => controller.abort(),
+      index === 0 ? timeoutMs() : GUESSED_RUNG_TIMEOUT_MS,
+    );
 
     try {
       const headers = identityHeaders(identity);
@@ -113,9 +137,10 @@ async function request<T>(
 
       last = { kind: 'unavailable', reason: `api answered ${response.status}` };
     } catch (error) {
+      const rungTimeout = index === 0 ? timeoutMs() : GUESSED_RUNG_TIMEOUT_MS;
       const detail =
         error instanceof Error && error.name === 'AbortError'
-          ? `timed out after ${timeoutMs()}ms`
+          ? `timed out after ${rungTimeout}ms`
           : error instanceof Error
             ? error.message
             : String(error);
