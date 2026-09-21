@@ -29,6 +29,16 @@ public sealed record SectionSummary(string Id, IReadOnlyDictionary<string, strin
 
 public sealed record ProgramSummary(string Id, IReadOnlyDictionary<string, string> Titles, PartSummary? Part);
 
+/// <summary>
+/// The track-level facts a reading surface needs before it can address a program: which
+/// bundle is live (<see cref="Tag"/> — the instrument's own key, issue #15), which editions
+/// it publishes, and the programs themselves, in the book's own order.
+/// </summary>
+public sealed record TrackContent(
+    string Tag,
+    IReadOnlyList<string> Languages,
+    IReadOnlyList<ProgramSummary> Programs);
+
 public sealed record UnitSummary(
     string Id,
     IReadOnlyDictionary<string, string> Titles,
@@ -72,13 +82,16 @@ public sealed record AdvanceRequest
     public int AnsweringStep { get; init; }
 
     /// <summary>
-    /// Required as evidence an answer was given, never graded here — <see
+    /// OPTIONAL, and that is measured against the reading surface rather than assumed: only
+    /// a <c>cue</c> step's frame carries a field to write one in at all (<c>step.cue</c> —
+    /// `frame-view.tsx`'s own gate on rendering <c>AnswerLine</c>), and even there nothing
+    /// today stops a reveal with the field empty — "nothing here gates the reveal", the
+    /// component's own words. Never graded either way — <see
     /// cref="AbOvo.Api.Content.Reveal.Advance"/> takes no answer text; the reader's own
     /// comparison against the next frame is the teaching (ADR-0010).
     /// </summary>
-    [Required]
-    [StringLength(4_000, MinimumLength = 1)]
-    public string Answer { get; init; } = string.Empty;
+    [StringLength(4_000)]
+    public string? Answer { get; init; }
 
     /// <summary>
     /// A language tag as the content bundle spells it, for the same reason and with the same
