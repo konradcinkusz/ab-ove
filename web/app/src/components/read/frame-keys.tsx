@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
+import { revealStep } from '@/lib/actions/reveal';
+
 export interface FrameKeysProps {
   /** `/read/<track>/<unit>/<lang>` — the path a frame number is appended to. */
   readonly base: string;
@@ -15,6 +17,15 @@ export interface FrameKeysProps {
    * actually finished the program.
    */
   readonly after?: string;
+  /**
+   * ADR-0060 — added alongside `revealStep`, and it does not weaken the property the header
+   * below explains: a track id, a unit id and a language tag are already sitting in the
+   * address bar this handler reads `here` out of, so handing them in as props leaks nothing
+   * that was not already public. What that property still forbids is a STEP or its content.
+   */
+  readonly track: string;
+  readonly unit: string;
+  readonly language: string;
 }
 
 /**
@@ -84,7 +95,7 @@ export interface FrameKeysProps {
  * them would be lying twice a frame"). A field joins the hint by carrying the attribute;
  * nothing here knows their ids.
  */
-export function FrameKeys({ base, last, after }: FrameKeysProps): null {
+export function FrameKeys({ base, last, after, track, unit, language }: FrameKeysProps): null {
   const router = useRouter();
 
   useEffect(() => {
@@ -158,6 +169,8 @@ export function FrameKeys({ base, last, after }: FrameKeysProps): null {
         // The end of the program used to be a wall; now `→` opens the one thing past it.
         // Still nothing on `←`, and still nothing at all when nowhere has been declared —
         // a program's own summary route may not exist yet on every caller of this component.
+        // `/summary` is not part of ADR-0060's gate (out of this change's scope), so this
+        // stays a plain navigation rather than a reveal.
         if (!after) return;
         event.preventDefault();
         router.push(after);
@@ -165,7 +178,23 @@ export function FrameKeys({ base, last, after }: FrameKeysProps): null {
       }
 
       event.preventDefault();
-      router.push(`${base}/${to}`);
+
+      if (step < 0) {
+        // Backward is always a re-read of a step the reader has already unlocked — never a
+        // reveal, so a plain navigation is correct and the gate (this destination page's own
+        // GET) is what would refuse it if it somehow were not.
+        router.push(`${base}/${to}`);
+        return;
+      }
+
+      /*
+        FORWARD IS A REVEAL, AND A REVEAL IS A WRITE (ADR-0060) — see reveal.ts's header for
+        why a bare navigation can no longer be what raises the cursor. `here`, not `to`, is
+        the step being ANSWERED; `${base}/${to}` is where the same idempotency
+        `revealStep` relies on always leaves servable once this call returns, whether it
+        genuinely advanced the cursor or found this reader already past it.
+      */
+      void revealStep(track, unit, language, here, `${base}/${to}`);
     };
 
     // The typing state, for the hint. `focusin` carries the element gaining focus, so one
@@ -191,7 +220,7 @@ export function FrameKeys({ base, last, after }: FrameKeysProps): null {
       delete document.documentElement.dataset.frameKeys;
       delete document.documentElement.dataset.typing;
     };
-  }, [base, last, after, router]);
+  }, [base, last, after, router, track, unit, language]);
 
   return null;
 }

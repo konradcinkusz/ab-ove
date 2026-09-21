@@ -8,11 +8,13 @@ import Link from 'next/link';
  * ──────────────────────────────────────────────────────────────────────────────────────
  * A 500 IS A DEPLOYMENT DEFECT, AND THE PAGE SHOULD SAY SO RATHER THAN LOOK BROKEN.
  *
- * `bundleFor` throws when the pinned bundle is missing or does not validate — "nothing a
- * reader typed can cause either and nothing a reader does can fix it" — and until now the
- * reader met Next's bare error page for it. This one says whose fault it is, what is NOT
- * lost, and offers the two things a reader can do: try the render again, or go to the
- * programs.
+ * `bundleFor` used to throw when the pinned, build-time bundle was missing or did not
+ * validate; ADR-0060 moved content off that path, and this page now also catches the
+ * reading surface's own throw when `AbOvo.Api`'s content endpoints cannot be reached at
+ * all (`read/[track]/[unit]/[lang]/[step]/page.tsx`'s `unavailable` outcome) — same
+ * reasoning either way: "nothing a reader typed can cause either and nothing a reader does
+ * can fix it." This page says whose fault it is, what is NOT lost, and offers the two
+ * things a reader can do: try the render again, or go to the programs.
  *
  * A CLIENT COMPONENT BY REQUIREMENT — `error.tsx` must be one, because it renders after
  * the server-side tree failed — and it is the only one in the app that is not on the

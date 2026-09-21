@@ -1,8 +1,10 @@
 import Link from 'next/link';
 
-import { say, sectionSpans, unitBefore, type Bundle, type Step, type Unit } from '@ab-ovo/web-kit';
+import { say } from '@ab-ovo/web-kit';
 
 import { HINT_STATES, chromeFor } from '@/lib/i18n/chrome';
+import type { SectionSummary, StepContent } from '@/lib/content/wire';
+import { revealStep } from '@/lib/actions/reveal';
 import { bookNumberOf } from '@/lib/sheet/number';
 
 import { AnswerLine } from './answer-line.tsx';
@@ -17,17 +19,27 @@ import { ProgramGate } from './program-gate.tsx';
 import foot from './reading-foot.module.css';
 import { ReadingFoot } from './reading-foot.tsx';
 import { RememberPosition } from './remember-position.tsx';
+import { RevealButtonLabel } from './reveal-button-label.tsx';
 import { RevealLabel } from './reveal-label.tsx';
 import { RichInline, RichText } from './rich-text.tsx';
 import { YouWrote } from './you-wrote.tsx';
 
 export interface FrameViewProps {
-  readonly bundle: Bundle;
-  readonly unit: Unit;
-  readonly step: Step;
+  readonly track: string;
+  /** The current bundle's tag — every outcome/worksheet key needs one (issue #15). */
+  readonly tag: string;
+  readonly trackLanguages: readonly string[];
+  readonly unitId: string;
+  readonly unitTitles: Readonly<Record<string, string>>;
+  /** Headings only — `UnitSummary.sections`, never a step's own content. */
+  readonly sections: readonly SectionSummary[];
+  readonly stepCount: number;
+  readonly step: StepContent;
   readonly language: string;
-  /** Present unless this is the last step of the unit. */
-  readonly next?: Step;
+  /** The program the manifest puts before this one, or `undefined` for the first. */
+  readonly previousUnitId: string | undefined;
+  /** Whether a step exists after this one — a bounds check, not a reveal state. */
+  readonly hasNext: boolean;
 }
 
 /**
@@ -42,18 +54,18 @@ export interface FrameViewProps {
  * previous frame's answer) and is why ADR-0014 modelled it that way rather than putting an
  * `answer` field on the step being asked.
  *
- * So the reveal is a navigation, and the next step's answer arrives with the next step.
- * The whole bundle is in scope here and none of it reaches the browser: this is a Server
- * Component with no client boundary, so what is sent is what is rendered, and what is
- * rendered is one step. A reader who opens the inspector on this page finds the answer
- * nowhere, and a reader who is the book's reader will open the inspector.
+ * ADR-0060 sharpened what "structurally absent" means: this Server Component no longer
+ * holds the whole book in memory and renders one step out of it — it is handed exactly one
+ * step, already past `AbOvo.Api`'s reveal gate, and there is nothing else here to leak. The
+ * property used to rest on this component's own discipline; now it rests on the gate that
+ * decided what reached this component in the first place.
  *
- * `prefetch={false}` IS PART OF THAT, and it is the half that is easy to lose. Next
- * prefetches a `<Link>` in the viewport by default in production, which would pull the
- * next step's payload — the answer in it — over the wire before the reader had committed
- * to anything. It would not be in the DOM, so the acceptance test's letter would pass and
- * its point would not: a reader with the network tab open would be looking at the answer.
- * Do not remove this to make the reveal feel faster.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE REVEAL IS A FORM, NOT A LINK — see `reveal.ts`'s header for the full reasoning. In
+ * short: revealing now raises this reader's SERVER-SIDE cursor, so a bare navigation (which
+ * Next may prefetch, which a crawler may follow, which a shared link may replay) can no
+ * longer be what does it. `prefetch={false}` used to be the whole of this property; it is
+ * now `<form action={revealStep.bind(...)}>`, which cannot be prefetched by construction.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
@@ -71,21 +83,37 @@ export interface FrameViewProps {
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export function FrameView({
-  bundle,
-  unit,
+  track,
+  tag,
+  trackLanguages,
+  unitId,
+  unitTitles,
+  sections,
+  stepCount,
   step,
   language,
-  next,
+  previousUnitId,
+  hasNext,
 }: FrameViewProps): React.JSX.Element {
-  const track = bundle.track.id;
-  // The program that opens this one, read off the manifest (ADR-0051, `unitBefore`).
-  const previous = unitBefore(bundle, unit.id)?.id;
-  const reading = (edition: string): string => `/read/${track}/${unit.id}/${edition}`;
+  const reading = (edition: string): string => `/read/${track}/${unitId}/${edition}`;
   const at = (n: number): string => `${reading(language)}/${n}`;
   const chrome = chromeFor(language);
-  const forward = next ? at(step.n + 1) : undefined;
+  const forwardUrl = hasNext ? at(step.n + 1) : undefined;
   const back = step.n > 1 ? at(step.n - 1) : undefined;
   const summaryAt = `${reading(language)}/summary`;
+
+  /*
+    THE ONLY WAY THIS READER'S CURSOR MOVES — bound once, reused by both the main reveal
+    control and the "Next section" shortcut below, which always target the same URL: a
+    "Next section" link renders only on a section's own last step, so `nextSpan.from` and
+    `step.n + 1` are the same number by `sectionSpansOf`'s own construction. `answeringStep`
+    is `step.n`, the step this reveal answers — never the target — which is what makes this
+    call idempotent for a reader who goes back and reveals again (`reveal.ts`'s own
+    reasoning, the `submit_answer` precedent).
+  */
+  const revealAction = forwardUrl
+    ? revealStep.bind(null, track, unitId, language, step.n, forwardUrl)
+    : undefined;
 
   /*
     The number this frame's answer IS, for the reveal's own comparison — or `undefined`,
@@ -94,17 +122,16 @@ export function FrameView({
   */
   const bookNumber = step.answer ? bookNumberOf(say(step.answer, language), language) : undefined;
 
-  const section = unit.sections?.find((candidate) => candidate.id === step.section);
-
   /*
-    Where a "Next section →" link belongs: the LAST step of a section that is not the
-    program's own last step. sectionSpans() already answers "which heading covers this
-    step and where does it end" for the contents page; reusing it here rather than
-    re-deriving the boundary is what keeps the two pages agreeing about where a section
-    stops without either one copying the other's arithmetic.
+    Where each of this program's headings starts and stops, and which one (if any) covers
+    THIS step — derived from `UnitSummary.sections` and `stepCount` rather than from a
+    `step.section` field the wire no longer carries: a step already knows its own number,
+    and the span it falls in says everything a `section` field would have, without adding a
+    second source for the same fact.
   */
-  const spans = sectionSpans(unit);
+  const spans = sectionSpansOf(sections, stepCount);
   const currentSpan = spans.find((span) => step.n >= span.from && step.n <= span.to);
+  const section = currentSpan?.section;
   const nextSpan =
     currentSpan && step.n === currentSpan.to
       ? spans[spans.indexOf(currentSpan) + 1]
@@ -152,8 +179,8 @@ export function FrameView({
         and the position, the same two facts the row shows, said once for the landmark.
       */}
       <h1 className={styles.title}>
-        <RichInline language={language} text={say(unit.titles, language)} />{' '}
-        <span lang={chrome.language}>· {chrome.position(step.n, unit.steps.length)}</span>
+        <RichInline language={language} text={say(unitTitles, language)} />{' '}
+        <span lang={chrome.language}>· {chrome.position(step.n, stepCount)}</span>
       </h1>
 
       {/*
@@ -167,8 +194,19 @@ export function FrameView({
         `after` is the summary route, always — it is only ever REACHED past the last step,
         so handing it in on every frame costs nothing and means this component does not have
         to know it is rendering the last one to wire the key correctly.
+
+        `track`/`unit`/`language` — ADR-0060 — are what a forward press now needs to call
+        the same reveal this component's own button does; see frame-keys.tsx's header for
+        why handing them in does not weaken the property the rest of its props keep.
       */}
-      <FrameKeys after={summaryAt} base={reading(language)} last={unit.steps.length} />
+      <FrameKeys
+        after={summaryAt}
+        base={reading(language)}
+        language={language}
+        last={stepCount}
+        track={track}
+        unit={unitId}
+      />
 
       {/*
         The reader's place, in the reader's browser. It renders nothing — no badge, no
@@ -183,13 +221,13 @@ export function FrameView({
         place behind to unlock it with. `previous` is the manifest's adjacency, never the
         id with one taken off it.
       */}
-      <ProgramGate language={language} previous={previous} track={track} unit={unit.id} />
+      <ProgramGate language={language} previous={previousUnitId} track={track} unit={unitId} />
       <RememberPosition
         language={language}
-        previous={previous}
+        previous={previousUnitId}
         step={step.n}
         track={track}
-        unit={unit.id}
+        unit={unitId}
       />
 
       <PlaceRow
@@ -198,12 +236,12 @@ export function FrameView({
         current={step.n}
         frameHrefFor={at}
         language={language}
-        last={unit.steps.length}
+        last={stepCount}
         section={section}
         spans={spans}
-        trackLanguages={bundle.track.languages}
-        unitId={unit.id}
-        unitTitle={say(unit.titles, language)}
+        trackLanguages={trackLanguages}
+        unitId={unitId}
+        unitTitle={say(unitTitles, language)}
       />
 
       {/*
@@ -229,13 +267,13 @@ export function FrameView({
           <RichText language={language} text={say(step.answer, language)} />
           <YouWrote
             bookNumber={bookNumber}
-            bundleTag={bundle.tag}
+            bundleTag={tag}
             chromeLanguage={chrome.language}
             language={language}
             matches={chrome.matchesBook}
             n={step.n}
             track={track}
-            unit={unit.id}
+            unit={unitId}
             youWrote={chrome.youWrote}
           />
         </div>
@@ -245,7 +283,7 @@ export function FrameView({
         <RichText language={language} text={say(step.body, language)} />
       </div>
 
-      {forward ? (
+      {forwardUrl && revealAction ? (
         <>
           {/*
             ──────────────────────────────────────────────────────────────────────────────
@@ -267,15 +305,16 @@ export function FrameView({
           {step.cue ? (
             <AnswerLine
               earlierEdition={chrome.earlierEdition}
-              forward={forward}
+              forward={forwardUrl}
               label={chrome.yourAnswer}
               language={chrome.language}
               lockedNote={chrome.writtenBefore}
               n={step.n}
               placeholder={chrome.writeItDown}
-              tag={bundle.tag}
+              readingLanguage={language}
+              tag={tag}
               track={track}
-              unit={unit.id}
+              unit={unitId}
             />
           ) : (
             <div className={styles.dots} aria-hidden="true" />
@@ -309,9 +348,9 @@ export function FrameView({
                 n={step.n}
                 run={chrome.workingRun}
                 summary={chrome.working}
-                tag={bundle.tag}
+                tag={tag}
                 track={track}
-                unit={unit.id}
+                unit={unitId}
               />
               {/*
                 And somewhere to draw, on the same terms. A great many of this book's
@@ -331,19 +370,21 @@ export function FrameView({
                 none={chrome.sketchNone}
                 saved={chrome.showMySketch}
                 summary={chrome.sketch}
-                tag={bundle.tag}
+                tag={tag}
                 track={track}
                 undo={chrome.sketchUndo}
-                unit={unit.id}
+                unit={unitId}
               />
             </div>
           ) : null}
-          <Link className={styles.reveal} href={forward} lang={chrome.language} prefetch={false}>
-            <RevealLabel label={step.cue ? chrome.reveal : chrome.next} />
-            <span aria-hidden="true" className={styles.revealArrow}>
-              →
-            </span>
-          </Link>
+          <form action={revealAction} className={styles.revealForm}>
+            <button className={styles.reveal} lang={chrome.language} type="submit">
+              <RevealButtonLabel label={step.cue ? chrome.reveal : chrome.next} />
+              <span aria-hidden="true" className={styles.revealArrow}>
+                →
+              </span>
+            </button>
+          </form>
         </>
       ) : (
         /*
@@ -354,7 +395,10 @@ export function FrameView({
           which is what "leading to the next" in the plan's own words for `/summary` means.
           `prefetch={false}` on the SAME reasoning as the reveal above: `/summary`'s labels
           paraphrase what the program concluded, and paraphrase is close enough to answer
-          that this link earns the same restraint.
+          that this link earns the same restraint. STAYS A LINK — ADR-0060's gate covers the
+          reading loop within a program; the summary route is untouched by this change and
+          this transition raises no cursor (there is nothing past the last step to raise it
+          to; `Reveal.Advance` answers that with `ProgramComplete`, not a further step).
         */
         <Link className={styles.reveal} href={summaryAt} lang={chrome.language} prefetch={false}>
           <RevealLabel label={chrome.summaryAndChecklist} />
@@ -430,7 +474,7 @@ export function FrameView({
               language={chrome.language}
               n={step.n}
               track={track}
-              unit={unit.id}
+              unit={unitId}
             />
           ) : null
         }
@@ -448,22 +492,43 @@ export function FrameView({
         chrome={chrome}
         forward={
           /*
-            `prefetch={false}`, on the reveal's reasoning: the next section's first frame
-            opens with the answer to this one, and this link was pulling it over the wire
-            while the reader was still writing.
+            THE SAME REVEAL, A SECOND CONTROL FOR IT — never a second action. `nextSpan`
+            exists only on a section's own last step, and `sectionSpansOf`'s construction
+            (each span's `to` is the next span's `from` minus one) means `revealAction`
+            already targets exactly `nextSpan.from`.
           */
-          nextSpan ? (
-            <Link
-              className={`${foot.navLink} ${foot.nextSection}`}
-              href={at(nextSpan.from)}
-              prefetch={false}
-            >
-              {chrome.nextSection}
-            </Link>
+          nextSpan && revealAction ? (
+            <form action={revealAction} className={styles.revealForm}>
+              <button className={`${foot.navLink} ${foot.nextSection}`} type="submit">
+                {chrome.nextSection}
+              </button>
+            </form>
           ) : null
         }
-        where={<span className={foot.position}>{chrome.position(step.n, unit.steps.length)}</span>}
+        where={<span className={foot.position}>{chrome.position(step.n, stepCount)}</span>}
       />
     </article>
   );
 }
+
+/** A heading and the steps it covers, both ends inclusive — `SectionSpan`, computed locally. */
+interface SectionSpan {
+  readonly section: SectionSummary;
+  readonly from: number;
+  readonly to: number;
+}
+
+/**
+ * `@ab-ovo/web-kit`'s `sectionSpans(unit)`, reworked to take exactly what it reads —
+ * `unit.sections` and `unit.steps.length` — rather than a whole `Unit`. The arithmetic is
+ * unchanged; only the shape of what carries it in is, because `UnitSummary` from the content
+ * API is a `SectionSummary[]` and a `stepCount`, never a `Unit`.
+ */
+function sectionSpansOf(sections: readonly SectionSummary[], stepCount: number): readonly SectionSpan[] {
+  return sections.map((section, index) => ({
+    section,
+    from: section.firstStep,
+    to: (sections[index + 1]?.firstStep ?? stepCount + 1) - 1,
+  }));
+}
+

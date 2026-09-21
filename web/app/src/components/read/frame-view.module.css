@@ -16,6 +16,16 @@
 }
 
 /*
+ * ADR-0060 — the reveal is now a `<form action={revealStep}>` around the button that used to
+ * be an `<a>`. `display: contents` removes the form's own box from the layout entirely, so
+ * it contributes nothing to `.body`'s flow or `.forward`'s grid cell (reading-foot.module.css)
+ * beyond the button already inside it — the same box the `<a>` used to be.
+ */
+.revealForm {
+  display: contents;
+}
+
+/*
  * THE CRUMB, THE RULE AND THE BADGE USED TO BE HERE, AND THEY ARE NOW ONE ROW.
  *
  * `place-row.module.css` holds what replaced them. Three rules are gone rather than kept

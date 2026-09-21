@@ -494,6 +494,16 @@ interface Strings {
    * be the page the reader is already on.
    */
   readonly shutNextProgram: (unit: string) => string;
+  /**
+   * ADR-0060 — the FRAME-level refusal, answered by the same live call that serves the
+   * frame rather than by a client-side redirect. `shutNotice` above is the PROGRAM-level
+   * gate's sentence and a different mechanism (`ProgramGate`, localStorage, a client
+   * navigation); this is what `AbOvo.Api`'s reveal gate refuses within an already-open
+   * program, rendered directly by the page the reader asked for rather than one they were
+   * moved to.
+   */
+  readonly notReachedHeading: string;
+  readonly notReachedBody: (furthest: number) => string;
 }
 
 /**
@@ -681,6 +691,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       `order: ${unit} opens as soon as you have a place in ${previous}, and one frame of ` +
       `${previous} is enough. ${unit} is marked in the list below.`,
     shutNextProgram: (unit) => `${unit} opens once you have read any frame of this program.`,
+    notReachedHeading: 'Not there yet',
+    notReachedBody: (furthest) =>
+      `This frame has not been reached yet. The furthest read frame in this program is ${furthest}.`,
     backToLastFrame: '← Back to the frame',
     labOptional: 'This program also has computer exercises in Python, optional',
   },
@@ -874,6 +887,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       `${previous} — wystarczy jedna ramka ${previous}. ${unit} jest zaznaczony na liście niżej.`,
     shutNextProgram: (unit) =>
       `${unit} otworzy się, gdy przeczytasz dowolną ramkę tego programu.`,
+    notReachedHeading: 'Jeszcze nie tutaj',
+    notReachedBody: (furthest) =>
+      `Ta ramka nie jest jeszcze dostępna. Najdalsza przeczytana ramka w tym programie: ${furthest}.`,
     backToLastFrame: '← Wróć do ramki',
     labOptional: 'Ten program ma też ćwiczenia komputerowe w Pythonie, opcjonalne',
   },
@@ -1026,6 +1042,8 @@ export interface Chrome {
   readonly shutExplain: (previous: string) => string;
   readonly shutNotice: (unit: string, previous: string) => string;
   readonly shutNextProgram: (unit: string) => string;
+  readonly notReachedHeading: string;
+  readonly notReachedBody: (furthest: number) => string;
 }
 
 /** The controls for a reader of `language`, falling back to English rather than failing. */
