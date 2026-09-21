@@ -352,6 +352,20 @@ containing a `[lang]` descendant and expects one — and it was a `<p>`, which *
 a `<nav>`**, so hydration failed on every frame page in the book until it was measured.
 `hydration.spec.ts` is the guard. [ADR-0041](../adr/0041-the-reading-surface-shows-position-and-never-progress.md).
 
+#### The reveal carries an arrow, and the foot below it reads as buttons
+
+The owner's report: *"hard to understand what is going on on the bottom, not really known
+how to properly navigate, there are no properly visible buttons."* Two fixes, one
+[ADR](../adr/0057-the-frames-foot-is-buttons-not-text.md). `RevealLabel`'s two sentences —
+*Reveal the answer*, *Next frame* — now share a trailing `→` (`aria-hidden`, so the
+accessible name is unchanged) saying the one thing both of them do: turn the page. And
+`← Previous`, `Contents` and `Next section →` — the foot's own way to move, as distinct from
+the reveal's — are outlined buttons rather than the same faint text as the position count,
+the theme switch and `Keys` beside them. The position keeps ADR-0041's `[12] / 45` exactly,
+in a quiet chip rather than a heavier tone — still text, still no bar. `Clear my answer`, the
+theme switch and `Keys` stay as quiet as they were: they are settings and a destructive
+control, not places to go, and the new contrast is what now tells the two kinds apart.
+
 #### The dotted row is the answer line, and that reverses what this document used to say
 
 It said the row carries **no input**, "a decision rather than an omission". It is now the

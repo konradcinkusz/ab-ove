@@ -326,6 +326,9 @@ export function FrameView({
           ) : null}
           <Link className={styles.reveal} href={forward} lang={chrome.language} prefetch={false}>
             <RevealLabel label={step.cue ? chrome.reveal : chrome.next} />
+            <span aria-hidden="true" className={styles.revealArrow}>
+              →
+            </span>
           </Link>
         </>
       ) : (
@@ -341,6 +344,9 @@ export function FrameView({
         */
         <Link className={styles.reveal} href={summaryAt} lang={chrome.language} prefetch={false}>
           <RevealLabel label={chrome.summaryAndChecklist} />
+          <span aria-hidden="true" className={styles.revealArrow}>
+            →
+          </span>
         </Link>
       )}
 
@@ -397,9 +403,13 @@ export function FrameView({
       <nav aria-label={chrome.footNav} className={styles.foot} lang={chrome.language}>
         <div className={styles.footLeft}>
           {back ? (
-            <Link href={back}>← {chrome.previous}</Link>
+            <Link className={styles.navLink} href={back}>
+              ← {chrome.previous}
+            </Link>
           ) : (
-            <Link href={reading(language)}>{chrome.backToContents}</Link>
+            <Link className={styles.navLink} href={reading(language)}>
+              {chrome.backToContents}
+            </Link>
           )}
           {/*
             `prefetch={false}`, on the reveal's reasoning: the next section's first frame
@@ -407,7 +417,11 @@ export function FrameView({
             while the reader was still writing.
           */}
           {nextSpan ? (
-            <Link className={styles.nextSection} href={at(nextSpan.from)} prefetch={false}>
+            <Link
+              className={`${styles.navLink} ${styles.nextSection}`}
+              href={at(nextSpan.from)}
+              prefetch={false}
+            >
               {chrome.nextSection}
             </Link>
           ) : null}
@@ -430,7 +444,7 @@ export function FrameView({
         </div>
 
         <div className={styles.footRight}>
-          <span>{chrome.position(step.n, unit.steps.length)}</span>
+          <span className={styles.position}>{chrome.position(step.n, unit.steps.length)}</span>
           {/*
             THE WAY TO TURN ON LIGHT MODE, WHERE THE READER ALREADY IS (ADR-0048).
 
