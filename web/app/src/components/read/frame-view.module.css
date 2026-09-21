@@ -91,16 +91,31 @@
 }
 
 .reveal {
+  align-items: center;
   background: var(--accent);
   border: 0;
   border-radius: 3px;
   color: var(--paper-raised);
   cursor: pointer;
-  display: inline-block;
+  display: inline-flex;
   font: inherit;
   font-size: 0.9375rem;
+  gap: 0.45rem;
   padding: 0.5rem 1.125rem;
   text-decoration: none;
+}
+
+/*
+ * THE ARROW SAYS THE TWO LABELS ARE ONE MOVE — ADR-0057.
+ *
+ * "Reveal the answer" and "Next frame" are the same control turning over the same page,
+ * and reading as two different buttons because they carry no shared mark was the owner's
+ * own complaint. `aria-hidden` keeps it out of the accessible name (`RevealLabel` alone is
+ * still the whole of what a screen reader announces), so it costs nothing there and buys
+ * the same "this goes forward" cue a sighted reader gets from every other arrow on the page.
+ */
+.revealArrow {
+  font-size: 0.85em;
 }
 
 .reveal:hover {
@@ -152,18 +167,18 @@
   display: flex;
   flex-wrap: wrap;
   font-size: 0.8125rem;
-  gap: 0.75rem 1rem;
+  gap: 1rem 1.25rem;
   justify-content: space-between;
   margin-top: 3rem;
-  padding-top: 1rem;
+  padding-top: 1.25rem;
 }
 
 .footLeft,
 .footRight {
-  align-items: baseline;
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 1rem;
+  gap: 0.5rem 0.75rem;
 }
 
 /*
@@ -182,6 +197,43 @@
 }
 
 /*
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * A VISIBLE BUTTON, FOR THE THREE CONTROLS THAT ARE NAVIGATION — ADR-0057.
+ *
+ * Before this, `← Previous`, `Contents` and `Next section →` were the same faint,
+ * underline-on-hover text as everything else down here, on a row that also carries a
+ * destructive control and two settings nobody presses twice a year. Nothing told a reader
+ * which of those was a place to go and which was furniture, and "no properly visible
+ * buttons" was the complaint this rule exists to answer. An outline rather than a fill:
+ * the reveal stays the one filled control on the page (this file's own header, above), so
+ * these read as the SECOND tier of control — reachable, but not competing with the frame's
+ * own move.
+ *
+ * The border ADDS to the box the padding rule above already grew, in normal flow with no
+ * height set on the element, so it can only help the 44px `reading.spec.ts` asserts —
+ * never take from it.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
+.navLink {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+.navLink:hover {
+  border-color: var(--accent);
+}
+
+/* The ring the reveal wears, on the same reasoning: a border-colour change alone is a
+   contrast change too small for `:focus-visible` to rely on (WCAG 2.4.7). */
+.navLink:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 3px var(--accent);
+  outline: none;
+}
+
+/*
  * A SECTION SKIP IS ONE CLICK FROM THE FRAME, and it is here rather than in the place row
  * on purpose. The place row answers "where am I"; this answers "where next", and the two
  * are different questions a reader asks at different moments — the first on arrival, the
@@ -190,6 +242,21 @@
  */
 .nextSection {
   color: var(--accent);
+}
+
+/*
+ * THE POSITION, MADE EASIER TO FIND — still text, still no bar and no fraction rendered as
+ * one (ADR-0041 stands: this is the same `n of total` string the row always printed). A
+ * quiet chip rather than a heavier tone, because a reader is not choosing to press this —
+ * it is the answer to "where am I", asked at a glance rather than read.
+ */
+.position {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink-soft);
+  padding: 0.2rem 0.5rem;
+  white-space: nowrap;
 }
 
 /*
