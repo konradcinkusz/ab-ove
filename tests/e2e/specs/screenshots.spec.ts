@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 
 import { track, unitNamed } from './support/bundle.ts';
+import { walkTo } from './support/walk.ts';
 
 /**
  * THE SCREENSHOTS THE DOCUMENTATION SHOWS, CAPTURED FROM THE REAL APPLICATION.
@@ -113,6 +114,9 @@ test.describe('@screenshots the documentation set', () => {
   });
 
   test('a frame that asks, and the frame that answers it', async ({ page }) => {
+    // Once, to the further of the two frames this test captures — ADR-0060's cursor only
+    // moves forward, so reaching REVEALS leaves ASKS reachable too, in both editions.
+    await walkTo(page, UNIT, 'en', REVEALS);
     await ready(page, read('en', ASKS));
     await expect(page.locator('article[lang="en"]')).toBeVisible();
     await shoot(page, 'frame-asks-english');
@@ -138,6 +142,7 @@ test.describe('@screenshots the documentation set', () => {
 
   test('the same frame at a phone width, and in dark mode', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 780 });
+    await walkTo(page, UNIT, 'en', ASKS);
     await ready(page, read('en', ASKS));
     await expect(page.locator('article[lang="en"]')).toBeVisible();
     await shoot(page, 'frame-narrow-english');
@@ -147,6 +152,7 @@ test.describe('@screenshots the documentation set', () => {
     const context = await browser.newContext({ colorScheme: 'dark' });
     const page = await context.newPage();
 
+    await walkTo(page, UNIT, 'en', ASKS);
     await ready(page, read('en', ASKS));
     await expect(page.locator('article[lang="en"]')).toBeVisible();
     await shoot(page, 'frame-dark-english');

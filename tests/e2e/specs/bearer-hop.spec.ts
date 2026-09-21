@@ -3,6 +3,7 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
 import { AUTHOR, READER, TWO_FACTOR } from '../fixtures/accounts.mts';
 
 import { openThrough } from './support/gate.ts';
+import { walkTo } from './support/walk.ts';
 
 /**
  * JOURNEY — the hop between the two halves this suite already covers.
@@ -336,7 +337,11 @@ test.describe('a frame a reader reads reaches the account and comes back', () =>
     const STEP = 3;
 
     // ADR-0051: the reader of this journey is one who walked here, so the record says so.
+    // ADR-0060: and a STEP past the first needs the server-side cursor raised to it too,
+    // through this same proxy — walkTo reads the signed-in cookie `signIn` already set
+    // above, not the anonymous one.
     await openThrough(page, UNIT);
+    await walkTo(page, UNIT, 'en', STEP);
     await page.goto(`/read/${TRACK}/${UNIT}/en/${STEP}`);
     await expect(page.locator('article')).toBeVisible();
 

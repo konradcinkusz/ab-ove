@@ -5,6 +5,7 @@ import { served, track } from './support/bundle.js';
 import { openThrough } from './support/gate.js';
 import { openPane } from './support/pane.js';
 import { reveal } from './support/reveal.js';
+import { walkTo } from './support/walk.js';
 // SEEDING CONSENT MEANS SEEDING THE VERSION THE PRODUCT ACCEPTS TODAY, so the constant
 // is imported across the package boundary rather than copied as a `2`. The store treats a
 // stale version as never-answered, so a literal here would not fail loudly on the next
@@ -396,9 +397,11 @@ const answerLine = (page: Page) => page.getByRole('textbox', { name: /your answe
  */
 async function writeAndReveal(page: Page, asks: number, text: string | null): Promise<void> {
   // The program `pairs()` found is wherever in the book it is, and since ADR-0051 a frame
-  // of it renders for a reader who walked there. The seed is one write per program however
-  // often it is asked for, and nothing at all when the program is the first one.
+  // of it renders for a reader who walked there, and since ADR-0060 a step renders only for
+  // a reader whose cursor has reached it. `openThrough` seeds the first; `walkTo` raises the
+  // second.
   await openThrough(page, PAIRS.unit);
+  await walkTo(page, PAIRS.unit, 'en', asks);
   await page.goto(readAt(asks));
 
   if (text === null) {
@@ -511,6 +514,7 @@ test.describe('the worksheet contributes too', () => {
     const seen = await collectOutcomes(page);
 
     await openThrough(page, PAIRS.unit);
+    await walkTo(page, PAIRS.unit, 'en', PAIRS.numeric.asks);
     await page.goto(readAt(PAIRS.numeric.asks));
     // The control, so this is the same journey as the tests above with the writing removed.
     // Navigating by URL would leave it passing for the reason the helper above records.

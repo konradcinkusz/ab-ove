@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { track, uniqueProbeIn, unitNamed } from './support/bundle.ts';
+import { walkTo } from './support/walk.ts';
 
 /**
  * JOURNEY — coming back.
@@ -65,6 +66,9 @@ async function readUpTo(
   language: string,
   n: number,
 ): Promise<void> {
+  // ADR-0060: the frame this suite means to read is never frame 1 (see STOPPED_AT's own
+  // comment), so the reader's server-side cursor has to have reached it first.
+  await walkTo(page, unit, language, n);
   await page.goto(frameAt(language, n));
   await page.waitForFunction((key) => window.localStorage.getItem(key) !== null, KEY);
 }

@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { pickPair, served, track, unitNamed } from './support/bundle.ts';
 import { openThrough } from './support/gate.ts';
 import { reveal } from './support/reveal.ts';
+import { walkTo } from './support/walk.ts';
 
 /**
  * The frame view, and the one property the whole product rests on.
@@ -90,6 +91,7 @@ test.describe('the frame view', () => {
     const question = pair.question.en!;
     const answer = pair.answer.en!;
 
+    await walkTo(page, unit, 'en', asking.n);
     await page.goto(at('en', asking.n));
 
     // The control and the property, together. Without the first, a page that rendered
@@ -118,6 +120,11 @@ test.describe('the frame view', () => {
   });
 
   test('fetches nothing about the next frame until the reader asks @core', async ({ page }) => {
+    // Ahead of the listener below, deliberately: walkTo's own navigation and advance calls
+    // are not what this test is watching for, and registering the listener first would put
+    // them in scope for no reason.
+    await walkTo(page, unit, 'en', asking.n);
+
     // The half that is easy to lose. Next prefetches a <Link> in the viewport by default in
     // production, which would pull the next step's payload — the answer in it — over the
     // wire before the reader committed. It would not be in the DOM, so the test above would
@@ -149,6 +156,7 @@ test.describe('the frame view', () => {
     const question = pair.question.pl!;
     const answer = pair.answer.pl!;
 
+    await walkTo(page, unit, 'pl', asking.n);
     await page.goto(at('pl', asking.n));
     const before = await page.locator('body').innerText();
     expect(before).toContain(question);
@@ -190,9 +198,11 @@ test.describe('the frame view', () => {
     const { number } = NUMERIC;
 
     // `numericPairAnywhere` searches the whole book, so the frame can be in any program —
-    // and since ADR-0051 a program renders for a reader who walked to it. The rest of this
-    // file reads the FIRST program, which is open to everybody and needs no seed.
+    // and since ADR-0051 a program renders for a reader who walked to it, and since
+    // ADR-0060 a STEP renders only for a reader whose cursor has reached it. `openThrough`
+    // seeds the first; `walkTo` raises the second.
     await openThrough(page, NUMERIC.unit);
+    await walkTo(page, NUMERIC.unit, 'en', NUMERIC.asks);
     await page.goto(numericAt('en', NUMERIC.asks));
     expect(
       await page.content(),
