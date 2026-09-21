@@ -523,6 +523,42 @@ joins every other file in being digest-pinned, and this row is discharged.
 `web/content/book.lock.json`'s own `contentBundle` comment;
 `scripts/fetch-book-content.sh`, under "the content bundle".
 
+### 2026-09-21 — `PUT /api/v1/progress/{track}/{unit}` can still name a step it did not earn
+
+**What.** [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+adds a reveal gate: `GET /api/v1/content/{track}/{unit}/{step}` refuses a step past the
+reader's furthest, and `POST /api/v1/content/{track}/{unit}/advance` is the only endpoint
+meant to raise that ceiling — it computes the next step itself and never trusts a
+client-supplied number. `PUT /api/v1/progress/{track}/{unit}` — [ADR-0019](../adr/0019-furthest-frame-wins.md)'s
+cross-device sync endpoint — still accepts and stores whatever `step` a caller sends, subject
+only to "does not lower it". A caller could name step 48 directly and then `GET` it, having
+answered nothing.
+
+**Reason.** Closing it now would break the one caller that still legitimately needs it:
+`web/mcp` (TypeScript) computes its own advance client-side against its own copy of the gate
+(`reveal.ts`) and PUTs the resulting step to persist it, because it predates
+`POST .../advance` and has no other way to write `ReaderProgress`. Retiring `PUT`'s ability to
+raise `Step` today would silently stop the current MCP server from remembering a reader's
+place — a regression in exchange for closing a hole in a mechanism that is not a
+confidentiality boundary in the first place. `web/web-kit/src/gate.ts`'s own docstring says
+the same of the neighbouring program-level gate, and it holds here too: "nothing behind it is
+paid for, secret, or unsafe to see." A reader who wants to read ahead by hand-crafting one PUT
+request has always had at least as easy a way to do it — the whole book had no gate at all
+until this ADR.
+
+**Blast radius.** Bounded to the reveal gate's own stakes: the worst this endpoint lets a
+caller do is see a later frame's text and the answer it opens with, without having answered
+the one before it. No credential, no other reader's data, and no write outside the caller's
+own `ReaderProgress` rows are reachable through it.
+
+**Exit.** Phase 5 replaces `web/mcp` with a .NET client that calls `POST .../advance`
+directly, the way `web/app`'s reading surface will from phase 3. Once no caller depends on
+`PUT` to raise `Step`, its handler is narrowed to reject `update.Step > existing.Step`
+outright (or the field is dropped from `ProgressUpdate` entirely) and this row is discharged.
+
+**Recorded in.** [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md);
+`src/AbOvo.Api/Endpoints/ProgressEndpoints.cs`, at the `MapPut` handler.
+
 ---
 
 ## Known gaps

@@ -91,7 +91,7 @@ function timeoutMs(): number {
  * `cookie` is dropped because the session cookie is this app's, for this origin. Forwarding
  * it hands the backend a credential it has no use for and did not ask for.
  *
- * `READER_ID_HEADER` is dropped for the same reason as `authorization`, ADR-0050: it too is
+ * `READER_ID_HEADER` is dropped for the same reason as `authorization`, ADR-0061: it too is
  * injected below, from `ab_ovo_rid`, never accepted from the client directly — a client that
  * could set its own reader-id header could claim any other anonymous reader's cursor.
  */
@@ -151,7 +151,7 @@ function buildUpstreamHeaders(
    */
   if (bearer) headers.set('authorization', `Bearer ${bearer}`);
 
-  // ADR-0050 — same shape, for the anonymous reader's cursor: middleware.ts already
+  // ADR-0061 — same shape, for the anonymous reader's cursor: middleware.ts already
   // guarantees this cookie exists on every page request, so its absence here means a
   // client-initiated write reached the proxy through something other than a page (a
   // service worker, a hand-built fetch) rather than a reader who was never given one.

@@ -68,11 +68,22 @@ authApi.MapProgressEndpoints();
 authApi.MapPreferenceEndpoints();
 openWriteApi.MapOutcomeEndpoints();
 
+// ADR-0060 — content reads share openWriteApi's shape (anonymous, explicitly rate-limited)
+// rather than publicApi's: these are real content-serving reads a reader's session drives
+// repeatedly, not a probe. The reveal gate inside them is what keeps a reader from naming an
+// unreached step, not this group's authorization, which is none, deliberately (ADR-0004).
+openWriteApi.MapContentEndpoints();
+
 // The instrument's read, and the admin group's first endpoint. Nothing on it is about a
 // reader, so the gate is not a confidentiality one — it is that a thin ranked list misleads
 // its reader, and the author's view carries the sentence that says so where a public JSON
 // endpoint would carry nothing (ADR-0024 §4, issue #17).
 adminApi.MapRateEndpoints();
+
+// Content ingestion — ADR-0060. Admin because publishing a new bundle is a deliberate,
+// auditable act (ADR-0008's "content lags, and that is the cost of the pin"), not an implicit
+// step of every deploy.
+adminApi.MapContentAdminEndpoints();
 
 app.LogIntegrationBanner();
 

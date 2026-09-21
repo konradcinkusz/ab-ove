@@ -31,6 +31,11 @@ public sealed class AbOvoDbContext(DbContextOptions<AbOvoDbContext> options) : D
     /// </summary>
     public DbSet<ReaderPreference> ReaderPreferences => Set<ReaderPreference>();
 
+    /// <summary>
+    /// The content this service now serves live (ADR-0060) — see <see cref="ContentBundle"/>.
+    /// </summary>
+    public DbSet<ContentBundle> ContentBundles => Set<ContentBundle>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -121,6 +126,19 @@ public sealed class AbOvoDbContext(DbContextOptions<AbOvoDbContext> options) : D
             entity.Property(p => p.Subject).HasMaxLength(64).IsRequired();
             entity.Property(p => p.Language).HasMaxLength(16).IsRequired();
             entity.Property(p => p.UpdatedAt).IsRequired();
+        });
+
+        modelBuilder.Entity<ContentBundle>(entity =>
+        {
+            // One row per (Track, Tag), and the key is the whole of ADR-0008's "immutable"
+            // carried forward: there is no column an UPDATE could target without it meaning
+            // a different bundle, so the only writes this table ever sees are inserts.
+            entity.HasKey(c => new { c.Track, c.Tag });
+
+            entity.Property(c => c.Track).HasMaxLength(64).IsRequired();
+            entity.Property(c => c.Tag).HasMaxLength(64).IsRequired();
+            entity.Property(c => c.BundleJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(c => c.IngestedAt).IsRequired();
         });
     }
 }

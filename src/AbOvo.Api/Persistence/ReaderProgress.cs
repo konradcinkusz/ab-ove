@@ -24,7 +24,7 @@ public sealed class ReaderProgress
 {
     /// <summary>
     /// One of two shapes, both produced by <c>AbOvo.Api.Extensions.ReaderIdentity.Resolve</c>
-    /// and never typed anywhere else (ADR-0050): the bare <c>sub</c> claim from authservice's
+    /// and never typed anywhere else (ADR-0061): the bare <c>sub</c> claim from authservice's
     /// token, unprefixed exactly as it always has been, for a signed-in reader; or
     /// <c>anon:&lt;uuid&gt;</c>, an opaque, unsigned identifier the web app's own middleware
     /// mints and holds in a cookie, for a reader who has not signed in. The `anon:` prefix

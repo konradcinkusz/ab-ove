@@ -1,5 +1,5 @@
 /**
- * The anonymous reader's cursor cookie — ADR-0050.
+ * The anonymous reader's cursor cookie — ADR-0061.
  *
  * A random, unguessable, opaque value, not a token: nothing here is signed, because
  * `AbOvo.Api` validates tokens and mints none (P5), and minting an "anonymous JWT" would make
@@ -16,12 +16,12 @@
  * calling `AbOvo.Api` directly (Node runtime) alike.
  */
 
-/** ADR-0050 — the cookie a reader's anonymous position lives in. */
+/** ADR-0061 — the cookie a reader's anonymous position lives in. */
 export const READER_ID_COOKIE = 'ab_ovo_rid';
 
 /**
  * The header the BFF proxy injects this as, server-side, on a client-initiated write
- * (ADR-0050) — never a header a client is trusted to set itself. Lower-case: header names
+ * (ADR-0061) — never a header a client is trusted to set itself. Lower-case: header names
  * are compared case-insensitively, but the proxy route's own forwarding tables are written
  * lower-case throughout and this matches them.
  */
