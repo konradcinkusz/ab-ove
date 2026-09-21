@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace AbOvo.Contracts;
 
 /// <summary>
@@ -38,4 +40,30 @@ public sealed record StepResponse(bool Ok, StepContent? Step, GateRefusal? Refus
 /// idempotency <c>submit_answer</c> uses in the MCP tool surface: a retry that names a step
 /// the reader has already moved past records nothing and hands back the step they are on.
 /// </summary>
-public sealed record AdvanceRequest(int AnsweringStep, string Answer, string Language);
+public sealed record AdvanceRequest
+{
+    /// <summary>
+    /// 1-based, bounded for <see cref="ProgressUpdate.Step"/>'s reason: the service refuses
+    /// the absurd rather than claiming to know how long a program is.
+    /// </summary>
+    [Range(1, 10_000)]
+    public int AnsweringStep { get; init; }
+
+    /// <summary>
+    /// Required as evidence an answer was given, never graded here — <see
+    /// cref="AbOvo.Api.Content.Reveal.Advance"/> takes no answer text; the reader's own
+    /// comparison against the next frame is the teaching (ADR-0010).
+    /// </summary>
+    [Required]
+    [StringLength(4_000, MinimumLength = 1)]
+    public string Answer { get; init; } = string.Empty;
+
+    /// <summary>
+    /// A language tag as the content bundle spells it, for the same reason and with the same
+    /// shape as <see cref="ProgressUpdate.Language"/>.
+    /// </summary>
+    [Required]
+    [StringLength(16, MinimumLength = 2)]
+    [RegularExpression("^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$")]
+    public string Language { get; init; } = string.Empty;
+}

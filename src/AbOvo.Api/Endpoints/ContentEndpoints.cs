@@ -4,6 +4,7 @@ using AbOvo.Api.Content;
 using AbOvo.Api.Extensions;
 using AbOvo.Api.Persistence;
 using AbOvo.Contracts;
+using AbOvo.ServiceDefaults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
