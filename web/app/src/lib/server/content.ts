@@ -70,10 +70,71 @@ function identityHeaders(identity: ReaderIdentity): Headers {
   return headers;
 }
 
+/** One candidate's own attempt — never thrown, so the caller can decide whether to retry it. */
+type Attempt<T> = { readonly outcome: ContentOutcome<T> } | { readonly transportFailure: string };
+
+async function attemptOnce<T>(
+  base: string,
+  path: string,
+  method: 'GET' | 'POST',
+  identity: ReaderIdentity,
+  body: unknown,
+  fetchImpl: FetchLike,
+): Promise<Attempt<T>> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs());
+
+  try {
+    const headers = identityHeaders(identity);
+    if (body !== undefined) headers.set('content-type', 'application/json');
+
+    const response = await fetchImpl(`${base}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      // Following a redirect would send the bearer to an address nobody chose — the same
+      // reasoning `deleteAccount` gives.
+      redirect: 'manual',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+
+    if (response.status === 404) return { outcome: { kind: 'not-found' } };
+    if (response.ok) {
+      const data = (await response.json()) as T;
+      return { outcome: { kind: 'ok', data } };
+    }
+    return { outcome: { kind: 'unavailable', reason: `api answered ${response.status}` } };
+  } catch (error) {
+    const detail =
+      error instanceof Error && error.name === 'AbortError'
+        ? `timed out after ${timeoutMs()}ms`
+        : error instanceof Error
+          ? error.message
+          : String(error);
+    return { transportFailure: detail };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * One request against the content API, walking the candidate ladder exactly as
  * `forgetRowsAt`/`deleteAccount` do: every rung gets the full timeout, and only a transport
  * failure or a non-2xx-non-404 status advances to the next one.
+ *
+ * A BARE TRANSPORT FAILURE ON A RUNG GETS ONE IMMEDIATE RETRY BEFORE THAT RUNG IS GIVEN UP ON.
+ * Every read here is a request the reader is already waiting on (ADR-0060 — this is the only
+ * door to the book now), fired from a long-lived Node process reusing keep-alive sockets
+ * against a long-lived Kestrel one. The pair race exactly the way HTTP/1.1 keep-alive always
+ * can: Kestrel closes an idle connection at the same moment undici hands that same connection
+ * back out, and the request fails before either side sent a byte — undici's own "fetch
+ * failed" for a socket that was never live for this attempt. That is not the candidate being
+ * unreachable, and falling through to the NEXT rung (internal DNS or `localhost`, neither of
+ * which anything is listening on outside a deployed estate) turns one lost socket into an
+ * outage. A fresh connection resolves it, so one retry happens before the rung is charged
+ * with a real failure; an HTTP-level error response is never retried this way, since that
+ * candidate answered and retrying it blindly would risk a second identical POST.
  */
 async function request<T>(
   method: 'GET' | 'POST',
@@ -86,43 +147,20 @@ async function request<T>(
   let last: ContentOutcome<T> = { kind: 'unavailable', reason: 'no api is configured' };
 
   for (const base of candidates) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs());
-
-    try {
-      const headers = identityHeaders(identity);
-      if (body !== undefined) headers.set('content-type', 'application/json');
-
-      const response = await fetchImpl(`${base}${path}`, {
-        method,
-        headers,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
-        // Following a redirect would send the bearer to an address nobody chose — the same
-        // reasoning `deleteAccount` gives.
-        redirect: 'manual',
-        cache: 'no-store',
-        signal: controller.signal,
-      });
-
-      if (response.status === 404) return { kind: 'not-found' };
-
-      if (response.ok) {
-        const data = (await response.json()) as T;
-        return { kind: 'ok', data };
-      }
-
-      last = { kind: 'unavailable', reason: `api answered ${response.status}` };
-    } catch (error) {
-      const detail =
-        error instanceof Error && error.name === 'AbortError'
-          ? `timed out after ${timeoutMs()}ms`
-          : error instanceof Error
-            ? error.message
-            : String(error);
-      last = { kind: 'unavailable', reason: `${base}: ${detail}` };
-    } finally {
-      clearTimeout(timer);
+    let attempt = await attemptOnce<T>(base, path, method, identity, body, fetchImpl);
+    if ('transportFailure' in attempt) {
+      attempt = await attemptOnce<T>(base, path, method, identity, body, fetchImpl);
     }
+
+    if ('transportFailure' in attempt) {
+      last = { kind: 'unavailable', reason: `${base}: ${attempt.transportFailure}` };
+      continue;
+    }
+    if (attempt.outcome.kind === 'unavailable') {
+      last = attempt.outcome;
+      continue;
+    }
+    return attempt.outcome;
   }
 
   return last;
