@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http;
 namespace AbOvo.Api.Extensions;
 
 /// <summary>
-/// ADR-0050 — resolves the identity a content read or a cursor advance is filed under,
+/// ADR-0061 — resolves the identity a content read or a cursor advance is filed under,
 /// covering the reader `ClientIdentityResolver` (in the kernel) was never asked to cover: one
 /// who has never signed in.
 /// <para>
@@ -27,7 +27,7 @@ namespace AbOvo.Api.Extensions;
 public static class ReaderIdentity
 {
     /// <summary>
-    /// ADR-0050 — the header the web app's BFF proxy injects server-side, from the reader's
+    /// ADR-0061 — the header the web app's BFF proxy injects server-side, from the reader's
     /// <c>ab_ovo_rid</c> cookie, the same way it already injects <c>Authorization</c> from a
     /// session cookie. Never trusted from anywhere else: a client that could set this itself
     /// could claim any other anonymous reader's cursor.
@@ -38,7 +38,7 @@ public static class ReaderIdentity
     /// The authenticated subject if the request carries one, else the anonymous reader-id
     /// header if it is present and shaped like one, else <c>null</c>. A caller with neither
     /// has no cursor to read or write and must be told so — this method does not invent one;
-    /// minting happens once, in the web app's middleware (ADR-0050), not on every API call
+    /// minting happens once, in the web app's middleware (ADR-0061), not on every API call
     /// that happens to be missing it.
     /// </summary>
     public static string? Resolve(HttpContext context)

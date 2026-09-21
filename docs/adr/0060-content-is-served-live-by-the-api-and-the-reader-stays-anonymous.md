@@ -1,4 +1,4 @@
-# ADR-0049: Content is served live by the API, and the reader stays anonymous
+# ADR-0060: Content is served live by the API, and the reader stays anonymous
 
 ## Status
 
@@ -35,7 +35,7 @@ concrete API shape (endpoints, entities) is tracked as its own implementation wo
 against this decision rather than restating it.
 
 **Reading requires no account.** A new, non-JWT identity mechanism carries an anonymous
-reader's position — [ADR-0050](0050-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)
+reader's position — [ADR-0061](0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)
 is the decision for its shape. `authservice` remains optional (P8); an anonymous reader never
 touches it.
 

@@ -1,4 +1,4 @@
-# ADR-0050: An anonymous reader's cursor is an opaque cookie, not a token
+# ADR-0061: An anonymous reader's cursor is an opaque cookie, not a token
 
 ## Status
 
@@ -6,7 +6,7 @@
 
 ## Context
 
-[ADR-0049](0049-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md) requires
+[ADR-0060](0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md) requires
 a live, gated read on every step, and gating requires the server to recognise the same
 anonymous browser across requests — something nothing in this estate does today.
 `ReaderProgress.Subject` is documented and typed as exactly one thing: the `sub` claim from an

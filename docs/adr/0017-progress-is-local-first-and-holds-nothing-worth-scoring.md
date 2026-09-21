@@ -4,7 +4,7 @@
 
 **Accepted**, with a correction: the "local first, no request, no cookie, no row" half of the
 Decision below is superseded by
-[ADR-0049](0049-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md) —
+[ADR-0060](0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md) —
 `ReaderProgress` is now authoritative for every reader, anonymous or not, and `localStorage`
 demotes to a resume hint. The record's anti-aggregation shape — one position per program, no
 timestamp, no counter, no streak, nothing worth scoring — is unaffected and stands; it governs

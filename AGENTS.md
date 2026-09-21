@@ -50,15 +50,15 @@ adoption. [`CONTRIBUTING.md`](CONTRIBUTING.md) is the same ground for a human.
    README makes that a claim about the code, and any of those edits makes the README false.
 
 5. **The reader loop always requires a live API, and always requires no account.** These are
-   two separate rules, not one — [ADR-0049](docs/adr/0049-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+   two separate rules, not one — [ADR-0060](docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
    reversed only the first. A frame, a reveal or an answer that renders without a live,
    gated call to `AbOvo.Api` is a defect, not an optimisation — content is no longer servable
    from a build-time bundle. At the same time, a change that makes any of that call require a
    signed-in account has broken the *other* half: an anonymous reader is identified by the
-   opaque cookie [ADR-0050](docs/adr/0050-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)
+   opaque cookie [ADR-0061](docs/adr/0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)
    defines, never by a JWT `AbOvo.Api` had to mint (P5 still forbids that). Before this item
    read the opposite of both sentences above; if you are working from a stale mental model or
-   a stale copy of this file, re-read ADR-0049 before touching anything under `read/**` or
+   a stale copy of this file, re-read ADR-0060 before touching anything under `read/**` or
    `web/mcp`.
 
 6. **No secret is ever a literal, anywhere.** `AppHost.cs` takes them as parameters from

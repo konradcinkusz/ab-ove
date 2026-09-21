@@ -3,7 +3,7 @@
 ## Status
 
 **Superseded** by
-[ADR-0049](0049-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md), which
+[ADR-0060](0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md), which
 this ADR's own Consequences section named as its trigger: content no longer lives in the web
 image's build context at all, so the question this ADR answered does not arise. Date: 2026-09-14.
 

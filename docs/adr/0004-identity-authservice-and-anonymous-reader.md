@@ -3,7 +3,7 @@
 ## Status
 
 **Accepted**, with a correction: the "no backend" clause of Context below is superseded by
-[ADR-0049](0049-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md) — content
+[ADR-0060](0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md) — content
 now requires a live API. The identity/anonymity decision — the reader needs no *account* — is
 unaffected and stands. Date: 2026-09-14.
 

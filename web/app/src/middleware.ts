@@ -23,7 +23,7 @@ import { isPlausiblyUnexpired, verifyAccessToken } from '@/lib/server/token';
  * Deleting one of those checks because "middleware already handles it" removes the only
  * enforcement that exists.
  *
- * ONE THING WAS ADDED THAT IS NOT UX: ADR-0050's anonymous reader-id cookie is minted here,
+ * ONE THING WAS ADDED THAT IS NOT UX: ADR-0061's anonymous reader-id cookie is minted here,
  * on every page response that arrives without one, because this is the one place that
  * already runs on every page request and already sets cookies. It is not a second gate —
  * nothing here reads it or decides anything from it — this file only ensures it exists so a
@@ -55,7 +55,7 @@ import { isPlausiblyUnexpired, verifyAccessToken } from '@/lib/server/token';
  * list fails closed: the page somebody forgets to add redirects to sign-in, which is
  * noticed immediately.
  *
- * ab-ovo's reader loop requires NO account (ADR-0004, corrected by ADR-0049: it does now
+ * ab-ovo's reader loop requires NO account (ADR-0004, corrected by ADR-0060: it does now
  * require a live API, which is a separate axis from this gate entirely — this list decides
  * who needs to sign in, not who needs a network), so most of this product is deliberately
  * public. That is a product decision, written down here as entries rather than left as an
@@ -219,12 +219,12 @@ async function gate(request: NextRequest, pathname: string): Promise<NextRespons
 }
 
 /**
- * ADR-0050 — mint the anonymous reader's cursor cookie if this request did not already carry
+ * ADR-0061 — mint the anonymous reader's cursor cookie if this request did not already carry
  * one, on WHATEVER response the gate above produced (a redirect included: a cookie set on a
  * redirect response is still stored by the browser before it follows the Location header).
  *
  * Never overwrites an existing value. A reader's furthest step lives server-side, keyed by
- * this cookie's value (ADR-0049) — replacing it would silently start a new, empty cursor for
+ * this cookie's value (ADR-0060) — replacing it would silently start a new, empty cursor for
  * somebody who has already read forty frames.
  */
 function ensureReaderCookie(request: NextRequest, response: NextResponse): NextResponse {
