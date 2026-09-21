@@ -23,9 +23,14 @@ namespace AbOvo.Api.Persistence;
 public sealed class ReaderProgress
 {
     /// <summary>
-    /// The <c>sub</c> claim from authservice's token, and the only identifier this service
-    /// stores. No email, no name: the API validates tokens and keeps no user store (P5), so
-    /// anything else would be a copy of somebody else's record going stale.
+    /// One of two shapes, both produced by <c>AbOvo.Api.Extensions.ReaderIdentity.Resolve</c>
+    /// and never typed anywhere else (ADR-0050): the bare <c>sub</c> claim from authservice's
+    /// token, unprefixed exactly as it always has been, for a signed-in reader; or
+    /// <c>anon:&lt;uuid&gt;</c>, an opaque, unsigned identifier the web app's own middleware
+    /// mints and holds in a cookie, for a reader who has not signed in. The `anon:` prefix
+    /// cannot collide with a bare subject claim. No email, no name, no account row: the API
+    /// validates tokens and mints none (P5), and an anonymous reader has no account to copy
+    /// from in the first place.
     /// </summary>
     [MaxLength(64)]
     public required string Subject { get; init; }
