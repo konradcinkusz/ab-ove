@@ -344,6 +344,12 @@ test.describe('the worksheet', () => {
   });
 
   test('nothing a reader writes leaves the browser @smoke', async ({ page }) => {
+    // Ahead of the listener below, deliberately — same reasoning as frame-view.spec.ts's
+    // "fetches nothing" test: walkTo's own advance calls run inside the page (identity
+    // needs that — see support/walk.ts) and would otherwise be indistinguishable from the
+    // reader's own traffic to a listener that is watching for exactly this shape of call.
+    await walkTo(page, unit, 'en', pair.asking.n);
+
     /*
      * The claim the whole store rests on, asserted from outside rather than read out of a
      * comment. Every request the page makes is recorded while a reader types and reveals;
@@ -355,7 +361,6 @@ test.describe('the worksheet', () => {
       sent.push(`${request.method()} ${request.url()} ${body}`);
     });
 
-    await walkTo(page, unit, 'en', pair.asking.n);
     await page.goto(at('en', pair.asking.n));
     await line(page, /your answer/i).fill('the reader wrote this and nobody else may see it');
     await reveal(page).click();
