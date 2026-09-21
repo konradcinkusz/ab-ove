@@ -223,6 +223,13 @@ reviewers actually need:
 Commits are conventional-ish, and the body matters more than the subject: say **why**,
 because the what is in the diff.
 
+**No AI tool's session link, chat link or conversation URL in a commit message or a pull
+request** — this repository is public, so anything pushed is public forever (see "Going
+public" below), and a session link is one contributor's own account context with nothing to
+verify by. Ordinary co-authorship attribution (a name, a generic "generated with" line with
+no link back to a private session) is fine; a URL that only means something to whoever owns
+the session is not.
+
 ---
 
 ## Going public
