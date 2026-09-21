@@ -90,7 +90,7 @@ jobs:
   # it is the job whose failure a contributor can act on without leaving their editor.
   # ───────────────────────────────────────────────────────────────────────────────────────
   lint:
-    name: docs lint (links, diagrams, parity)
+    name: docs lint (links, diagrams, parity, papers)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -135,6 +135,19 @@ jobs:
             node scripts/check-doc-parity.mjs "origin/${{ github.base_ref }}"
           else
             node scripts/check-doc-parity.mjs
+          fi
+
+      # Same shape, and the same reason for it: the structural half of the paper check runs
+      # anywhere, the coupling half needs something to diff against. This job is why both
+      # overview editions are on the house preamble at all — before it existed they had
+      # drifted off it entirely and nothing in the build said so.
+      - name: The papers hold the house style, and their editions moved together
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            node scripts/check-papers.mjs "origin/${{ github.base_ref }}"
+          else
+            node scripts/check-papers.mjs
           fi
 
   # ───────────────────────────────────────────────────────────────────────────────────────

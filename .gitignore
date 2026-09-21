@@ -88,11 +88,23 @@ blob-report/
 
 ## ── LaTeX build output. Only the .tex is committed: a checked-in PDF disagrees
 ## with its source the first time the source changes (INIT §9). ─────────────────
-*.aux
-*.log
-*.out
-*.toc
+## Per-directory, not bare: the pattern says which build it belongs to, and a bare *.log
+## would swallow an application log somebody meant to keep. This block used to explain that
+## rule three lines below and then break it here — the rule and its violation lived in one
+## file, which is what a check is for rather than a longer comment.
+##
+## The last three are latexmk's, not pdflatex's. The manual recipe in this repository is
+## pdflatex run twice, which produces none of them, so they are easy to miss — but latexmk is
+## what xu-cheng/latex-action drives, so the first contributor to reproduce the CI build
+## locally gets all three as untracked files.
 docs/papers/*.pdf
+docs/papers/*.aux
+docs/papers/*.log
+docs/papers/*.out
+docs/papers/*.toc
+docs/papers/*.fdb_latexmk
+docs/papers/*.fls
+docs/papers/*.synctex.gz
 
 ## The diagrams the papers include, rendered to vector PDF by scripts/render-diagrams.mjs.
 ## Same rule, one directory: a .mmd is the single source of a diagram, and GitHub renders it
