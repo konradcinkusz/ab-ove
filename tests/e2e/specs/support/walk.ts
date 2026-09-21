@@ -26,13 +26,14 @@ import { track } from './bundle.ts';
  * the exact same row `ReaderProgress` would hold after N real clicks, in N requests with no
  * browser work behind them.
  *
- * THROUGH THE BFF PROXY (`/api/proxy/api/v1/content/...`), NEVER STRAIGHT TO `AbOvo.Api` —
- * the one thing a raw `fetch` here cannot do for itself is identity. The proxy already reads
- * whichever cookie this reader actually has (`ACCESS_TOKEN_COOKIE` for a signed-in reader,
- * `READER_ID_COOKIE` for an anonymous one — `route.ts`'s own header injection) and attaches
- * the right one; this helper would otherwise have to know which case it is in and duplicate
- * that translation. `page.request` shares the page's own cookie jar for a same-origin call,
- * which a relative URL against `playwright.config.ts`'s `baseURL` is.
+ * THROUGH THE BFF PROXY, FROM INSIDE THE PAGE — NEVER `page.request`. A first draft used
+ * `page.request.post`, which is exactly the mistake `bearer-hop.spec.ts`'s header already
+ * measured and named: Playwright's `APIRequestContext` is not the page's own site as far as
+ * Chromium's cookie jar is concerned, so a `SameSite=Strict` cookie (`ab_ovo_rid` and
+ * `ab_ovo_at` both are — ADR-0061, session-cookies.ts) is withheld from it, and the proxy
+ * sees neither identity and answers "No reader identity". `throughProxy`'s own doc comment
+ * says the fix: the call has to be `fetch`, made BY the page, so the browser attaches its
+ * own cookies the way it would for any same-origin request a reader's own click makes.
  *
  * WHY IT NEEDS A REAL `AbOvo.Api`, said once here rather than swallowed as a skip: a
  * developer running the suite with no API gets the same "throws to `app/error.tsx`" outcome
@@ -49,8 +50,8 @@ export async function walkTo(
 
   /*
    * A NAVIGATION IS WHAT MINTS THE READER'S COOKIE (`web/app/src/middleware.ts`, whose own
-   * matcher excludes `/api/*` — the proxy call below mints nothing by itself). NOT ONE OF
-   * THIS FUNCTION'S OWN CHOOSING when the caller is already mid-journey (on a contents page,
+   * matcher excludes `/api/*` — the fetch below mints nothing by itself). NOT ONE OF THIS
+   * FUNCTION'S OWN CHOOSING when the caller is already mid-journey (on a contents page,
    * about to click a link): navigating here would leave that click landing on the wrong
    * page. Only when there is reason to think none has happened yet.
    */
@@ -63,25 +64,33 @@ export async function walkTo(
   }
 
   for (let answering = 1; answering < step; answering += 1) {
-    const response = await page.request.post(
-      `/api/proxy/api/v1/content/${track}/${unit}/advance`,
-      {
-        headers: { 'content-type': 'application/json' },
-        data: { answeringStep: answering, language },
+    const result = await page.evaluate(
+      async ([url, payload]) => {
+        const response = await fetch(url as string, {
+          method: 'POST',
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: payload as string,
+        });
+        return { status: response.status, body: await response.text() };
       },
+      [
+        `/api/proxy/api/v1/content/${track}/${unit}/advance`,
+        JSON.stringify({ answeringStep: answering, language }),
+      ] as const,
     );
-    if (!response.ok()) {
-      throw new Error(
-        `advance(${unit}, answering ${answering}) answered ${response.status()}: ${await response.text()}`,
-      );
+
+    if (result.status < 200 || result.status >= 300) {
+      throw new Error(`advance(${unit}, answering ${answering}) answered ${result.status}: ${result.body}`);
     }
 
     // The gate answers refusals as DATA, 200 and all (ContentEndpoints.cs — "never an HTTP
     // error"), so a 200 alone does not say the cursor moved. `ok` is the field that does.
-    const body = (await response.json()) as { ok: boolean; refusal?: { kind: string } };
-    if (!body.ok) {
+    const parsed = JSON.parse(result.body) as { ok: boolean; refusal?: { kind: string } };
+    if (!parsed.ok) {
       throw new Error(
-        `advance(${unit}, answering ${answering}) refused: ${body.refusal?.kind ?? 'unknown'}`,
+        `advance(${unit}, answering ${answering}) refused: ${parsed.refusal?.kind ?? 'unknown'}`,
       );
     }
   }
