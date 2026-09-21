@@ -33,13 +33,14 @@ public static class ContentEndpoints
     {
         anonContentApi.MapGet("/content/{track}", async (
                 string track,
+                [FromServices] ContentBundleCache cache,
                 [FromServices] AbOvoDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var bundle = await LatestBundle(db, track, cancellationToken);
+                var bundle = await cache.GetLatest(db, track, cancellationToken);
                 if (bundle is null) return Results.NotFound();
 
-                var root = JsonNode.Parse(bundle.BundleJson)!.AsObject();
+                var root = bundle.Value.Root;
                 var programs = root["units"]!.AsArray()
                     .Select(unit => new ProgramSummary(
                         unit!["id"]!.GetValue<string>(),
@@ -50,7 +51,7 @@ public static class ContentEndpoints
                     .Select(language => language!.GetValue<string>())
                     .ToList() ?? [];
 
-                return Results.Ok(new TrackContent(bundle.Tag, languages, programs));
+                return Results.Ok(new TrackContent(bundle.Value.Tag, languages, programs));
             })
             .WithName(EndpointNames.GetPrograms)
             .WithSummary("The current bundle's tag, editions and every program in it.")
@@ -59,12 +60,12 @@ public static class ContentEndpoints
         anonContentApi.MapGet("/content/{track}/{unit}", async (
                 string track,
                 string unit,
+                [FromServices] ContentBundleCache cache,
                 [FromServices] AbOvoDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var found = await FindUnit(db, track, unit, cancellationToken);
-                if (found is null) return Results.NotFound();
-                var unitNode = found.Value.Unit;
+                var unitNode = await FindUnit(cache, db, track, unit, cancellationToken);
+                if (unitNode is null) return Results.NotFound();
 
                 var steps = unitNode["steps"]!.AsArray();
                 return Results.Ok(new UnitSummary(
@@ -83,12 +84,13 @@ public static class ContentEndpoints
                 string unit,
                 int step,
                 HttpContext http,
+                [FromServices] ContentBundleCache cache,
                 [FromServices] AbOvoDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var found = await FindUnit(db, track, unit, cancellationToken);
-                if (found is null) return Results.NotFound();
-                var steps = found.Value.Unit["steps"]!.AsArray();
+                var unitNode = await FindUnit(cache, db, track, unit, cancellationToken);
+                if (unitNode is null) return Results.NotFound();
+                var steps = unitNode["steps"]!.AsArray();
 
                 /*
                  * INLINED, NOT A SHARED HELPER — ProgressIsNotEvidenceTests's architecture
@@ -119,6 +121,7 @@ public static class ContentEndpoints
                 string unit,
                 AdvanceRequest request,
                 HttpContext http,
+                [FromServices] ContentBundleCache cache,
                 [FromServices] AbOvoDbContext db,
                 [FromServices] TimeProvider clock,
                 CancellationToken cancellationToken) =>
@@ -126,9 +129,9 @@ public static class ContentEndpoints
                 var identity = ReaderIdentity.Resolve(http);
                 if (identity is null) return NoIdentity();
 
-                var found = await FindUnit(db, track, unit, cancellationToken);
-                if (found is null) return Results.NotFound();
-                var steps = found.Value.Unit["steps"]!.AsArray();
+                var unitNode = await FindUnit(cache, db, track, unit, cancellationToken);
+                if (unitNode is null) return Results.NotFound();
+                var steps = unitNode["steps"]!.AsArray();
 
                 var existing = await db.ReaderProgress.SingleOrDefaultAsync(
                     p => p.Subject == identity && p.Track == track && p.Unit == unit,
@@ -192,6 +195,7 @@ public static class ContentEndpoints
     {
         adminApi.MapPost("/content/bundles", async (
                 HttpContext http,
+                [FromServices] ContentBundleCache cache,
                 [FromServices] AbOvoDbContext db,
                 [FromServices] TimeProvider clock,
                 CancellationToken cancellationToken) =>
@@ -240,6 +244,9 @@ public static class ContentEndpoints
                     IngestedAt = clock.GetUtcNow(),
                 });
                 await db.SaveChangesAsync(cancellationToken);
+                // So the very next read of this track sees this bundle rather than whatever
+                // was cached before it — see ContentBundleCache's own doc comment.
+                cache.Invalidate(trackId);
 
                 return Results.Created($"/api/v1/content/{trackId}", new { trackId, tag });
             })
@@ -251,25 +258,16 @@ public static class ContentEndpoints
         return adminApi;
     }
 
-    private static async Task<ContentBundle?> LatestBundle(
-        AbOvoDbContext db, string track, CancellationToken cancellationToken)
-        => await db.ContentBundles
-            .Where(c => c.Track == track)
-            .OrderByDescending(c => c.IngestedAt)
-            .FirstOrDefaultAsync(cancellationToken);
-
-    private static async Task<(ContentBundle Bundle, JsonObject Unit)?> FindUnit(
-        AbOvoDbContext db, string track, string unit, CancellationToken cancellationToken)
+    private static async Task<JsonObject?> FindUnit(
+        ContentBundleCache cache, AbOvoDbContext db, string track, string unit,
+        CancellationToken cancellationToken)
     {
-        var bundle = await LatestBundle(db, track, cancellationToken);
+        var bundle = await cache.GetLatest(db, track, cancellationToken);
         if (bundle is null) return null;
 
-        var root = JsonNode.Parse(bundle.BundleJson)!.AsObject();
-        var unitNode = root["units"]!.AsArray()
+        return bundle.Value.Root["units"]!.AsArray()
             .Select(u => u!.AsObject())
             .FirstOrDefault(u => u["id"]!.GetValue<string>() == unit);
-
-        return unitNode is null ? null : (bundle, unitNode);
     }
 
     private static StepResponse ToStepResponse(Reveal.Served served, JsonArray steps)

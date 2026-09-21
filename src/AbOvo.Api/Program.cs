@@ -1,3 +1,4 @@
+using AbOvo.Api.Content;
 using AbOvo.Api.Endpoints;
 using AbOvo.Api.Extensions;
 using AbOvo.ServiceDefaults;
@@ -13,6 +14,9 @@ builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddCorsPolicy(builder.Configuration, CorsPolicies.Frontend);
 builder.Services.AddStandardRateLimiting(builder.Configuration);
 builder.Services.AddApiPersistence(builder.Configuration);
+// Singleton, not scoped: the parsed bundle it holds outlives any one request by design — see
+// ContentBundleCache's own doc comment for why that is safe.
+builder.Services.AddSingleton<ContentBundleCache>();
 builder.Services.AddSwaggerWithJwt(
     title: "ab-ovo API",
     version: "v1",
