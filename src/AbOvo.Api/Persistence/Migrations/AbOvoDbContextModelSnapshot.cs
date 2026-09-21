@@ -33,6 +33,7 @@ namespace AbOvo.Api.Persistence.Migrations
                         .HasColumnType("character varying(64)");
 
                     b.Property<string>("BundleJson")
+                        .IsRequired()
                         .HasColumnType("jsonb");
 
                     b.Property<DateTimeOffset>("IngestedAt")

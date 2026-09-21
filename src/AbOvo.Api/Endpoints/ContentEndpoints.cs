@@ -84,7 +84,22 @@ public static class ContentEndpoints
                 if (found is null) return Results.NotFound();
                 var steps = found.Value.Unit["steps"]!.AsArray();
 
-                var cursorStep = await CursorStep(db, http, track, unit, cancellationToken);
+                /*
+                 * INLINED, NOT A SHARED HELPER — ProgressIsNotEvidenceTests's architecture
+                 * test (ADR-0009 §1) only sees a NAMED method reaching ReaderProgress; an
+                 * endpoint lambda's own body is invisible to it because the compiler emits
+                 * it into a generated closure, which is also why ProgressEndpoints reaches
+                 * the table directly rather than through a helper. A reader who has opened
+                 * nothing is at step 1 (Reveal.FirstStep), same default a caller with no
+                 * resolvable identity gets.
+                 */
+                var identity = ReaderIdentity.Resolve(http);
+                var cursorStep = identity is null
+                    ? Reveal.FirstStep
+                    : (await db.ReaderProgress.AsNoTracking().SingleOrDefaultAsync(
+                        p => p.Subject == identity && p.Track == track && p.Unit == unit,
+                        cancellationToken))?.Step ?? Reveal.FirstStep;
+
                 var served = Reveal.Serve(steps.Count, cursorStep, step);
 
                 return Results.Ok(ToStepResponse(served, steps));
@@ -249,25 +264,6 @@ public static class ContentEndpoints
             .FirstOrDefault(u => u["id"]!.GetValue<string>() == unit);
 
         return unitNode is null ? null : (bundle, unitNode);
-    }
-
-    /// <summary>
-    /// The reader's furthest step in this unit — a real row's Step if one exists, else
-    /// <see cref="Reveal.FirstStep"/>: a reader who has opened nothing is at step 1, not 0
-    /// (README's own phrasing, carried here). A caller with no resolvable identity gets the
-    /// same safe default rather than an error, so a request that somehow reaches this without
-    /// a cursor still sees step 1 and nothing beyond it.
-    /// </summary>
-    private static async Task<int> CursorStep(
-        AbOvoDbContext db, HttpContext http, string track, string unit, CancellationToken cancellationToken)
-    {
-        var identity = ReaderIdentity.Resolve(http);
-        if (identity is null) return Reveal.FirstStep;
-
-        var existing = await db.ReaderProgress.AsNoTracking().SingleOrDefaultAsync(
-            p => p.Subject == identity && p.Track == track && p.Unit == unit,
-            cancellationToken);
-        return existing?.Step ?? Reveal.FirstStep;
     }
 
     private static StepResponse ToStepResponse(Reveal.Served served, JsonArray steps)
