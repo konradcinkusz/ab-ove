@@ -119,15 +119,38 @@ export function splitPlaceholders(text: string): readonly (string | number)[] {
  * reader does. `trust: false`: no span may load an external resource or run a raw command —
  * irrelevant to a book of arithmetic, refused anyway, because the input is fetched over the
  * network from a third party (the book's own repository) rather than written in this one.
+ *
+ * MEMOIZED, ACROSS EVERY CALL THIS PROCESS EVER MAKES — the same reasoning
+ * `ContentBundleCache` on the API side rests on, carried to this side of the wire: the book
+ * is fetched once and pinned (ADR-0008), so the same `(tex, display)` renders to the same
+ * HTML every time, forever, in this process. `katex.renderToString` is synchronous and
+ * CPU-bound, and `rich-text.tsx`'s own `server-only` marker is what makes that cost land on
+ * Node's ONE event-loop thread — measured directly: `reading.spec.ts`'s end-to-end walk
+ * renders 45 DISTINCT, never-before-seen frames in quick succession, and the resulting
+ * synchronous KaTeX work was enough to stall that one thread for seconds at a stretch,
+ * which every OTHER request this process was mid-flight on (including this app's own
+ * outbound fetch to `AbOvo.Api`) then reads as "the API is unavailable" — a symptom about
+ * this process's own event loop, not about the network or the API at all. The span universe
+ * is small and finite (the book's own compiler measured 1,492 of them, this file's header
+ * comment says) — caching every one of them for the process's lifetime costs a few hundred
+ * kilobytes of HTML strings, not an unbounded growth.
  */
+const RENDERED = new Map<string, string>();
+
 export function renderMathSpan(span: MathSpan): string {
-  return katex.renderToString(span.tex, {
+  const key = `${span.display ? 'display' : 'inline'}\u0000${span.tex}`;
+  const cached = RENDERED.get(key);
+  if (cached !== undefined) return cached;
+
+  const html = katex.renderToString(span.tex, {
     displayMode: span.display,
     strict: true,
     throwOnError: true,
     trust: false,
     output: 'htmlAndMathml',
   });
+  RENDERED.set(key, html);
+  return html;
 }
 
 /**
