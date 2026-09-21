@@ -523,6 +523,14 @@ jobs:
           # in that file: the tokens this job validates are minted by
           # tests/e2e/fixtures/authservice-stub.mts, which publishes a JWKS and enough
           # OIDC metadata for a consumer configured with an authority to find it.
+          #
+          # RateLimit__ApiPermitLimit RAISED, NOT REMOVED (RateLimitingExtensions.cs). The
+          # policy partitions an anonymous caller by client IP, and every anonymous reader
+          # this job's specs drive shares one — 127.0.0.1 — so the combined traffic of
+          # dozens of specs each reading for real (ADR-0060) lands in the bucket a single
+          # production visitor was sized for. One real reader still gets the production
+          # figure everywhere else; this tells the limiter that this one IP here is standing
+          # in for many.
           ASPNETCORE_URLS="$E2E_API_BASE_URL" \
           ASPNETCORE_ENVIRONMENT=Production \
           DATABASE_PROVIDER=PostgreSQL \
@@ -531,6 +539,7 @@ jobs:
           Jwt__Issuer="$issuer" \
           Jwt__Audience="$audience" \
           Jwt__RequireHttpsMetadata=false \
+          RateLimit__ApiPermitLimit=5000 \
             nohup dotnet artifacts/api/AbOvo.Api.dll > "$API_LOG" 2>&1 &
 
           echo $! > "$API_PID_FILE"

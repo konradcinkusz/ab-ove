@@ -4,6 +4,7 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AbOvo.ServiceDefaults;
@@ -24,9 +25,21 @@ public static class RateLimitPolicies
 
 public static class RateLimitingExtensions
 {
-    public static IServiceCollection AddStandardRateLimiting(this IServiceCollection services)
+    public static IServiceCollection AddStandardRateLimiting(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddClientIdentityResolver();
+
+        // Defaults are the production figures; only a deployment that names a different one
+        // gets a different one. The one caller that does today is ci.yml's e2e job — every
+        // anonymous reader it drives shares one partition (`ClientIdentityResolver` falls
+        // back to the client IP, and every browser context in that job shares 127.0.0.1), so
+        // the traffic of dozens of specs each reading for real (ADR-0060) lands in the SAME
+        // bucket a single production visitor was sized for. Raising it there is not loosening
+        // the policy — one real reader still gets 200/min; it is telling the limiter that
+        // this one IP is standing in for many.
+        var authLimit = configuration.GetValue("RateLimit:AuthPermitLimit", 20);
+        var apiLimit = configuration.GetValue("RateLimit:ApiPermitLimit", 200);
+        var globalLimit = configuration.GetValue("RateLimit:GlobalPermitLimit", 500);
 
         services.AddRateLimiter(options =>
         {
@@ -52,8 +65,8 @@ public static class RateLimitingExtensions
                     cancellationToken);
             };
 
-            options.AddPolicy(RateLimitPolicies.Auth, context => PartitionFor(context, permitLimit: 20));
-            options.AddPolicy(RateLimitPolicies.Api, context => PartitionFor(context, permitLimit: 200));
+            options.AddPolicy(RateLimitPolicies.Auth, context => PartitionFor(context, permitLimit: authLimit));
+            options.AddPolicy(RateLimitPolicies.Api, context => PartitionFor(context, permitLimit: apiLimit));
 
             // The global fallback catches every endpoint nobody remembered to tag — except
             // the health probes, which are exempt entirely: a probe that gets 429'd takes
@@ -65,7 +78,7 @@ public static class RateLimitingExtensions
                     return RateLimitPartition.GetNoLimiter("health");
                 }
 
-                return PartitionFor(context, permitLimit: 500);
+                return PartitionFor(context, permitLimit: globalLimit);
             });
         });
 

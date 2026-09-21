@@ -11,7 +11,7 @@ builder.AddServiceDefaults();
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddCorsPolicy(builder.Configuration, CorsPolicies.Frontend);
-builder.Services.AddStandardRateLimiting();
+builder.Services.AddStandardRateLimiting(builder.Configuration);
 builder.Services.AddApiPersistence(builder.Configuration);
 builder.Services.AddSwaggerWithJwt(
     title: "ab-ovo API",
