@@ -140,8 +140,24 @@ export function Working({
   }, [text, language, commit]);
 
   return (
-    <details className={styles.pane}>
-      <summary className={styles.paneSummary}>{summary}</summary>
+    /*
+      `data-pane` is how the acceptance suite finds this pane. It used to find it by the
+      word in its summary, which stopped being a stable hook the moment the label became
+      two labels on the sketch beside it (`Draw it` / `Show my sketch`) — and a text filter
+      matches HIDDEN text too, so a locator that drifts onto an ancestor goes on passing
+      while testing nothing. An attribute cannot drift. (ADR-0059.)
+    */
+    <details className={styles.pane} data-pane="working">
+      <summary className={styles.paneSummary}>
+        {/*
+          One label, in the same one-cell wrapper the sketch uses for its two — so both
+          panes' buttons are the same box and the stylesheet needs one rule rather than a
+          `data-has-sketch="no"` on a pad that has no sketch to have.
+        */}
+        <span className={styles.paneLabels}>
+          <span className={styles.paneLabel}>{summary}</span>
+        </span>
+      </summary>
 
       <div className={styles.paneBody}>
         <div className={styles.workingGrid}>

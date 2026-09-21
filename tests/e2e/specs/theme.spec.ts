@@ -45,8 +45,35 @@ const paper = (page: Page): Promise<string> =>
 const live = (page: Page): Promise<string | null> =>
   page.evaluate(() => document.documentElement.getAttribute('data-theme'));
 
-const press = (page: Page, name: string) =>
-  page.getByRole('group', { name: 'Theme' }).getByRole('button', { name, exact: true }).click();
+/**
+ * Reach the switch where this screen keeps it.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * ADR-0058 — ON A READING SCREEN IT IS INSIDE *READING SETTINGS*, AND THAT IS THE POINT.
+ *
+ * ADR-0048's reasoning is untouched: the answer to "how do I turn on light mode" is still
+ * this page rather than the operating system, and still one press from where the reader
+ * already is. What changed is that a setting nobody touches twice a season stopped sharing
+ * a row with the control they press on every frame. So the switch is one disclosure down,
+ * and this suite opens it — the alternative, rendering that panel open, would have put the
+ * whole key map under every frame to save six lines here.
+ *
+ * The index has no such panel (`program-grid.tsx` keeps the switch in its chrome row), so
+ * this is a no-op there and the landing-page assertions below are unchanged.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+const reachTheme = async (page: Page): Promise<void> => {
+  const settings = page.getByTestId('reading-settings');
+  if ((await settings.count()) > 0) await settings.locator('summary').click();
+};
+
+const press = async (page: Page, name: string) => {
+  await reachTheme(page);
+  await page
+    .getByRole('group', { name: 'Theme' })
+    .getByRole('button', { name, exact: true })
+    .click();
+};
 
 test.describe('the theme', () => {
   test('a reader on a dark machine can turn on light mode, and it survives a reload @smoke', async ({
@@ -100,7 +127,9 @@ test.describe('the theme', () => {
     expect(await live(page), 'the frame forgot what the index was told').toBe('light');
     expect(await paper(page)).toBe(light);
 
-    // And the switch on the frame is the same control, showing the same position.
+    // And the switch on the frame is the same control, showing the same position — behind
+    // the frame's own `Reading settings`, which is where ADR-0058 put every setting.
+    await reachTheme(page);
     await expect(
       page.getByRole('group', { name: 'Theme' }).getByRole('button', { name: 'Light', exact: true }),
     ).toHaveAttribute('aria-pressed', 'true');
@@ -179,6 +208,7 @@ test.describe('the theme', () => {
     // in English on a Polish frame would be this application's vocabulary leaking into the
     // book's.
     await page.goto(`/read/${track}/${unitNamed('P01').id}/pl/1`);
+    await reachTheme(page);
 
     const polish = page.getByRole('group', { name: 'Tryb' });
     await expect(polish).toBeVisible();

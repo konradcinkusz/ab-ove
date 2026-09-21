@@ -3,6 +3,7 @@ import { expect, test, type Page, type Request } from '@playwright/test';
 import { CHECK_NAMES, REGION_NAMES, stubWithSolvedRegion } from './support/lab.js';
 import { served, track } from './support/bundle.js';
 import { openThrough } from './support/gate.js';
+import { openPane } from './support/pane.js';
 // SEEDING CONSENT MEANS SEEDING THE VERSION THE PRODUCT ACCEPTS TODAY, so the constant
 // is imported across the package boundary rather than copied as a `2`. The store treats a
 // stale version as never-answered, so a literal here would not fail loudly on the next
@@ -403,7 +404,7 @@ async function writeAndReveal(page: Page, asks: number, text: string | null): Pr
     // A SHEET WITH NOTHING IN IT, which is what a blank reveal means: the reader engaged --
     // opened the pad -- and committed no answer. With no sheet at all nothing is reported,
     // which is the pen-and-paper reader the book prescribes and is its own test below.
-    await page.getByRole('group').filter({ hasText: 'Working' }).first().locator('summary').click();
+    await openPane(page, 'working');
     await page.getByRole('textbox', { name: /your working/i }).fill('2 + 2');
   } else {
     await answerLine(page).fill(text);

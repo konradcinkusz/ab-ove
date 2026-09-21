@@ -149,115 +149,70 @@
 
 
 /*
- * THE FOOT: where a reader goes that is not the next frame.
+ * THE TWO WORKSHEET PANES, SIDE BY SIDE — ADR-0059.
  *
- * Everything here is a move the reveal does not make — back one, out to the contents, on
- * to the next section, or the key map — so it sits below the frame rather than beside the
- * control the frame is built around. The reveal is still the only filled thing on the page.
+ * `Work it out` and `Draw it` were two stacked disclosures, each one line of the faintest
+ * ink; the row they are in now is what makes them read as a pair of tools rather than as
+ * two footnotes under the question. The buttons themselves are `worksheet.module.css`'s
+ * `.paneSummary`, because everything else about a pane lives there.
  *
- * `flex-wrap`, and the two sides as their own flex rows: on a 360px screen the left pair
- * (`← Previous` and `Next section →`) and the right pair (the position and `Keys`) each
- * stay together and the two pairs stack, which is the readable break. Without the wrap the
- * four items squeeze onto one line and the position ends up hyphenated.
+ * `1fr 1fr` AND NOT `auto-fit`: each button's width is decided by the row and not by its
+ * own label, which is what lets the sketch say `Show my sketch` on a frame the reader has
+ * drawn on without the row resizing after hydration. Nothing above the reveal may grow
+ * after paint (specs/reading.spec.ts), and a grid whose tracks are fixed fractions cannot.
+ *
+ * Two columns at every width, including 360px, where `Work it out` and `Draw it` are 150px
+ * each — the pane BODIES are what needed the narrow-screen work, never the buttons.
  */
-.foot {
-  align-items: flex-start;
-  border-top: 1px solid var(--rule);
-  color: var(--ink-faint);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 0.8125rem;
-  gap: 1rem 1.25rem;
-  justify-content: space-between;
-  margin-top: 3rem;
-  padding-top: 1.25rem;
-}
-
-.footLeft,
-.footRight {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.75rem;
-}
-
-/*
- * A FINGER'S WORTH OF TARGET ON A LINE OF SMALL TYPE. The foot is set at 0.8125rem, so a
- * link in it is a line some twenty pixels tall — under half the 44 px a finger hits
- * reliably, and the same shape the place row above has. The padding grows the box the
- * reader can press and the negative margin gives the space back, so the line sits where
- * it did and the page lays out as it did; only the hit area changed. Flex items are
- * blockified, which is why the margin is needed at all — on an inline the padding alone
- * would have done.
- */
-.foot a,
-.foot button {
-  margin: -0.75rem -0.375rem;
-  padding: 0.75rem 0.375rem;
+.panes {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 1fr 1fr;
+  /*
+   * More room below than above, because what is below is the reveal. The panes belong to
+   * the question they sit under; the reveal is the move away from it, and a button set
+   * hard against a row of other buttons reads as a fourth member of that row.
+   */
+  margin: 0.75rem 0 1.25rem;
 }
 
 /*
  * ────────────────────────────────────────────────────────────────────────────────────────
- * A VISIBLE BUTTON, FOR THE THREE CONTROLS THAT ARE NAVIGATION — ADR-0057.
+ * THE TWO COLUMNS ARE FOR THE TWO BUTTONS, AND THEY STOP THE MOMENT ONE IS PRESSED.
  *
- * Before this, `← Previous`, `Contents` and `Next section →` were the same faint,
- * underline-on-hover text as everything else down here, on a row that also carries a
- * destructive control and two settings nobody presses twice a year. Nothing told a reader
- * which of those was a place to go and which was furniture, and "no properly visible
- * buttons" was the complaint this rule exists to answer. An outline rather than a fill:
- * the reveal stays the one filled control on the page (this file's own header, above), so
- * these read as the SECOND tier of control — reachable, but not competing with the frame's
- * own move.
+ * A pad or a canvas laid out in half a column is a 156 px canvas on a 360 px screen, and
+ * the pad's own `1fr minmax(6rem, 14rem)` grid has more min-content than that track can
+ * hold. It would not have shown up as a page that scrolls sideways — the absolute right
+ * edge stays inside the viewport — so `narrow-screen.spec.ts`'s sweep would have called it
+ * fine while a reader on a phone drew in a letterbox.
  *
- * The border ADDS to the box the padding rule above already grew, in normal flow with no
- * height set on the element, so it can only help the 44px `reading.spec.ts` asserts —
- * never take from it.
+ * The span alone was not enough: it widens the OPEN pane and leaves the shut one beside it
+ * in a half-width column of its own, so `Draw it` sat at half the width of the pad above
+ * it. One column while anything is open puts both at the same width, which is the only
+ * arrangement in which they still read as a pair.
+ *
+ * `:has()` in the positive form, so a browser without it keeps two columns and the span
+ * below still saves the open pane — the degradation is the old layout, never an overlap.
+ * Opening a pane is a press, so the reflow is inside `hadRecentInput` and no shift bound
+ * counts it.
  * ────────────────────────────────────────────────────────────────────────────────────────
  */
-.navLink {
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  text-decoration: none;
+.panes:has(details[open]) {
+  grid-template-columns: 1fr;
 }
 
-.navLink:hover {
-  border-color: var(--accent);
-}
-
-/* The ring the reveal wears, on the same reasoning: a border-colour change alone is a
-   contrast change too small for `:focus-visible` to rely on (WCAG 2.4.7). */
-.navLink:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--paper),
-    0 0 0 3px var(--accent);
-  outline: none;
+.panes > details[open] {
+  grid-column: 1 / -1;
 }
 
 /*
- * A SECTION SKIP IS ONE CLICK FROM THE FRAME, and it is here rather than in the place row
- * on purpose. The place row answers "where am I"; this answers "where next", and the two
- * are different questions a reader asks at different moments — the first on arrival, the
- * second at the end of a section. It renders only on the last frame of a section that is
- * not the last of the program, so on the other forty-odd frames the foot is unchanged.
+ * THE FOOT MOVED — ADR-0058. `.foot`, `.footLeft`, `.footRight`, `.navLink`, `.nextSection`
+ * and `.position` all live in `reading-foot.module.css` now, because the frame, the
+ * contents page and the summary each carried their own copy of the same row and ADR-0057
+ * restyled exactly one of them. Its Consequences named the drift; one stylesheet is what
+ * ends it. What stays here is what is the FRAME's and no other screen's: the reveal, the
+ * answer box, the panes and the keyboard hint below.
  */
-.nextSection {
-  color: var(--accent);
-}
-
-/*
- * THE POSITION, MADE EASIER TO FIND — still text, still no bar and no fraction rendered as
- * one (ADR-0041 stands: this is the same `n of total` string the row always printed). A
- * quiet chip rather than a heavier tone, because a reader is not choosing to press this —
- * it is the answer to "where am I", asked at a glance rather than read.
- */
-.position {
-  background: var(--paper-raised);
-  border: 1px solid var(--rule);
-  border-radius: 3px;
-  color: var(--ink-soft);
-  padding: 0.2rem 0.5rem;
-  white-space: nowrap;
-}
 
 /*
  * The keyboard hint, under the reveal.
@@ -298,8 +253,8 @@
  * frame · Ctrl+Enter commit and reveal` under every reveal — three keys the reader does not
  * have, in the way of the frame. `display` rather than `visibility` here, on purpose: the
  * query is decided at first paint, so removing the line moves nothing after it, and a
- * touch reader gets the space back. The foot's full `Keys` list stays, for the reader on a
- * tablet with a keyboard attached.
+ * touch reader gets the space back. The full key map stays, inside `Reading settings`, for
+ * the reader on a tablet with a keyboard attached (ADR-0058).
  */
 @media (hover: none) and (pointer: coarse) {
   .keys {

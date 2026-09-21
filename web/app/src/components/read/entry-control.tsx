@@ -96,10 +96,21 @@ export function EntryControl(props: EntryControlProps): React.JSX.Element {
  * the start, and a second link to frame 1 would be the dead duplication this page refuses.
  * The two controls together keep the page at exactly one link to the stored frame, which
  * `progress.spec.ts` counts, and always at least one to frame 1.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * AND ABSENT WHEN THE PLACE IS FRAME 1, WHICH IS THE CASE THE FIRST GUARD MISSED.
+ *
+ * "Has a place" is not the same question as "wants the beginning anyway". A reader whose
+ * place IS frame 1 met this link reading *Start at frame 1* beside a filled *Continue at
+ * frame 1* — one href, two sentences, on the page whose whole job is to offer one way in.
+ * It survived because the suite never had a reader there: `progress.spec.ts` derives its
+ * stopping point with an explicit `n > 1`, for reasons of its own, so frame 1 was the one
+ * position nothing exercised. It is a case there now.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export function StartAfresh(props: EntryControlProps): React.JSX.Element | null {
   const { chrome, here, startAt } = useEntry(props);
-  if (!here) return null;
+  if (!here || here.step === 1) return null;
 
   return (
     <Link className={resumeStyles.resume} href={startAt} lang={chrome.language}>

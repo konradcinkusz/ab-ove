@@ -165,45 +165,8 @@
 }
 
 /*
- * THE FOOT: the two neighbouring programs, and the key map.
- *
- * It is the same shape as the frame's own foot (frame-view.module.css) on purpose — a
- * reader moving between the two screens should not have to re-learn where the way out is.
- * The neighbours are ids rather than titles: a title is as long as the book made it, and
- * two of them side by side on a 360px screen is a paragraph where a signpost was wanted.
+ * THE FOOT MOVED — ADR-0058. `.foot`, `.footSide` and `.footShut` live in
+ * `reading-foot.module.css` now, with the frame's and the summary's, because three copies
+ * of one row in three stylesheets is what let ADR-0057 restyle one of them and leave the
+ * other two behind. `when-open.tsx` reads `.footShut` from there.
  */
-.foot {
-  align-items: flex-start;
-  border-top: 1px solid var(--rule);
-  color: var(--ink-faint);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 0.8125rem;
-  gap: 0.75rem 1rem;
-  justify-content: space-between;
-  margin-top: 3rem;
-  padding-top: 1rem;
-}
-
-.footSide {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 1rem;
-}
-
-.foot a {
-  color: inherit;
-}
-
-/*
- * The way on, when there is not one yet (`when-open.tsx`): the sentence that replaces the
- * `F02 →` link while the next program is shut.
- *
- * It takes the foot's own colour and size and adds nothing — no border, no icon, no
- * emphasis. It is a fact about the book's order, not a warning, and it sits in the slot the
- * link would have occupied so the foot is the same shape either way.
- */
-.footShut {
-  color: var(--ink-faint);
-  max-width: 28rem;
-}

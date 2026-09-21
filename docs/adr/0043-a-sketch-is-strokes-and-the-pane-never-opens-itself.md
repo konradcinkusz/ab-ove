@@ -6,6 +6,11 @@
 [ADR-0039](0039-a-frame-accepts-the-readers-answer-as-a-commitment.md) governs what a
 worksheet may hold.
 
+The *Show my sketch* label this decision specifies was not built until
+[ADR-0059](0059-a-worksheet-pane-opens-from-a-button-and-says-when-it-holds-a-drawing.md),
+which also gives the pane a button to open from. The ruling that matters here — the pane
+never opens itself — is unchanged by it.
+
 ## Context
 
 The owner asked for *"a field for typing and sketching"*. The typing half is the answer line

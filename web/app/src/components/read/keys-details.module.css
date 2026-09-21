@@ -1,5 +1,5 @@
 /*
- * The key map's own two rules, shared by every page that carries it.
+ * The key map's own rules, shared by every screen that carries it.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────
  * THE ROW WRAPS AND THE KEY DOES NOT, WHICH IS THE SECOND ANSWER HERE. The first was
@@ -18,44 +18,22 @@
  *
  * So the key itself is unbreakable, which is what actually must not split, and the
  * description after it wraps.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * THE `flex-basis: 100%` THIS FILE USED TO CARRY IS GONE, AND ITS ABSENCE IS DELIBERATE.
+ *
+ * The rule existed because the map was its own `<details>` inside a FLEX foot, where a
+ * `<details>` is sized to its summary — some 40 px, the word `Keys` — and lays its panel out
+ * inside that 40 px box, overflowing the page at every width. ADR-0058 moved the map into
+ * `reading-foot.tsx`'s *Reading settings* panel, which is a block in normal flow the width
+ * of the column, so the box that caused the overflow no longer exists. Re-adding the rule
+ * would now stretch a list inside a grid for no reason.
  * ────────────────────────────────────────────────────────────────────────────────────────
  */
-.details {
-  color: var(--ink-faint);
-  font-size: 0.8125rem;
-
-  /*
-    ────────────────────────────────────────────────────────────────────────────────────
-    ITS OWN ROW IN THE FLEX FOOT, WHICH IS NOT A PREFERENCE.
-
-    A `<details>` in a flex row is sized to its SUMMARY — the word `Keys`, some 40 px — and
-    its panel is then laid out inside that 40 px box. Every row of the key map is wider
-    than the word `Keys`, so the panel overflows its own container at any viewport width,
-    and at 360 px it reaches 24 px past the page.
-
-    It was invisible until measured, twice over: a closed `<details>` in current Chromium is
-    `content-visibility: hidden` rather than `display: none`, so the panel is laid out and
-    overflowing while nothing is painted — and opening it is what makes a reader see it.
-    `narrow-screen.spec.ts` catches it because it measures every element's right edge
-    instead of asking whether the document scrolls; the document does not, which is why the
-    easier question would have said the page was fine.
-
-    `flex-basis: 100%` puts the disclosure on its own line, so the panel is as wide as the
-    foot and its rows wrap the way any paragraph does. The summary stays where it was on a
-    wide screen because the foot is `flex-wrap: wrap` and this is its last child.
-    ────────────────────────────────────────────────────────────────────────────────────
-  */
-  flex-basis: 100%;
-  min-width: 0;
-}
-
-.details summary {
-  cursor: pointer;
-}
-
+/* No top margin: the heading above it in the settings panel already carries the gap. */
 .list {
   list-style: none;
-  margin: 0.5rem 0 0;
+  margin: 0;
   padding: 0;
 }
 

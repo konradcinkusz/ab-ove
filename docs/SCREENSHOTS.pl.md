@@ -29,7 +29,7 @@ odpowiedzią, którą miałeś już zapisać.
 
 ### Ramka 3 pyta
 
-![Ramka programu F01. Otwiera się odpowiedzią z poprzedniej ramki w podbarwionym pudełku, wyjaśnia, czym jest liczba wymierna, a potem prosi czytelnika o zapisanie rozwinięcia dziesiętnego jednej trzeciej. Pod pytaniem: kropkowana linia odpowiedzi z napisem "Write it down before you read on", rozwijane "Working", rozwijane "Sketch" i przycisk "Reveal the answer".](assets/screenshots/frame-asks-english.png)
+![Ramka programu F01. Otwiera się odpowiedzią z poprzedniej ramki w podbarwionym pudełku, wyjaśnia, czym jest liczba wymierna, a potem prosi czytelnika o zapisanie rozwinięcia dziesiętnego jednej trzeciej. Pod pytaniem: kropkowana linia odpowiedzi z napisem "Write it down before you read on", dwa obrysowane przyciski obok siebie — "Work it out" i "Draw it" — oraz wypełniony przycisk "Reveal the answer". W stópce wiersz trzech elementów: "← Previous", licznik ramek i "Next section →", a pod nim rozwijane "Reading settings".](assets/screenshots/frame-asks-english.png)
 
 Pytanie brzmi: *zapisz rozwinięcie dziesiętne ⅓*. Odpowiedzi na nie **nie ma na tej stronie**:
 ani w elemencie, ani w atrybucie, ani w skrypcie, ani w prefetchu. Czytelnik, który otworzy
@@ -73,16 +73,21 @@ zapamiętane, więc pytanie pada raz, a nie na każdym ekranie.
 
 ### Arkusz
 
-`Working` otwiera notatnik, który liczy arytmetykę — kalkulator, celowo nie system algebry
-komputerowej ([ADR-0042](adr/0042-the-evaluator-is-a-calculator-not-a-cas.md)). `Sketch`
+`Policz to` otwiera notatnik, który liczy arytmetykę — kalkulator, celowo nie system algebry
+komputerowej ([ADR-0042](adr/0042-the-evaluator-is-a-calculator-not-a-cas.md)). `Narysuj to`
 otwiera płótno, które przyjmuje pociągnięcia i nigdy nie otwiera się samo
-([ADR-0043](adr/0043-a-sketch-is-strokes-and-the-pane-never-opens-itself.md)). Oba są
-opcjonalne, oba są lokalne, a nic, co czytelnik pisze na ramce, nie opuszcza jego przeglądarki
+([ADR-0043](adr/0043-a-sketch-is-strokes-and-the-pane-never-opens-itself.md)); kiedy ramka już
+nosi rysunek, ten przycisk mówi `Pokaż mój szkic`. Oba są opcjonalne, oba są lokalne, a nic,
+co czytelnik pisze na ramce, nie opuszcza jego przeglądarki
 ([ADR-0039](adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
+
+Nazwane są czynnością i wielkości palca — po 44 px obrysowanego przycisku, obok siebie, a
+otwarty zajmuje cały wiersz
+([ADR-0059](adr/0059-a-worksheet-pane-opens-from-a-button-and-says-when-it-holds-a-drawing.md)).
 
 ### Na szerokości telefonu
 
-![Ta sama ramka przy szerokości 360 pikseli. Wiersz miejsca się zawija, miara się zwęża, a kontrolki arkusza układają się w pionie; nic nie jest ucięte i nic nie leży na tekście.](assets/screenshots/frame-narrow-english.png)
+![Ta sama ramka przy szerokości 360 pikseli. Wiersz miejsca się zawija, miara się zwęża, a kontrolki arkusza układają się w pionie; stópka daje jedną kontrolkę na wiersz, na pełną szerokość. Nic nie jest ucięte i nic nie leży na tekście.](assets/screenshots/frame-narrow-english.png)
 
 360 px jest sprawdzane przy płótnie w `specs/narrow-screen.spec.ts`, więc to własność
 weryfikowana, a nie zrzut, który ktoś kiedyś zrobił.
@@ -93,8 +98,10 @@ weryfikowana, a nie zrzut, który ktoś kiedyś zrobił.
 
 Tryb ciemny to pełna zamiana tokenów, a nie doczepka — czytelnik pracujący nad programem w
 nocy jest przypadkiem normalnym. Tak samo jak ten, który pracuje przy biurku pod lampą, i
-dlatego stópka każdego ekranu do czytania nosi trójpozycyjny przełącznik: **Systemowy**,
-**Jasny**, **Ciemny**. Pierwsza pozycja jest domyślną i jest `prefers-color-scheme`, dokładnie
+dlatego każdy ekran do czytania nosi trójpozycyjny przełącznik: **Systemowy**, **Jasny**,
+**Ciemny**. Leży w rozwijanym `Ustawienia czytania` na dole, razem z mapą klawiszy, a nie w
+wierszu, w którym czytelnik szuka drogi dalej
+([ADR-0058](adr/0058-the-reading-foot-is-one-pager-and-the-settings-leave-it.md)). Pierwsza pozycja jest domyślną i jest `prefers-color-scheme`, dokładnie
 tak jak przed powstaniem przełącznika — to pozycja, do której czytelnik może wrócić, a nie brak
 wyboru, i jedyna, która nie potrzebuje JavaScriptu
 ([ADR-0048](adr/0048-the-theme-is-a-choice-and-the-system-is-a-position.md)).

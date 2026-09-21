@@ -294,7 +294,9 @@ test.describe('reading ergonomics', () => {
     await expect(reveal.locator('[data-pending]')).toHaveAttribute('data-pending', 'no');
   });
 
-  test('the place row and the foot are a finger tall to press @core', async ({ page }) => {
+  test('the place row, the foot and the panes are a finger tall to press @core', async ({
+    page,
+  }) => {
     // 44 px is the smallest target a finger hits reliably; the rows are set in small type,
     // so the controls are padded to it and given the space back with a negative margin.
     // What is measured is the box a press lands in, not the type.
@@ -303,6 +305,24 @@ test.describe('reading ergonomics', () => {
       page.locator('#frame-jumper'),
       page.getByRole('link', { name: unit.titles['en']! }),
       page.getByRole('link', { name: /previous/i }),
+      /*
+        ────────────────────────────────────────────────────────────────────────────────
+        THE TWO PANE BUTTONS, ADDED WITH ADR-0059 AND NOT BEFORE.
+
+        They are the reason this list grew. `Work it out` and `Draw it` opened from 13px of
+        the faintest ink with no padding at all, while the Grid / Axes / Undo / Clear
+        buttons INSIDE the sketch already carried `min-height: 44px` each — so the only
+        control in the worksheet that was never a finger tall was the one a reader had to
+        find first, which is what "the sketch is hard to open" meant.
+
+        They rest on `min-height` rather than on the foot's negative-margin idiom, because
+        that idiom exists to grow the box around a line of TEXT and these are bordered
+        boxes of their own. Different mechanism, same claim — so it is measured here rather
+        than asserted in a document.
+        ────────────────────────────────────────────────────────────────────────────────
+      */
+      page.locator('details[data-pane="working"] summary'),
+      page.locator('details[data-pane="sketch"] summary'),
     ];
     for (const target of targets) {
       const box = await target.boundingBox();
@@ -416,7 +436,8 @@ test.describe('reading ergonomics', () => {
  * A phone has no arrow keys. The one-line hint under the reveal used to say `→ next frame
  * · ← previous frame · Ctrl+Enter commit and reveal` on a 360 px screen, in the way of the
  * frame, about keys the reader does not have. It is not rendered on a coarse-pointer device;
- * the foot's full `Keys` list stays, for a tablet with a keyboard attached.
+ * the full key map stays, for a tablet with a keyboard attached — inside *Reading settings*
+ * since ADR-0058, which is where every setting on a reading screen now lives.
  */
 test.describe('the reading surface on a touch screen', () => {
   // Not a `devices[...]` preset: those carry `defaultBrowserType`, which is worker-scoped
@@ -429,6 +450,27 @@ test.describe('the reading surface on a touch screen', () => {
     await page.goto(at('en', 2));
     await keysReady(page);
     await expect(page.getByTestId('frame-keys-hint')).toBeHidden();
-    await expect(page.getByRole('group').filter({ hasText: /keys/i })).toHaveCount(1);
+
+    /*
+      ────────────────────────────────────────────────────────────────────────────────────
+      THE SECOND HALF IS ASSERTED AGAINST THE LIST ITSELF, WHICH IT USED NOT TO BE.
+
+      It was `getByRole('group').filter({ hasText: /keys/i })`, counting one. That passed,
+      and would have gone on passing after ADR-0058 moved the map inside *Reading settings*
+      — because `hasText` matches text that is not painted, so the filter simply slid onto
+      the enclosing disclosure and counted that instead. A test that keeps its green by
+      matching a different element is worse than one that fails: the claim here is that a
+      reader with a keyboard attached to a tablet can still find out what the keys do, and
+      only the LIST can carry that claim.
+
+      `role="list"` is said out loud in `keys-details.tsx` for the reason `place-row.tsx`
+      records: a `<ul>` styled `list-style: none` loses the role in WebKit and Chromium, so
+      without it these shortcuts are announced as loose text and this locator finds nothing.
+      ────────────────────────────────────────────────────────────────────────────────────
+    */
+    const settings = page.getByTestId('reading-settings');
+    await expect(settings, 'the reading settings are not on a touch frame').toHaveCount(1);
+    await settings.locator('summary').click();
+    await expect(page.getByRole('list', { name: 'Keys' })).toBeVisible();
   });
 });

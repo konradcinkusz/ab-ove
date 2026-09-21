@@ -6,7 +6,7 @@ import { chromeFor } from '@/lib/i18n/chrome';
 import { serverSnapshot, snapshot, subscribe } from '@/lib/progress/client';
 import { isOpen } from '@/lib/progress/gate';
 
-import styles from './contents.module.css';
+import styles from './reading-foot.module.css';
 
 export interface WhenOpenProps {
   readonly track: string;

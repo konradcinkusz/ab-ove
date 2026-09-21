@@ -2,7 +2,6 @@ import Link from 'next/link';
 
 import { say, sectionSpans, unitBefore, type Bundle, type Step, type Unit } from '@ab-ovo/web-kit';
 
-import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { HINT_STATES, chromeFor } from '@/lib/i18n/chrome';
 import { bookNumberOf } from '@/lib/sheet/number';
 
@@ -12,9 +11,11 @@ import { Working } from './working.tsx';
 import { ClearAnswer } from './clear-controls.tsx';
 import { FrameKeys } from './frame-keys.tsx';
 import styles from './frame-view.module.css';
-import { KeyName, KeysDetails } from './keys-details.tsx';
+import { KeyName } from './keys-details.tsx';
 import { PlaceRow } from './place-row.tsx';
 import { ProgramGate } from './program-gate.tsx';
+import foot from './reading-foot.module.css';
+import { ReadingFoot } from './reading-foot.tsx';
 import { RememberPosition } from './remember-position.tsx';
 import { RevealLabel } from './reveal-label.tsx';
 import { RichInline, RichText } from './rich-text.tsx';
@@ -146,8 +147,8 @@ export function FrameView({
         A HEADING NOBODY SEES, for the reader who navigates by headings. The frame renders
         no visible title — the place row says where the reader is and the owner's complaint
         was side text — so heading navigation found nothing on a frame at all, and a screen
-        reader's "list headings" answered with the foot's `Keys`. This is the frame's name,
-        off the page (the visually-hidden idiom, worksheet.module.css): the program's title
+        reader's "list headings" answered with the settings panel's key map. This is the
+        frame's name, off the page (the visually-hidden idiom, worksheet.module.css): the program's title
         and the position, the same two facts the row shows, said once for the landmark.
       */}
       <h1 className={styles.title}>
@@ -280,49 +281,62 @@ export function FrameView({
             <div className={styles.dots} aria-hidden="true" />
           )}
           {/*
-            THE PAD IS ON THE FRAMES THAT ASK AND ON NO OTHER, for the same reason the
-            answer line is: a teaching frame elicits nothing, so a place to work something
-            out beside it is a control with no question. It sits between the line and the
-            reveal because that is the order the reader works in — write, check the
-            arithmetic, turn over — and it is a `<details>`, so it costs one line until
-            somebody wants it.
+            ──────────────────────────────────────────────────────────────────────────────
+            THE TWO PANES ARE ON THE FRAMES THAT ASK AND ON NO OTHER, and they are ONE ROW.
+
+            A teaching frame elicits nothing, so a place to work something out beside it is
+            a control with no question. `step.cue` is the book's own mark for "the next
+            frame opens with the answer", which is exactly the set that asks.
+
+            SIDE BY SIDE, AND AS BUTTONS — ADR-0059. They were two stacked `<details>` whose
+            summaries were 13px of the faintest ink with the browser's own triangle and no
+            padding at all, while the buttons INSIDE the sketch already carried
+            `min-height: 44px`. The control a reader had to hit to open a pane was the only
+            one on the frame that was never a finger tall, against this product's own rule
+            (UI-UX.md). They are still `<details>` — they open with no JavaScript — and the
+            summary is now the button.
+
+            They sit between the answer line and the reveal because that is the order the
+            reader works in: write, check the arithmetic, turn over.
+            ──────────────────────────────────────────────────────────────────────────────
           */}
           {step.cue ? (
-            <Working
-              hint={chrome.workingHint}
-              label={chrome.workingLabel}
-              language={chrome.language}
-              n={step.n}
-              run={chrome.workingRun}
-              summary={chrome.working}
-              tag={bundle.tag}
-              track={track}
-              unit={unit.id}
-            />
-          ) : null}
-          {/*
-            And somewhere to draw, on the same terms. A great many of this book's questions
-            are answered fastest with a picture — a curve's shape, a point on an axis, the
-            region under something — and the answer line above is this pane's text
-            alternative, which is what makes a canvas acceptable on a surface that is
-            otherwise entirely text. Closed until asked for, like the pad; `sketch.tsx`
-            records why it never opens itself.
-          */}
-          {step.cue ? (
-            <Sketch
-              axes={chrome.sketchAxes}
-              clear={chrome.sketchClear}
-              full={chrome.sketchFull}
-              grid={chrome.sketchGrid}
-              label={chrome.sketchLabel}
-              n={step.n}
-              none={chrome.sketchNone}
-              summary={chrome.sketch}
-              tag={bundle.tag}
-              track={track}
-              undo={chrome.sketchUndo}
-              unit={unit.id}
-            />
+            <div className={styles.panes}>
+              <Working
+                hint={chrome.workingHint}
+                label={chrome.workingLabel}
+                language={chrome.language}
+                n={step.n}
+                run={chrome.workingRun}
+                summary={chrome.working}
+                tag={bundle.tag}
+                track={track}
+                unit={unit.id}
+              />
+              {/*
+                And somewhere to draw, on the same terms. A great many of this book's
+                questions are answered fastest with a picture — a curve's shape, a point on
+                an axis, the region under something — and the answer line above is this
+                pane's text alternative, which is what makes a canvas acceptable on a
+                surface that is otherwise entirely text. Closed until asked for, like the
+                pad; `sketch.tsx` records why it never opens itself.
+              */}
+              <Sketch
+                axes={chrome.sketchAxes}
+                clear={chrome.sketchClear}
+                full={chrome.sketchFull}
+                grid={chrome.sketchGrid}
+                label={chrome.sketchLabel}
+                n={step.n}
+                none={chrome.sketchNone}
+                saved={chrome.showMySketch}
+                summary={chrome.sketch}
+                tag={bundle.tag}
+                track={track}
+                undo={chrome.sketchUndo}
+                unit={unit.id}
+              />
+            </div>
           ) : null}
           <Link className={styles.reveal} href={forward} lang={chrome.language} prefetch={false}>
             <RevealLabel label={step.cue ? chrome.reveal : chrome.next} />
@@ -352,8 +366,8 @@ export function FrameView({
 
       {/*
         The shortcut, said out loud — derived from `chrome.keysMap` rather than a second,
-        independently-written sentence, so the one-line hint and the foot's full `Keys`
-        list below can never disagree about what a key does.
+        independently-written sentence, so the one-line hint and the full key map inside
+        `Reading settings` below can never disagree about what a key does.
 
         A keyboard path nobody is told about is not an ergonomic feature, it is a secret —
         and this is the line that makes the "read end to end from the keyboard" claim
@@ -400,38 +414,16 @@ export function FrameView({
         ))}
       </p>
 
-      <nav aria-label={chrome.footNav} className={styles.foot} lang={chrome.language}>
-        <div className={styles.footLeft}>
-          {back ? (
-            <Link className={styles.navLink} href={back}>
-              ← {chrome.previous}
-            </Link>
-          ) : (
-            <Link className={styles.navLink} href={reading(language)}>
-              {chrome.backToContents}
-            </Link>
-          )}
-          {/*
-            `prefetch={false}`, on the reveal's reasoning: the next section's first frame
-            opens with the answer to this one, and this link was pulling it over the wire
-            while the reader was still writing.
-          */}
-          {nextSpan ? (
-            <Link
-              className={`${styles.navLink} ${styles.nextSection}`}
-              href={at(nextSpan.from)}
-              prefetch={false}
-            >
-              {chrome.nextSection}
-            </Link>
-          ) : null}
-          {/*
-            IN THE FOOT, and not beside the answer line. The plan put it in the sketch row,
-            where it would have sat next to `Clear` for the strokes — two controls with the
-            same word and different consequences, side by side. It renders nothing when
-            there is nothing to clear.
-          */}
-          {step.cue ? (
+      <ReadingFoot
+        aside={
+          /*
+            NEITHER A PLACE TO GO NOR A SETTING, so it gets the foot's own row rather than a
+            seat in the line of buttons — ADR-0058. It is still in the FOOT and not beside
+            the answer line: the plan put it in the sketch row once, where it would have sat
+            next to `Clear` for the strokes, two controls with the same word and different
+            consequences side by side. It renders nothing when there is nothing to clear.
+          */
+          step.cue ? (
             <ClearAnswer
               confirmLabel={chrome.clearAnswerConfirm}
               label={chrome.clearAnswer}
@@ -440,32 +432,38 @@ export function FrameView({
               track={track}
               unit={unit.id}
             />
-          ) : null}
-        </div>
-
-        <div className={styles.footRight}>
-          <span className={styles.position}>{chrome.position(step.n, unit.steps.length)}</span>
-          {/*
-            THE WAY TO TURN ON LIGHT MODE, WHERE THE READER ALREADY IS (ADR-0048).
-
-            A reader working a program at night is the normal case `UI-UX.md` names, and so is one
-            working it at a desk under a lamp. Sending either of them back to the index — or to
-            their operating system's settings, which is what this product used to ask — to change
-            the colour of the page they are reading is the wrong size of remedy.
-
-            BEFORE the keyboard map and not after it: `keys-details.tsx` is a `<details>` and is
-            last on every page on purpose, so that opening it cannot push anything a reader is
-            looking at. A control added below it would take that property away.
-          */}
-          <ThemeSwitch language={chrome.language} />
-          {/*
-            One click away from every frame rather than only from the contents page — a
-            reader who forgets the shortcut mid-program should not have to leave the frame
-            they are on to be reminded of it.
-          */}
-          <KeysDetails chrome={chrome} />
-        </div>
-      </nav>
+          ) : null
+        }
+        back={
+          back ? (
+            <Link className={foot.navLink} href={back}>
+              ← {chrome.previous}
+            </Link>
+          ) : (
+            <Link className={foot.navLink} href={reading(language)}>
+              {chrome.backToContents}
+            </Link>
+          )
+        }
+        chrome={chrome}
+        forward={
+          /*
+            `prefetch={false}`, on the reveal's reasoning: the next section's first frame
+            opens with the answer to this one, and this link was pulling it over the wire
+            while the reader was still writing.
+          */
+          nextSpan ? (
+            <Link
+              className={`${foot.navLink} ${foot.nextSection}`}
+              href={at(nextSpan.from)}
+              prefetch={false}
+            >
+              {chrome.nextSection}
+            </Link>
+          ) : null
+        }
+        where={<span className={foot.position}>{chrome.position(step.n, unit.steps.length)}</span>}
+      />
     </article>
   );
 }

@@ -338,7 +338,7 @@ keyboard, from a flag the page sets rather than a string it rewrites — commits
 `Esc` returns to reading. Every segment of the one-line hint is gated on the island that
 implements it, and while a field has focus the line says what is true *there*, because the
 arrows are dead inside a text field: the hint is one line per state, all in one grid cell so
-that switching moves nothing, and the foot's `Keys` list is the whole map with a note beside
+that switching moves nothing, and *Reading settings*' key map is the whole map with a note beside
 a key that means something else elsewhere. **The two keys and the typing-state hint were
 decided in ADR-0041 and shipped later than the rest of it** — this paragraph described them
 for a while before `frame-keys.tsx` had them, and `specs/reading.spec.ts` now presses both.
@@ -360,11 +360,31 @@ how to properly navigate, there are no properly visible buttons."* Two fixes, on
 *Reveal the answer*, *Next frame* — now share a trailing `→` (`aria-hidden`, so the
 accessible name is unchanged) saying the one thing both of them do: turn the page. And
 `← Previous`, `Contents` and `Next section →` — the foot's own way to move, as distinct from
-the reveal's — are outlined buttons rather than the same faint text as the position count,
-the theme switch and `Keys` beside them. The position keeps ADR-0041's `[12] / 45` exactly,
-in a quiet chip rather than a heavier tone — still text, still no bar. `Clear my answer`, the
-theme switch and `Keys` stay as quiet as they were: they are settings and a destructive
-control, not places to go, and the new contrast is what now tells the two kinds apart.
+the reveal's — are outlined buttons rather than the same faint text as everything beside
+them. The position keeps ADR-0041's `[12] / 45` exactly, in a quiet chip rather than a
+heavier tone — still text, still no bar. `Clear my answer` stays as quiet as it was: it is a
+destructive control rather than a place to go, and the contrast is what tells the two kinds
+apart.
+
+#### And then the settings left the row entirely
+
+[ADR-0058](../adr/0058-the-reading-foot-is-one-pager-and-the-settings-leave-it.md), on the
+rest of the same report: *"why is there System Light Dark here? It is to remove, keys and any
+other unrelated things."* The tone was only half of it — one row was still holding somewhere
+to go, something to press once and regret, a readout and two settings, and `flex-wrap` was
+deciding where that row broke from whichever item happened to be widest. The key map, which
+has to be full width to lay its panel out at all, therefore always broke to a line of its
+own: the stranded row in the report's screenshots.
+
+One component renders the foot of all three reading screens now
+(`components/read/reading-foot.tsx`), as a **grid with named areas** — `back`, `where`,
+`forward`, and `aside` for what is neither — collapsing at 30rem to one control per row. The
+break is written down rather than derived, so there is no width at which an item can strand.
+The theme switch and the key map moved out of the navigation landmark into one *Reading
+settings* disclosure below it, which is also what makes that landmark's name, *Where to
+next*, true. `Clear my answer` takes the `aside` row. And the contents page and the summary
+finally read ADR-0057's stylesheet rather than each carrying a copy of the pattern it
+replaced — which is the follow-up that ADR named and declined to do quietly.
 
 #### The dotted row is the answer line, and that reverses what this document used to say
 
@@ -384,12 +404,24 @@ the reader's own line is shown beside the book's and the comparison is by eye, w
 paper method.
 [ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md).
 
-Under the line, two disclosures, both closed on arrival and never opened by the page:
-**Working**, a pad whose lines evaluate
-([ADR-0042](../adr/0042-the-evaluator-is-a-calculator-not-a-cas.md)), and **Sketch**, a canvas
+Under the line, two disclosures side by side, both closed on arrival and never opened by the
+page: **Work it out**, a pad whose lines evaluate
+([ADR-0042](../adr/0042-the-evaluator-is-a-calculator-not-a-cas.md)), and **Draw it**, a canvas
 ([ADR-0043](../adr/0043-a-sketch-is-strokes-and-the-pane-never-opens-itself.md)). Nothing above
-the reveal grows after paint, which is why neither remembers having been open and why the
-sketch's *Show my sketch* is decided from a synchronous flag rather than from IndexedDB.
+the reveal grows after paint, which is why neither remembers having been open.
+
+They are named by the act and open from a 44 px outlined button
+([ADR-0059](../adr/0059-a-worksheet-pane-opens-from-a-button-and-says-when-it-holds-a-drawing.md)).
+Until then the opener was a line of the faintest ink with the browser's own triangle and no
+padding — the only control in the worksheet that was not a finger tall, while the Grid, Axes,
+Undo and Clear buttons *inside* the sketch each had `min-height: 44px`. They are still
+`<details>`, so they open with no JavaScript; the summary is the button. Either one takes the
+whole row when it opens, because a canvas in half a column is a letterbox on a phone.
+
+And the sketch's button says **Show my sketch** once that frame holds a drawing — decided
+from the synchronous flag rather than from IndexedDB, which is the whole reason the flag is
+duplicated into localStorage, and which nothing read until ADR-0059. Both labels are in the
+markup from the first paint and `visibility` picks one, so saying the second moves nothing.
 
 #### The lab pane is not on this route any more
 
@@ -514,8 +546,10 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   before the first paint. The system position is the ABSENCE of `data-theme` rather than a
   third value of it, which is what keeps the swap working with no JavaScript at all
   ([ADR-0048](../adr/0048-the-theme-is-a-choice-and-the-system-is-a-position.md)). The switch
-  is in the index's chrome row and in the foot of the frame, the contents page and the
-  summary — before the keyboard map, which stays last on every page.
+  is in the index's chrome row, and on the three reading screens it is inside the *Reading
+  settings* disclosure with the keyboard map — below the foot's navigation and last on the
+  page, so opening it cannot push anything a reader is looking at
+  ([ADR-0058](../adr/0058-the-reading-foot-is-one-pager-and-the-settings-leave-it.md)).
 - **Focus is a ring, never a brightness.** Every filled control — the reveal, the contents
   page's start, the shell pages' way in, the two forms' submit — wears a two-colour ring
   on `:focus-visible` (paper, then the control's own colour), because a ten-percent
@@ -527,14 +561,21 @@ sans, code in mono, all three from the reader's own system — there is no webfo
 - **Every control on a line of small type is a finger tall.** The place row's links, the
   frame number, the language control and the foot's links are padded to about 44 px and
   given the space back with a matching negative margin, so the hit area grew and nothing on
-  the page moved.
+  the page moved. Where a control is a bordered box of its own rather than a line of type —
+  the worksheet's two pane buttons, the sketch's own controls — it takes the height directly
+  instead, because the negative-margin idiom assumes a control sharing a line with something
+  else and overlaps the rows when it does not
+  ([ADR-0058](../adr/0058-the-reading-foot-is-one-pager-and-the-settings-leave-it.md)).
+  `specs/reading.spec.ts` measures the box either way.
 - **The reveal says when it is under way.** It is the one navigation that is never
   prefetched, so it always costs a round trip; while the next frame is on its way the
   control dims and its cursor says so (`reveal-label.tsx`, Next's `useLinkStatus`).
   Nothing lays out, so the reveal's shift bound holds.
 - **No keyboard hint where there is no keyboard.** On a coarse-pointer device the one-line
-  hint under the reveal is not rendered at all; the foot's `Keys` list stays for a tablet
-  with a keyboard attached.
+  hint under the reveal is not rendered at all; the full key map stays, inside *Reading
+  settings*, for a tablet with a keyboard attached. The two are not a duplication: the hint
+  is the state the reader is in and the map is every entry, which is why one is on the page
+  and the other is behind a disclosure.
 
 ---
 

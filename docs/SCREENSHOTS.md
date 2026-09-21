@@ -27,7 +27,7 @@ opens with the answer you were supposed to have written down.
 
 ### Frame 3 asks
 
-![A frame of program F01. It opens with the previous frame's answer in a tinted box, explains what a rational number is, then asks the reader to write down the decimal expansion of one third. Below the question: a dotted answer line reading "Write it down before you read on", a Working disclosure, a Sketch disclosure, and a "Reveal the answer" button.](assets/screenshots/frame-asks-english.png)
+![A frame of program F01. It opens with the previous frame's answer in a tinted box, explains what a rational number is, then asks the reader to write down the decimal expansion of one third. Below the question: a dotted answer line reading "Write it down before you read on", two outlined buttons side by side reading "Work it out" and "Draw it", and a filled "Reveal the answer" button. At the foot, a row of three: "← Previous", the frame count, and "Next section →", with a "Reading settings" disclosure below it.](assets/screenshots/frame-asks-english.png)
 
 The question is *write down the decimal expansion of ⅓*. The answer to it is **not on this
 page**: not in an element, not in an attribute, not in a script, and not prefetched. A reader
@@ -71,16 +71,21 @@ question is asked once rather than on every screen.
 
 ### The worksheet
 
-`Working` opens a pad that evaluates arithmetic — a calculator, deliberately not a computer
-algebra system ([ADR-0042](adr/0042-the-evaluator-is-a-calculator-not-a-cas.md)). `Sketch`
-opens a canvas that takes strokes and never opens itself
-([ADR-0043](adr/0043-a-sketch-is-strokes-and-the-pane-never-opens-itself.md)). Both are
-optional, both are local, and nothing a reader writes on a frame leaves their browser
+`Work it out` opens a pad that evaluates arithmetic — a calculator, deliberately not a
+computer algebra system ([ADR-0042](adr/0042-the-evaluator-is-a-calculator-not-a-cas.md)).
+`Draw it` opens a canvas that takes strokes and never opens itself
+([ADR-0043](adr/0043-a-sketch-is-strokes-and-the-pane-never-opens-itself.md)); once a frame
+holds a drawing, that button says `Show my sketch` instead. Both are optional, both are
+local, and nothing a reader writes on a frame leaves their browser
 ([ADR-0039](adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
+
+They are named by the act and sized to a finger — a 44 px outlined button each, side by side,
+either one taking the whole row when it opens
+([ADR-0059](adr/0059-a-worksheet-pane-opens-from-a-button-and-says-when-it-holds-a-drawing.md)).
 
 ### At a phone width
 
-![The same frame at 360 pixels wide. The place row wraps, the measure narrows, and the worksheet controls stack; nothing is cut off and nothing is positioned over the text.](assets/screenshots/frame-narrow-english.png)
+![The same frame at 360 pixels wide. The place row wraps, the measure narrows, and the worksheet controls stack; the foot becomes one full-width control per row. Nothing is cut off and nothing is positioned over the text.](assets/screenshots/frame-narrow-english.png)
 
 360 px is asserted against the canvas in `specs/narrow-screen.spec.ts`, so this is a checked
 property rather than a screenshot somebody once took.
@@ -90,8 +95,11 @@ property rather than a screenshot somebody once took.
 ![The same frame with a dark background and light text: the answer box, the links and the reveal button all re-coloured, not merely inverted.](assets/screenshots/frame-dark-english.png)
 
 Dark mode is a full token swap, not an afterthought — a reader working through a program at
-night is the normal case. So is one working it at a desk under a lamp, which is why the foot
-of every reading screen carries a three-position switch: **System**, **Light**, **Dark**. The
+night is the normal case. So is one working it at a desk under a lamp, which is why every
+reading screen carries a three-position switch: **System**, **Light**, **Dark**. It is inside
+the *Reading settings* disclosure at the foot, with the keyboard map, rather than in the row a
+reader scans for the way forward
+([ADR-0058](adr/0058-the-reading-foot-is-one-pager-and-the-settings-leave-it.md)). The
 first is the default and is `prefers-color-scheme`, exactly as it was before the switch
 existed — it is a position a reader can return to rather than the absence of a choice, and it
 is the one that needs no JavaScript

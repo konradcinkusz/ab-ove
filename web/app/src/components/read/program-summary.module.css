@@ -44,22 +44,8 @@
   margin: 0 0 2rem;
 }
 
-.foot {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.5rem;
-  justify-content: space-between;
-  margin-top: 2rem;
-}
-
-.footSide {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.5rem;
-}
-
-.foot a {
-  color: inherit;
-}
+/*
+ * THE FOOT MOVED — ADR-0058. `.foot` and `.footSide` are `reading-foot.module.css`'s now,
+ * shared with the frame and the contents page, because three copies of one row in three
+ * stylesheets is what let ADR-0057 restyle one of them and leave the other two behind.
+ */
