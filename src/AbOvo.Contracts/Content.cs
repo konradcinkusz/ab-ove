@@ -9,10 +9,32 @@ namespace AbOvo.Contracts;
 /// deserializing it into a parallel C# type hierarchy, because the bundle's real shape has
 /// exactly one producer already (P11) and a second typed model of it is a second copy with
 /// nothing to keep the two in step.
+///
+/// <para>
+/// <see cref="PartSummary"/> is the book's third stage a unit belongs to, when the track has
+/// one — <c>web-kit</c>'s <c>Part</c>, carried far enough to group the program list the way
+/// the book does rather than by id-prefix guesswork (<c>groupsOf</c>'s fallback, unchanged
+/// and still client-side).
+/// </para>
 /// </summary>
-public sealed record ProgramSummary(string Id, IReadOnlyDictionary<string, string> Titles);
+public sealed record PartSummary(string Id, IReadOnlyDictionary<string, string> Titles);
 
-public sealed record UnitSummary(string Id, IReadOnlyDictionary<string, string> Titles, int StepCount);
+/// <summary>
+/// One heading and where it starts. Navigation metadata, never step content — the contents
+/// page and a frame's place-row need to know a unit HAS a "§3 Logarithms" starting at step
+/// 12, not what step 12 says, which stays behind the reveal gate exactly like every other
+/// step.
+/// </summary>
+public sealed record SectionSummary(string Id, IReadOnlyDictionary<string, string> Titles, int FirstStep);
+
+public sealed record ProgramSummary(string Id, IReadOnlyDictionary<string, string> Titles, PartSummary? Part);
+
+public sealed record UnitSummary(
+    string Id,
+    IReadOnlyDictionary<string, string> Titles,
+    int StepCount,
+    IReadOnlyList<SectionSummary> Sections,
+    PartSummary? Part);
 
 /// <summary>
 /// One step, already past the gate. <see cref="Answer"/> is the opening of THIS step, which
