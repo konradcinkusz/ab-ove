@@ -5,6 +5,7 @@ import {
   SESSION_COOKIES,
   sessionCookieAttributes,
 } from '@/lib/session-cookies';
+import { READER_ID_COOKIE, readerCookieAttributes } from '@/lib/reader-cookie';
 import { isPlausiblyUnexpired, verifyAccessToken } from '@/lib/server/token';
 
 /**
@@ -15,12 +16,18 @@ import { isPlausiblyUnexpired, verifyAccessToken } from '@/lib/server/token';
  * enforce their own authorization — THE MIDDLEWARE IS UX, THE SERVICES ARE THE BOUNDARY.
  * Do not remove a service-side authorization check because middleware exists."
  *
- * What this file buys is that a reader who is not signed in lands on the sign-in page
- * instead of on a page that renders empty and then explains itself. It buys nothing else.
- * AbOvo.Api declares its own authorization triad in its composition root and every request
+ * What the AUTH half of this file buys is that a reader who is not signed in lands on the
+ * sign-in page instead of on a page that renders empty and then explains itself.
+ * `AbOvo.Api` declares its own authorization triad in its composition root and every request
  * that reaches it is authorized there, whether it came through this app or from curl.
  * Deleting one of those checks because "middleware already handles it" removes the only
  * enforcement that exists.
+ *
+ * ONE THING WAS ADDED THAT IS NOT UX: ADR-0050's anonymous reader-id cookie is minted here,
+ * on every page response that arrives without one, because this is the one place that
+ * already runs on every page request and already sets cookies. It is not a second gate —
+ * nothing here reads it or decides anything from it — this file only ensures it exists so a
+ * Server Component reading content has a cursor to send `AbOvo.Api`.
  * ────────────────────────────────────────────────────────────────────────────────────────
  *
  * ON THE FILE NAME. Next 16 deprecates `middleware.ts` in favour of `proxy.ts` and says so
@@ -48,9 +55,11 @@ import { isPlausiblyUnexpired, verifyAccessToken } from '@/lib/server/token';
  * list fails closed: the page somebody forgets to add redirects to sign-in, which is
  * noticed immediately.
  *
- * ab-ovo's reader loop is required to work with NO account and NO backend, so most of this
- * product is deliberately public. That is a product decision, written down here as entries
- * rather than left as an absent gate.
+ * ab-ovo's reader loop requires NO account (ADR-0004, corrected by ADR-0049: it does now
+ * require a live API, which is a separate axis from this gate entirely — this list decides
+ * who needs to sign in, not who needs a network), so most of this product is deliberately
+ * public. That is a product decision, written down here as entries rather than left as an
+ * absent gate.
  */
 const PUBLIC_PATHS = new Set<string>([
   '/', // the landing page, which is the index of programs (ADR-0036)
@@ -179,9 +188,7 @@ function redirectToLogin(request: NextRequest): NextResponse {
   return response;
 }
 
-export async function middleware(request: NextRequest): Promise<NextResponse> {
-  const { pathname } = request.nextUrl;
-
+async function gate(request: NextRequest, pathname: string): Promise<NextResponse> {
   // Carve-outs first, before anything looks at a cookie: these requests are unauthenticated
   // by construction and must reach their page with the query string they arrived with.
   if (isCarveOut(pathname)) return NextResponse.next();
@@ -209,6 +216,31 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // to a blank error, and the API behind the proxy is still enforcing regardless, so a
   // brief identity-service outage costs a redirect and not a security hole.
   return redirectToLogin(request);
+}
+
+/**
+ * ADR-0050 — mint the anonymous reader's cursor cookie if this request did not already carry
+ * one, on WHATEVER response the gate above produced (a redirect included: a cookie set on a
+ * redirect response is still stored by the browser before it follows the Location header).
+ *
+ * Never overwrites an existing value. A reader's furthest step lives server-side, keyed by
+ * this cookie's value (ADR-0049) — replacing it would silently start a new, empty cursor for
+ * somebody who has already read forty frames.
+ */
+function ensureReaderCookie(request: NextRequest, response: NextResponse): NextResponse {
+  if (request.cookies.has(READER_ID_COOKIE)) return response;
+
+  response.cookies.set({
+    name: READER_ID_COOKIE,
+    value: crypto.randomUUID(),
+    ...readerCookieAttributes(),
+  });
+  return response;
+}
+
+export async function middleware(request: NextRequest): Promise<NextResponse> {
+  const response = await gate(request, request.nextUrl.pathname);
+  return ensureReaderCookie(request, response);
 }
 
 export const config = {

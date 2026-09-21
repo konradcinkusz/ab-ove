@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 
 import { backendCandidates, type BackendId } from '@/lib/server/backends';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/session-cookies';
+import { READER_ID_COOKIE, READER_ID_HEADER } from '@/lib/reader-cookie';
 
 /**
  * The BFF proxy — FRONTEND-BFF.md §5.
@@ -89,6 +90,10 @@ function timeoutMs(): number {
  *
  * `cookie` is dropped because the session cookie is this app's, for this origin. Forwarding
  * it hands the backend a credential it has no use for and did not ask for.
+ *
+ * `READER_ID_HEADER` is dropped for the same reason as `authorization`, ADR-0050: it too is
+ * injected below, from `ab_ovo_rid`, never accepted from the client directly — a client that
+ * could set its own reader-id header could claim any other anonymous reader's cursor.
  */
 const REQUEST_HEADERS_NOT_FORWARDED = new Set([
   'host',
@@ -103,6 +108,7 @@ const REQUEST_HEADERS_NOT_FORWARDED = new Set([
   'content-length', // recomputed by fetch from the body actually sent
   'authorization',
   'cookie',
+  READER_ID_HEADER,
 ]);
 
 /**
@@ -126,7 +132,11 @@ const RESPONSE_HEADERS_FORWARDED = [
   'www-authenticate',
 ] as const;
 
-function buildUpstreamHeaders(request: Request, bearer: string | undefined): Headers {
+function buildUpstreamHeaders(
+  request: Request,
+  bearer: string | undefined,
+  readerId: string | undefined,
+): Headers {
   const headers = new Headers();
   request.headers.forEach((value, name) => {
     if (!REQUEST_HEADERS_NOT_FORWARDED.has(name.toLowerCase())) headers.set(name, value);
@@ -140,6 +150,12 @@ function buildUpstreamHeaders(request: Request, bearer: string | undefined): Hea
    * never through anything a script can touch.
    */
   if (bearer) headers.set('authorization', `Bearer ${bearer}`);
+
+  // ADR-0050 — same shape, for the anonymous reader's cursor: middleware.ts already
+  // guarantees this cookie exists on every page request, so its absence here means a
+  // client-initiated write reached the proxy through something other than a page (a
+  // service worker, a hand-built fetch) rather than a reader who was never given one.
+  if (readerId) headers.set(READER_ID_HEADER, readerId);
 
   return headers;
 }
@@ -283,6 +299,7 @@ async function handle(
 
   const store = await cookies();
   const bearer = store.get(ACCESS_TOKEN_COOKIE)?.value;
+  const readerId = store.get(READER_ID_COOKIE)?.value;
 
   /**
    * The request body is BUFFERED; the response body is STREAMED. The asymmetry is
@@ -304,7 +321,7 @@ async function handle(
     upstreamPath,
     new URL(request.url).search,
     request.method,
-    buildUpstreamHeaders(request, bearer),
+    buildUpstreamHeaders(request, bearer, readerId),
     body && body.byteLength > 0 ? body : undefined,
   );
 

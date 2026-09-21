@@ -2,7 +2,11 @@
 
 ## Status
 
-**Accepted.** Date: 2026-09-14.
+**Superseded** by
+[ADR-0049](0049-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md): content
+is no longer served with the site — `AbOvo.Api` ingests, validates and serves it live. This
+ADR's reasoning about the bundle as an immutable, versioned, pinned unit is carried forward
+into the new API's `ContentBundle` entity rather than discarded. Date: 2026-09-14.
 
 ## Context
 
