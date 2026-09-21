@@ -100,6 +100,18 @@ test.describe('reading ergonomics', () => {
   test('a program is read end to end from the keyboard @smoke', async ({ page }) => {
     expect(steps.length, 'a one-frame program would make this test vacuous').toBeGreaterThan(1);
 
+    // THIS TEST'S OWN BUDGET, WIDER THAN THE SUITE'S DEFAULT — `integration-report.spec.ts`'s
+    // own precedent for the same reason: "this one assertion is given room the rest of the
+    // suite is not." Every OTHER spec's use of `walkTo` deliberately bypasses full-page
+    // rendering to reach a frame; this is the one test that instead renders every one of
+    // `steps.length` frames for real, in one sequential walk (ADR-0060 — reading calls the
+    // live API on every frame now). Measured: the candidate ladder's own worst case for a
+    // single request (the CONFIGURED rung's full timeout, plus both guessed rungs' shorter
+    // ones — see `content.ts`) is real, if rare, and 44 ordinary frames plus one that hits it
+    // does not fit the suite's default 30s. The waiting below is still web-first assertions
+    // that poll until they pass; this number is a ceiling on the whole walk, not a sleep.
+    test.setTimeout(90_000);
+
     await openReady(page, 'en', 1);
     await expect(page.locator('body')).toContainText(uniqueProbeIn(unit, 1, 'en'));
 
@@ -107,11 +119,15 @@ test.describe('reading ergonomics', () => {
     // whole claim: no Tab, no mouse, no hunting for the control.
     for (let n = 2; n <= steps.length; n += 1) {
       await page.keyboard.press('ArrowRight');
-      await page.waitForURL(`**${at('en', n)}`);
+      // The explicit timeout is this same widened budget: the default `expect`/action
+      // timeout (10s, playwright.config.ts) is shorter than one rare, full candidate-ladder
+      // walk can legitimately take, and `test.setTimeout` above only raises the TEST's own
+      // ceiling, not any single call's.
+      await page.waitForURL(`**${at('en', n)}`, { timeout: 20_000 });
       await expect(
         page.locator('body'),
         `pressing forward from frame ${n - 1} did not produce frame ${n}`,
-      ).toContainText(uniqueProbeIn(unit, n, 'en'));
+      ).toContainText(uniqueProbeIn(unit, n, 'en'), { timeout: 20_000 });
     }
 
     // And the end HANDS OFF rather than being a wall. It used to be one: `→` on the last
@@ -131,10 +147,14 @@ test.describe('reading ergonomics', () => {
   });
 
   test('and back again, one frame at a time @core', async ({ page }) => {
+    // Same widened budget, and the same reason, as the forward walk above: this renders
+    // every one of `steps.length` frames for real too, just backward.
+    test.setTimeout(90_000);
+
     await openReady(page, 'en', steps.length);
     for (let n = steps.length - 1; n >= 1; n -= 1) {
       await page.keyboard.press('ArrowLeft');
-      await page.waitForURL(`**${at('en', n)}`);
+      await page.waitForURL(`**${at('en', n)}`, { timeout: 20_000 });
     }
     await expect(page.locator('body')).toContainText(uniqueProbeIn(unit, 1, 'en'));
 
