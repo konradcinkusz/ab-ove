@@ -640,3 +640,153 @@ test('list_programs divides the book the way the index does', async () => {
   assert.ok(listed.indexOf('  Main sequence') < listed.findIndex((line) => line.includes('P01 ·')));
   assert.ok(listed.findIndex((line) => line.includes('F02 ·')) < listed.indexOf('  Main sequence'));
 });
+
+/**
+ * A TRACK WITH AN ORDER IN IT, because the fixture has one program and one program has no
+ * order. Built from the fixture's own unit rather than hand-written, on the reasoning the
+ * grouping test above gives: what is under test is the gate, and a second hand-authored
+ * bundle would be a second thing that can drift from the schema.
+ */
+function sequence(): { bundles: BundleSource; ids: readonly string[] } {
+  const bundle = BUNDLES.for(TRACK)!;
+  const bare: { -readonly [K in keyof Unit]?: Unit[K] } = { ...bundle.units[0]! };
+  delete bare.part;
+  const three: Bundle = {
+    ...bundle,
+    units: [
+      { ...(bare as Unit), id: 'F01' },
+      { ...(bare as Unit), id: 'F02' },
+      { ...(bare as Unit), id: 'F03' },
+    ],
+  };
+  return {
+    bundles: { for: (id: string) => (id === TRACK ? three : undefined), all: () => [three] },
+    ids: ['F01', 'F02', 'F03'],
+  };
+}
+
+test('the book is entered at the beginning: a program past the reader is refused', async () => {
+  const { bundles } = sequence();
+  const d = { cursors: new MemoryCursorStore(), bundles };
+
+  const asked = await handle('open_program', { unit: 'F02', language: LANG }, d);
+
+  /*
+    NOT AN ERROR, and that is the assertion this test exists for. `reveal.ts` — "a model
+    will report the refusal as a fault and the reader will think the server is broken". A
+    reader who starts at the wrong end of a book has not broken anything.
+  */
+  assert.ok(!asked.isError, 'a reading order is not an error');
+  assert.match(asked.text, /"F02" is not open/);
+  // It names the move, and the move is one the reader can make.
+  assert.match(asked.text, /"F01"/);
+  assert.match(asked.text, /ONE step/);
+  assert.match(asked.text, /not a permission/);
+
+  assert.equal(await d.cursors.read(TRACK, 'F02'), undefined, 'a refused program recorded a place');
+});
+
+test('one step of the program before it is the whole of what opens the next', async () => {
+  const { bundles } = sequence();
+  const d = { cursors: new MemoryCursorStore(), bundles };
+
+  // Not finished, not answered — opened. ADR-0051 chose the weakest gate that still makes
+  // the order true, and this is the test of exactly that choice.
+  const first = await handle('open_program', { unit: 'F01', language: LANG }, d);
+  assert.ok(!first.isError, first.text);
+
+  const second = await handle('open_program', { unit: 'F02', language: LANG }, d);
+  assert.ok(!second.isError, second.text);
+  assert.match(second.text, /Starting "F02"/);
+
+  // AND ONLY THE NEXT ONE: opening a door does not open the corridor. Asserted on a
+  // SECOND reader rather than on this one, because opening F02 above is itself a place in
+  // F02 and therefore opens F03 — which is the rule, not a leak. The claim under test is
+  // that one step of F01 reaches exactly one program further.
+  const other = { cursors: new MemoryCursorStore(), bundles };
+  await handle('open_program', { unit: 'F01', language: LANG }, other);
+  const third = await handle('open_program', { unit: 'F03', language: LANG }, other);
+  assert.match(third.text, /"F03" is not open/);
+  assert.match(third.text, /"F02"/, 'the refusal names the program that opens F03');
+});
+
+test('a reader already inside a program is not shut out of it', async () => {
+  const { bundles } = sequence();
+  const cursors = new MemoryCursorStore();
+  // The valve: a record written before this rule existed, or adopted from another machine
+  // (ADR-0019), names a program the order would not have opened. A door cannot shut behind
+  // a reader who is through it.
+  await cursors.save({ track: TRACK, unit: 'F02', language: LANG, step: 2 });
+  const d = { cursors, bundles };
+
+  const resumed = await handle('open_program', { unit: 'F02' }, d);
+  assert.ok(!resumed.isError, resumed.text);
+  assert.match(resumed.text, /Resuming "F02" at step 2/);
+
+  const reread = await handle('current_step', { unit: 'F02' }, d);
+  assert.ok(!reread.isError, reread.text);
+});
+
+test('a shut program is refused before the reader is asked which edition to read', async () => {
+  const { bundles } = sequence();
+  const d = { cursors: new MemoryCursorStore(), bundles };
+
+  // No language argument: the edition question is what an unopened program normally asks
+  // first, and asking it before the gate spends the reader's answer on nothing.
+  const asked = await handle('open_program', { unit: 'F02' }, d);
+  assert.match(asked.text, /"F02" is not open/);
+  assert.doesNotMatch(asked.text, /needs an edition/);
+});
+
+test('re-reading a shut program says why, rather than sending the model into the refusal', async () => {
+  const { bundles } = sequence();
+  const d = { cursors: new MemoryCursorStore(), bundles };
+
+  for (const name of ['current_step', 'review_step', 'submit_answer']) {
+    const said = await handle(name, { unit: 'F02', step: 1, answer: 'x' }, d);
+    assert.match(said.text, /"F02" is not open/, `${name} withheld the reason`);
+    assert.doesNotMatch(
+      said.text,
+      /Call open_program first/,
+      `${name} advised a call that is itself refused`,
+    );
+  }
+});
+
+test('list_programs says which programs are open, and states the rule once', async () => {
+  const { bundles } = sequence();
+  const d = { cursors: new MemoryCursorStore(), bundles };
+
+  const fresh = (await handle('list_programs', {}, d)).text;
+  assert.match(fresh, /Programs open in order/);
+  assert.match(fresh, /F01 · .* — open to the reader now/);
+  assert.match(fresh, /F02 · .* — SHUT, opens after F01/);
+  assert.match(fresh, /F03 · .* — SHUT, opens after F02/);
+
+  await handle('open_program', { unit: 'F01', language: LANG }, d);
+
+  const after = (await handle('list_programs', {}, d)).text;
+  assert.match(after, /F01 · .* — at step 1 of/);
+  assert.match(after, /F02 · .* — open to the reader now/);
+  assert.match(after, /F03 · .* — SHUT, opens after F02/);
+});
+
+test('the first program of a track is never shut, whatever the reader has read', async () => {
+  const { bundles } = sequence();
+  const d = { cursors: new MemoryCursorStore(), bundles };
+
+  const opened = await handle('open_program', { unit: 'F01', language: LANG }, d);
+  assert.ok(!opened.isError, opened.text);
+  assert.match((await handle('list_programs', {}, deps())).text, /P01 · .* — open to the reader now/);
+});
+
+test('the order is stated where the model reads it, not only where it is enforced', () => {
+  // A tool description is a request and the gate is the rule (`tools.ts`'s own opening),
+  // but a rule the model meets only as a refusal is one it meets by failing in front of
+  // the reader first. Both say it.
+  assert.match(SERVER_INSTRUCTIONS, /PROGRAMS OPEN IN ORDER/);
+  const open = TOOLS.find((tool) => tool.name === 'open_program')!;
+  assert.match(open.description, /PROGRAMS OPEN IN ORDER/);
+  const list = TOOLS.find((tool) => tool.name === 'list_programs')!;
+  assert.match(list.description, /open/);
+});

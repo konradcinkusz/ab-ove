@@ -2,7 +2,12 @@
 
 ## Status
 
-**Accepted.** Date: 2026-09-20. Narrows
+**Accepted**, and amended on 2026-09-20 by
+[ADR-0056](0056-the-reading-order-is-gated-on-every-surface-and-every-refusal-says-what-opens-it.md),
+which gates the MCP server on this same rule and gives every refusal a sentence. Two
+paragraphs below are struck where it overtook them; the rule itself is unchanged.
+
+Date: 2026-09-20. Narrows
 [ADR-0041](0041-the-reading-surface-shows-position-and-never-progress.md); constrained by
 [ADR-0004](0004-identity-authservice-and-anonymous-reader.md),
 [ADR-0009](0009-the-instrument-measures-the-book.md) and
@@ -54,14 +59,16 @@ how well a reader read is the measurement ADR-0009 §1 puts on the book and neve
 `lib/content/bundle.ts`), never arithmetic on the id — the book renumbered its own main
 sequence when P07 was inserted, so `P08 - 1` stopped being a program that day.
 
-**The rule is one pure function** (`lib/progress/gate.ts`) over the record that already
-exists. Nothing new is stored, nothing new is sent, and the reader who signs in gets the
+**The rule is one pure function** (`@ab-ovo/web-kit`'s `gate.ts` since ADR-0056; it was
+`lib/progress/gate.ts`, which is now the browser's adapter over it) over the record that
+already exists. Nothing new is stored, nothing new is sent, and the reader who signs in gets the
 same doors open on every machine because the positions were already synchronised.
 
 **Every way into a program asks it.** The tile renders its title without a link
 (`tile-entry.tsx`) and says `opens after P06` in the slot that already holds `at frame 12`;
 the contents page, the frame and the summary each carry `ProgramGate`, which returns the
-reader to the index; the contents page's foot does not offer a next program that is shut.
+reader to the index; the contents page's foot does not offer a next program that is shut
+(and says what opens it instead — ADR-0056).
 
 **A shut program records nothing.** `remember-position.tsx` asks the same question before
 it writes, because arriving is what records a place and a place is what opens a program —
@@ -69,6 +76,11 @@ without that, one typed URL would have bought the program permanently, and the g
 same page would have been the thing that made it permanent.
 
 ## Consequences
+
+> **Struck by [ADR-0056](0056-the-reading-order-is-gated-on-every-surface-and-every-refusal-says-what-opens-it.md):**
+> the tile's `opens after P06` was the whole of what this decision said about a shut
+> program, and the reader who most needed it — the one a deep link had just moved — was
+> the one it did not reach. The tile still says it; four more places say it at length.
 
 **The first paint of a shut program is the program, and a reader with script off is not
 gated at all.** The record is in the browser, so the gate cannot be a server redirect
@@ -122,13 +134,21 @@ omission.** Reaching a summary the way the product intends means having read to 
 frame, which is a place, which opens the next program. The link is shut only for a reader
 who deep-linked to `/summary`, and the gate catches them one navigation later.
 
-**The MCP server is not gated, and it could be.** `web/mcp` reads the same record — its
+> **Struck by [ADR-0056](0056-the-reading-order-is-gated-on-every-surface-and-every-refusal-says-what-opens-it.md).**
+> The conversation this paragraph deferred has happened, and the answer went the other
+> way: the reading order is a property of the book rather than of a navigation, and two
+> surfaces reading one record while disagreeing about which doors are open is a defect a
+> reader meets and nobody can explain. `open_program` now refuses a shut program and names
+> the one that opens it. The paragraph is kept because its reasoning is what the new ADR
+> had to answer.
+
+~~**The MCP server is not gated, and it could be.** `web/mcp` reads the same record — its
 cursor store IS `ReaderProgress`, over the same API the browser's BFF uses — so
 `open_program` could ask this question and does not. It is left alone deliberately: the
 request this decision answers was about the reading surface, the two surfaces have never
 shared a navigation rule, and gating a tool call is a different conversation about what a
 host may do on a reader's behalf. Until that conversation happens, `open_program` opens
-any program, and no document may claim the gate covers the whole product.
+any program, and no document may claim the gate covers the whole product.~~
 
 **The acceptance suite grew a seed.** Specs that deep-link past the first program — the
 worksheet, the sync, the bearer hop, the landing page's own P01 assertions — are journeys

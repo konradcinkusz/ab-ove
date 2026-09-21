@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useSyncExternalStore } from 'react';
 
+import { chromeFor } from '@/lib/i18n/chrome';
 import { serverSnapshot, snapshot, subscribe } from '@/lib/progress/client';
 import { isOpen } from '@/lib/progress/gate';
 
@@ -18,6 +19,13 @@ export interface TileEntryProps {
    * when the reader has chosen an edition, one per edition when they have not (ADR-0015).
    */
   readonly editions: readonly { readonly language: string; readonly title: string }[];
+  /**
+   * The index's own edition, which the SENTENCE about a shut door is written in — never the
+   * content's. A tile can carry a Polish title on an English index (ADR-0016), and the
+   * explanation belongs to the chrome, so the two are read in two voices and each is
+   * marked with its own `lang`.
+   */
+  readonly language: string;
 }
 
 /**
@@ -45,6 +53,28 @@ export interface TileEntryProps {
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
+ * AND A DOOR THAT IS SHUT SAYS SO IN WORDS, NOT IN A COLOUR.
+ *
+ * What the reader had was a faint title and `opens after F01` in the id row — three words
+ * in the position slot, which is the right size for a grid of forty-seven and too small to
+ * answer what a reader actually asks when a tile will not open: is it missing, is it paid
+ * for, is it broken, what exactly unlocks it. So the shut title carries the full sentence
+ * twice over, once for each way of asking:
+ *
+ *   `title`             the pointer's question, answered on hover.
+ *   `aria-describedby`  the same sentence, announced with the title rather than met later
+ *                       as a stray line somewhere in the tile.
+ *
+ * The described element is rendered here and hidden visually rather than reusing the
+ * position slot's note: the note is `opens after F01` and the description is the paragraph
+ * that explains it, and pointing at the short one would have made the screen reader's
+ * answer the weaker of the two available.
+ *
+ * ONE FRAME IS ENOUGH, and the sentence says so — `chrome.shutExplain` records why that
+ * clause is load-bearing rather than friendly.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
  * THE FIRST PAINT IS THE INDEX OF A READER WITH NO RECORD, AND THE DOORS OPEN AT
  * HYDRATION.
  *
@@ -66,28 +96,55 @@ export interface TileEntryProps {
  * and the contents page's foot loses the same (`when-open.tsx`). ADR-0051 records it.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
-export function TileEntry({ track, unit, previous, editions }: TileEntryProps): React.JSX.Element {
+export function TileEntry({
+  track,
+  unit,
+  previous,
+  editions,
+  language,
+}: TileEntryProps): React.JSX.Element {
   const progress = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   const open = isOpen(progress, { track, unit, previous });
+  const chrome = chromeFor(language);
+
+  /*
+    `previous` is re-tested rather than asserted: `isOpen` returns true when there is
+    nothing before this program, so a shut tile always has one to name, and the compiler
+    should be told that by the code rather than by a `!`. The same shape as
+    `tile-position.tsx`, which asks the same question one row up.
+  */
+  const explanation = !open && previous !== undefined ? chrome.shutExplain(previous) : undefined;
+  const explainedBy = `shut-${track}-${unit}`;
 
   return (
     <span className={styles.titles}>
-      {editions.map(({ language, title }) =>
+      {editions.map(({ language: edition, title }) =>
         open ? (
           <Link
             className={styles.title}
-            href={`/read/${track}/${unit}/${language}`}
-            key={language}
-            lang={language}
+            href={`/read/${track}/${unit}/${edition}`}
+            key={edition}
+            lang={edition}
           >
             {title}
           </Link>
         ) : (
-          <span className={`${styles.title} ${styles.titleShut}`} key={language} lang={language}>
+          <span
+            aria-describedby={explanation ? explainedBy : undefined}
+            className={`${styles.title} ${styles.titleShut}`}
+            key={edition}
+            lang={edition}
+            title={explanation}
+          >
             {title}
           </span>
         ),
       )}
+      {explanation ? (
+        <span className={styles.offScreen} id={explainedBy} lang={chrome.language}>
+          {explanation}
+        </span>
+      ) : null}
     </span>
   );
 }

@@ -75,6 +75,47 @@
   margin: 0 0 1.25rem;
 }
 
+/*
+ * WHY THIS PAGE IS ON SCREEN, when the reader asked for a program that is not open yet
+ * (ADR-0051, `shut-notice.tsx`).
+ *
+ * MARKED LIKE THE TILE IT IS ABOUT. The tile the reader was sent to already lights its
+ * border with `--accent` (`.tile:target`, below), and this carries the same colour on its
+ * leading edge: two marks in one colour read as one answer in two places, where a second
+ * colour would read as a second thing having happened. It is not an alarm — nothing has
+ * failed, and a red panel would tell the reader otherwise.
+ *
+ * IT IS FOCUSED ON ARRIVAL, so it needs a focus ring that says where the page has put the
+ * reader — `tabIndex={-1}` makes it focusable and nothing else does. The outline is the
+ * accent again rather than the browser's default, which is a blue that belongs to no other
+ * control on this page.
+ *
+ * IT DOES PUSH THE GRID DOWN, AND THAT IS THE ONE PLACE ON THIS PAGE WHERE THAT IS RIGHT.
+ *
+ * Everything else that arrives after hydration here extends a line rather than adding a
+ * block, because `progress.spec.ts` holds this page's layout shift at zero — a page that
+ * moves under a reader mid-scan. This is a block and it moves what is below it, on the one
+ * visit where the reader did not ask for this page at all: they are not scanning the grid
+ * yet, the component moves focus to itself as it lands, and the alternative — an overlay,
+ * or a fixed strip — would cover the tiles it is telling them to look at. It renders on no
+ * other visit, so the bound the rest of the page is held to is untouched.
+ */
+.shutNotice {
+  border-left: 2px solid var(--accent);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0 0 1.5rem;
+  max-width: 44rem;
+  padding: 0.25rem 0 0.25rem 0.875rem;
+}
+
+.shutNotice:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
 .heading {
   color: var(--ink-faint);
   font-family: var(--font-ui);
@@ -255,6 +296,29 @@ a.title:focus-visible {
 .title.titleShut {
   color: var(--ink-faint);
   cursor: default;
+}
+
+/*
+ * THE SENTENCE A SCREEN READER HEARS WITH A SHUT TITLE, and that a pointer gets as a
+ * tooltip instead (`tile-entry.tsx`).
+ *
+ * Off-screen rather than `display: none` or `visibility: hidden`, both of which remove an
+ * element from the accessibility tree along with the page — an `aria-describedby` pointing
+ * at either is a description nothing announces. The clip-rect idiom keeps it in the tree,
+ * out of the layout and out of the way of a text search.
+ *
+ * It is not in the visible tile because the visible tile already says `opens after F01` in
+ * the id row, in the three words that fit there. This is the same fact at the length a
+ * reader who asked for it deserves, and printing it in every one of forty-seven tiles would
+ * be a grid of paragraphs.
+ */
+.offScreen {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
 }
 
 /*

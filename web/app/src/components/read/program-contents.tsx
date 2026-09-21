@@ -221,7 +221,12 @@ export function ProgramContents({
             the gate would be a control that is reliably refused.
           */}
           {nextUnit ? (
-            <WhenOpen previous={unit.id} track={track} unit={nextUnit.id}>
+            <WhenOpen
+              language={chrome.language}
+              previous={unit.id}
+              track={track}
+              unit={nextUnit.id}
+            >
               <Link href={`/read/${track}/${nextUnit.id}/${language}`}>{nextUnit.id} →</Link>
             </WhenOpen>
           ) : null}

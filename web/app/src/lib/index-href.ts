@@ -23,12 +23,35 @@ export interface IndexChoices {
   readonly track?: string | undefined;
   /** The edition the reader chose, or `undefined` for the index that picks neither. */
   readonly edition?: string | undefined;
+  /**
+   * The program the reader was turned away from, when this address is the gate sending them
+   * back (ADR-0051, `program-gate.tsx`).
+   *
+   * ──────────────────────────────────────────────────────────────────────────────────────
+   * NOT A CHOICE LIKE THE OTHER TWO, AND IN THE URL FOR A DIFFERENT REASON.
+   *
+   * `track` and `edition` are in the address so a reader can see, share and leave them. This
+   * is here because the reason for a navigation has to SURVIVE the navigation, and the
+   * alternatives were worse: a module-level variable is state two tabs would share and a
+   * reload would keep, and `sessionStorage` is state nothing clears. A query parameter is
+   * carried by the one thing that is already being replaced, is visible to the reader it is
+   * about, and is gone the moment they go anywhere else.
+   *
+   * IT IS A CLAIM THE PAGE RE-CHECKS, never one it prints. Anyone can type `?shut=F01`, and
+   * a reader who opened the program in another tab meanwhile has a record that says
+   * otherwise — so `shut-notice.tsx` asks the gate again against the reader's own record and
+   * renders nothing when the answer is "open". The parameter says which program to ask
+   * about; it never says what the answer is.
+   * ──────────────────────────────────────────────────────────────────────────────────────
+   */
+  readonly shut?: string | undefined;
 }
 
-export function indexHref({ track, edition }: IndexChoices = {}): string {
+export function indexHref({ track, edition, shut }: IndexChoices = {}): string {
   const query = new URLSearchParams();
   if (track) query.set('track', track);
   if (edition) query.set('lang', edition);
+  if (shut) query.set('shut', shut);
   const search = query.toString();
   return search ? `/?${search}` : '/';
 }

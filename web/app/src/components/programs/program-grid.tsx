@@ -16,6 +16,7 @@ import { ClearWorksheets, ExportWorksheets } from '../read/clear-controls.tsx';
 import { ForgetProgress, ResumeLast, type Limits } from '../read/resume.tsx';
 
 import styles from './program-grid.module.css';
+import { ShutNotice } from './shut-notice.tsx';
 import { TileEntry } from './tile-entry.tsx';
 import { TilePosition } from './tile-position.tsx';
 
@@ -33,6 +34,16 @@ export interface ProgramGridProps {
    * does not serve into the same unnarrowed answer.
    */
   readonly chosenTrack: string | undefined;
+  /**
+   * The program the gate has just turned this reader away from, if this page is the
+   * destination of that bounce (`?shut=` — `lib/index-href.ts` says why it travels in the
+   * address), with the program that opens it resolved from the manifest here on the server.
+   *
+   * `undefined` for every ordinary visit, which is all of them but one. It is a CLAIM about
+   * what the reader asked for and never about what they may have: `ShutNotice` puts it back
+   * to the gate before it says a word.
+   */
+  readonly shut?: { readonly track: string; readonly unit: string; readonly previous: string | undefined } | undefined;
 }
 
 /**
@@ -72,7 +83,12 @@ export interface ProgramGridProps {
  * under each position is not a switch, and the courses page can say what each course contains
  * where a row of links could only name them.
  */
-export function ProgramGrid({ bundles, chosen, chosenTrack }: ProgramGridProps): React.JSX.Element {
+export function ProgramGrid({
+  bundles,
+  chosen,
+  chosenTrack,
+  shut,
+}: ProgramGridProps): React.JSX.Element {
   const chrome = chromeFor(chosen);
 
   /*
@@ -229,6 +245,25 @@ export function ProgramGrid({ bundles, chosen, chosenTrack }: ProgramGridProps):
         />
       </div>
 
+      {/*
+        WHY THIS PAGE, WHEN THE READER ASKED FOR ANOTHER ONE.
+
+        Above the grid and below the heading: a reader who has just been moved here without
+        asking reads the reason before the forty-seven tiles, and a reader who arrived
+        normally sees nothing at all, because the component renders nothing without a
+        refusal to explain. It cannot shift anything either — it is absent from the first
+        paint, like everything else on this page that is about the reader, and it is above a
+        grid rather than inside a row.
+      */}
+      {shut ? (
+        <ShutNotice
+          language={chrome.language}
+          previous={shut.previous}
+          track={shut.track}
+          unit={shut.unit}
+        />
+      ) : null}
+
       {courses.map((bundle) => {
         /*
           ONE EDITION PER COURSE, AND IT IS READ FROM THE COURSE RATHER THAN FROM THE CONTROL.
@@ -350,6 +385,7 @@ export function ProgramGrid({ bundles, chosen, chosenTrack }: ProgramGridProps):
                           */}
                           <TileEntry
                             editions={[{ language: shown, title: say(unit.titles, shown) }]}
+                            language={chrome.language}
                             previous={previous}
                             track={bundle.track.id}
                             unit={unit.id}

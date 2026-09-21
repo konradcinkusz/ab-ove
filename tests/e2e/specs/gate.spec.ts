@@ -103,6 +103,89 @@ test.describe('a program opens when the one before it has been opened', () => {
     await page.waitForURL((url) => url.pathname === '/');
   });
 
+  test('the reader is told why they are on this page, not only which tile @smoke', async ({
+    page,
+  }) => {
+    /*
+      THE BOUNCE USED TO BE SILENT. A reader who followed a bookmark to a shut program got
+      the index, a coloured border on one tile in forty-seven, and three words in that
+      tile's id row — with no way to tell a rotted link from a program that does not exist
+      from the book's own reading order. `?shut=` carries the reason across the navigation
+      and `shut-notice.tsx` re-asks the gate before it says a word.
+    */
+    await page.goto(contentsOf(second!.id));
+    await page.waitForURL((url) => url.searchParams.get('shut') === second!.id);
+
+    const notice = page.getByRole('status');
+    await expect(notice).toContainText(`${second!.id} is not open yet`);
+    // It names the move, and the move is one the reader can make.
+    await expect(notice).toContainText(first!.id);
+
+    // And it is where the page has put them, so a keyboard is beside the explanation
+    // rather than at the top of a grid they did not ask for.
+    await expect(notice).toBeFocused();
+  });
+
+  test('an ordinary visit to the index says nothing about shut programs @core', async ({
+    page,
+  }) => {
+    // The notice is for the reader who was moved. A reader who came here on purpose is
+    // scanning a table of contents, and a standing explanation of a rule they have not hit
+    // is the prose ADR-0036 took off this page.
+    await page.goto('/');
+    await expect(page.getByRole('status')).toHaveCount(0);
+  });
+
+  test('a claim in the address is re-asked of the record, never printed @core', async ({
+    page,
+  }) => {
+    /*
+      `?shut=` is a query parameter, so anybody can type one and any link carrying one goes
+      stale the moment the reader opens the program in another tab. A notice rendered from
+      the parameter alone would tell a reader they cannot enter a program that is, in fact,
+      open to them.
+    */
+    await openThrough(page, second!.id);
+    await page.goto(`/?shut=${second!.id}`);
+
+    await expect(tileFor(page, second!.id).getByRole('link')).toHaveCount(1);
+    await expect(page.getByRole('status')).toHaveCount(0);
+  });
+
+  test('a shut tile explains itself at length, to the pointer and to a screen reader @core', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    // The three words in the id row are the note; the sentence is what a reader gets when
+    // they ask the tile what it means. Both are the same fact, and the long one says how
+    // small the move is — which "opens after F01" cannot.
+    const shutTitle = tileFor(page, second!.id).locator('span[title]');
+    await expect(shutTitle).toHaveAttribute('title', new RegExp(`any frame of ${first!.id}`));
+
+    const describedBy = await shutTitle.getAttribute('aria-describedby');
+    expect(describedBy, 'the shut title carries no description').toBeTruthy();
+    await expect(page.locator(`#${describedBy}`)).toContainText(`any frame of ${first!.id}`);
+  });
+
+  test('the contents foot says what opens the next program, where it used to say nothing @core', async ({
+    page,
+  }) => {
+    /*
+      The foot of the first program's contents is the one place the next program's
+      EXISTENCE was withheld: the way on is rendered only while the reader may take it
+      (`when-open.tsx` — a control that is reliably refused is worse than no control), and
+      what stood in its place was an empty half of a foot.
+    */
+    await page.goto(contentsOf(first!.id));
+
+    const foot = page.getByRole('navigation', { name: 'Where to next' });
+    await expect(foot).toContainText(
+      `${second!.id} opens once you have read any frame of this program.`,
+    );
+    await expect(foot.getByRole('link', { name: `${second!.id} →` })).toHaveCount(0);
+  });
+
   test('reading one frame of a program opens the next one, and only the next @core', async ({
     page,
   }) => {

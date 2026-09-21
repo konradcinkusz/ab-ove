@@ -437,6 +437,43 @@ interface Strings {
    * mixed-edition line would read in two voices.
    */
   readonly opensAfter: (unit: string) => string;
+  /**
+   * THE SAME FACT, AT LENGTH, FOR THE READER WHO ASKS THE TILE WHAT IT MEANS.
+   *
+   * `opensAfter` is three words in a slot a line tall, which is the right size for a grid
+   * of forty-seven and too small to say what a reader actually wants to know: whether the
+   * program is missing, whether it is paid for, and what exactly unlocks it. This is that
+   * sentence — the tile's `title`, and the description a screen reader announces with the
+   * shut title (`tile-entry.tsx`), so neither reader has to guess from a grey colour.
+   *
+   * IT NAMES THE SIZE OF THE MOVE — *one frame is enough* — because the weakest gate that
+   * still makes the order true (ADR-0051) is not what a reader assumes a locked tile means.
+   * Left unsaid, "opens after F01" reads as "finish F01 first", which is a different and
+   * much larger promise than the one the code keeps.
+   */
+  readonly shutExplain: (previous: string) => string;
+  /**
+   * WHAT HAPPENED, said where the reader landed — the sentence `shut-notice.tsx` renders
+   * when the gate has just moved somebody off a program they asked for (ADR-0051, and
+   * `program-gate.tsx` for why the move cannot be a server redirect).
+   *
+   * It answers four questions in the order a reader asks them: what was refused, why this
+   * page is on screen instead, what opens it, and where the program they asked for is on
+   * the page they are now looking at. The tile's own note used to be the whole of the
+   * explanation, which assumed a reader who noticed a navigation they did not ask for and
+   * then found one tile in forty-seven.
+   */
+  readonly shutNotice: (unit: string, previous: string) => string;
+  /**
+   * The contents page's foot, where the next program is shut.
+   *
+   * `when-open.tsx` renders the way on only while the reader may take it — a control that
+   * is reliably refused is worse than no control — and rendered NOTHING in its place, so
+   * the foot of F01 simply had no right-hand side and no reason. This is a sentence rather
+   * than a disabled link: it says what opens the next program, and the answer happens to
+   * be the page the reader is already on.
+   */
+  readonly shutNextProgram: (unit: string) => string;
 }
 
 /**
@@ -614,6 +651,14 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     sectionsLabel: 'Sections',
     atFrame: (n) => `at frame ${n}`,
     opensAfter: (unit) => `opens after ${unit}`,
+    shutExplain: (previous) =>
+      `Not open yet. It opens as soon as you have read any frame of ${previous} — one frame ` +
+      `is enough, and nothing here is paid for or hidden.`,
+    shutNotice: (unit, previous) =>
+      `${unit} is not open yet, so this page opened instead of it. The book is read in ` +
+      `order: ${unit} opens as soon as you have a place in ${previous}, and one frame of ` +
+      `${previous} is enough. ${unit} is marked in the list below.`,
+    shutNextProgram: (unit) => `${unit} opens once you have read any frame of this program.`,
     backToLastFrame: '← Back to the frame',
     labOptional: 'This program also has computer exercises in Python, optional',
   },
@@ -786,6 +831,15 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     sectionsLabel: 'Sekcje',
     atFrame: (n) => `na ramce ${n}`,
     opensAfter: (unit) => `dostępne po ${unit}`,
+    shutExplain: (previous) =>
+      `Jeszcze nieotwarty. Otworzy się, gdy przeczytasz dowolną ramkę ${previous} — wystarczy ` +
+      `jedna, nic tu nie jest płatne ani ukryte.`,
+    shutNotice: (unit, previous) =>
+      `${unit} nie jest jeszcze otwarty, dlatego zamiast niego otworzyła się ta strona. ` +
+      `Książkę czyta się po kolei: ${unit} otworzy się, gdy będzie zapisane miejsce w ` +
+      `${previous} — wystarczy jedna ramka ${previous}. ${unit} jest zaznaczony na liście niżej.`,
+    shutNextProgram: (unit) =>
+      `${unit} otworzy się, gdy przeczytasz dowolną ramkę tego programu.`,
     backToLastFrame: '← Wróć do ramki',
     labOptional: 'Ten program ma też ćwiczenia komputerowe w Pythonie, opcjonalne',
   },
@@ -933,6 +987,9 @@ export interface Chrome {
   readonly sectionsLabel: string;
   readonly atFrame: (n: number) => string;
   readonly opensAfter: (unit: string) => string;
+  readonly shutExplain: (previous: string) => string;
+  readonly shutNotice: (unit: string, previous: string) => string;
+  readonly shutNextProgram: (unit: string) => string;
 }
 
 /** The controls for a reader of `language`, falling back to English rather than failing. */

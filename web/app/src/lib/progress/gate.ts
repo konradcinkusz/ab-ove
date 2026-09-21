@@ -1,35 +1,29 @@
 /**
- * Which programs are open to this reader, and which are still shut.
+ * Which programs are open to this reader, and which are still shut — this browser's half.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE RULE MOVED AND THIS IS THE ADAPTER. `@ab-ovo/web-kit`'s `gate.ts` now states it:
+ * *a program opens when the reader has a place in the one before it*, ADR-0051, with the
+ * first-program and already-inside clauses and the reasoning for each. It is there rather
+ * than here because the MCP server asks the same question of the same `ReaderProgress` row
+ * and used not to ask it at all — two surfaces disagreeing about one reader's doors.
+ *
+ * WHAT STAYS HERE IS THE RECORD'S SHAPE, which is this application's and nobody else's:
+ * `Progress.positions`, keyed `track/unit`, read out of `localStorage`. The shared rule
+ * asks one question — *has this reader a place in this program?* — and that question is the
+ * only thing this file answers.
+ *
  * THE BOOK IS READ FROM THE BEGINNING, SO THE INDEX STOPS OFFERING THE MIDDLE OF IT.
  *
- * ADR-0051. Every program used to be one click from the first screen, which is the right
- * answer for a reference and the wrong one for a programmed text: a Stroud frame assumes
- * the frame before it, so forty-seven doors marked *enter here* invite a reader to start
- * at P27 and discover, four frames in, that the book has been talking to somebody else.
+ * Every program used to be one click from the first screen, which is the right answer for
+ * a reference and the wrong one for a programmed text: a Stroud frame assumes the frame
+ * before it, so forty-seven doors marked *enter here* invite a reader to start at P27 and
+ * discover, four frames in, that the book has been talking to somebody else.
  *
- * The rule is the weakest one that still makes the order true, and it was chosen that way
- * deliberately: **a program opens when the reader has any place at all in the one before
- * it.** Not "finished", not "answered every frame", not "opened the summary" — opening
- * frame 1 of P06 is enough to open P07. The gate makes a reader walk the book's own order;
- * it does not audit how well they walked it, which is the line ADR-0009 §1 draws and the
- * reason nothing here counts anything.
+ * The gate makes a reader walk the book's own order; it does not audit how well they
+ * walked it, which is the line ADR-0009 §1 draws and the reason nothing here counts
+ * anything.
  * ──────────────────────────────────────────────────────────────────────────────────────
- *
- * THERE ARE THREE WAYS IN AND THE THIRD ONE IS A SAFETY VALVE.
- *
- * The first program of a track is always open — there is nothing before it to have read,
- * and a book whose first door is shut is a book nobody opens.
- *
- * A program the reader ALREADY HAS A PLACE IN is always open, whatever is or is not
- * recorded before it. Without that clause the gate would shut behind readers rather than
- * in front of them: every record written before this rule existed names the programs a
- * reader jumped to, so a reader sitting at frame 31 of P20 would find P20 locked, their
- * own resume control pointing into it, and twenty programs to click through to get back to
- * where they already were. The same clause is what makes a record arriving from another
- * machine (ADR-0019) safe to adopt — the account copy is positions and nothing else, so a
- * phone that unlocked P20 hands the laptop a place in P20 rather than a permission.
  *
  * NOTHING NEW IS STORED, WHICH IS THE POINT. The gate is a QUESTION PUT TO THE EXISTING
  * RECORD — `positions`, one integer and a language tag per program (`store.ts`) — and not
@@ -40,13 +34,18 @@
  * (ADR-0004). A separate list of unlocked programs would have been a third entity and a
  * second source of truth for one fact.
  *
- * AND IT IS NOT A SECURITY BOUNDARY, which is worth saying in the module rather than
- * discovering later. `localStorage` is a text field a reader can edit (`store.ts` opens
- * with that sentence), so a reader who wants to be at P27 can be there in ten seconds.
- * That is fine: this is a reading order, not an entitlement. Nothing behind the gate is
- * paid for, secret, or unsafe to see — ADR-0012's rule about solutions is enforced by the
- * ROUTE not carrying them, and it is untouched by any of this.
+ * AND IT IS NOT A SECURITY BOUNDARY — `@ab-ovo/web-kit`'s `gate.ts` says why, in the place
+ * the rule now lives.
  */
+/*
+  FROM `@ab-ovo/web-kit/gate` AND NOT FROM THE BARREL, and that is a build failure rather
+  than a preference. `index.ts` re-exports the loader, the loader imports `node:fs`, and
+  this module is imported by client components — so the barrel's module graph reaches a
+  filesystem read in the browser bundle, which Next refuses with "the chunking context does
+  not support external modules (request: node:fs)". The subpath hands out the rule alone.
+*/
+import { isOpenWhere } from '@ab-ovo/web-kit/gate';
+
 import { keyOf, type ProgramRef, type Progress } from './store.ts';
 
 /**
@@ -70,14 +69,8 @@ export interface GatedProgram extends ProgramRef {
  * sentence that is wrong.
  */
 export function isOpen(progress: Progress, program: GatedProgram): boolean {
-  // The first program of the track. Nothing precedes it, so nothing gates it.
-  if (program.previous === undefined) return true;
-
-  // Already inside it — the valve above. A place is a fact about where the reader has
-  // been, and a door cannot be shut behind them.
-  if (progress.positions[keyOf(program)] !== undefined) return true;
-
-  return (
-    progress.positions[keyOf({ track: program.track, unit: program.previous })] !== undefined
+  return isOpenWhere(
+    (unit) => progress.positions[keyOf({ track: program.track, unit })] !== undefined,
+    { unit: program.unit, previous: program.previous },
   );
 }

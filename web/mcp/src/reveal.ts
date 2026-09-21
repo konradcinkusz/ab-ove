@@ -54,7 +54,23 @@ export interface Cursor {
 export type Refusal =
   | { readonly kind: 'not-reached'; readonly requested: number; readonly furthest: number }
   | { readonly kind: 'no-such-step'; readonly requested: number; readonly steps: number }
-  | { readonly kind: 'program-complete'; readonly steps: number };
+  | { readonly kind: 'program-complete'; readonly steps: number }
+  /**
+   * THE SECOND GATE, AND IT IS NOT THIS FILE'S RULE.
+   *
+   * The three above are this module's: they are the step gate, decided by `serve`. This one
+   * is the READING ORDER — ADR-0051, *a program opens when the reader has a place in the one
+   * before it* — and the rule lives in `@ab-ovo/web-kit`'s `gate.ts`, where the reading
+   * website asks it too. `tools.ts` asks it and builds this.
+   *
+   * It is a `Refusal` rather than a `problem()` because it is the same KIND of thing as
+   * `not-reached`: the product working, in the reader's own interest, and not an argument
+   * that names nothing. Everything this file says about the danger of dressing a refusal as
+   * a fault applies to it twice over — a model that reports "F02 is locked" as a server
+   * error teaches the reader that the book is broken, when what happened is that the book
+   * asked them to start at the beginning.
+   */
+  | { readonly kind: 'not-open'; readonly unit: string; readonly after: string };
 
 export type Served =
   | { readonly ok: true; readonly step: Step }
@@ -145,5 +161,18 @@ export function explain(refusal: Refusal): string {
       return `This program has ${refusal.steps} steps; step ${refusal.requested} is not one of them.`;
     case 'program-complete':
       return `This program is finished — all ${refusal.steps} steps have been worked.`;
+    case 'not-open':
+      return (
+        `"${refusal.unit}" is not open to this reader yet, and that is the book's order ` +
+        'rather than a fault. A program opens as soon as the reader has a place in the one ' +
+        `before it: "${refusal.after}" is what opens "${refusal.unit}", and there is no ` +
+        `place recorded in "${refusal.after}".\n\n` +
+        `What opens it: call open_program with unit "${refusal.after}". ONE step of it is ` +
+        `enough — not the whole program — and "${refusal.unit}" is open from that moment, ` +
+        'in this conversation and on the website, because both read the same record.\n\n' +
+        'Nothing is hidden, missing or paid for: this is a reading order, not a permission. ' +
+        'Tell the reader what opens it rather than reporting that something failed, and ' +
+        'offer them the program that does.'
+      );
   }
 }

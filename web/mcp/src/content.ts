@@ -13,7 +13,7 @@
 import fixture from '@ab-ovo/web-kit/fixtures/book-p01.v2.bundle.json' with { type: 'json' };
 import { allBundles, bundleFor, validateBundle, type Bundle } from '@ab-ovo/web-kit';
 
-export { groupsOf, languageIn, say, stepIn, tagFor, unitIn } from '@ab-ovo/web-kit';
+export { groupsOf, isOpenWhere, languageIn, say, stepIn, tagFor, unitBefore, unitIn } from '@ab-ovo/web-kit';
 export type { ProgramGroup } from '@ab-ovo/web-kit';
 export type { Bundle, Exercise, Route, Step, Text, Unit } from '@ab-ovo/web-kit';
 
