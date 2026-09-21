@@ -88,6 +88,55 @@ function identityHeaders(identity: ReaderIdentity): Headers {
   return headers;
 }
 
+/** One candidate's own attempt — never thrown, so the caller can decide whether to retry it. */
+type Attempt<T> = { readonly outcome: ContentOutcome<T> } | { readonly transportFailure: string };
+
+async function attemptOnce<T>(
+  base: string,
+  path: string,
+  method: 'GET' | 'POST',
+  identity: ReaderIdentity,
+  body: unknown,
+  fetchImpl: FetchLike,
+  timeout: number,
+): Promise<Attempt<T>> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const headers = identityHeaders(identity);
+    if (body !== undefined) headers.set('content-type', 'application/json');
+
+    const response = await fetchImpl(`${base}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      // Following a redirect would send the bearer to an address nobody chose — the same
+      // reasoning `deleteAccount` gives.
+      redirect: 'manual',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+
+    if (response.status === 404) return { outcome: { kind: 'not-found' } };
+    if (response.ok) {
+      const data = (await response.json()) as T;
+      return { outcome: { kind: 'ok', data } };
+    }
+    return { outcome: { kind: 'unavailable', reason: `api answered ${response.status}` } };
+  } catch (error) {
+    const detail =
+      error instanceof Error && error.name === 'AbortError'
+        ? `timed out after ${timeout}ms`
+        : error instanceof Error
+          ? error.message
+          : String(error);
+    return { transportFailure: detail };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * One request against the content API, walking the candidate ladder exactly as
  * `forgetRowsAt`/`deleteAccount` do: only a transport failure or a non-2xx-non-404 status
@@ -95,6 +144,22 @@ function identityHeaders(identity: ReaderIdentity): Headers {
  * the first, CONFIGURED one does (`backendCandidates`'s own ordering guarantee); every rung
  * after it is a guess (`GUESSED_RUNG_TIMEOUT_MS`'s own doc comment says why a guess earns far
  * less of a reader's patience than the address an operator actually set).
+ *
+ * THE CONFIGURED RUNG, AND ONLY IT, GETS ONE IMMEDIATE RETRY ON A BARE TRANSPORT FAILURE.
+ * Measured on this suite's own reading spec, once the bundle cache and the guessed-rung
+ * timeout above had already narrowed it down: even a fully warm, sub-millisecond `AbOvo.Api`
+ * still occasionally lost exactly one request in a long sequential walk to a transport-level
+ * failure — the shape a keep-alive race leaves (Kestrel closes an idle pooled connection the
+ * same instant undici hands that socket back out, and the request fails before either side
+ * sent a byte; `bearer-hop.spec.ts`'s own header already named this exact race). That is not
+ * the configured address being unreachable, and falling straight to a guessed rung — even a
+ * FAST-failing one — spends the whole request on an address nothing is listening on. A fresh
+ * connection resolves it, so the CONFIGURED rung gets a second attempt before it is charged
+ * with a real failure. Guessed rungs never get this: an HTTP-level error response is never
+ * retried either way, since that candidate answered and retrying a POST blindly would risk
+ * sending the reader's answer twice (`AbOvo.Api`'s own advance idempotence keeps this safe
+ * regardless — the endpoint takes the step being answered, not a target step — but a rung
+ * that already answered has nothing left to gain from asking it again).
  */
 async function request<T>(
   method: 'GET' | 'POST',
@@ -107,47 +172,22 @@ async function request<T>(
   let last: ContentOutcome<T> = { kind: 'unavailable', reason: 'no api is configured' };
 
   for (const [index, base] of candidates.entries()) {
-    const controller = new AbortController();
-    const timer = setTimeout(
-      () => controller.abort(),
-      index === 0 ? timeoutMs() : GUESSED_RUNG_TIMEOUT_MS,
-    );
+    const timeout = index === 0 ? timeoutMs() : GUESSED_RUNG_TIMEOUT_MS;
 
-    try {
-      const headers = identityHeaders(identity);
-      if (body !== undefined) headers.set('content-type', 'application/json');
-
-      const response = await fetchImpl(`${base}${path}`, {
-        method,
-        headers,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
-        // Following a redirect would send the bearer to an address nobody chose — the same
-        // reasoning `deleteAccount` gives.
-        redirect: 'manual',
-        cache: 'no-store',
-        signal: controller.signal,
-      });
-
-      if (response.status === 404) return { kind: 'not-found' };
-
-      if (response.ok) {
-        const data = (await response.json()) as T;
-        return { kind: 'ok', data };
-      }
-
-      last = { kind: 'unavailable', reason: `api answered ${response.status}` };
-    } catch (error) {
-      const rungTimeout = index === 0 ? timeoutMs() : GUESSED_RUNG_TIMEOUT_MS;
-      const detail =
-        error instanceof Error && error.name === 'AbortError'
-          ? `timed out after ${rungTimeout}ms`
-          : error instanceof Error
-            ? error.message
-            : String(error);
-      last = { kind: 'unavailable', reason: `${base}: ${detail}` };
-    } finally {
-      clearTimeout(timer);
+    let attempt = await attemptOnce<T>(base, path, method, identity, body, fetchImpl, timeout);
+    if (index === 0 && 'transportFailure' in attempt) {
+      attempt = await attemptOnce<T>(base, path, method, identity, body, fetchImpl, timeout);
     }
+
+    if ('transportFailure' in attempt) {
+      last = { kind: 'unavailable', reason: `${base}: ${attempt.transportFailure}` };
+      continue;
+    }
+    if (attempt.outcome.kind === 'unavailable') {
+      last = attempt.outcome;
+      continue;
+    }
+    return attempt.outcome;
   }
 
   return last;
