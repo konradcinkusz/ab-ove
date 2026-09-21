@@ -3,14 +3,14 @@ import Link from 'next/link';
 import { say, sectionSpans, unitBefore, type Bundle, type Unit } from '@ab-ovo/web-kit';
 
 import { LanguageChoice } from '@/components/language/language-choice';
-import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
 
 import styles from './contents.module.css';
 import { EntryControl, StartAfresh } from './entry-control.tsx';
-import { KeysDetails } from './keys-details.tsx';
 import { ProgramGate } from './program-gate.tsx';
+import foot from './reading-foot.module.css';
+import { ReadingFoot } from './reading-foot.tsx';
 import { RichInline } from './rich-text.tsx';
 import { WhenOpen } from './when-open.tsx';
 
@@ -208,51 +208,50 @@ export function ProgramContents({
       */}
       <EntryControl language={language} last={unit.steps.length} track={track} unit={unit.id} />
 
-      <nav aria-label={chrome.footNav} className={styles.foot} lang={chrome.language}>
-        <span className={styles.footSide}>
-          {previousUnit ? (
-            <Link href={`/read/${track}/${previousUnit.id}/${language}`}>
+      {/*
+        THE FOOT IS THE TWO NEIGHBOURING PROGRAMS, AND IT IS THE FRAME'S OWN FOOT NOW.
+
+        Between-program movement used to exist only on the index: a reader finishing F01
+        went up two levels to reach F02. The neighbours are found by ADJACENCY IN
+        `bundle.units`, never by adding one to a parsed id — the book renumbered its own
+        main sequence once already when P07 was inserted, and an id is a name rather than
+        an index.
+
+        `ReadingFoot` rather than a `.foot` of this page's own: ADR-0057 gave the frame's
+        foot visible buttons and named bringing this one to the same tier as follow-up it
+        had deliberately not done. This is that follow-up (ADR-0058). The centre slot is
+        empty here — the page's own `<h1>` says which program this is, and a position chip
+        repeating it would be the side text this screen was stripped of.
+      */}
+      <ReadingFoot
+        back={
+          previousUnit ? (
+            <Link className={foot.navLink} href={`/read/${track}/${previousUnit.id}/${language}`}>
               ← {previousUnit.id}
             </Link>
-          ) : null}
-          {/*
+          ) : null
+        }
+        chrome={chrome}
+        forward={
+          /*
             The way on, offered only once this program has been opened: the next program is
             shut until the reader has a place in this one, and a foot link that bounced off
             the gate would be a control that is reliably refused.
-          */}
-          {nextUnit ? (
+          */
+          nextUnit ? (
             <WhenOpen
               language={chrome.language}
               previous={unit.id}
               track={track}
               unit={nextUnit.id}
             >
-              <Link href={`/read/${track}/${nextUnit.id}/${language}`}>{nextUnit.id} →</Link>
+              <Link className={foot.navLink} href={`/read/${track}/${nextUnit.id}/${language}`}>
+                {nextUnit.id} →
+              </Link>
             </WhenOpen>
-          ) : null}
-        </span>
-
-        {/*
-          THE WAY TO TURN ON LIGHT MODE, WHERE THE READER ALREADY IS (ADR-0048).
-
-          A reader working a program at night is the normal case `UI-UX.md` names, and so is one
-          working it at a desk under a lamp. Sending either of them back to the index — or to
-          their operating system's settings, which is what this product used to ask — to change
-          the colour of the page they are reading is the wrong size of remedy.
-
-          BEFORE the keyboard map and not after it: `keys-details.tsx` is a `<details>` and is
-          last on every page on purpose, so that opening it cannot push anything a reader is
-          looking at. A control added below it would take that property away.
-        */}
-        <ThemeSwitch language={chrome.language} />
-        {/*
-          The same map the frame's own foot carries, from the same table, so the two can
-          never disagree about what a key does. It is here as well as there because this is
-          the page a reader is on BEFORE frame 1 — the one moment they are deciding how they
-          are going to read, rather than already reading.
-        */}
-        <KeysDetails chrome={chrome} />
-      </nav>
+          ) : null
+        }
+      />
     </main>
   );
 }

@@ -3,7 +3,10 @@
 ## Status
 
 **Accepted.** Date: 2026-09-21. Restyles the foot ADR-0041 laid out; amends neither its place
-row nor its keys.
+row nor its keys. The follow-up its Consequences name — the contents page's foot and the
+summary's, left on the pattern this one abandoned — is discharged by
+[ADR-0058](0058-the-reading-foot-is-one-pager-and-the-settings-leave-it.md), which moves the
+`.navLink` tier defined here into one shared stylesheet and takes the settings out of the row.
 
 ## Context
 

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { pickPair, track, unitNamed } from './support/bundle.ts';
+import { openPane } from './support/pane.ts';
 import { revealTo } from './support/reveal.ts';
 
 /**
@@ -254,7 +255,7 @@ test.describe('the reading surface at 360 px', () => {
      * ────────────────────────────────────────────────────────────────────────────────────
      */
     await page.goto(at('en', asking.n));
-    await page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+    await openPane(page, 'sketch');
 
     const canvas = page.getByLabel(/draw your answer/i);
     await expect(canvas, 'no canvas at 360 px, so nothing below measured anything').toBeVisible();
@@ -287,7 +288,7 @@ test.describe('the reading surface at 360 px', () => {
      * likeliest thing in the product to break it.
      */
     await page.goto(at('en', asking.n));
-    await page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+    await openPane(page, 'sketch');
     await expect(page.getByLabel(/draw your answer/i)).toBeVisible();
 
     expect(await overflowing(page), 'the open sketch pane reaches past 360 px').toEqual([]);

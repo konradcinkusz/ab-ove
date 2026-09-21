@@ -27,6 +27,8 @@ export interface SketchProps {
   readonly n: number;
   readonly tag: string;
   readonly summary: string;
+  /** What the button says once this frame holds a drawing — `Show my sketch`. */
+  readonly saved: string;
   readonly label: string;
   readonly grid: string;
   readonly axes: string;
@@ -106,6 +108,7 @@ export function Sketch({
   n,
   tag,
   summary,
+  saved,
   label,
   grid,
   axes,
@@ -305,8 +308,41 @@ export function Sketch({
   };
 
   return (
-    <details className={styles.pane} onToggle={(event) => event.currentTarget.open && load()}>
-      <summary className={styles.paneSummary}>{summary}</summary>
+    /*
+      ──────────────────────────────────────────────────────────────────────────────────
+      THE BUTTON SAYS WHETHER THIS FRAME HOLDS A DRAWING — ADR-0059, finally spending the
+      flag ADR-0043 put in the synchronous sheet for exactly this.
+
+      `hasSketch` is in localStorage rather than only in IndexedDB so that a component can
+      decide, WITHOUT awaiting a database, whether a reader has drawn here. Three documents
+      said the label was decided that way and nothing ever read the flag, so a reader who
+      drew on frame 12 and came back met an identical closed pane with nothing saying their
+      work was behind it. The strokes themselves still wait until the pane opens (`load`
+      below): this is one boolean, not a drawing.
+
+      `?? false` and not `stored?.hasSketch` alone: the server has no reader, so the
+      attribute must be a definite `no` in the first paint rather than absent, or neither
+      label is visible until hydration. `entry-control.tsx` solves the identical
+      server/client split for *Start at frame 1* → *Continue at frame N*.
+      ──────────────────────────────────────────────────────────────────────────────────
+    */
+    <details
+      className={styles.pane}
+      data-has-sketch={stored?.hasSketch ?? false ? 'yes' : 'no'}
+      /* The suite's hook — `working.tsx` says why it is an attribute and not the label. */
+      data-pane="sketch"
+      onToggle={(event) => event.currentTarget.open && load()}
+    >
+      <summary className={styles.paneSummary}>
+        <span className={styles.paneLabels}>
+          <span className={styles.paneLabel} data-when="none">
+            {summary}
+          </span>
+          <span className={styles.paneLabel} data-when="saved">
+            {saved}
+          </span>
+        </span>
+      </summary>
 
       <div className={styles.paneBody}>
         <canvas

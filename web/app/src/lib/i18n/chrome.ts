@@ -58,7 +58,7 @@ export const HINT_STATES = ['reading', 'answer-line', 'working', 'jumper'] as co
 
 export type HintState = (typeof HINT_STATES)[number];
 
-/** One row of the keyboard map, shown in the frame's own hint and in the foot's `Keys` details. */
+/** One row of the keyboard map, shown in the frame's own hint and in `Reading settings`. */
 export interface KeyEntry {
   readonly key: string;
   /**
@@ -348,12 +348,26 @@ interface Strings {
   /** Its second press, which is the one that destroys anything. */
   readonly clearAnswerConfirm: string;
   /** The index's control for every worksheet in this browser, first press. */
-  /** The Working pad — a place to try a line of arithmetic beside the frame. */
+  /**
+   * THE TWO WORKSHEET PANES, NAMED BY THE ACT AND NOT BY THE OBJECT (ADR-0059).
+   *
+   * `working` and `sketch` are what a reader presses to OPEN a pane; `workingRun` is what
+   * they press INSIDE one. The three may not share a sentence: the pad's opener and its run
+   * button sit inches apart on the same frame, and two controls reading the same words is
+   * the defect ADR-0057 named one row further down. `workingRun` moved when `working` took
+   * the words it used to hold.
+   */
   readonly working: string;
   readonly workingRun: string;
   readonly workingHint: string;
   readonly workingLabel: string;
   readonly sketch: string;
+  /**
+   * What the sketch's button says once THIS frame holds a drawing — decided from
+   * `hasSketch` in the synchronous sheet and never from IndexedDB, which is the whole
+   * reason that flag is duplicated into localStorage (`lib/sheet/sketch-store.ts`).
+   */
+  readonly showMySketch: string;
   readonly sketchLabel: string;
   readonly sketchGrid: string;
   readonly sketchAxes: string;
@@ -372,7 +386,13 @@ interface Strings {
   readonly programsCrumb: string;
   /** The frame-jumper's accessible name — it has no visible label, only the number itself. */
   readonly goToFrame: string;
-  /** The foot's `<details>` summary, and the heading a screen reader announces for it. */
+  /**
+   * The one disclosure under the foot, holding every setting a reader might want WHILE
+   * reading — the theme and the key map (ADR-0058). It names the panel; the controls
+   * inside it keep their own labels.
+   */
+  readonly readingSettings: string;
+  /** The heading over the key map inside that disclosure. */
   readonly keysHeading: string;
   /** The full keyboard map, in the order a reader would want to read it. */
   readonly keysMap: readonly KeyEntry[];
@@ -585,11 +605,12 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     earlierEdition: 'written against an earlier edition',
     clearAnswer: 'Clear my answer',
     clearAnswerConfirm: 'Clear it',
-    working: 'Working',
-    workingRun: 'Work it out',
+    working: 'Work it out',
+    workingRun: 'Do the sums',
     workingHint: 'One line at a time. A name can be given a value: w = 0.5',
     workingLabel: 'Your working',
-    sketch: 'Sketch',
+    sketch: 'Draw it',
+    showMySketch: 'Show my sketch',
     sketchLabel: 'Draw your answer',
     sketchGrid: 'Grid',
     sketchAxes: 'Axes',
@@ -602,6 +623,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     clearWorksheetsConfirm: 'Clear them — this cannot be undone',
     programsCrumb: '← Programs',
     goToFrame: 'Go to frame',
+    readingSettings: 'Reading settings',
     keysHeading: 'Keys',
     keysMap: [
       { key: '→', does: 'next frame', needs: 'frame-keys', when: ['reading'] },
@@ -765,11 +787,22 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     earlierEdition: 'zapisane przy wcześniejszym wydaniu',
     clearAnswer: 'Wyczyść moją odpowiedź',
     clearAnswerConfirm: 'Wyczyść',
-    working: 'Obliczenia',
-    workingRun: 'Policz',
+    working: 'Policz to',
+    /*
+      `Oblicz` and not a Polish idiom for `Do the sums`: the English names the act the way
+      an English speaker would say it out loud, and there is no Polish phrase that is both
+      idiomatic and the same length. So this says THE THING instead of the idiom, which is
+      docs/how-to/translate-a-document.md's own rule. It is distinct from `working`'s
+      `Policz to` for the reason the English pair is distinct — the opener and the button
+      inside it may not read as one control.
+    */
+    workingRun: 'Oblicz',
     workingHint: 'Po jednej linii. Nazwie można nadać wartość: w = 0,5',
     workingLabel: 'Twoje obliczenia',
-    sketch: 'Szkic',
+    sketch: 'Narysuj to',
+    // `Pokaż` is already this table's word for *show* (`reveal`), so nothing here invents a
+    // second word for a concept the product already names.
+    showMySketch: 'Pokaż mój szkic',
     sketchLabel: 'Narysuj swoją odpowiedź',
     sketchGrid: 'Siatka',
     sketchAxes: 'Osie',
@@ -782,6 +815,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     clearWorksheetsConfirm: 'Wyczyść — nie da się cofnąć',
     programsCrumb: '← Programy',
     goToFrame: 'Przejdź do ramki',
+    readingSettings: 'Ustawienia czytania',
     keysHeading: 'Klawisze',
     keysMap: [
       { key: '→', does: 'kolejna ramka', needs: 'frame-keys', when: ['reading'] },
@@ -958,6 +992,7 @@ export interface Chrome {
   readonly workingHint: string;
   readonly workingLabel: string;
   readonly sketch: string;
+  readonly showMySketch: string;
   readonly sketchLabel: string;
   readonly sketchGrid: string;
   readonly sketchAxes: string;
@@ -970,6 +1005,7 @@ export interface Chrome {
   readonly clearWorksheetsConfirm: string;
   readonly programsCrumb: string;
   readonly goToFrame: string;
+  readonly readingSettings: string;
   readonly keysHeading: string;
   readonly keysMap: readonly KeyEntry[];
   readonly footNav: string;

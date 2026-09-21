@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { pickPair, served, track, unitNamed } from './support/bundle.ts';
 import { openThrough } from './support/gate.ts';
+import { openPane, pane } from './support/pane.ts';
 import { revealTo } from './support/reveal.ts';
 
 /**
@@ -275,7 +276,7 @@ test.describe('the worksheet', () => {
     await page.keyboard.press('Escape');
     await expect(line).not.toBeFocused();
 
-    await page.getByRole('group').filter({ hasText: 'Working' }).first().locator('summary').click();
+    await openPane(page, 'working');
     const pad = page.getByRole('textbox', { name: /your working/i });
     await pad.click();
     await page.keyboard.type('2^10');
@@ -284,7 +285,7 @@ test.describe('the worksheet', () => {
 
     await page.reload();
     await expect(line_(page)).toHaveValue('kept');
-    await page.getByRole('group').filter({ hasText: 'Working' }).first().locator('summary').click();
+    await openPane(page, 'working');
     await expect(page.getByRole('textbox', { name: /your working/i })).toHaveValue('2^10');
   });
 
@@ -372,8 +373,7 @@ test.describe('the worksheet', () => {
     */
     await page.goto(at('en', NUMERIC.asks));
 
-    const pane = page.getByRole('group').filter({ hasText: 'Working' }).first();
-    await pane.locator('summary').click();
+    await openPane(page, 'working');
 
     const field = page.getByRole('textbox', { name: /your working/i });
     await field.fill(['2^10', '0.1 + 0.2', 'sqrt(3^2 + 4^2)'].join('\n'));
@@ -393,7 +393,7 @@ test.describe('the worksheet', () => {
     // The difference between a pad and an interpreter: paper does not refuse the rest of
     // the page because one line has a typo in it.
     await page.goto(at('en', NUMERIC.asks));
-    await page.getByRole('group').filter({ hasText: 'Working' }).first().locator('summary').click();
+    await openPane(page, 'working');
 
     const field = page.getByRole('textbox', { name: /your working/i });
     await field.fill(['w = 0.5', 'nope + 1', 'w * 3'].join('\n'));
@@ -419,7 +419,7 @@ test.describe('the worksheet', () => {
       ──────────────────────────────────────────────────────────────────────────────────
     */
     await page.goto(`/read/${track}/${unit}/pl/${NUMERIC.asks}`);
-    await page.getByRole('group').filter({ hasText: 'Obliczenia' }).first().locator('summary').click();
+    await openPane(page, 'working');
 
     const field = page.getByRole('textbox', { name: /twoje obliczenia/i });
     await field.fill(['1,5 + 1,5', 'max(2;5)', 'max(2,5)'].join('\n'));
@@ -448,7 +448,7 @@ test.describe('the worksheet', () => {
       ──────────────────────────────────────────────────────────────────────────────────
     */
     await page.goto(at('en', NUMERIC.asks));
-    await page.getByRole('group').filter({ hasText: 'Working' }).first().locator('summary').click();
+    await openPane(page, 'working');
 
     const pad = page.getByRole('textbox', { name: /your working/i });
     await pad.fill('2^10');
@@ -457,7 +457,7 @@ test.describe('the worksheet', () => {
     // Reload rather than read storage: what matters to the reader is that it is there when
     // they come back, and asserting on the key would pass against a store nothing reads.
     await page.reload();
-    await page.getByRole('group').filter({ hasText: 'Working' }).first().locator('summary').click();
+    await openPane(page, 'working');
     await expect(
       page.getByRole('textbox', { name: /your working/i }),
       'the pad discarded the reader’s working because they had not written an answer first',
@@ -475,7 +475,7 @@ test.describe('the worksheet', () => {
       nothing else to look at — `strokes.test.ts` is where the geometry is pinned.
     */
     await page.goto(at('en', NUMERIC.asks));
-    await page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+    await openPane(page, 'sketch');
 
     /*
       By its label and not by a role: a `<canvas>` has no implicit ARIA role at all, so
@@ -510,7 +510,7 @@ test.describe('the worksheet', () => {
       .toBe(true);
 
     await page.reload();
-    await page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+    await openPane(page, 'sketch');
 
     const kept = await page.evaluate(
       (key) =>
@@ -559,13 +559,13 @@ test.describe('the worksheet', () => {
       ──────────────────────────────────────────────────────────────────────────────────
     */
     await page.goto(at('en', NUMERIC.asks));
-    await page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+    await openPane(page, 'sketch');
 
     await page.getByRole('button', { name: 'Grid' }).click();
     await expect(page.getByRole('button', { name: 'Grid' })).toHaveAttribute('aria-pressed', 'true');
 
     await page.reload();
-    await page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+    await openPane(page, 'sketch');
     await expect(
       page.getByRole('button', { name: 'Grid' }),
       'the reader’s chosen background was stored and not read back',
@@ -596,7 +596,7 @@ test.describe('the worksheet', () => {
         return lit;
       });
     const openSketch = (): Promise<void> =>
-      page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+      openPane(page, 'sketch');
 
     await page.goto(at('en', NUMERIC.asks));
     await openSketch();
@@ -624,7 +624,7 @@ test.describe('the worksheet', () => {
       only when the component has nothing; this is that guard from the reader's side.
     */
     const openSketch = (): Promise<void> =>
-      page.getByRole('group').filter({ hasText: 'Sketch' }).first().locator('summary').click();
+      openPane(page, 'sketch');
 
     await page.goto(at('en', NUMERIC.asks));
     await openSketch();
@@ -655,7 +655,7 @@ test.describe('the worksheet', () => {
 
     await page.goto(at('en', teaching!.n));
     await expect(
-      page.getByRole('group').filter({ hasText: 'Working' }),
+      pane(page, 'working'),
       'a teaching frame offers a pad for arithmetic it never asks for',
     ).toHaveCount(0);
   });

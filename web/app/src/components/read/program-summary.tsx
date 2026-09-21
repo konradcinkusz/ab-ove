@@ -4,15 +4,15 @@ import { say, unitBefore, type Bundle, type Route, type Unit } from '@ab-ovo/web
 
 import { ConsentControl } from '@/components/consent/consent-control';
 import { LanguageChoice } from '@/components/language/language-choice';
-import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
 import { labFor } from '@/lib/lab/protocol';
 
 import styles from './contents.module.css';
-import { KeysDetails } from './keys-details.tsx';
 import { ProgramGate } from './program-gate.tsx';
 import summaryStyles from './program-summary.module.css';
+import foot from './reading-foot.module.css';
+import { ReadingFoot } from './reading-foot.tsx';
 import { RichInline } from './rich-text.tsx';
 import { SummaryKeys } from './summary-keys.tsx';
 
@@ -189,9 +189,26 @@ export function ProgramSummary({
       */}
       <ConsentControl language={chrome.language} />
 
-      <nav aria-label={chrome.footNav} className={summaryStyles.foot} lang={chrome.language}>
-        <span className={summaryStyles.footSide}>
-          {nextUnit && nextProgramAt ? (
+      {/*
+        THE HAND-OFF. `ReadingFoot`, the same component the frame and the contents page use,
+        so a reader leaving a program meets the row they have met on every frame of it
+        (ADR-0058). The centre slot is empty: this screen is the end of a program rather
+        than a place inside one, and it has no position to state.
+      */}
+      <ReadingFoot
+        back={
+          <Link className={foot.navLink} href={contentsAt}>
+            {chrome.contents}
+          </Link>
+        }
+        chrome={chrome}
+        forward={
+          nextUnit && nextProgramAt ? (
+            /*
+              FILLED, AND THE ONE FILLED THING ON THIS PAGE — the reveal's role, on the
+              screen that has no reveal. A reader who has just finished a program is being
+              handed the next one, which is this screen's whole reason to exist.
+            */
             <Link className={styles.start} href={nextProgramAt}>
               {chrome.nextProgramLabel} → {nextUnit.id} ·{' '}
               <RichInline language={language} text={say(nextUnit.titles, language)} />
@@ -206,25 +223,9 @@ export function ProgramSummary({
             <Link className={styles.start} href="/">
               {chrome.programs}
             </Link>
-          )}
-          <Link href={contentsAt}>{chrome.contents}</Link>
-        </span>
-
-        {/*
-          THE WAY TO TURN ON LIGHT MODE, WHERE THE READER ALREADY IS (ADR-0048).
-
-          A reader working a program at night is the normal case `UI-UX.md` names, and so is one
-          working it at a desk under a lamp. Sending either of them back to the index — or to
-          their operating system's settings, which is what this product used to ask — to change
-          the colour of the page they are reading is the wrong size of remedy.
-
-          BEFORE the keyboard map and not after it: `keys-details.tsx` is a `<details>` and is
-          last on every page on purpose, so that opening it cannot push anything a reader is
-          looking at. A control added below it would take that property away.
-        */}
-        <ThemeSwitch language={chrome.language} />
-        <KeysDetails chrome={chrome} />
-      </nav>
+          )
+        }
+      />
     </main>
   );
 }

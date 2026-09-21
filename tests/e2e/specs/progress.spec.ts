@@ -196,6 +196,29 @@ test.describe('local progress', () => {
     await expect(page.getByRole('link', { name: /continue at frame/i })).toHaveCount(0);
   });
 
+  test('a reader whose place IS frame 1 is offered one way in, not two @core', async ({ page }) => {
+    /*
+      ────────────────────────────────────────────────────────────────────────────────────
+      THE CASE THIS SUITE NEVER HAD A READER IN, AND THE DEFECT THAT SURVIVED BECAUSE OF IT.
+
+      `STOPPED_AT` is derived with an explicit `n > 1` — for reasons of its own, written at
+      its declaration — so every test above this one exercises a place somewhere in the
+      middle of a program. Frame 1 is the one position nothing stopped at, and it is the one
+      where the page said the same thing twice: `StartAfresh` printed *Start at frame 1* in
+      the crumb row beside a filled *Continue at frame 1*, one href in two sentences.
+
+      `StartAfresh` exists for the reader who has a place and wants the beginning ANYWAY,
+      which is not a thing anybody wants when the place already is the beginning (ADR-0059).
+      ────────────────────────────────────────────────────────────────────────────────────
+    */
+    await readUpTo(page, 'en', 1);
+    await page.goto(contentsAt('en'));
+
+    // The filled control names the place, and it is the only way in on the page.
+    await expect(page.getByRole('link', { name: 'Continue at frame 1' })).toHaveCount(1);
+    await expect(page.getByRole('link', { name: 'Start at frame 1' })).toHaveCount(0);
+  });
+
   test('the contents page’s control changing hands shifts nothing @core', async ({ page }) => {
     // The filled control is server-rendered as `Start at frame 1` and becomes `Continue at
     // frame N` after hydration: same element, same class, a label and an href. The same

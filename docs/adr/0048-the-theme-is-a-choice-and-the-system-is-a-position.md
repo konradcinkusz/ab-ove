@@ -9,6 +9,12 @@ invisible default is applied here to a second control, and
 [ADR-0036](0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)'s three-position
 edition switch, whose shape this copies.
 
+[ADR-0058](0058-the-reading-foot-is-one-pager-and-the-settings-leave-it.md) moved the switch
+one disclosure down on the three reading screens — into *Reading settings*, rather than beside
+the way forward. What this decision settled is untouched by that: the theme is still this
+product's to offer rather than the operating system's, still three positions, still on the
+page the reader is on. The index's chrome row carries it unchanged.
+
 ## Context
 
 This application has had a dark mode since its first stylesheet and never had a way to ask
