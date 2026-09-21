@@ -1,3 +1,5 @@
+import { cache } from 'react';
+
 import { cookies } from 'next/headers';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -51,8 +53,21 @@ type Resolved =
  * Deliberately does NOT fetch the step: metadata needs only the unit's title and its step
  * count, both ungated, and fetching the gated step here would be a second network call this
  * function's only two callers do not both need (`generateMetadata` never renders the step).
+ *
+ * WRAPPED IN `cache()` SO ITS TWO CALLERS SHARE ONE PAIR OF REQUESTS, NOT TWO. Next.js runs
+ * `generateMetadata` and the page component as separate calls within the same request, and
+ * without this, "shared by both" meant "called by both" — `fetchTrackContent` and
+ * `fetchUnitSummary` each ran twice per frame, real requests against `AbOvo.Api` doubled
+ * for no reason either caller needed, on top of the one `fetchStep` call below and the
+ * `postAdvance` a reveal already made (`reveal.ts`). Measured directly: the API's own request
+ * log showed every `GET /content/{track}` and `GET /content/{track}/{unit}` pair back to
+ * back, every frame, in a suite whose one real end-to-end walk (`reading.spec.ts`) is exactly
+ * the spec that turns "twice as many requests as necessary" into "enough extra load to make
+ * an otherwise rare transient failure show up reliably". `cache()` is React's own answer to
+ * this exact shape of problem — request-scoped memoization, reset between requests, so two
+ * calls with the same arguments inside one render become one.
  */
-async function resolveUnit(params: RouteParams): Promise<Resolved> {
+const resolveUnit = cache(async (params: RouteParams): Promise<Resolved> => {
   const store = await cookies();
   const identity = {
     bearer: store.get(ACCESS_TOKEN_COOKIE)?.value,
@@ -71,7 +86,7 @@ async function resolveUnit(params: RouteParams): Promise<Resolved> {
   if (unitOutcome.kind === 'not-found') return { kind: 'not-found' };
 
   return { kind: 'ok', trackContent: trackOutcome.data, unit: unitOutcome.data, language };
-}
+});
 
 /**
  * The program the book puts immediately before this one — ADJACENCY IN THE MANIFEST,
