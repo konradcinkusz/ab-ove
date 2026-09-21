@@ -3,6 +3,27 @@
   <PropertyGroup>
     <RootNamespace>AbOvo.Api</RootNamespace>
     <UserSecretsId>ab-ovo-api</UserSecretsId>
+
+    <!--
+      `Microsoft.NET.Sdk.Web`'s own default (Server GC, one heap and one GC thread per
+      logical processor) assumes the process owns its cores. Nothing in this estate's own
+      hosting does — a Fly machine is sized well below a full core, and CI runs this process
+      alongside Postgres, the Next.js web app and a real Chromium instance sharing the same
+      handful of vCPUs. Server GC's own background collection threads then compete for the
+      same CPU time slices as the request they are supposed to be running quietly under, and
+      on a runner that is CPU-constrained rather than merely busy that shows up as a full
+      stop — measured directly: `reading.spec.ts`'s real end-to-end walk (ADR-0060 — the
+      first spec in this suite that renders enough distinct real pages to notice) stalls a
+      request to this otherwise sub-millisecond, already-cached API for its full configured
+      timeout, reliably 42-50 seconds into every CI run regardless of which commit is under
+      test — a wall-clock-fixed window, not content-dependent, which is the signature of a
+      background GC/JIT-tier pause rather than of anything this application's own code does
+      per request. Workstation GC with concurrent collection on is Microsoft's own published
+      recommendation for exactly this shape of host: few or shared cores, latency over raw
+      throughput. https://learn.microsoft.com/dotnet/core/runtime-config/garbage-collector
+    -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
   </PropertyGroup>
 
   <ItemGroup>
