@@ -130,6 +130,24 @@ Its parts, in order:
    may see what is in it; what it loses is the way in. The door is what closes, not the
    tile. It is derived from the record that already exists, so nothing new is stored and a
    reader who signs in finds the same doors open on their other machine.
+
+   **And the tile says it at length when asked**
+   ([ADR-0056](../adr/0056-the-reading-order-is-gated-on-every-surface-and-every-refusal-says-what-opens-it.md)).
+   Three words in the id row cannot tell a reader whether the program is missing, paid for
+   or broken, so the shut title carries the whole sentence twice: as `title`, for the
+   pointer, and as an `aria-describedby` description announced with the title, for a screen
+   reader. It says the thing `opens after F01` cannot — that **one frame** of F01 is
+   enough — because read alone the short note means "finish F01 first", which is a much
+   larger promise than the rule keeps.
+
+   **A reader the gate has just moved is told so, above the grid.** A deep link, a
+   bookmark or a shared link to a shut program returns the reader here, and the redirect
+   carries `?shut=<unit>`; the page re-asks the gate against this reader's own record and,
+   only if the answer is still shut, renders one sentence in a `role="status"` region that
+   takes focus as it lands — what was refused, why this page opened instead, what opens it
+   and how small that is, and that the program is marked in the list below. It renders on
+   no other visit, and a `?shut=` naming a program the reader can in fact open renders
+   nothing at all.
 5. **The consent invitation**, last, absent from the first paint, and an invitation rather
    than a gate — a reader who came to read reaches the programs first and the question
    afterwards. The same invitation is on a program's summary, below the list, where a
@@ -272,8 +290,13 @@ frame and always one to the first. The foot carries the two neighbouring program
 key map — and **the next one only once this program has been opened**
 ([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)): a
 `F03 →` that led somewhere the reader would be sent back from is a control that is reliably
-refused. **The page itself is gated on the same rule.** A reader who has not reached this
-program is returned to the index, at the tile that says which program opens it. It happens
+refused. **In its place the foot states the fact**
+([ADR-0056](../adr/0056-the-reading-order-is-gated-on-every-surface-and-every-refusal-says-what-opens-it.md)):
+*F03 opens once you have read any frame of this program.* A control stays absent; a fact is
+owed, and this was the one screen where the next program's existence was withheld. **The
+page itself is gated on the same rule.** A reader who has not reached this program is
+returned to the index, at the tile that says which program opens it, with the sentence that
+says why they were moved. It happens
 after hydration, because the record is in the browser and the server has no reader — a
 first paint of a shut program is the honest cost of the loop working with no backend at
 all (ADR-0004).

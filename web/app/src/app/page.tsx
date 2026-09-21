@@ -5,6 +5,7 @@ import { allBundles } from '@ab-ovo/web-kit';
 import { ProgramGrid } from '@/components/programs/program-grid';
 import { chosenEdition } from '@/lib/content/chosen-edition';
 import { chosenTrack, shownBundles } from '@/lib/content/chosen-track';
+import { refusedProgram } from '@/lib/content/refused-program';
 import { LANGUAGE_COOKIE, isLanguageTag } from '@/lib/language/store';
 
 /**
@@ -89,5 +90,19 @@ export default async function HomePage({
     isLanguageTag(remembered) ? remembered : undefined,
   );
 
-  return <ProgramGrid bundles={bundles} chosen={chosen} chosenTrack={track} />;
+  /*
+    WHY THIS PAGE, WHEN THE READER ASKED FOR A PROGRAM THAT IS NOT OPEN YET.
+
+    `?shut=<unit>` arrives from `program-gate.tsx`, which is the only thing that writes it,
+    and is resolved against the book HERE — the manifest is the server's to read, and the
+    question it answers is "is this a program at all, and what precedes it". Whether the
+    reader may enter it is a question about their own record and is asked in the browser,
+    which is the split `refused-program.ts` exists to keep.
+
+    Against the courses ON SCREEN, like the edition above it: a notice about a program of a
+    course this page has been narrowed away from would point at a tile that is not here.
+  */
+  const shut = refusedProgram(shownBundles(bundles, track), asked['shut']);
+
+  return <ProgramGrid bundles={bundles} chosen={chosen} chosenTrack={track} shut={shut} />;
 }

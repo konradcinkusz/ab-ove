@@ -88,14 +88,38 @@ empty file is not a check*.
 
 | Tool | Moves? | What it does |
 | --- | --- | --- |
-| `list_programs` | no | Tracks, programs by title, editions, and where the reader is in each |
-| `open_program` | no | Start or resume, in the edition asked for or the one the reader was in; returns the step they are on |
+| `list_programs` | no | Tracks, programs by title, editions, where the reader is in each, and whether each is open to them yet |
+| `open_program` | no | Start or resume, in the edition asked for or the one the reader was in; returns the step they are on. Refuses a program the reader has not reached |
 | `current_step` | no | Re-show the current step without reconstructing it from chat |
 | `submit_answer` | **yes** | Records the answer to the step it names, returns the next step — which opens with the book's answer to the one just done |
 | `review_step` | no | An earlier step, refused beyond the furthest |
 
 **There is no tool that takes an arbitrary step number and returns it.** `review_step` takes
 one and runs it through the same gate.
+
+**There are two gates, and the second one is the book's order**
+([ADR-0056](../adr/0056-the-reading-order-is-gated-on-every-surface-and-every-refusal-says-what-opens-it.md),
+amending [ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md),
+which left this server ungated). A program is shut until the reader has a place in the one
+before it — one step of it is enough — and the rule is `isOpenWhere` in
+`@ab-ovo/web-kit`, the same function the reading surface calls, over the same
+`ReaderProgress` row this server's cursor store already is. Before, the two surfaces
+disagreed about one reader's doors and neither could explain the other.
+
+`open_program` refuses a shut program **before** it asks which edition to read, so the
+model does not spend the reader's answer on a question that leads nowhere; `current_step`,
+`submit_answer` and `review_step` say the same thing rather than advising an
+`open_program` that is itself refused; `list_programs` marks each program `open to the
+reader now` or `SHUT, opens after F01` and states the rule once per track. Two cursor
+reads at most, never a scan, because the rule asks about this program and the one before
+it and about nothing else.
+
+**The refusal is a refusal and not an error** — `refused`, not `problem`, on `reveal.ts`'s
+own reasoning about `not-reached` — and it names the program that opens this one, says one
+step of it is enough, and says plainly that nothing is hidden or paid for. That last
+clause is for the model: a tool description is a request and not a rule, so the sentence,
+`SERVER_INSTRUCTIONS` §8, `open_program`'s description and the `read` prompt all say it,
+and none of them can stop an assistant reporting a reading order as a fault.
 
 **Every step says where it is.** A rendered step opens with the reading surface's place row,
 one transport over — `P01 · How a computer stores a number › Scientific notation · step 5

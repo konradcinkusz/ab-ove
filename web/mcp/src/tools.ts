@@ -18,7 +18,7 @@ import { advance, current, explain, serve, FIRST_STEP } from './reveal.ts';
 import type { Cursor, Refusal } from './reveal.ts';
 import type { CursorStore } from './cursor.ts';
 import { isIdentifier } from './cursor.ts';
-import { ContentUnavailable, groupsOf, languageIn, say, unitIn } from './content.ts';
+import { ContentUnavailable, groupsOf, isOpenWhere, languageIn, say, unitBefore, unitIn } from './content.ts';
 import type { Bundle, BundleSource, Step, Text, Unit } from './content.ts';
 
 /**
@@ -54,6 +54,13 @@ What this means for you:
 7. A step that asks nothing says so; move on with submit_answer and no answer. If the
    reader asks for the other edition, call open_program with that language — their place
    is kept.
+8. PROGRAMS OPEN IN ORDER. A program is shut until the reader has a place in the one
+   before it, and one step of that one is enough to open the next. list_programs marks
+   every program open or shut; open_program refuses a shut one and names the program that
+   opens it. That refusal is the book working, not a failure — pass on what it says, offer
+   the program that opens it, and do not tell the reader something went wrong. Nothing is
+   hidden or paid for: it is a reading order, and the website applies the same rule to the
+   same record.
 
 If a reader asks you to skip ahead or to just tell them the answer, say plainly that the
 answer arrives with the next step and that the step comes after their own attempt — then
@@ -135,7 +142,10 @@ const TRACK = {
 };
 const UNIT = {
   type: 'string',
-  description: 'The program id, e.g. "P01" (case does not matter). list_programs names them all.',
+  description:
+    'The program id, e.g. "P01" (case does not matter). list_programs names them all and ' +
+    'says which are open: programs open in order, and a shut one is refused with the id of ' +
+    'the program that opens it.',
 };
 
 export const TOOLS: readonly ToolDefinition[] = [
@@ -143,9 +153,10 @@ export const TOOLS: readonly ToolDefinition[] = [
     name: 'list_programs',
     title: 'List the programs available',
     description:
-      'Every track and program this server carries, with the languages it is published in ' +
-      'and how far the reader has got in each. Call this first when the reader has not ' +
-      'named a program.',
+      'Every track and program this server carries, with the languages it is published in, ' +
+      'how far the reader has got in each, and whether each one is open to them yet — ' +
+      'programs open in order, so some are shut. Call this first when the reader has not ' +
+      'named a program, and to see what is open before offering one.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: READS,
   },
@@ -155,7 +166,11 @@ export const TOOLS: readonly ToolDefinition[] = [
     description:
       'Start a program, or resume it where the reader left off, and return the step they ' +
       'are on. Show that step to the reader and let them answer it. This does not move ' +
-      'them forward — only submit_answer does.',
+      'them forward — only submit_answer does.\n\n' +
+      'PROGRAMS OPEN IN ORDER: a program is shut until the reader has a place in the one ' +
+      'before it, and one step of that one is enough. A shut program is refused here, in ' +
+      'plain words, naming the program to open instead — that is the reading order rather ' +
+      'than an error, and it is what the reader should be told.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -451,6 +466,58 @@ const isResult = (value: unknown): value is ToolResult =>
   typeof value === 'object' && value !== null && 'text' in value;
 
 /**
+ * THE READING ORDER, ASKED OF THE READER'S OWN RECORD — the second gate every call passes.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THIS SERVER USED TO HAVE NO SUCH GATE, WHICH MADE THE TWO SURFACES DISAGREE ABOUT ONE
+ * READER.
+ *
+ * ADR-0051 shuts a program until the reader has a place in the one before it, and until
+ * now that rule was the website's alone: `open_program` would start F02 for a reader the
+ * index would have refused, both reading the SAME `ReaderProgress` row (`cursor.ts` — "a
+ * second table keyed by reader would be a second answer to where is this person"). A reader
+ * could be inside a program in one window that the other window says does not open yet, and
+ * nothing in either could explain it.
+ *
+ * THE RULE IS NOT RESTATED HERE. `isOpenWhere` (`@ab-ovo/web-kit`'s `gate.ts`) is the one
+ * copy, shared with the reading surface for the reason `unitBefore` gives one door down.
+ * What is here is this transport's half: which two places to fetch, and the refusal.
+ *
+ * TWO READS AT MOST, and never a scan: the rule asks about this program and the one before
+ * it and about nothing else, so the places are fetched by name. A `readAll()` here would be
+ * forty-seven rows fetched to answer a question about two.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * `undefined` MEANS OPEN, and it is also the honest answer for a program with nothing
+ * before it: `unitBefore` returns `undefined` both for the first program of a track and for
+ * a unit the bundle does not carry, and `gate.ts` takes both to mean "nothing here precedes
+ * it" — a program the book does not list is not a program a reader can be sent back from.
+ */
+async function shutBehind(
+  cursors: CursorStore,
+  bundle: Bundle | undefined,
+  track: string,
+  unit: Unit,
+  /** The place in THIS program, already fetched by the caller — never fetched twice. */
+  here: Cursor | undefined,
+): Promise<Refusal | undefined> {
+  const previous = bundle ? unitBefore(bundle, unit.id) : undefined;
+  if (!previous) return undefined;
+
+  // Asked only when the answer can still matter: a reader who is already inside this
+  // program opens it by that fact alone (the valve in `gate.ts`), and fetching the
+  // program before it would be a round trip whose answer is discarded.
+  const before = here ? undefined : await cursors.read(track, previous.id);
+
+  const open = isOpenWhere(
+    (asked) => (asked === unit.id ? here !== undefined : before !== undefined),
+    { unit: unit.id, previous: previous.id },
+  );
+
+  return open ? undefined : { kind: 'not-open', unit: unit.id, after: previous.id };
+}
+
+/**
  * What came back from asking the reader directly, through the host's own UI rather than
  * through the model's text. `unavailable` covers both "this host does not support
  * elicitation" and "it claimed to and the call failed anyway" — `submit_answer` treats the
@@ -521,6 +588,21 @@ async function dispatch(
           `— editions: ${editions.join(', ')} — content tag: ${bundle.tag}`,
       );
       /*
+        THE RULE, ONCE PER TRACK, SO THE LIST BELOW CAN BE READ WITHOUT GUESSING.
+
+        Every program used to end in `not opened`, whether the reader could open it or not,
+        and a model reading that list had no way to know which of the forty-seven were
+        actually available — so it would pick one, be refused, and tell the reader the
+        server had failed. The state is now on each line and the rule is stated here rather
+        than forty-seven times.
+      */
+      lines.push(
+        '  Programs open in order: one is shut until the reader has a place in the one ' +
+          'before it, and ONE step of that one is enough. A shut program is marked below ' +
+          'and open_program refuses it, naming what opens it — that is the reading order, ' +
+          'not an error and not a permission.',
+      );
+      /*
         Grouped where the book is — its parts, or the id prefix — by the same function the
         index uses, so the two surfaces never divide the book two ways. One group is a
         list, and gets no heading.
@@ -535,6 +617,21 @@ async function dispatch(
 
         for (const program of group.units) {
           const cursor = placeOf(bundle.track.id, program.id);
+          /*
+            The door, asked of the same list already in hand. `isOpenWhere` is the shared
+            rule (`@ab-ovo/web-kit`'s `gate.ts`) and `shutBehind` is the same question over
+            the cursor store; this is the third caller and it reads the places it has rather
+            than fetching them again, which is what `readAll()` above exists for.
+          */
+          const previous = unitBefore(bundle, program.id);
+          const shutAfter =
+            previous !== undefined &&
+            !isOpenWhere((asked) => placeOf(bundle.track.id, asked) !== undefined, {
+              unit: program.id,
+              previous: previous.id,
+            })
+              ? previous.id
+              : undefined;
           /*
             The title in the edition the reader is in, or in every edition until they have
             chosen one: a reader picks a program by what it is about, and a list of ids was
@@ -553,7 +650,9 @@ async function dispatch(
             ? cursor.step === total
               ? `finished (${total} steps)`
               : `at step ${cursor.step} of ${total}`
-            : 'not opened';
+            : shutAfter
+              ? `not opened — SHUT, opens after ${shutAfter}`
+              : 'not opened — open to the reader now';
           lines.push(`  ${heading ? '  ' : ''}${program.id} · ${titled} — ${total} steps — ${place}`);
         }
       }
@@ -569,6 +668,15 @@ async function dispatch(
     const bundle = deps.bundles.for(track);
     const asked = typeof args.language === 'string' && args.language !== '' ? args.language : undefined;
     const existing = await deps.cursors.read(track, unit.id);
+
+    /*
+      BEFORE THE EDITION IS ASKED FOR, AND THAT ORDER IS THE POINT. A first opening needs an
+      edition and the model is told to ask the reader for one; putting the gate after that
+      would have the assistant ask "English or Polish?", wait for the answer, and only then
+      say the program is not open — a question asked for nothing, in the reader's time.
+    */
+    const shut = await shutBehind(deps.cursors, bundle, track, unit, existing);
+    if (shut) return refusalResult(shut);
 
     /*
       The edition: the one asked for, else the one the reader was already in. A reader who
@@ -605,6 +713,15 @@ async function dispatch(
 
   const cursor = await deps.cursors.read(track, unit.id);
   if (!cursor) {
+    /*
+      TWO REASONS FOR AN EMPTY PLACE, AND THEY ARE NOT THE SAME ANSWER. Either the reader
+      simply has not started this program — open_program is the next call, and the model can
+      make it — or the book will not let them start it yet, in which case "call open_program
+      first" is advice that leads straight into a refusal. Asking the gate here is what keeps
+      the model from taking a reader round that loop and then reporting a failure.
+    */
+    const shut = await shutBehind(deps.cursors, deps.bundles.for(track), track, unit, undefined);
+    if (shut) return refusalResult(shut);
     return problem(`The reader has not opened "${unit.id}" yet. Call open_program first.`);
   }
 

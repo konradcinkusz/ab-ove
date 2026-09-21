@@ -37,7 +37,10 @@ export const READ_PROMPT: PromptDefinition = {
   arguments: [
     {
       name: 'program',
-      description: 'The program id, e.g. "P01" — the completions list them. Leave it out to be shown the list.',
+      description:
+        'The program id, e.g. "P01" — the completions list them. Leave it out to be shown ' +
+        'the list, which says which programs are open: they open in order, and one that is ' +
+        'not open yet is refused with the id of the program that opens it.',
       required: false,
     },
     {
@@ -77,10 +80,24 @@ export function promptMessages(
     'exactly as I wrote it. The next step opens with the book\'s own answer, and comparing ' +
     'mine with it is the lesson.';
 
+  /*
+    THE ORDER, SAID IN THE READER'S OWN VOICE, because this message is the reader speaking.
+
+    A reader can pick any program from the completions, including one the book has not let
+    them reach — that is the whole reason `tools.ts` gates `open_program`. Without this
+    clause the refusal is the first thing that happens after the reader asks for a program
+    by name, and a model meeting an unexpected refusal reports a failure. With it, the
+    reader has already said what they want done about it: tell me, and offer the one that
+    opens it. It is an OFFER rather than an instruction to open something else — which
+    program to read is the reader's choice, and a prompt that silently redirected them
+    would be making it for them.
+  */
   const opening = program
     ? `Open ${program} with open_program${language ? ` in the "${language}" edition` : ''}` +
       (language ? '' : ' — if it has not been opened before, ask me which edition, en or pl') +
-      ', and show me the step I am on.'
+      ', and show me the step I am on. If the server says that program is not open to me ' +
+      'yet, that is the book\'s reading order and not a fault: tell me what it says, name ' +
+      'the program that opens it, and offer to start me there instead.'
     : 'Call list_programs and show me the programs by title, grouped as the server groups ' +
       'them, so I can choose one. Then open the one I name with open_program' +
       (language ? ` in the "${language}" edition` : ', asking me which edition if it needs one') +

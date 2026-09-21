@@ -13,6 +13,7 @@
  * consumer to depend on it by accident.
  */
 export * from './bundle.ts';
+export * from './gate.ts';
 export * from './schema.ts';
 export * from './have-bundle.ts';
 export { validateBundle, type ValidationResult } from './validate.ts';

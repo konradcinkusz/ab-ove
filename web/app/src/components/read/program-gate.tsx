@@ -46,10 +46,24 @@ export interface ProgramGateProps {
  * moved is owed the one they asked for, so the redirect carries a fragment naming the
  * program, and the course and edition they were reading — through `indexHref`, which is
  * the one place that address is built (its own note says why a fifth hand-rolled template
- * string is a fifth chance to drop a parameter). The tile is what explains this: `opens
- * after P06`, in its own position slot. That is the whole of the explanation, and it is at
- * the destination rather than in a notice this page would have to invent and carry across
- * a navigation.
+ * string is a fifth chance to drop a parameter).
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * AND IT CARRIES THE REASON, WHICH IT DID NOT USED TO.
+ *
+ * What stood here said the tile's own `opens after P06` "is the whole of the explanation,
+ * and it is at the destination rather than in a notice this page would have to invent and
+ * carry across a navigation." Two of those three claims held. The third did not: it
+ * assumed a reader who NOTICED a navigation they had not asked for, understood that the
+ * new page was an answer to the old address, and then found one tile in forty-seven. A
+ * reader who follows a bookmark to F02 and finds the index instead has been told nothing —
+ * they do not know the program exists, whether the link rotted, or what to do next.
+ *
+ * The notice is not invented and not carried in state: `?shut=<unit>` says which program
+ * to ask about, `shut-notice.tsx` asks the GATE about it again — against the reader's own
+ * record, which may by then say something else — and renders the sentence only if the
+ * answer is still "shut". The tile's note stays exactly as it was, because it is the right
+ * size for the other forty-six.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * It subscribes to the record rather than reading it once, because the record can change
@@ -83,7 +97,7 @@ export function ProgramGate({ track, unit, previous, language }: ProgramGateProp
 
   useEffect(() => {
     if (isOpen(snapshot(), { track, unit, previous })) return;
-    router.replace(`${indexHref({ track, edition: language })}#p-${unit}`);
+    router.replace(`${indexHref({ track, edition: language, shut: unit })}#p-${unit}`);
     // `progress` is a dependency and not a value: a record that changes under the page
     // asks the question again, and the answer is read from storage when it does.
   }, [progress, track, unit, previous, router, language]);
