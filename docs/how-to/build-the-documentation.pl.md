@@ -22,7 +22,7 @@ strażnikiem, który odmawia publikacji strony wykonującej jakiekolwiek żądan
 
 ```bash
 npm install         # raz; narzędzia dokumentacji, celowo osobne od web/
-npm run lint:docs   # wszystkie cztery, dokładnie to, co uruchamia CI
+npm run lint:docs   # wszystkie pięć, dokładnie to, co uruchamia CI
 ```
 
 Albo po jednym:
@@ -32,13 +32,29 @@ npm run lint:md         # markdownlint po każdym śledzonym pliku Markdown
 npm run lint:links      # każdy względny odnośnik prowadzi do istniejącego pliku
 npm run lint:diagrams   # trzy kopie każdego diagramu się zgadzają
 npm run lint:parity     # obie połowy każdego dwujęzycznego dokumentu istnieją
+npm run lint:papers     # edycje LaTeX-owe trzymają się stylu domowego
 ```
 
-Sprawdzenie parzystości ma drugą regułę, która potrzebuje diffa, a CI podaje mu ref bazowy:
+Dwa z nich mają drugą regułę, która potrzebuje diffa, a CI podaje każdemu ref bazowy:
 
 ```bash
 node scripts/check-doc-parity.mjs origin/main   # ...i żadnej połowy nie ruszono samej
+node scripts/check-papers.mjs origin/main       # ...to samo dla dwóch edycji .tex
 ```
+
+**Po co jest `lint:papers`.** Domowy styl LaTeX-a mieszka w
+[`../papers/house-preamble.tex`](../papers/house-preamble.tex), który obie edycje wciągają
+przez `\input` — jeden plik, więc poprawka stylu to jedna zmiana, a nie jedna na dokument.
+Sprawdzenie pilnuje czterech rzeczy: że każda edycja robi ten `\input` i definiuje jego
+czteropoleceniowy kontrakt *przed* nim, że lokalna kopia wciąż zgadza się skrótem z kopią
+w `architecture-standards`, i że rysunek przywołuje się slugiem (`\dgm{b1-reader-loop}`),
+a nie ścieżką pisaną dwa razy.
+
+To repozytorium jest powodem, dla którego to sprawdzenie w ogóle istnieje. Obie edycje
+zjechały ze stylu domowego całkowicie — żadnego z jego siedmiu znaczników, przy siedmiu na
+siedem w `agent-eval-bench` i `marcus-shop` — a rozjazdu nie było widać, bo nic ich nie
+porównywało. Build łapie dokument zepsuty; to łapie dokument, który składa się bez błędu
+i jest zły.
 
 **Dlaczego tu `npm`, a dla aplikacji `pnpm`.** `web/` jest przestrzenią pnpm, a korzeniowy
 `package.json` celowo nie jest jej członkiem. Korzeniowy pakiet, który dołączyłby do tej

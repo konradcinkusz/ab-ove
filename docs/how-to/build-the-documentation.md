@@ -21,7 +21,7 @@ refuses to publish a page that would make any external request.
 
 ```bash
 npm install         # once; the docs tooling, separate from web/ on purpose
-npm run lint:docs   # all four, exactly what CI runs
+npm run lint:docs   # all five, exactly what CI runs
 ```
 
 Or one at a time:
@@ -31,13 +31,28 @@ npm run lint:md         # markdownlint over every tracked Markdown file
 npm run lint:links      # every relative link resolves to a file that exists
 npm run lint:diagrams   # the three copies of every diagram agree
 npm run lint:parity     # both halves of every bilingual document exist
+npm run lint:papers     # the LaTeX editions hold the house style
 ```
 
-The parity check has a second rule that needs a diff, and CI passes it a base ref:
+Two of them have a second rule that needs a diff, and CI passes each a base ref:
 
 ```bash
 node scripts/check-doc-parity.mjs origin/main   # ...and neither half was edited alone
+node scripts/check-papers.mjs origin/main       # ...same, for the two .tex editions
 ```
+
+**What `lint:papers` is for.** The house LaTeX style lives in
+[`../papers/house-preamble.tex`](../papers/house-preamble.tex), which both editions
+`\input` — one file, so fixing the style is one edit rather than one edit per document.
+The check holds four things: that each edition `\input`s it and defines its four-command
+contract *before* doing so, that the local copy still matches the copy in
+`architecture-standards` by digest, and that a figure is called by slug
+(`\dgm{b1-reader-loop}`) rather than by a path written twice.
+
+This repository is the reason that check exists. Both editions had drifted off the house
+style completely — none of its seven markers, against `agent-eval-bench`'s and
+`marcus-shop`'s seven of seven — and the drift was invisible because nothing compared them.
+A build catches a broken document; this catches one that builds perfectly and is wrong.
 
 **Why `npm` here and `pnpm` for the application.** `web/` is a pnpm workspace and the root
 `package.json` is deliberately not a member of it. A root package that joined that workspace

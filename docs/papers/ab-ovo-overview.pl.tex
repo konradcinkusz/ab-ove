@@ -44,6 +44,16 @@
 %  nigdzie w tresci; cudzyslow sklada sie jako ,, i ''. Ten komentarz jest jedynym
 %  miejscem, gdzie o tym mowa, i najtansza wersja tej reguly.
 %
+%  STYLU DOMOWEGO NIE MA W TYM PLIKU I O TO CHODZI. Jest w house-preamble.tex obok,
+%  wciagany przez \input nizej, jedna kopia na to repozytorium, przypieta skrotem do
+%  docs/research/HOUSE-PREAMBLE.tex w architecture-standards. Obie edycje tego papieru
+%  zjechaly z tego stylu calkowicie -- zadnego z jego siedmiu znacznikow -- podczas gdy dwa
+%  inne repozytoria trzymaly siedem na siedem, a nic tego nie powiedzialo, bo nic ich nie
+%  porownywalo. Zapisuje to ADR-0058, a pilnuje scripts/check-papers.mjs.
+%
+%  Wszystko, czym ta edycja rozni sie od angielskiej siostry, to dwa \defy przed \input.
+%  Nie ma drugiej preambuly, bo dwie preambuly sie rozjezdzaja.
+%
 %  RYSUNKI SA RENDEROWANE, A NIE RYSOWANE TUTAJ. Kazdy z nich to diagram Mermaida, ktorego
 %  zrodlem jest docs/diagrams/<id>-<slug>.pl.mmd - to samo zrodlo, ktore docs/DIAGRAMS.pl.md
 %  renderuje na GitHubie, trzymane identycznie przez scripts/check-diagrams.mjs. Uruchom
@@ -53,25 +63,36 @@
 
 \documentclass[11pt,a4paper]{article}
 
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
-\usepackage[polish]{babel}
-\usepackage[a4paper,margin=28mm]{geometry}
-\usepackage{booktabs}
-\usepackage{graphicx}
-\usepackage{enumitem}
-\usepackage{parskip}
-\usepackage[hidelinks]{hyperref}
+% ------------------------------------------------------------------------------------
+% KONTRAKT PREAMBULY DOMOWEJ. Cztery polecenia, zdefiniowane tutaj, bo house-preamble.tex
+% czyta je w trakcie wczytywania; zdefiniowanie ich po \input daje dokument z pustym
+% naglowkiem biezacym i zlymi metadanymi PDF-a.
+%
+% Dwie linie ponizej to cala roznica miedzy ta edycja a angielska: \houselang przelacza
+% babel, a \editionsuffix wybiera polskie renderowanie kazdego diagramu. Zadnej drugiej
+% preambuly - dwie preambuly sie rozjezdzaja, a rozjazd widac potem jako roznice
+% typograficzna, ktorej nikt nie umie przypisac do zmiany.
+% ------------------------------------------------------------------------------------
+\def\houselang{polish}
+\def\editionsuffix{.pl}
 
-\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\paperstatus}{NIC NIE JEST WDROZONE}
+\newcommand{\headerleft}{ab-ovo --- przeglad projektu}
+\newcommand{\pdftitleline}{ab-ovo: platforma edukacyjna, ktora zamyka w sobie Matematyke od zera dla inzyniera AI}
+\newcommand{\pdfauthorline}{konradcinkusz}
 
-\title{ab-ovo: platforma edukacyjna, która zamyka w sobie\\
-\emph{Matematykę od zera dla inżyniera AI}}
-\author{konradcinkusz}
-\date{20 września 2026}
+\input{house-preamble}
 
 \begin{document}
-\maketitle
+
+\housetitle
+    {ab-ovo}
+    {Platforma edukacyjna, która zamyka w sobie \emph{Matematykę od zera dla inżyniera AI}}
+    {konradcinkusz}
+    {\url{https://github.com/konradcinkusz/ab-ovo}}
+    {źródło prawdy: \texttt{README.md}, \texttt{docs/architecture/00-ARCHITECTURE.md},
+     \texttt{docs/adr/}, \texttt{docs/ux/UI-UX.md} --- gdzie ten papier i któryś z nich
+     się nie zgadzają, rację ma markdown}
 
 \begin{abstract}
 \noindent
@@ -104,7 +125,7 @@ odpowiedzieć na ramkę.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.78\linewidth]{../diagrams/rendered/b1-reader-loop.pl.pdf}
+\includegraphics[width=0.78\linewidth]{\dgm{b1-reader-loop}}
 \caption{Pętla czytelnika. Każde pole działa bez konta i bez backendu; dwie kropkowane
 krawędzie z niej wychodzące to jedyne miejsca, gdzie pojawia się serwer, i żadna nie leży na
 ścieżce.}
@@ -157,7 +178,7 @@ uczeniem się.
 \section{Stan: nic nie jest wdrożone}
 
 Repozytorium stoi na \emph{buduje się, testy zielone, obrazy się budują}. Nie ma działającej
-instancji, pod żadnym adresem, dla nikogo. Cztery pliki \code{fly.toml} opisują topologię,
+instancji, pod żadnym adresem, dla nikogo. Cztery pliki \texttt{fly.toml} opisują topologię,
 której nigdy nie zastosowano, a żaden z obrazów kontenerów nigdy nie został opublikowany.
 
 Istnieje za to powierzchnia lektury nad całą książką: każdy program w obu edycjach, jedna
@@ -180,15 +201,15 @@ lekturze i zliczenie wyników przy ramce --- i nic więcej.
 \toprule
 \textbf{Ścieżka} & \textbf{Czym jest} \\
 \midrule
-\code{src/AbOvo.AppHost}        & Korzeń kompozycji. Tylko deweloperski; nie jest topologią produkcyjną. \\
-\code{src/AbOvo.ServiceDefaults} & Wspólne jądro: instalacja przekrojowa, pod pułapem rozmiaru. \\
-\code{src/AbOvo.Contracts}      & DTO przekraczające granicę serwisu. \\
-\code{src/AbOvo.Api}            & Serwis HTTP. Posiada jedną logiczną bazę. Weryfikuje tokeny; nie wydaje żadnych. \\
-\code{tests/AbOvo.Api.Tests}    & Jednostkowe i integracyjne w pamięci, plus reguły architektury. Bez kontenera. \\
-\code{tests/e2e}                & Pakiet akceptacyjny Playwrighta; własny pakiet i własny lockfile. \\
-\code{web/}                     & Przestrzeń pnpm. Jedna aplikacja Next.js i jej backend-for-frontend. \\
-\code{flyio/}                   & Wdrożona topologia, opisana i nigdy niezastosowana. \\
-\code{docs/}                    & Architektura, decyzje, UX, diagramy i ten papier. \\
+\texttt{src/AbOvo.AppHost}        & Korzeń kompozycji. Tylko deweloperski; nie jest topologią produkcyjną. \\
+\texttt{src/AbOvo.ServiceDefaults} & Wspólne jądro: instalacja przekrojowa, pod pułapem rozmiaru. \\
+\texttt{src/AbOvo.Contracts}      & DTO przekraczające granicę serwisu. \\
+\texttt{src/AbOvo.Api}            & Serwis HTTP. Posiada jedną logiczną bazę. Weryfikuje tokeny; nie wydaje żadnych. \\
+\texttt{tests/AbOvo.Api.Tests}    & Jednostkowe i integracyjne w pamięci, plus reguły architektury. Bez kontenera. \\
+\texttt{tests/e2e}                & Pakiet akceptacyjny Playwrighta; własny pakiet i własny lockfile. \\
+\texttt{web/}                     & Przestrzeń pnpm. Jedna aplikacja Next.js i jej backend-for-frontend. \\
+\texttt{flyio/}                   & Wdrożona topologia, opisana i nigdy niezastosowana. \\
+\texttt{docs/}                    & Architektura, decyzje, UX, diagramy i ten papier. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -205,7 +226,7 @@ rotacji razem z maszyną.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.92\linewidth]{../diagrams/rendered/a3-one-origin.pl.pdf}
+\includegraphics[width=0.92\linewidth]{\dgm{a3-one-origin}}
 \caption{Każde żądanie, które wolno wykonać przeglądarce. Dwie strzałki narysowane dlatego, że
 nie wolno im istnieć, są tu regułą: przeglądarka rozmawia z własnym originem aplikacji webowej
 i z niczym więcej, i dlatego po stronie frontendu nie konfiguruje się CORS.}
@@ -214,7 +235,7 @@ i z niczym więcej, i dlatego po stronie frontendu nie konfiguruje się CORS.}
 \section{Architektura i to, gdzie odchodzi od konstytucji}
 
 Repozytorium jest budowane wobec architektury referencyjnej trzymanej w osobnym repozytorium
-standardów, a \code{docs/architecture/00-ARCHITECTURE.md} przechodzi jej piętnaście zasad po
+standardów, a \texttt{docs/architecture/00-ARCHITECTURE.md} przechodzi jej piętnaście zasad po
 tym drzewie --- odwołując się do konstytucji, a nie kopiując jej, bo skopiowana zasada jest
 drugą kopią, która się dezaktualizuje.
 
@@ -241,7 +262,7 @@ Odstępstwo bez warunku wyjścia jest dryfem, a nie decyzją, i dlatego ta kolum
 
 \section{Plan}
 
-Pięć faz, uszeregowanych w \code{docs/ux/UI-UX.md} tak, by sesja dostarczająca podnosiła
+Pięć faz, uszeregowanych w \texttt{docs/ux/UI-UX.md} tak, by sesja dostarczająca podnosiła
 decyzję, a nie wyprowadzała jej na nowo. Wcześniejsze fazy wylądowały; lista jest trzymana w
 pierwotnej kolejności, bo uzasadnienie tej kolejności jest w niej częścią użyteczną.
 
@@ -266,23 +287,23 @@ pierwotnej kolejności, bo uzasadnienie tej kolejności jest w niej częścią u
 \section{Gdzie są dokumenty}
 
 \begin{description}[leftmargin=0pt,itemsep=1pt]
-  \item[\code{docs/START-HERE.pl.md}] Drzwi frontowe, po polsku i po angielsku: którego z
+  \item[\texttt{docs/START-HERE.pl.md}] Drzwi frontowe, po polsku i po angielsku: którego z
         czterech rodzajów dokumentu potrzebujesz i gdzie on jest.
-  \item[\code{README.md}] Czym system jest, jak uruchomić go jednym poleceniem, i antycele,
+  \item[\texttt{README.md}] Czym system jest, jak uruchomić go jednym poleceniem, i antycele,
         wypowiedziane przed funkcjami.
-  \item[\code{docs/architecture/00-ARCHITECTURE.md}] Przejście zasada po zasadzie, rejestr
+  \item[\texttt{docs/architecture/00-ARCHITECTURE.md}] Przejście zasada po zasadzie, rejestr
         odstępstw i znane luki.
-  \item[\code{docs/adr/}] Decyzje, po jednym pliku na każdą, wraz z tym, co kosztowały.
-  \item[\code{docs/DIAGRAMS.pl.md}] Cały system jako diagramy, w czterech częściach, po polsku
+  \item[\texttt{docs/adr/}] Decyzje, po jednym pliku na każdą, wraz z tym, co kosztowały.
+  \item[\texttt{docs/DIAGRAMS.pl.md}] Cały system jako diagramy, w czterech częściach, po polsku
         i po angielsku. Każdy istnieje w treści dokumentu --- jedyna forma, którą renderuje
-        GitHub --- oraz jako samodzielny \code{.mmd}, z którego renderowane są rysunki tego
+        GitHub --- oraz jako samodzielny \texttt{.mmd}, z którego renderowane są rysunki tego
         papieru.
-  \item[\code{docs/SCREENSHOTS.pl.md}] Produkt ekran po ekranie, po polsku i po angielsku,
+  \item[\texttt{docs/SCREENSHOTS.pl.md}] Produkt ekran po ekranie, po polsku i po angielsku,
         uchwycony z buildu produkcyjnego przez pakiet akceptacyjny.
-  \item[\code{docs/tutorials/}, \code{docs/how-to/}] Dwujęzyczne w całości: lekcje na pierwsze
+  \item[\texttt{docs/tutorials/}, \texttt{docs/how-to/}] Dwujęzyczne w całości: lekcje na pierwsze
         uruchomienie i przepisy na zadanie już zrozumiane.
-  \item[\code{docs/ux/UI-UX.md}] Ekrany tak, jak zbudowane, i uszeregowany backlog.
-  \item[\code{AGENTS.md}, \code{CONTRIBUTING.md}, \code{SECURITY.md}] Praca w repozytorium i
+  \item[\texttt{docs/ux/UI-UX.md}] Ekrany tak, jak zbudowane, i uszeregowany backlog.
+  \item[\texttt{AGENTS.md}, \texttt{CONTRIBUTING.md}, \texttt{SECURITY.md}] Praca w repozytorium i
         to, co robić, gdy sekret wyląduje w historii.
 \end{description}
 

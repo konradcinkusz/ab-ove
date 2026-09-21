@@ -40,6 +40,16 @@
 %  diagrams, and matches the vocabulary web/app/src/lib/i18n/chrome.ts already uses, so that
 %  one concept does not acquire two Polish names inside one estate.
 %
+%  THE HOUSE STYLE IS NOT IN THIS FILE, AND THAT IS THE POINT. It is in
+%  house-preamble.tex beside it, \input below, one copy for this repository and pinned by
+%  digest to architecture-standards' docs/research/HOUSE-PREAMBLE.tex. Both editions of this
+%  paper had drifted off that style entirely -- none of its seven markers -- while the two
+%  other repositories carrying it held all seven, and nothing said so because nothing
+%  compared them. ADR-0058 records that and scripts/check-papers.mjs now holds it.
+%
+%  Everything this edition does differently from its Polish sibling is two \defs before the
+%  \input. There is no second preamble, because two preambles diverge.
+%
 %  THE FIGURES ARE RENDERED, NOT DRAWN HERE. Each one is a Mermaid diagram whose source is
 %  docs/diagrams/<id>-<slug>.mmd -- the same source docs/DIAGRAMS.md renders on GitHub, kept
 %  identical by scripts/check-diagrams.mjs. Redrawing them in TikZ would be two sources of
@@ -49,24 +59,34 @@
 
 \documentclass[11pt,a4paper]{article}
 
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
-\usepackage[a4paper,margin=28mm]{geometry}
-\usepackage{booktabs}
-\usepackage{graphicx}
-\usepackage{enumitem}
-\usepackage{parskip}
-\usepackage[hidelinks]{hyperref}
+% ------------------------------------------------------------------------------------
+% THE HOUSE PREAMBLE'S CONTRACT. Four commands, defined here because house-preamble.tex
+% reads them as it is read; defining them after the \input compiles a document with an
+% empty running header and wrong PDF metadata.
+%
+% \paperstatus is repurposed, as architecture-standards' RESEARCH-DOCUMENTATION allows
+% for a document that is not a research paper: it carries this project's status rather
+% than a draft/verified research marker. The status it carries is the one README.md
+% leads with, because a typeset overview that implies a running system would be the
+% single most misleading thing this repository could hand somebody.
+% ------------------------------------------------------------------------------------
+\newcommand{\paperstatus}{NOTHING IS DEPLOYED}
+\newcommand{\headerleft}{ab-ovo --- project overview}
+\newcommand{\pdftitleline}{ab-ovo: a learning platform that encapsulates Mathematics from Zero for the AI Engineer}
+\newcommand{\pdfauthorline}{konradcinkusz}
 
-\newcommand{\code}[1]{\texttt{#1}}
-
-\title{ab-ovo: a learning platform that encapsulates\\
-\emph{Mathematics from Zero for the AI Engineer}}
-\author{konradcinkusz}
-\date{14 September 2026}
+\input{house-preamble}
 
 \begin{document}
-\maketitle
+
+\housetitle
+    {ab-ovo}
+    {A learning platform that encapsulates \emph{Mathematics from Zero for the AI Engineer}}
+    {konradcinkusz}
+    {\url{https://github.com/konradcinkusz/ab-ovo}}
+    {source of truth: \texttt{README.md}, \texttt{docs/architecture/00-ARCHITECTURE.md},
+     \texttt{docs/adr/}, \texttt{docs/ux/UI-UX.md} --- where this paper and one of them
+     disagree, the markdown is right}
 
 \begin{abstract}
 \noindent
@@ -99,7 +119,7 @@ should not have to write code to answer a frame.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.78\linewidth]{../diagrams/rendered/b1-reader-loop.pdf}
+\includegraphics[width=0.78\linewidth]{\dgm{b1-reader-loop}}
 \caption{The reader loop. Every box runs with no account and no backend; the two dotted
 edges leaving it are the only places a server appears, and neither is on the path.}
 \end{figure}
@@ -152,7 +172,7 @@ that is not learning.
 \section{Status: nothing is deployed}
 
 The repository stands at \emph{builds, tests green, images build}. There is no running
-instance, at any address, for anybody. Four \code{fly.toml} files describe a topology that
+instance, at any address, for anybody. Four \texttt{fly.toml} files describe a topology that
 has never been applied, and neither container image has ever been published.
 
 What exists is the reading surface over the whole book: every program in both editions, one
@@ -175,15 +195,15 @@ the tally of outcomes against a frame --- and nothing else.
 \toprule
 \textbf{Path} & \textbf{What it is} \\
 \midrule
-\code{src/AbOvo.AppHost}        & The composition root. Development only; not the production topology. \\
-\code{src/AbOvo.ServiceDefaults} & The shared kernel: cross-cutting plumbing, under a size ceiling. \\
-\code{src/AbOvo.Contracts}      & DTOs that cross a service boundary. \\
-\code{src/AbOvo.Api}            & The HTTP service. Owns one logical database. Validates tokens; mints none. \\
-\code{tests/AbOvo.Api.Tests}    & Unit and in-memory integration, plus the architecture rules. No container. \\
-\code{tests/e2e}                & The Playwright acceptance suite; its own package and lockfile. \\
-\code{web/}                     & The pnpm workspace. One Next.js app, and its backend-for-frontend. \\
-\code{flyio/}                   & The deployed topology, described and never applied. \\
-\code{docs/}                    & Architecture, decisions, UX, diagrams, and this paper. \\
+\texttt{src/AbOvo.AppHost}        & The composition root. Development only; not the production topology. \\
+\texttt{src/AbOvo.ServiceDefaults} & The shared kernel: cross-cutting plumbing, under a size ceiling. \\
+\texttt{src/AbOvo.Contracts}      & DTOs that cross a service boundary. \\
+\texttt{src/AbOvo.Api}            & The HTTP service. Owns one logical database. Validates tokens; mints none. \\
+\texttt{tests/AbOvo.Api.Tests}    & Unit and in-memory integration, plus the architecture rules. No container. \\
+\texttt{tests/e2e}                & The Playwright acceptance suite; its own package and lockfile. \\
+\texttt{web/}                     & The pnpm workspace. One Next.js app, and its backend-for-frontend. \\
+\texttt{flyio/}                   & The deployed topology, described and never applied. \\
+\texttt{docs/}                    & Architecture, decisions, UX, diagrams, and this paper. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -200,7 +220,7 @@ global one, since a probe that gets rate-limited takes a machine out of rotation
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.92\linewidth]{../diagrams/rendered/a3-one-origin.pdf}
+\includegraphics[width=0.92\linewidth]{\dgm{a3-one-origin}}
 \caption{Every request the browser is allowed to make. The two arrows drawn because they
 must not exist are the rule: the browser talks to the web application's own origin and to
 nothing else, which is why no CORS is configured on the frontend's account.}
@@ -209,7 +229,7 @@ nothing else, which is why no CORS is configured on the frontend's account.}
 \section{Architecture, and where it departs from the constitution}
 
 The repository is built against a reference architecture held in a separate standards
-repository, and \code{docs/architecture/00-ARCHITECTURE.md} walks its fifteen principles
+repository, and \texttt{docs/architecture/00-ARCHITECTURE.md} walks its fifteen principles
 against this tree --- referencing the constitution rather than copying it, because a copied
 principle is a second copy that goes stale.
 
@@ -237,7 +257,7 @@ column exists.
 
 \section{The plan}
 
-Five phases, ranked in \code{docs/ux/UI-UX.md} so that a delivery session picks up a decision
+Five phases, ranked in \texttt{docs/ux/UI-UX.md} so that a delivery session picks up a decision
 rather than re-deriving one. The earlier phases have landed; the list is kept in its original
 order because the reasoning for the order is the useful part of it.
 
@@ -260,22 +280,22 @@ order because the reasoning for the order is the useful part of it.
 \section{Where the documents are}
 
 \begin{description}[leftmargin=0pt,itemsep=1pt]
-  \item[\code{docs/START-HERE.md}] The front door, in English and Polish: which of the four
+  \item[\texttt{docs/START-HERE.md}] The front door, in English and Polish: which of the four
         kinds of document you need, and where it is.
-  \item[\code{README.md}] What the system is, how to run it in one command, and the
+  \item[\texttt{README.md}] What the system is, how to run it in one command, and the
         anti-goals, stated before the features.
-  \item[\code{docs/architecture/00-ARCHITECTURE.md}] The principle-by-principle walk, the
+  \item[\texttt{docs/architecture/00-ARCHITECTURE.md}] The principle-by-principle walk, the
         deviation register, and the known gaps.
-  \item[\code{docs/adr/}] The decisions, one file each, with what they cost.
-  \item[\code{docs/ux/UI-UX.md}] The screens as scaffolded, and the ranked backlog.
-  \item[\code{docs/DIAGRAMS.md}] The whole system as diagrams, in four parts, in English and
+  \item[\texttt{docs/adr/}] The decisions, one file each, with what they cost.
+  \item[\texttt{docs/ux/UI-UX.md}] The screens as scaffolded, and the ranked backlog.
+  \item[\texttt{docs/DIAGRAMS.md}] The whole system as diagrams, in four parts, in English and
         Polish. Each one exists inline --- the only form GitHub renders --- and as a
-        standalone \code{.mmd} that this paper's figures are rendered from.
-  \item[\code{docs/SCREENSHOTS.md}] The product screen by screen, in English and Polish,
+        standalone \texttt{.mmd} that this paper's figures are rendered from.
+  \item[\texttt{docs/SCREENSHOTS.md}] The product screen by screen, in English and Polish,
         captured from a production build by the acceptance suite.
-  \item[\code{docs/tutorials/}, \code{docs/how-to/}] Bilingual throughout: the lessons for a
+  \item[\texttt{docs/tutorials/}, \texttt{docs/how-to/}] Bilingual throughout: the lessons for a
         first run, and the recipes for a task already understood.
-  \item[\code{AGENTS.md}, \code{CONTRIBUTING.md}, \code{SECURITY.md}] Working in the
+  \item[\texttt{AGENTS.md}, \texttt{CONTRIBUTING.md}, \texttt{SECURITY.md}] Working in the
         repository, and what to do when a secret lands in history.
 \end{description}
 
