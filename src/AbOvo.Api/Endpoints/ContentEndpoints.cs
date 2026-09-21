@@ -46,12 +46,15 @@ public static class ContentEndpoints
                         ToText(unit["titles"]),
                         ToPart(unit["part"])))
                     .ToList();
+                var languages = root["track"]?["languages"]?.AsArray()
+                    .Select(language => language!.GetValue<string>())
+                    .ToList() ?? [];
 
-                return Results.Ok(programs);
+                return Results.Ok(new TrackContent(bundle.Tag, languages, programs));
             })
             .WithName(EndpointNames.GetPrograms)
-            .WithSummary("Every program in this track's current bundle.")
-            .Produces<IReadOnlyList<ProgramSummary>>();
+            .WithSummary("The current bundle's tag, editions and every program in it.")
+            .Produces<TrackContent>();
 
         anonContentApi.MapGet("/content/{track}/{unit}", async (
                 string track,

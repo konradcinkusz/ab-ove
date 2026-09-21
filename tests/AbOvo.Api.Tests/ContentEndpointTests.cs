@@ -85,17 +85,19 @@ public sealed class ContentEndpointTests
     }
 
     [Fact]
-    public async Task The_program_list_carries_every_units_part()
+    public async Task The_track_content_carries_its_tag_languages_and_every_units_part()
     {
         using var factory = new SignedInApiFactory();
         using var scope = factory.Services.CreateScope();
         await Seed(scope.ServiceProvider.GetRequiredService<AbOvoDbContext>(), TestContext.Current.CancellationToken);
 
         using var client = factory.CreateClient();
-        var programs = await client.GetFromJsonAsync<List<ProgramSummary>>(
+        var content = await client.GetFromJsonAsync<TrackContent>(
             $"/api/v1/content/{Track}", TestContext.Current.CancellationToken);
 
-        var program = Assert.Single(programs!);
+        Assert.Equal(Tag, content!.Tag);
+        Assert.Equal(["en"], content.Languages);
+        var program = Assert.Single(content.Programs);
         Assert.Equal(Unit, program.Id);
         Assert.Equal("F", program.Part?.Id);
     }
@@ -189,6 +191,32 @@ public sealed class ContentEndpointTests
         var stillGated = await client.GetFromJsonAsync<StepResponse>($"/api/v1/content/{Track}/{Unit}/3", token);
         Assert.False(stillGated!.Ok);
         Assert.Equal("NotReached", stillGated.Refusal!.Kind);
+    }
+
+    /// <summary>
+    /// Not every frame has a field to write an answer in — only a cue step's does
+    /// (`frame-view.tsx`'s own gate on rendering <c>AnswerLine</c>) — and nothing on a frame
+    /// that has one requires it to be filled before the reveal. An advance naming no answer
+    /// at all is exactly the ordinary case, not a rejected request.
+    /// </summary>
+    [Fact]
+    public async Task Advancing_names_no_answer_at_all_and_still_moves_the_cursor()
+    {
+        using var factory = new SignedInApiFactory();
+        using var scope = factory.Services.CreateScope();
+        await Seed(scope.ServiceProvider.GetRequiredService<AbOvoDbContext>(), TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+
+        using var client = factory.CreateClient();
+        UseAnonymousReader(client, Guid.NewGuid());
+
+        var advance = new AdvanceRequest { AnsweringStep = 1, Answer = null, Language = "en" };
+        using var advanced = await client.PostAsJsonAsync($"/api/v1/content/{Track}/{Unit}/advance", advance, token);
+
+        Assert.Equal(HttpStatusCode.OK, advanced.StatusCode);
+        var revealed = await advanced.Content.ReadFromJsonAsync<StepResponse>(token);
+        Assert.True(revealed!.Ok);
+        Assert.Equal(2, revealed.Step!.N);
     }
 
     /// <summary>
