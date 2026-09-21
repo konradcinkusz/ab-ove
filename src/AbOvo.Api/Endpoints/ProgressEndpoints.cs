@@ -70,6 +70,14 @@ public static class ProgressEndpoints
             .WithSummary("Every program this reader has opened, and the furthest frame reached in each.")
             .Produces<ProgressResponse>();
 
+        /*
+         * KNOWN, TRACKED GAP SINCE ADR-0060: this write still trusts the caller's `Step`
+         * (subject only to "does not lower it"), which is exactly what a caller could use to
+         * skip the reveal gate `GET/POST .../content/**` now enforces — see the 2026-09-21
+         * deviation register row in docs/architecture/00-ARCHITECTURE.md for why this is not
+         * closed here (it would break web/mcp's only way to persist an advance today) and
+         * what retires it.
+         */
         authApi.MapPut("/progress/{track}/{unit}", async (
                 string track,
                 string unit,

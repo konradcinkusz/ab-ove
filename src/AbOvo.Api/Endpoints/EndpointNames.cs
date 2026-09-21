@@ -20,4 +20,10 @@ public static class EndpointNames
     public const string PostOutcomes = "PostOutcomes";
 
     public const string GetRates = "GetRates";
+
+    public const string GetPrograms = "GetPrograms";
+    public const string GetUnit = "GetUnit";
+    public const string GetStep = "GetStep";
+    public const string PostAdvance = "PostAdvance";
+    public const string PostIngestBundle = "PostIngestBundle";
 }

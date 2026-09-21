@@ -29,19 +29,22 @@ adoption. [`CONTRIBUTING.md`](CONTRIBUTING.md) is the same ground for a human.
    been set. Do not write a sentence, a comment or a document that implies otherwise, and do
    not add a deployment badge.
 
-3. **The domain model is three entities and it stays that size until a ticket says otherwise**
+3. **The domain model is four entities and it stays that size until a ticket says otherwise**
    (INIT-GENERIC-TEMPLATE.md §12). `AbOvoDbContext` declares `ReaderProgress` — where a reader
-   is — `FrameOutcome` — a count against a frame — and `ReaderPreference` — which edition a
-   reader chose. Do not add a fourth to make an example work, to demonstrate a pattern, or
-   because a scaffold looks empty. Entities arrive with the ticket that needs them, each with
-   its own migration. (This item has now been restated twice: it said there was no domain
-   model at all until #11, and two entities until
-   [ADR-0052](docs/adr/0052-one-language-control-remembered-and-english-by-default.md). A rule
-   stated against a fact that has moved is a rule nobody can follow.)
+   is — `FrameOutcome` — a count against a frame — `ReaderPreference` — which edition a
+   reader chose — and `ContentBundle` — the book, ingested whole (ADR-0060). Do not add a
+   fifth to make an example work, to demonstrate a pattern, or because a scaffold looks empty.
+   Entities arrive with the ticket that needs them, each with its own migration. (This item
+   has now been restated three times: it said there was no domain model at all until #11, two
+   entities until ADR-0052, and three until
+   [ADR-0060](docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md).
+   A rule stated against a fact that has moved is a rule nobody can follow.)
 
-   Two of the three are named by a reader, and a query over either that does not pin one is
-   refused before EF compiles it (`ReaderScopedQueries`). A new reader-scoped table is one
-   entry in that guard's list, not a decision to take again.
+   `ContentBundle` is named by no reader at all — it is the one entity `ReaderScopedQueries`
+   has nothing to say about, because nothing in it is per-reader. Three of the four ARE named
+   by a reader, and a query over any of them that does not pin one is refused before EF
+   compiles it (`ReaderScopedQueries`). A new reader-scoped table is one entry in that guard's
+   list, not a decision to take again.
 
 4. **The instrument measures the book, never the reader**
    ([ADR-0009](docs/adr/0009-the-instrument-measures-the-book.md)). Do not add a reader,
