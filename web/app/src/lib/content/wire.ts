@@ -65,6 +65,12 @@ export interface StepResponse {
   readonly ok: boolean;
   readonly step: StepContent | null;
   readonly refusal: GateRefusal | null;
+  /**
+   * This reader's furthest servable step in the unit, on a successful read — ADR-0063. The
+   * program map locks every section past it instead of linking to a page the gate refuses.
+   * Optional: an older `AbOvo.Api` omits it, and "not known" draws every section as a link.
+   */
+  readonly furthest?: number | null;
 }
 
 /** `AbOvo.Contracts.AdvanceRequest` — `answer` optional, `answer-line.tsx`'s own reasoning. */

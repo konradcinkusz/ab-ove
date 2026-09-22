@@ -110,7 +110,7 @@ public static class ContentEndpoints
 
                 var served = Reveal.Serve(steps.Count, cursorStep, step);
 
-                return Results.Ok(ToStepResponse(served, steps));
+                return Results.Ok(ToStepResponse(served, steps, cursorStep));
             })
             .WithName(EndpointNames.GetStep)
             .WithSummary("One step, subject to the reveal gate.")
@@ -144,7 +144,7 @@ public static class ContentEndpoints
                 if (request.AnsweringStep != cursorStep)
                 {
                     var current = Reveal.Serve(steps.Count, cursorStep, cursorStep);
-                    return Results.Ok(ToStepResponse(current, steps));
+                    return Results.Ok(ToStepResponse(current, steps, cursorStep));
                 }
 
                 var advanced = Reveal.Advance(steps.Count, cursorStep);
@@ -174,7 +174,7 @@ public static class ContentEndpoints
                 await db.SaveChangesAsync(cancellationToken);
 
                 var served = Reveal.Serve(steps.Count, advanced.NewCursorStep, advanced.Step);
-                return Results.Ok(ToStepResponse(served, steps));
+                return Results.Ok(ToStepResponse(served, steps, advanced.NewCursorStep));
             })
             .WithValidation<AdvanceRequest>()
             .WithName(EndpointNames.PostAdvance)
@@ -270,7 +270,15 @@ public static class ContentEndpoints
             .FirstOrDefault(u => u["id"]!.GetValue<string>() == unit);
     }
 
-    private static StepResponse ToStepResponse(Reveal.Served served, JsonArray steps)
+    /// <summary>
+    /// <paramref name="cursorStep"/> rides along on a successful read as
+    /// <see cref="StepResponse.Furthest"/> (ADR-0063): the reading surface's program map needs
+    /// the reader's own furthest step to tell a section it may open from one the gate would
+    /// refuse, and the refusal already carries the same number, so this adds no fact the reader
+    /// could not already learn about their own place. A refusal keeps it inside
+    /// <see cref="GateRefusal.Furthest"/>, where it has always been.
+    /// </summary>
+    private static StepResponse ToStepResponse(Reveal.Served served, JsonArray steps, int cursorStep)
     {
         if (!served.Ok) return new StepResponse(false, null, ToGateRefusal(served.Refusal!));
 
@@ -281,7 +289,7 @@ public static class ContentEndpoints
             ToText(stepNode["body"]),
             stepNode["titles"] is { } titles ? ToText(titles) : null,
             stepNode["answer"] is { } answer ? ToText(answer) : null,
-            stepNode["cue"]?.GetValue<bool>() ?? false), null);
+            stepNode["cue"]?.GetValue<bool>() ?? false), null, cursorStep);
     }
 
     private static GateRefusal ToGateRefusal(Reveal.Refusal refusal) => new(
