@@ -409,6 +409,21 @@ test.describe('the worksheet', () => {
     await openThrough(page, found.unit);
 
     const target = (n: number): string => `/read/${track}/${found.unit}/pl/${n}`;
+    /*
+      BOTH WALKS, BECAUSE THERE ARE TWO GATES AND `openThrough` ONLY OPENS ONE OF THEM.
+
+      `openThrough` seeds the localStorage record ADR-0051's program gate reads — "may this
+      reader open this program at all". ADR-0060 added a second, server-side gate on the
+      FRAME, and `walkTo` is the only thing that raises it. Without this line the `goto`
+      below lands on "Not there yet", which carries no answer line, and the `fill` on the
+      next line waits out the whole test budget for a field that was never rendered — which
+      is exactly how this test failed on main.
+
+      The English half at the foot of this test needs no second walk: the cursor is a
+      position in a PROGRAM, not in an edition (`ReaderProgress` keys on track and unit),
+      so the same frame in the other edition is already reached.
+    */
+    await walkTo(page, found.unit, 'pl', found.asks);
     await page.goto(target(found.asks));
     await line(page, /twoja odpowied/i).fill(comma);
     await reveal(page).click();

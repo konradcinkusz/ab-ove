@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { served, track, unitNamed } from './support/bundle.ts';
+import { walkTo } from './support/walk.ts';
 
 /**
  * JOURNEY — every page hydrates, which is the one defect that leaves no trace on screen.
@@ -80,6 +81,30 @@ test.describe('hydration', () => {
     const tier = path === `/read/${track}/F01/en/${CUE}` ? '@smoke' : '@core';
 
     test(`${path} hydrates without a mismatch ${tier}`, async ({ page }) => {
+      /*
+        ──────────────────────────────────────────────────────────────────────────────────
+        THE WALK COMES FIRST, AND WITHOUT IT TWO OF THESE PAGES WERE NOT THE PAGE NAMED.
+
+        ADR-0060 gave the reveal a server-side cursor: a fresh reader's starts at 1, and a
+        `goto` straight to a later frame is answered with `NotReached` — as DATA, so the
+        response is still 200 and this file's own status check goes on passing. What that
+        page carries is a "Not there yet" notice and none of the islands, so the wait below
+        never resolves and the failure reads as a hydration timeout on a page that was
+        never rendered. Measured: `/read/<track>/P01/en/3` on a fresh reader answers 200
+        with `[data-frame-keys]` absent and the body beginning "Not there yet".
+
+        So the two deep-linked frames in `PAGES` were reporting nothing about hydration at
+        all, which is worse than reporting a failure.
+
+        AHEAD OF THE LISTENERS, deliberately, on `frame-view.spec.ts`'s reasoning: `walkTo`
+        navigates to frame 1 to mint the reader's cookie, and a complaint from THAT page
+        would be recorded against this one. Frame 1 is its own case in `PAGES` and is
+        covered there.
+        ──────────────────────────────────────────────────────────────────────────────────
+      */
+      const frame = /\/read\/[^/]+\/([^/]+)\/([^/]+)\/(\d+)$/.exec(path);
+      if (frame) await walkTo(page, frame[1]!, frame[2]!, Number(frame[3]));
+
       const complaints: string[] = [];
 
       page.on('pageerror', (error) => {
