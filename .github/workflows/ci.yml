@@ -524,13 +524,27 @@ jobs:
           # tests/e2e/fixtures/authservice-stub.mts, which publishes a JWKS and enough
           # OIDC metadata for a consumer configured with an authority to find it.
           #
-          # RateLimit__ApiPermitLimit RAISED, NOT REMOVED (RateLimitingExtensions.cs). The
+          # THE TWO RATE LIMITS ARE RAISED, NOT REMOVED (RateLimitingExtensions.cs). The
           # policy partitions an anonymous caller by client IP, and every anonymous reader
           # this job's specs drive shares one — 127.0.0.1 — so the combined traffic of
           # dozens of specs each reading for real (ADR-0060) lands in the bucket a single
           # production visitor was sized for. One real reader still gets the production
           # figure everywhere else; this tells the limiter that this one IP here is standing
           # in for many.
+          #
+          # BOTH FIGURES, BECAUSE THE GLOBAL LIMITER IS NOT A FALLBACK FOR THE POLICY — IT
+          # IS A SECOND TOLL EVERY REQUEST PAYS. ASP.NET's rate limiting middleware combines
+          # `GlobalLimiter` with the endpoint's own policy and takes a lease from BOTH, so
+          # the effective ceiling is the LOWER of the two. Raising only
+          # `RateLimit__ApiPermitLimit` left this job capped at the global default of 500
+          # requests a minute from one IP, which is under what a single-worker reading run
+          # asks for: a frame is three calls (track, unit, step) and a reveal is a fourth,
+          # and `specs/reading.spec.ts` alone walks a whole program of them. That is what
+          # turned the smoke layer red with `advance(F02, answering 1) answered 429` on
+          # specs that had nothing wrong with them — and, because the Server Component's
+          # candidate ladder treated the 429 as "this rung is down", with a
+          # `content API unavailable: http://localhost:8080` in the web server's log
+          # pointing at an address this job never configured.
           ASPNETCORE_URLS="$E2E_API_BASE_URL" \
           ASPNETCORE_ENVIRONMENT=Production \
           DATABASE_PROVIDER=PostgreSQL \
@@ -540,6 +554,7 @@ jobs:
           Jwt__Audience="$audience" \
           Jwt__RequireHttpsMetadata=false \
           RateLimit__ApiPermitLimit=5000 \
+          RateLimit__GlobalPermitLimit=5000 \
             nohup dotnet artifacts/api/AbOvo.Api.dll > "$API_LOG" 2>&1 &
 
           echo $! > "$API_PID_FILE"
