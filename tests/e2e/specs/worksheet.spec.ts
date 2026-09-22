@@ -104,24 +104,23 @@ async function clearTheAnswer(page: import('@playwright/test').Page, label: RegE
  * Wait until this frame's islands have bound, before driving one of them.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * `<details>` OPENS WITHOUT JAVASCRIPT, AND THAT IS WHAT MADE THIS RACE READ AS A DEFECT.
+ * `<details>` OPENS WITHOUT JAVASCRIPT, WHICH IS WHY THIS WAIT IS NOT OPTIONAL HERE.
  *
- * `page.goto` resolves on `load`, which is before React has hydrated anything. The panes
- * still open in that window — a native disclosure needs no handler — so the canvas is on
- * screen, it has a box, and only `onPointerDown` is missing. The pen then draws nothing and
- * the assertion under it reports *nothing was drawn, so nothing below proves anything*, on
- * a product that is working perfectly — which is what *a sketch belongs to its frame and
- * follows nobody* reported on all three of its attempts in one CI run, while the page
- * itself was fine. The same window swallows a click on the three background buttons,
- * which are React's too.
+ * `page.goto` resolves on `load`, which is before React has hydrated anything, and a
+ * native disclosure needs no handler to open — so a pane opened in that window shows a
+ * canvas with a box and no `onPointerDown` behind it, and the three background buttons
+ * with no `onClick` behind theirs. `reading.spec.ts`'s `keysReady` is the same wait for
+ * the same reason, measured there from the keyboard's side.
  *
- * `reading.spec.ts`'s `keysReady` is the same wait for the same reason, kept in its own file
- * for the same one: README §"There are no custom assertion or wait wrappers in this suite"
- * puts every wait in a spec, in plain sight, rather than behind shared code. The signal is
- * `frame-keys.tsx`'s own — the flag it sets when its effect attaches, which the stylesheet
- * reveals the keyboard hint from, so the page cannot promise a shortcut that is not live.
- * React hydrates the whole client tree, so that flag answers for the whole frame and not
- * only for the keys.
+ * It is in this file rather than in `specs/support/` for the reason that file's README
+ * gives: §"There are no custom assertion or wait wrappers in this suite" puts every wait
+ * in a spec, in plain sight. The signal is the product's own — `frame-keys.tsx` sets the
+ * flag its stylesheet reveals the keyboard hint from, inside the effect that attaches the
+ * listener, so the page cannot promise a shortcut that is not live. React hydrates the
+ * whole client tree, so the flag answers for the frame and not only for the keys.
+ *
+ * IT IS NOT WHAT WAS FAILING IN CI — see `sketchPad` below, which is. This closes a real
+ * race that was simply never the one being hit.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 async function paneReady(page: import('@playwright/test').Page): Promise<void> {
@@ -129,6 +128,66 @@ async function paneReady(page: import('@playwright/test').Page): Promise<void> {
     page.locator('[data-frame-keys="on"]'),
     'the frame’s islands never attached, so nothing below would be driving anything',
   ).toHaveCount(1);
+}
+
+/**
+ * The pad's box, with the pad first brought to where a hand could reach it, and the reach
+ * this stroke needs checked against the window before a single event is sent.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * `page.mouse` PRESSES AT WINDOW COORDINATES AND CHECKS NOTHING, AND THAT IS THE WHOLE BUG.
+ *
+ * `openPane` clicks the `<summary>`, and Playwright scrolls THAT into view — but the panel
+ * opens BELOW it and nothing scrolls the panel. On a frame whose body is long enough the
+ * summary sits near the foot of the window, the 640×426 pad unrolls past it, and
+ * `boundingBox()` answers with a `y` outside the window, exactly as it is asked to: the box
+ * is relative to the window, not clipped to it.
+ *
+ * `page.mouse.move(x, y)` then dispatches at that coordinate and hits nothing at all. There
+ * is no actionability check on the raw mouse — that is `locator.click()`'s job, and this
+ * suite cannot use it, because a drag is a press, twelve moves and a release rather than
+ * one click. So every event is delivered, none of them reaches the canvas, and the test
+ * reports the one thing it can see: no ink.
+ *
+ * MEASURED, not reasoned about. Driving the real page against a stub content API and
+ * shrinking the window until the press point crossed the foot of it:
+ *
+ *     vpH= 460  canvasTop=383  press.y=423  inViewport=yes  hit=CANVAS  ink= 370
+ *     vpH= 400  canvasTop=383  press.y=423  inViewport=NO   hit=NOTHING ink=   0
+ *
+ * and `hasSketch` goes `true` → `undefined` across the same step, which is the OTHER
+ * failure this suite was reporting, from *a sketch is drawn, kept, and comes back*. Both
+ * signatures, one cause.
+ *
+ * The scroll is what a reader does, not a workaround: a pane that opened itself and pushed
+ * the reveal down the page after paint is the one move this surface refuses (`sketch.tsx`
+ * says so), so the pad being below the fold is the product working. The assertion is here
+ * because a stroke that lands on nothing must say THAT rather than "nothing was drawn",
+ * which cost three CI runs and a wrong diagnosis.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * `reach` is the deepest point the caller's stroke touches, as an offset from the top of
+ * the pad — the caller knows it and this cannot.
+ */
+async function sketchPad(
+  page: import('@playwright/test').Page,
+  reach: number,
+): Promise<{ x: number; y: number; width: number; height: number }> {
+  const canvas = page.getByLabel(/draw your answer/i);
+  await canvas.scrollIntoViewIfNeeded();
+
+  const box = await canvas.boundingBox();
+  expect(box, 'the pad has no box, so nothing below draws anything').toBeTruthy();
+  const window = page.viewportSize();
+  expect(window, 'a headless run always has a window; without one nothing below is measurable').toBeTruthy();
+
+  expect(
+    box!.y >= 0 && box!.y + reach <= window!.height,
+    `the pad is at ${box!.y.toFixed(0)}..${(box!.y + reach).toFixed(0)} in a ${window!.height}px window, ` +
+      'so `page.mouse` would press at a coordinate outside it and the stroke would land on nothing',
+  ).toBe(true);
+
+  return box!;
 }
 
 test.describe('the worksheet', () => {
@@ -542,17 +601,17 @@ test.describe('the worksheet', () => {
       `getByRole('img')` — which is what it looks like it ought to be — matches nothing.
       Giving it `role="img"` in the markup was the other way to make that locator work and
       would have been a lie: there is no image, there is a surface the reader draws on.
+      `sketchPad` is what finds it, scrolls to it and refuses a stroke the window cannot
+      carry.
     */
-    const canvas = page.getByLabel(/draw your answer/i);
-    const box = await canvas.boundingBox();
-    expect(box, 'the canvas has no box, so nothing below draws anything').toBeTruthy();
+    const box = await sketchPad(page, 184);
 
     // An L: down, then right. Two straight runs and one corner, which is the shape the
     // simplifier reduces to three points and the shape a wrong one would flatten to two.
-    await page.mouse.move(box!.x + 60, box!.y + 40);
+    await page.mouse.move(box.x + 60, box.y + 40);
     await page.mouse.down();
-    for (let i = 1; i <= 12; i += 1) await page.mouse.move(box!.x + 60, box!.y + 40 + i * 12);
-    for (let i = 1; i <= 12; i += 1) await page.mouse.move(box!.x + 60 + i * 14, box!.y + 184);
+    for (let i = 1; i <= 12; i += 1) await page.mouse.move(box.x + 60, box.y + 40 + i * 12);
+    for (let i = 1; i <= 12; i += 1) await page.mouse.move(box.x + 60 + i * 14, box.y + 184);
     await page.mouse.up();
 
     /*
@@ -666,7 +725,7 @@ test.describe('the worksheet', () => {
     await page.goto(at('en', NUMERIC.asks));
     await paneReady(page);
     await openSketch();
-    const box = (await page.getByLabel(/draw your answer/i).boundingBox())!;
+    const box = await sketchPad(page, 184);
     await page.mouse.move(box.x + 60, box.y + 40);
     await page.mouse.down();
     for (let i = 1; i <= 12; i += 1) await page.mouse.move(box.x + 60, box.y + 40 + i * 12);
@@ -702,7 +761,7 @@ test.describe('the worksheet', () => {
     await page.goto(at('en', NUMERIC.asks));
     await paneReady(page);
     await openSketch();
-    const box = (await page.getByLabel(/draw your answer/i).boundingBox())!;
+    const box = await sketchPad(page, 140);
     await page.mouse.move(box.x + 80, box.y + 50);
     await page.mouse.down();
     for (let i = 1; i <= 10; i += 1) await page.mouse.move(box.x + 80 + i * 16, box.y + 50 + i * 9);
