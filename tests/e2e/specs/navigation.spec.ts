@@ -8,7 +8,8 @@ import {
   uniqueProbeIn,
   unitNamed,
 } from './support/bundle.ts';
-import { revealTo } from './support/reveal.ts';
+import { reveal } from './support/reveal.ts';
+import { walkTo } from './support/walk.ts';
 
 /**
  * JOURNEY — finding a program, opening it, and coming back to the same frame.
@@ -104,6 +105,11 @@ test.describe('navigation', () => {
     }
 
     const second = sections[1] ?? sections[0]!;
+    // The contents page links to every section regardless of the reader's own progress —
+    // it is a map of the program, not a filtered one — so clicking ahead is gated exactly
+    // like typing the URL would be (ADR-0060), and this reader has to have actually
+    // reached it for the click to land on the frame rather than on `NotReached`.
+    await walkTo(page, unit, 'en', second.firstStep);
     await page.getByRole('link', { name: second.titles.en! }).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt('en', second.firstStep)}$`));
     await expect(page.locator('body')).toContainText(uniqueProbeIn(program, second.firstStep, 'en'));
@@ -173,6 +179,7 @@ test.describe('navigation', () => {
     // The end of a program used to be a full stop — a sentence saying so, and no control.
     // A reader who had just read forty-five frames had to go back up to the index to find
     // the next program, which is two levels up from where they were.
+    await walkTo(page, unit, 'en', steps.length);
     await page.goto(frameAt('en', steps.length));
     await page.getByRole('link', { name: /summary/i }).click();
     await expect(page).toHaveURL(new RegExp(`${summaryAt('en')}$`));
@@ -233,6 +240,7 @@ test.describe('navigation', () => {
     const n = Math.min(3, steps.length);
     const target = frameAt('pl', n);
 
+    await walkTo(page, unit, 'pl', n);
     await page.goto(target);
     await expect(page.locator('body')).toContainText(uniqueProbeIn(program, n, 'pl'));
 
@@ -256,7 +264,7 @@ test.describe('navigation', () => {
     // there at all rather than disabled — a disabled control is a thing a reader tries.
     await expect(page.getByRole('link', { name: /previous/i })).toHaveCount(0);
 
-    await revealTo(page, frameAt('en', 2)).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt('en', 2)}$`));
 
     await page.getByRole('link', { name: /previous/i }).click();
@@ -278,6 +286,7 @@ test.describe('navigation', () => {
     */
     expect(sections.length, 'this needs at least two sections to move between').toBeGreaterThan(1);
     const [first, second] = sections;
+    await walkTo(page, unit, 'en', second!.firstStep);
     await page.goto(frameAt('en', second!.firstStep));
 
     /*
@@ -325,6 +334,7 @@ test.describe('navigation', () => {
   test('a frame leads back up to its own contents @core', async ({ page }) => {
     // The way out. A reader deep in a program who wants to know where they are has one
     // control, and it is the program's title at the top of the frame.
+    await walkTo(page, unit, 'en', 2);
     await page.goto(frameAt('en', 2));
     await page.getByRole('link', { name: unitTitles.en! }).click();
     await expect(page).toHaveURL(new RegExp(`${contentsAt('en')}$`));
@@ -368,12 +378,13 @@ test.describe('navigation', () => {
     }
 
     // And the controls follow the edition, which is what #6 settled: on a Polish frame the
-    // reveal is Polish and says so. Located by href rather than by its words, because a
-    // locator matching the words would be a second copy of the string it is testing.
+    // reveal is Polish and says so. Located by its shape and place rather than by its words,
+    // because a locator matching the words would be a second copy of the string it is
+    // testing.
     for (const language of languages) {
       await page.goto(frameAt(language, 1));
       await expect(
-        revealTo(page, frameAt(language, 2)),
+        reveal(page),
         `the ${language} reveal does not declare the language it is written in`,
       ).toHaveAttribute('lang', language);
     }

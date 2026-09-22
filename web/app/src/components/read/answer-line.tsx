@@ -1,8 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
+import { revealStep } from '@/lib/actions/reveal';
 import { upsertHere, useSheet } from '@/lib/sheet/client';
 import { ANSWER_LIMIT } from '@/lib/sheet/store';
 
@@ -22,6 +22,11 @@ export interface AnswerLineProps {
   readonly earlierEdition: string;
   /** The chrome's own language, for the note under a locked line. */
   readonly language: string;
+  /** ADR-0060 — `chrome.language` here is content chrome; this is the READING language,
+   * what `revealStep` files the advance's edition under (`ProgressUpdate.Language`'s own
+   * shape). Deliberately not derived from `language` above: this line's own note is shown in
+   * the CHROME's language, which a track may not publish a reading edition for. */
+  readonly readingLanguage: string;
 }
 
 /**
@@ -79,8 +84,8 @@ export function AnswerLine({
   lockedNote,
   earlierEdition,
   language,
+  readingLanguage,
 }: AnswerLineProps): React.JSX.Element {
-  const router = useRouter();
   const field = useRef<HTMLTextAreaElement | null>(null);
 
   const stored = useSheet({ track, unit, n });
@@ -195,10 +200,12 @@ export function AnswerLine({
           if (event.key !== 'Enter') return;
           if (!event.ctrlKey && !event.metaKey) return; // a plain Enter is a newline
           event.preventDefault();
-          // Synchronously, BEFORE the navigation: the debounce-free path is the only one
-          // that cannot lose the last keystroke to a route change.
+          // Synchronously, BEFORE the reveal: the debounce-free path is the only one that
+          // cannot lose the last keystroke to a route change.
           commit(value);
-          router.push(forward);
+          // ADR-0060 — the reveal raises this reader's cursor server-side; a bare navigation
+          // is no longer what turns the frame over (reveal.ts has the full reasoning).
+          void revealStep(track, unit, readingLanguage, n, forward);
         }}
         placeholder={locked ? '' : placeholder}
         readOnly={locked}

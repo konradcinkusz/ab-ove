@@ -3,6 +3,7 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
 import { AUTHOR, READER, TWO_FACTOR } from '../fixtures/accounts.mts';
 
 import { openThrough } from './support/gate.ts';
+import { walkTo } from './support/walk.ts';
 
 /**
  * JOURNEY — the hop between the two halves this suite already covers.
@@ -66,16 +67,17 @@ import { openThrough } from './support/gate.ts';
  * given one.
  *
  * It is read from `E2E_API_BASE_URL` — the SAME variable `playwright.config.ts` reads to
- * decide whether to hand this deployment an `AB_OVO_API_URL` — rather than from a switch of
- * its own. A second variable would be a second thing to be true. `E2E_EXPECT_API` is
- * deliberately not it: that one gates a `@core` test against the deployment whose whole
- * purpose is to have no API (ADR-0035), and reading it here would tie two opposite
- * conditions to one name.
+ * decide whether to hand `AB_OVO_API_URL` to either deployment (ADR-0060: both get it now)
+ * — rather than from a switch of its own. A second variable would be a second thing to be
+ * true. `E2E_EXPECT_API` is deliberately not it: that one gates a `@core` test against a
+ * DEPLOYED target reached through `/api/proxy/` (issue #270), a different axis from a
+ * Server Component's own direct call, which is what runs here.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * TAGS. `@identity` only. Of the two web deployments this suite drives, the `:3100` one is
- * the only one with an identity service AND the only one told where the API is; `:3000` is
- * backend-less on purpose and a spec here would assert 503 forever.
+ * the only one with an identity service; `:3000` has no `AB_OVO_AUTH_URL` and so no way to
+ * hold a session, whether or not it can also reach the API, and a spec here would assert
+ * 503 forever.
  *
  * EVERY PROXY CALL IS MADE FROM INSIDE THE PAGE, never through `request` or `page.request`.
  * That is not style: `sign-in-identity.spec.ts`'s header records the measurement —
@@ -335,7 +337,11 @@ test.describe('a frame a reader reads reaches the account and comes back', () =>
     const STEP = 3;
 
     // ADR-0051: the reader of this journey is one who walked here, so the record says so.
+    // ADR-0060: and a STEP past the first needs the server-side cursor raised to it too,
+    // through this same proxy — walkTo reads the signed-in cookie `signIn` already set
+    // above, not the anonymous one.
     await openThrough(page, UNIT);
+    await walkTo(page, UNIT, 'en', STEP);
     await page.goto(`/read/${TRACK}/${UNIT}/en/${STEP}`);
     await expect(page.locator('article')).toBeVisible();
 
@@ -523,7 +529,8 @@ test.describe('a reader’s place is filed under the reader the session names', 
 
     // A second account, in its own browser. `baseURL` is passed explicitly because a context
     // made from `browser` does not inherit the project's — and this project's is the SECOND
-    // deployment, so a default would drive the backend-less one.
+    // deployment, so a default would drive the one with no identity service, where signing
+    // in is not possible at all.
     const second: BrowserContext = await browser.newContext({ baseURL: baseURL as string });
     try {
       const other = await second.newPage();

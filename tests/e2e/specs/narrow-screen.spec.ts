@@ -2,7 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { pickPair, track, unitNamed } from './support/bundle.ts';
 import { openPane } from './support/pane.ts';
-import { revealTo } from './support/reveal.ts';
+import { reveal } from './support/reveal.ts';
+import { walkTo } from './support/walk.ts';
 
 /**
  * The reading surface on a phone — 360 px, the floor.
@@ -139,6 +140,11 @@ test.describe('the reading surface at 360 px', () => {
       'no frame with display maths was found, so this test is weaker than it reads',
     ).toBeGreaterThan(1);
 
+    // Once, to the furthest of the interesting frames: the cursor only moves forward, so
+    // reaching it leaves every earlier one in `interesting` reachable too, in both editions
+    // (ADR-0060's cursor is per-unit, not per-language).
+    await walkTo(page, unit, 'en', Math.max(...interesting));
+
     for (const language of ['en', 'pl']) {
       for (const n of interesting) {
         await page.goto(at(language, n));
@@ -166,6 +172,7 @@ test.describe('the reading surface at 360 px', () => {
 
     // And with a place in it: the filled resume control in the header and the tile's
     // `at frame N` marker arrive after hydration, into rows that must wrap rather than run.
+    await walkTo(page, unit, 'en', asking.n);
     await page.goto(at('en', asking.n));
     await page.waitForFunction(() => window.localStorage.getItem('ab-ovo:progress:v1') !== null);
     await page.goto('/');
@@ -187,6 +194,7 @@ test.describe('the reading surface at 360 px', () => {
     const question = pair.question.en!;
     const answer = pair.answer.en!;
 
+    await walkTo(page, unit, 'en', asking.n);
     await page.goto(at('en', asking.n));
 
     const before = await page.locator('body').innerText();
@@ -198,16 +206,16 @@ test.describe('the reading surface at 360 px', () => {
     ).not.toContain(answer);
 
     /*
-     * The reveal, located by where it goes rather than by what it says — frame-view.spec.ts
-     * records why the href beats the name. `scrollIntoViewIfNeeded` is the honest part of
+     * The reveal, located by its shape and place rather than by what it says or where it
+     * goes — support/reveal.ts records why. `scrollIntoViewIfNeeded` is the honest part of
      * this test: on most frames the control is below the fold at this width, which is the
      * accepted cost recorded in this file's header, and a reader scrolls to it.
      */
-    const reveal = revealTo(page, at('en', answering.n));
-    await reveal.scrollIntoViewIfNeeded();
-    await expect(reveal, 'the reveal is not reachable at 360 px').toBeVisible();
+    const control = reveal(page);
+    await control.scrollIntoViewIfNeeded();
+    await expect(control, 'the reveal is not reachable at 360 px').toBeVisible();
 
-    await reveal.click();
+    await control.click();
     await expect(page).toHaveURL(new RegExp(`${at('en', answering.n)}$`));
     await expect(page.locator('body'), 'the reveal did not produce the answer').toContainText(
       answer,
@@ -225,6 +233,7 @@ test.describe('the reading surface at 360 px', () => {
      * consequence rather than the mechanism: a row that truncated, scrolled or hid the
      * control would fail this, and a row that wraps to three lines would not.
      */
+    await walkTo(page, unit, 'pl', asking.n);
     await page.goto(at('pl', asking.n));
 
     const jumper = page.locator('#frame-jumper');
@@ -254,6 +263,7 @@ test.describe('the reading surface at 360 px', () => {
      * scroll would be indistinguishable from a drag that missed the element.
      * ────────────────────────────────────────────────────────────────────────────────────
      */
+    await walkTo(page, unit, 'en', asking.n);
     await page.goto(at('en', asking.n));
     await openPane(page, 'sketch');
 
@@ -287,6 +297,7 @@ test.describe('the reading surface at 360 px', () => {
      * narrowest screen the product supports, with five 44 px buttons in a row, so it is the
      * likeliest thing in the product to break it.
      */
+    await walkTo(page, unit, 'en', asking.n);
     await page.goto(at('en', asking.n));
     await openPane(page, 'sketch');
     await expect(page.getByLabel(/draw your answer/i)).toBeVisible();

@@ -70,21 +70,28 @@ const identityBaseUrl = `http://127.0.0.1:${identityPort}`;
 const stubBaseUrl = `http://127.0.0.1:${stubPort}`;
 
 /**
- * THE API, AND WHY ONLY ONE OF THE TWO DEPLOYMENTS IS TOLD ABOUT IT (issue #170).
+ * THE API, AND WHY BOTH DEPLOYMENTS ARE NOW TOLD ABOUT IT (issue #170, ADR-0060).
  *
- * `.github/workflows/ci.yml`'s e2e job now runs a Postgres service container and a real
- * `AbOvo.Api` against it, and publishes that address as `E2E_API_BASE_URL`. It is read
- * here rather than passed as `AB_OVO_API_URL` for a mechanical reason: Playwright merges
- * `webServer.env` over `process.env`, so a variable the WEB APP reads would reach both
- * deployments below, and the first one would stop being the backend-less deployment the
- * product's first requirement is asserted against (ADR-0004, ADR-0035).
+ * `.github/workflows/ci.yml`'s e2e job runs a Postgres service container and a real
+ * `AbOvo.Api` against it, ingests the compiled book bundle into it, and publishes the
+ * API's address as `E2E_API_BASE_URL`. It is read here rather than passed straight through
+ * as `AB_OVO_API_URL` because Playwright merges `webServer.env` over `process.env`, so a
+ * variable read at THIS scope would reach every process this config itself starts (this
+ * file's own dev server, if anyone ran it directly) and not just the two web apps below —
+ * each `webServer` entry states its own env explicitly instead.
  *
- * So the first web app is unchanged and still finds nothing — the API deliberately does
- * not listen on FRONTEND-BFF.md §5's localhost rung — and the signed-in one gets rung
- * one, which is how every real deployment is configured.
+ * ADR-0060 is why it goes to BOTH entries now: reading needs no account, so an identity
+ * service is the only thing left for the two deployments to differ on (see the big comment
+ * over `identityBaseUrl` above). Before that ADR the first deployment was deliberately kept
+ * "backend-less" to exercise the product's old "no backend at all" requirement (ADR-0004,
+ * ADR-0035) — that state is still exercised, by `no-backend.spec.ts`, but as a BROWSER-side
+ * failure injected with route interception rather than as a real absence of `AB_OVO_API_URL`
+ * in one deployment's own environment, since a live API is no longer optional for either
+ * one to have.
  *
- * Absent when the variable is: a developer running the suite on a laptop with no API gets
- * exactly the behaviour they had before this existed.
+ * Absent when the variable is: a developer running the suite on a laptop with no API still
+ * gets a build — `/` and `/about` degrade the way `no-backend.spec.ts` documents, and a
+ * reading page throws to `app/error.tsx`'s boundary rather than failing to render at all.
  */
 const apiBaseUrl = process.env.E2E_API_BASE_URL?.trim();
 
@@ -286,7 +293,10 @@ export default defineConfig({
             timeout: 120_000,
             stdout: 'pipe' as const,
             stderr: 'pipe' as const,
-            env: { PORT: target.port || '3000' },
+            // AB_OVO_API_URL, when the job gave one — see `apiBaseUrl` above. This
+            // deployment still gets no AB_OVO_AUTH_URL, which is the property
+            // no-backend.spec.ts's identity-gate tests actually rest on.
+            env: { PORT: target.port || '3000', ...(apiBaseUrl ? { AB_OVO_API_URL: apiBaseUrl } : {}) },
           },
           /**
            * The identity fixture, and the second web app pointed at it (issue #29).
@@ -331,10 +341,9 @@ export default defineConfig({
              * unset, because the code's own defaults — `AbOvo` for both — are what the
              * fixture mints, and restating them here would be two places for one string.
              *
-             * `AB_OVO_API_URL` is the same rung for the other backend, and it is here
-             * rather than in the environment for the reason given at `apiBaseUrl` above:
-             * this is the deployment that is meant to have an API, and the one beside it
-             * is meant not to.
+             * `AB_OVO_API_URL` is the same rung for the other backend. Both deployments
+             * get it now (ADR-0060 — see `apiBaseUrl` above); this one also gets
+             * `AB_OVO_AUTH_URL`, which is the one thing left that only it has.
              */
             env: {
               PORT: String(identityPort),

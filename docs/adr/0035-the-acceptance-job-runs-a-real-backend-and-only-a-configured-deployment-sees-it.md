@@ -2,7 +2,14 @@
 
 ## Status
 
-**Accepted.** Date: 2026-09-19.
+**Accepted**, with the Context and Decision's "only a configured deployment sees it" half
+superseded by [ADR-0062](0062-the-acceptance-jobs-two-deployments-both-see-the-backend-now.md):
+[ADR-0060](0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md) made a
+live API mandatory for reading regardless of account, so the harness now gives both local
+deployments `AB_OVO_API_URL`. Everything else here — the Postgres container, the migration
+gate, the `:8180` port choice, `wait-for-backend.sh` — is unaffected and still governs.
+
+Date: 2026-09-19.
 
 ## Context
 

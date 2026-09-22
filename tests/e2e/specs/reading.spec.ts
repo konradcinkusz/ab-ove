@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 import { languages, track, uniqueProbeIn, unitNamed } from './support/bundle.ts';
-import { revealTo } from './support/reveal.ts';
+import { reveal } from './support/reveal.ts';
+import { walkTo } from './support/walk.ts';
 
 /**
  * JOURNEY — reading a program, which is the thing the product is for.
@@ -61,6 +62,10 @@ async function openReady(
   language: string,
   n: number,
 ): Promise<void> {
+  // ADR-0060: a fresh reader's cursor starts at 1, so opening ANYWHERE past that needs the
+  // walk first — every caller in this file wants "arrive at frame n, keyboard live", not
+  // "arrive at whatever the gate lets through instead of frame n".
+  await walkTo(page, unitId, language, n);
   await page.goto(at(language, n));
   await keysReady(page);
 }
@@ -279,19 +284,19 @@ test.describe('reading ergonomics', () => {
       arrived, and a script-focused element does not always count.
     */
     await openReady(page, 'en', 2);
-    const reveal = revealTo(page, at('en', 3));
+    const control = reveal(page);
     for (let presses = 0; presses < 20; presses += 1) {
       await page.keyboard.press('Tab');
-      if (await reveal.evaluate((node) => node === document.activeElement)) break;
+      if (await control.evaluate((node) => node === document.activeElement)) break;
     }
-    await expect(reveal).toBeFocused();
-    const ring = await reveal.evaluate((node) => getComputedStyle(node).boxShadow);
+    await expect(control).toBeFocused();
+    const ring = await control.evaluate((node) => getComputedStyle(node).boxShadow);
     expect(ring, 'the reveal has no visible focus ring').not.toBe('none');
 
     // And the label carries the pending flag the stylesheet dims on — idle here, because
     // the fetch is too quick to catch; the attribute's presence is what says the island is
     // wired to the link at all.
-    await expect(reveal.locator('[data-pending]')).toHaveAttribute('data-pending', 'no');
+    await expect(control.locator('[data-pending]')).toHaveAttribute('data-pending', 'no');
   });
 
   test('the place row, the foot and the panes are a finger tall to press @core', async ({
@@ -364,6 +369,7 @@ test.describe('reading ergonomics', () => {
     // so a later stylesheet that lets the column grow fails here rather than in a reader's
     // eye.
     await page.setViewportSize({ width: 1600, height: 900 });
+    await walkTo(page, unitId, 'en', 2);
     await page.goto(at('en', 2));
 
     const measured = await page.evaluate(() => {
@@ -406,6 +412,7 @@ test.describe('reading ergonomics', () => {
     if (!heavy) throw new Error(`${unitId} has no display maths, so this test measures nothing`);
     const before = heavy.n - 1;
 
+    await walkTo(page, unitId, 'en', before);
     await page.goto(at('en', before));
     await page.evaluate(() => {
       const scope = window as unknown as { __shift: number };
@@ -420,7 +427,7 @@ test.describe('reading ergonomics', () => {
       }).observe({ type: 'layout-shift', buffered: true });
     });
 
-    await revealTo(page, at('en', heavy.n)).click();
+    await reveal(page).click();
     await page.waitForURL(`**${at('en', heavy.n)}`);
     await expect(page.locator('body')).toContainText(uniqueProbeIn(unit, heavy.n, 'en'));
     await page.waitForTimeout(700);
@@ -447,6 +454,7 @@ test.describe('the reading surface on a touch screen', () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 393, height: 851 } });
 
   test('the keyboard hint is not there, and the key map still is @core', async ({ page }) => {
+    await walkTo(page, unitId, 'en', 2);
     await page.goto(at('en', 2));
     await keysReady(page);
     await expect(page.getByTestId('frame-keys-hint')).toBeHidden();

@@ -133,6 +133,13 @@
  * ────────────────────────────────────────────────────────────────────────────────────────
  */
 .navLink {
+  /*
+   * `background`, `font` and `cursor` are here for `.foot button` (ADR-0060's reveal-as-a-
+   * form), which without them inherits the platform's own button chrome — a grey fill and
+   * the UI font — underneath everything this rule already sets. An `<a>` never had either by
+   * default, so restating them costs that element nothing.
+   */
+  background: none;
   border: 1px solid var(--rule);
   border-radius: 4px;
   /*
@@ -143,7 +150,9 @@
    * is what the two rules were written expecting.
    */
   color: inherit;
+  cursor: pointer;
   display: inline-block;
+  font: inherit;
   text-decoration: none;
 }
 

@@ -342,38 +342,40 @@ jobs:
   # says to aim the job at the estate's ephemeral PR environment rather than booting a
   # stack in the runner. This estate has no PR-environment workflow — FLY-IO-DEPLOYMENT
   # §3 fixes the Fly workflow set at three, and the tag pipeline deploys one shared dev
-  # estate. What makes a runner-local server the right answer here rather than a
-  # concession is a product fact: the Phase 1 reader loop works with NO account and NO
-  # backend, so the smoke layer's subject is the web app alone. Nothing is being faked.
-  # If the suite is ever aimed at a deployed target instead, E2E_BASE_URL is where that
-  # address goes and the servers below stop being started (playwright.config.ts).
+  # estate. A runner-local server is the right answer regardless: ADR-0060 means the
+  # smoke layer's subject is the web app AND a real AbOvo.Api behind it, never the web app
+  # alone. Nothing is being faked. If the suite is ever aimed at a deployed target instead,
+  # E2E_BASE_URL is where that address goes and the servers below stop being started
+  # (playwright.config.ts).
   #
-  # THE BACKEND, AND WHICH DEPLOYMENT CAN SEE IT (issue #170, ADR-0035).
+  # THE BACKEND, AND WHICH DEPLOYMENT CAN SEE IT (issue #170, ADR-0035, ADR-0060).
   #
-  # This job now also runs a Postgres service container and a real AbOvo.Api against it,
-  # because the seam between the BFF proxy and the API — read the session cookie, attach
-  # the token as a bearer, walk the ladder, carry the answer back — had nothing to carry
-  # a bearer TO, so it was asserted nowhere.
+  # This job runs a Postgres service container and a real AbOvo.Api against it, and
+  # ingests the compiled book bundle into it (the "Ingest the book content" step below) —
+  # ADR-0060 means every reading page is a live call to it, not an optional one behind a
+  # seam that might carry no bearer.
   #
-  # It does NOT make the whole job signed-in-with-a-backend. The suite drives two web
-  # deployments (see tests/e2e/playwright.config.ts) and only the SECOND one is given
-  # AB_OVO_API_URL:
+  # It does NOT make the whole job signed-in. The suite drives two web deployments (see
+  # tests/e2e/playwright.config.ts) and BOTH are given AB_OVO_API_URL — reading needs no
+  # account, so it cannot be the axis these two differ on any more:
   #
-  #   :3000  the reader loop, with no identity service and no API — unchanged, and the
-  #          one un-intercepted run this repository has against a genuinely backend-less
-  #          deployment, which is the product's first requirement (ADR-0004)
-  #   :3100  the signed-in deployment, pointed at the identity fixture and now at the API
+  #   :3000  no identity service — a reader here can never be signed in, which is the one
+  #          un-intercepted run this repository has against that state, and the product's
+  #          remaining "no account" requirement (ADR-0060 superseding ADR-0004's other half)
+  #   :3100  the signed-in deployment, pointed at the identity fixture as well as the API
   #
-  # Which is why the API listens on 8180 and not on its own 8080: 8080 is rung four of
-  # FRONTEND-BFF.md §5's candidate ladder ("localhost"), so an API there would be found
-  # by BOTH deployments and the first one would silently stop being backend-less. On
-  # 8180 the only way to reach it is to be TOLD where it is, which is rung one and the
-  # way every real deployment works.
+  # The API still listens on 8180 and not on its own 8080: 8080 is rung four of
+  # FRONTEND-BFF.md §5's candidate ladder ("localhost"), which no real deployment can ever
+  # reach — a CI job that let AB_OVO_API_URL go unset and still passed by falling onto that
+  # rung would be testing a wiring path no deployment has. On 8180 the only way either
+  # deployment reaches it is to be TOLD where it is, which is rung one and the way every
+  # real deployment works.
   #
-  # E2E_EXPECT_API IS STILL NOT SET HERE, and that is the same decision seen from the
-  # other side. The test it gates is `@core` — it runs against :3000, whose whole job is
-  # to have no API — and its own skip reason asks for "a deployment with AbOvo.Api
-  # reachable behind the BFF proxy", which is issue #270's ground, not this one's.
+  # E2E_EXPECT_API IS STILL NOT SET HERE, and that is a different question from the one
+  # above: the test it gates (`integration-report.spec.ts`'s `@core` live case) is about the
+  # CLIENT reaching AbOvo.Api through the `/api/proxy/` route against a DEPLOYED target
+  # (issue #270), not about a Server Component's own direct, server-side call — which is
+  # what every reading page and this job's two local deployments use.
   # ───────────────────────────────────────────────────────────────────────────────────
   e2e:
     name: e2e (playwright acceptance)
@@ -521,6 +523,14 @@ jobs:
           # in that file: the tokens this job validates are minted by
           # tests/e2e/fixtures/authservice-stub.mts, which publishes a JWKS and enough
           # OIDC metadata for a consumer configured with an authority to find it.
+          #
+          # RateLimit__ApiPermitLimit RAISED, NOT REMOVED (RateLimitingExtensions.cs). The
+          # policy partitions an anonymous caller by client IP, and every anonymous reader
+          # this job's specs drive shares one — 127.0.0.1 — so the combined traffic of
+          # dozens of specs each reading for real (ADR-0060) lands in the bucket a single
+          # production visitor was sized for. One real reader still gets the production
+          # figure everywhere else; this tells the limiter that this one IP here is standing
+          # in for many.
           ASPNETCORE_URLS="$E2E_API_BASE_URL" \
           ASPNETCORE_ENVIRONMENT=Production \
           DATABASE_PROVIDER=PostgreSQL \
@@ -529,6 +539,7 @@ jobs:
           Jwt__Issuer="$issuer" \
           Jwt__Audience="$audience" \
           Jwt__RequireHttpsMetadata=false \
+          RateLimit__ApiPermitLimit=5000 \
             nohup dotnet artifacts/api/AbOvo.Api.dll > "$API_LOG" 2>&1 &
 
           echo $! > "$API_PID_FILE"
@@ -589,6 +600,17 @@ jobs:
       # ─────────────────────────────────────────────────────────────────────────────────
       - name: Fetch the book content at its pinned revision
         run: bash scripts/fetch-book-content.sh
+
+      # ─────────────────────────────────────────────────────────────────────────────────
+      # INGEST THE COMPILED BUNDLE INTO AbOvo.Api — ADR-0060. Every reading page now makes
+      # a live, gated call to AbOvo.Api's content endpoints (ContentEndpoints.cs); with no
+      # bundle ingested, GET /content/{track} answers 404 for every one of them and the
+      # failure shows up on whichever spec opens a frame first rather than here, where it
+      # is legible. `fixtures/ingest-content.mts` carries the reasoning for how it gets an
+      # Admin-role bearer with no real authservice in this job.
+      # ─────────────────────────────────────────────────────────────────────────────────
+      - name: Ingest the book content into AbOvo.Api
+        run: node --experimental-strip-types tests/e2e/fixtures/ingest-content.mts
 
       # The suite drives a production build, not `next dev`. A dev server has different
       # timing, different error overlays and different bundle behaviour from the artifact

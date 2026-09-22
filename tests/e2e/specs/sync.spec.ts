@@ -3,6 +3,7 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 import { track as TRACK, unitNamed } from './support/bundle.ts';
 import { openThrough } from './support/gate.ts';
 import { forgetWhereIAm } from './support/forget.ts';
+import { walkTo } from './support/walk.ts';
 
 /**
  * JOURNEY — the same reader, on a second machine.
@@ -336,6 +337,7 @@ test.describe('progress follows the reader between machines', () => {
     // record it needs is the one ADR-0051 asks for — a place in the program before this,
     // without which the frame below is a page that returns the reader to the index.
     await openThrough(page, UNIT);
+    await walkTo(page, UNIT, 'en', AHEAD);
     await page.goto(`/read/${TRACK}/${UNIT}/en/${AHEAD}`);
 
     await expect

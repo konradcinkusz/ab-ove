@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 import { pickPair, served, track, unitNamed } from './support/bundle.ts';
 import { openThrough } from './support/gate.ts';
 import { openPane, pane } from './support/pane.ts';
-import { revealTo } from './support/reveal.ts';
+import { reveal } from './support/reveal.ts';
+import { walkTo } from './support/walk.ts';
 
 /**
  * JOURNEY — committing an answer before turning over, which is the method the book is.
@@ -118,11 +119,13 @@ test.describe('the worksheet', () => {
     // `step.cue` is the book's own mark for "the next frame opens with the answer", so the
     // field is on exactly the frames that ask for something. A field on all 1873 would be
     // a form; a field on none is what this product had.
+    await walkTo(page, unit, 'en', pair.asking.n);
     await page.goto(at('en', pair.asking.n));
     await expect(line(page, /your answer/i), 'a frame that asks offers nowhere to write').toBeVisible();
 
     const teaching = program.steps.find((step) => !step.cue && step.n > 1);
     expect(teaching, 'the program has no teaching frame, so this proves nothing').toBeTruthy();
+    await walkTo(page, unit, 'en', teaching!.n);
     await page.goto(at('en', teaching!.n));
     await expect(
       line(page, /your answer/i),
@@ -133,13 +136,14 @@ test.describe('the worksheet', () => {
   test('what the reader writes survives the reveal and is shown beside the answer @smoke', async ({
     page,
   }) => {
+    await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
     const field = line(page, /your answer/i);
     await field.fill('a sentinel nobody would guess');
 
     // Through the reveal, by the control rather than by the URL: the point is the loop a
     // reader walks, not that a route renders.
-    await revealTo(page, at('en', NUMERIC.answers)).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', NUMERIC.answers)}$`));
 
     await expect(
@@ -156,13 +160,15 @@ test.describe('the worksheet', () => {
     // page that never says anything satisfies the negative, and a page that always says
     // "matches" satisfies the positive.
     // ──────────────────────────────────────────────────────────────────────────────────
+    await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
     await line(page, /your answer/i).fill(NUMERIC.number);
-    await revealTo(page, at('en', NUMERIC.answers)).click();
+    await reveal(page).click();
     await expect(page.locator('body')).toContainText(/matches the book/i);
 
     // The same frame, a different number. NOT "wrong", NOT a cross, NOT a score — the
     // reader's line and nothing else, and they compare it themselves.
+    await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
     // A second attempt is not free: the first is locked, because it was committed before
     // the reveal. The reader clears it on purpose, which is the control this presses.
@@ -170,7 +176,7 @@ test.describe('the worksheet', () => {
     const field = line(page, /your answer/i);
     await expect(field, 'clearing did not give the line back').toBeEditable();
     await field.fill(`${NUMERIC.number}00000`);
-    await revealTo(page, at('en', NUMERIC.answers)).click();
+    await reveal(page).click();
 
     await expect(page.locator('body')).toContainText(`${NUMERIC.number}00000`);
     await expect(page.locator('body')).not.toContainText(/matches the book/i);
@@ -190,9 +196,10 @@ test.describe('the worksheet', () => {
      * pressed `→` has committed nothing, and a locked empty field on every frame they
      * passed is a dead control.
      */
+    await walkTo(page, unit, 'en', pair.asking.n);
     await page.goto(at('en', pair.asking.n));
     await line(page, /your answer/i).fill('committed');
-    await revealTo(page, at('en', pair.answering.n)).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', pair.answering.n)}$`));
 
     await page.goBack();
@@ -216,8 +223,9 @@ test.describe('the worksheet', () => {
   test('an empty line stays editable after the reveal @core', async ({ page }) => {
     // The dominant path: read, `→`, never type. Nothing is locked and nothing is said.
     const first = program.steps.find((step) => step.cue && step.n > 1)!;
+    await walkTo(page, unit, 'en', first.n);
     await page.goto(at('en', first.n));
-    await revealTo(page, at('en', first.n + 1)).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', first.n + 1)}$`));
     await page.goBack();
     await expect(line(page, /your answer/i)).toBeEditable();
@@ -230,9 +238,11 @@ test.describe('the worksheet', () => {
      * a frame they had not read, with the lock set, so `←` would land them on an untouched
      * field they could not type in.
      */
+    await walkTo(page, unit, 'en', pair.answering.n);
     await page.goto(at('en', pair.answering.n));
     await expect(page.locator('body')).not.toContainText(/you wrote/i);
 
+    await walkTo(page, unit, 'en', pair.asking.n);
     await page.goto(at('en', pair.asking.n));
     await expect(line(page, /your answer/i)).toBeEditable();
   });
@@ -240,6 +250,7 @@ test.describe('the worksheet', () => {
   test('Ctrl+Enter commits and reveals; Enter makes a newline @core', async ({ page }) => {
     // A single-line field where Enter reveals is a spoiler with no undo, and the book's
     // answers run past one clause often enough that the second one gets typed.
+    await walkTo(page, unit, 'en', pair.asking.n);
     await page.goto(at('en', pair.asking.n));
     const field = line(page, /your answer/i);
     await field.click();
@@ -269,6 +280,7 @@ test.describe('the worksheet', () => {
     // the frame's record new, and the pad re-seeded itself from that record on the render
     // the keystroke caused. A click between the two fields did the same. Both fields now
     // adopt the store's text only when the STORE's text changed — see `working.tsx`.
+    await walkTo(page, unit, 'en', pair.asking.n);
     await page.goto(at('en', pair.asking.n));
     const line = line_(page);
     await line.click();
@@ -309,7 +321,7 @@ test.describe('the worksheet', () => {
     const target = (n: number): string => `/read/${track}/${found.unit}/pl/${n}`;
     await page.goto(target(found.asks));
     await line(page, /twoja odpowied/i).fill(comma);
-    await revealTo(page, target(found.answers)).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${target(found.answers)}$`));
     await expect(page.locator('body')).toContainText(/tak jak w książce/i);
 
@@ -327,11 +339,17 @@ test.describe('the worksheet', () => {
     */
     await clearTheAnswer(page, /clear my answer/i, /^clear it$/i);
     await line(page, /your answer/i).fill(comma);
-    await revealTo(page, english(found.answers)).click();
+    await reveal(page).click();
     await expect(page.locator('body')).toContainText(/matches the book/i);
   });
 
   test('nothing a reader writes leaves the browser @smoke', async ({ page }) => {
+    // Ahead of the listener below, deliberately — same reasoning as frame-view.spec.ts's
+    // "fetches nothing" test: walkTo's own advance calls run inside the page (identity
+    // needs that — see support/walk.ts) and would otherwise be indistinguishable from the
+    // reader's own traffic to a listener that is watching for exactly this shape of call.
+    await walkTo(page, unit, 'en', pair.asking.n);
+
     /*
      * The claim the whole store rests on, asserted from outside rather than read out of a
      * comment. Every request the page makes is recorded while a reader types and reveals;
@@ -345,7 +363,7 @@ test.describe('the worksheet', () => {
 
     await page.goto(at('en', pair.asking.n));
     await line(page, /your answer/i).fill('the reader wrote this and nobody else may see it');
-    await revealTo(page, at('en', pair.answering.n)).click();
+    await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', pair.answering.n)}$`));
     await page.waitForLoadState('networkidle');
 
@@ -371,6 +389,7 @@ test.describe('the worksheet', () => {
       F09's, and `0.1 + 0.2` is Program P01's headline — printed unrounded on purpose,
       because a pad that tidied it away would teach the opposite of the page it sits on.
     */
+    await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
 
     await openPane(page, 'working');
@@ -392,6 +411,7 @@ test.describe('the worksheet', () => {
   }) => {
     // The difference between a pad and an interpreter: paper does not refuse the rest of
     // the page because one line has a typo in it.
+    await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
     await openPane(page, 'working');
 
@@ -418,6 +438,7 @@ test.describe('the worksheet', () => {
       decimal point, and the semicolon does the separating.
       ──────────────────────────────────────────────────────────────────────────────────
     */
+    await walkTo(page, unit, 'pl', NUMERIC.asks);
     await page.goto(`/read/${track}/${unit}/pl/${NUMERIC.asks}`);
     await openPane(page, 'working');
 
@@ -447,6 +468,7 @@ test.describe('the worksheet', () => {
       patch and all of them passed. The order is the whole test: pad FIRST, nothing else.
       ──────────────────────────────────────────────────────────────────────────────────
     */
+    await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
     await openPane(page, 'working');
 
@@ -474,6 +496,7 @@ test.describe('the worksheet', () => {
       return. The strokes are read back through the page's own storage because there is
       nothing else to look at — `strokes.test.ts` is where the geometry is pinned.
     */
+    await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
     await openPane(page, 'sketch');
 
@@ -558,6 +581,7 @@ test.describe('the worksheet', () => {
       is why it is worth keeping even though the stylesheet could not care less.
       ──────────────────────────────────────────────────────────────────────────────────
     */
+    await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
     await openPane(page, 'sketch');
 
@@ -598,6 +622,7 @@ test.describe('the worksheet', () => {
     const openSketch = (): Promise<void> =>
       openPane(page, 'sketch');
 
+    await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
     await openSketch();
     const box = (await page.getByLabel(/draw your answer/i).boundingBox())!;
@@ -608,7 +633,7 @@ test.describe('the worksheet', () => {
 
     expect(await ink(), 'nothing was drawn, so nothing below proves anything').toBeGreaterThan(0);
 
-    await page.getByRole('link', { name: /reveal the answer|next frame/i }).click();
+    await reveal(page).click();
     await page.waitForURL(new RegExp(`/${NUMERIC.answers}$`));
     await openSketch();
     await expect
@@ -626,6 +651,7 @@ test.describe('the worksheet', () => {
     const openSketch = (): Promise<void> =>
       openPane(page, 'sketch');
 
+    await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
     await openSketch();
     const box = (await page.getByLabel(/draw your answer/i).boundingBox())!;
@@ -653,6 +679,7 @@ test.describe('the worksheet', () => {
     const teaching = program.steps.find((step) => !step.cue && step.n > 1);
     expect(teaching, 'the program has no teaching frame, so this proves nothing').toBeTruthy();
 
+    await walkTo(page, unit, 'en', teaching!.n);
     await page.goto(at('en', teaching!.n));
     await expect(
       pane(page, 'working'),

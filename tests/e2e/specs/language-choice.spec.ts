@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 import { languages, track, uniqueProbeIn, unitNamed } from './support/bundle.ts';
-import { revealTo } from './support/reveal.ts';
+import { reveal } from './support/reveal.ts';
+import { walkTo } from './support/walk.ts';
 
 /**
  * JOURNEY — reading the same frame in the other edition, and being remembered.
@@ -58,6 +59,7 @@ test.describe('the language control', () => {
     const n = Math.min(3, steps.length);
     expect(n, 'the fixture needs a frame that is not the first').toBeGreaterThan(1);
 
+    await walkTo(page, unit, first, n);
     await page.goto(frameAt(first, n));
     await expect(page.locator('body')).toContainText(uniqueProbeIn(program, n, first));
 
@@ -113,9 +115,9 @@ test.describe('the language control', () => {
     const said: Record<string, string> = {};
     for (const language of languages) {
       await page.goto(frameAt(language, 1));
-      const reveal = revealTo(page, frameAt(language, 2));
-      await expect(reveal).toHaveAttribute('lang', language);
-      said[language] = (await reveal.innerText()).trim();
+      const control = reveal(page);
+      await expect(control).toHaveAttribute('lang', language);
+      said[language] = (await control.innerText()).trim();
       expect(said[language]!.length, `the ${language} reveal has no label at all`).toBeGreaterThan(0);
     }
     expect(
@@ -197,6 +199,7 @@ test.describe('one control, remembered', () => {
       — without the query string, because the query string is what a remembered choice must
       not depend on.
     */
+    await walkTo(page, unit, first, 2);
     await page.goto(frameAt(first, 2));
     await page.locator(`a[href="${frameAt(second, 2)}"]`).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt(second, 2)}$`));
