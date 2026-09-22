@@ -142,10 +142,37 @@ test.describe('the frame view', () => {
       'the next frame was fetched before the reader revealed it — prefetch is back on',
     ).toEqual([]);
 
-    // The control: after the click it IS fetched, so this test can tell "never fetched"
-    // from "the listener never fired".
     await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${at('en', answering.n)}$`));
+
+    /*
+      ──────────────────────────────────────────────────────────────────────────────────────
+      THE CONTROL, AND WHY THE REVEAL STOPPED BEING ONE.
+
+      This used to be the click above: reveal, then check the listener caught the next
+      frame's fetch, so a silent listener could not be mistaken for a page that never
+      fetched. ADR-0060 made the reveal a Server Action, and a Server Action does not
+      request the page it lands on. Measured against a real build:
+
+          POST /read/<track>/<unit>/en/2      ← the action, at the CURRENT frame's URL
+          (browser is now on /en/3, and nothing was ever requested for /en/3)
+
+      The next frame arrives in the action's own response body. So a listener keyed on the
+      next frame's URL can no longer fire on a reveal, whatever the page does — and the
+      assertion that used to prove the listener works became an assertion that the reveal
+      still works the old way. It failed on main for that reason and for no other.
+
+      What is asserted instead is the listener itself: one navigation to that URL, which is
+      the same GET a prefetch would have made, and the listener must see it. That keeps the
+      silence above falsifiable, which is the whole job of a control.
+
+      THE PROPERTY ITSELF IS UNCHANGED and is now structural rather than configured: the
+      reveal is a `<form>`, so there is no `<Link>` to the next frame for Next to prefetch
+      in the first place. The assertion above still has teeth for the reading foot's own
+      links and for whatever is added beside them next.
+      ──────────────────────────────────────────────────────────────────────────────────────
+    */
+    await page.goto(at('en', answering.n));
     expect(wanted.length, 'the listener saw nothing at all, so its silence meant nothing').toBeGreaterThan(0);
   });
 
