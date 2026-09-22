@@ -135,6 +135,36 @@ async function request<T>(
         return { kind: 'ok', data };
       }
 
+      /*
+       * A RUNG THAT SAYS "SLOW DOWN" IS A RUNG THAT ANSWERED, so the ladder stops on it —
+       * ADR-0018's "a rejection is terminal; only a transport failure walks the ladder",
+       * which that ADR wrote for a password and named "a rate-limited address" among the
+       * outcomes a client must not flatten. Sign-in has obeyed it since; this module did not.
+       *
+       * Every other non-2xx is ambiguous — a gateway in front of a service that is not
+       * there answers 502 the same way one in front of a service that is broken does — and
+       * the ladder exists for exactly that ambiguity. A 429 is not ambiguous: it is
+       * `AbOvo.Api`'s own rate limiter, which means the address this deployment was given
+       * is up and is talking. Walking past it asks the SAME service again through a name it
+       * was never reached by, then ends on `localhost:8080`, a rung this application
+       * invented — so the reason carried back names an address nobody configured and the
+       * next person reads "the API is not deployed" off a service that is merely busy.
+       * Measured in CI, where a rate-limited run reported
+       * `content API unavailable: http://localhost:8080: fetch failed` with a healthy API
+       * answering on the configured rung throughout.
+       *
+       * On Fly it is also a real cost, not only a misleading line: rung three is a
+       * `.internal` lookup with no authority to answer it, which `GUESSED_RUNG_TIMEOUT_MS`'s
+       * own comment says can eat seconds before failing.
+       */
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('retry-after');
+        return {
+          kind: 'unavailable',
+          reason: `${base}: api answered 429${retryAfter ? `, retry after ${retryAfter}s` : ''}`,
+        };
+      }
+
       last = { kind: 'unavailable', reason: `api answered ${response.status}` };
     } catch (error) {
       const rungTimeout = index === 0 ? timeoutMs() : GUESSED_RUNG_TIMEOUT_MS;
