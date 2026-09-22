@@ -39,6 +39,16 @@ public static class RateLimitingExtensions
         // this one IP is standing in for many.
         var authLimit = configuration.GetValue("RateLimit:AuthPermitLimit", 20);
         var apiLimit = configuration.GetValue("RateLimit:ApiPermitLimit", 200);
+
+        // THE GLOBAL FIGURE IS A CEILING OVER THE OTHER TWO, NOT A FALLBACK BESIDE THEM, and
+        // a deployment raising one of the policies above it raises nothing. ASP.NET's rate
+        // limiting middleware combines `GlobalLimiter` with the endpoint's policy and takes
+        // a lease from BOTH, so what a caller actually gets is the LOWER of the two — which
+        // is why the production defaults read 20 / 200 / 500 in that order and must keep
+        // reading that way. `ci.yml`'s e2e job is the one caller that overrides them, and it
+        // overrides this one too for exactly this reason; it once did not, spent a run being
+        // 429'd at 500 while the api policy said 5000, and the failure named the specs
+        // rather than the setting.
         var globalLimit = configuration.GetValue("RateLimit:GlobalPermitLimit", 500);
 
         services.AddRateLimiter(options =>
