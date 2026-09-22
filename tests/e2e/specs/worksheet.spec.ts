@@ -100,6 +100,37 @@ async function clearTheAnswer(page: import('@playwright/test').Page, label: RegE
   await page.getByRole('button', { name: confirm }).click();
 }
 
+/**
+ * Wait until this frame's islands have bound, before driving one of them.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * `<details>` OPENS WITHOUT JAVASCRIPT, AND THAT IS WHAT MADE THIS RACE READ AS A DEFECT.
+ *
+ * `page.goto` resolves on `load`, which is before React has hydrated anything. The panes
+ * still open in that window — a native disclosure needs no handler — so the canvas is on
+ * screen, it has a box, and only `onPointerDown` is missing. The pen then draws nothing and
+ * the assertion under it reports *nothing was drawn, so nothing below proves anything*, on
+ * a product that is working perfectly — which is what *a sketch belongs to its frame and
+ * follows nobody* reported on all three of its attempts in one CI run, while the page
+ * itself was fine. The same window swallows a click on the three background buttons,
+ * which are React's too.
+ *
+ * `reading.spec.ts`'s `keysReady` is the same wait for the same reason, kept in its own file
+ * for the same one: README §"There are no custom assertion or wait wrappers in this suite"
+ * puts every wait in a spec, in plain sight, rather than behind shared code. The signal is
+ * `frame-keys.tsx`'s own — the flag it sets when its effect attaches, which the stylesheet
+ * reveals the keyboard hint from, so the page cannot promise a shortcut that is not live.
+ * React hydrates the whole client tree, so that flag answers for the whole frame and not
+ * only for the keys.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+async function paneReady(page: import('@playwright/test').Page): Promise<void> {
+  await expect(
+    page.locator('[data-frame-keys="on"]'),
+    'the frame’s islands never attached, so nothing below would be driving anything',
+  ).toHaveCount(1);
+}
+
 test.describe('the worksheet', () => {
   /*
     THE READER OF THIS SUITE WALKED HERE — ADR-0051. F02 is shut until there is a place in
@@ -498,6 +529,12 @@ test.describe('the worksheet', () => {
     */
     await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
+    /*
+      THE PEN IS REACT'S, AND `<details>` IS NOT — see `paneReady` above. The pane opens
+      natively whether or not this page has hydrated, so without this wait the canvas is on
+      screen with no `onPointerDown` behind it and the strokes below go nowhere.
+    */
+    await paneReady(page);
     await openPane(page, 'sketch');
 
     /*
@@ -583,6 +620,9 @@ test.describe('the worksheet', () => {
     */
     await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
+    // The three background buttons are React's too, and a click that lands before they bind
+    // is a click on nothing — `paneReady` above.
+    await paneReady(page);
     await openPane(page, 'sketch');
 
     await page.getByRole('button', { name: 'Grid' }).click();
@@ -624,6 +664,7 @@ test.describe('the worksheet', () => {
 
     await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
+    await paneReady(page);
     await openSketch();
     const box = (await page.getByLabel(/draw your answer/i).boundingBox())!;
     await page.mouse.move(box.x + 60, box.y + 40);
@@ -635,6 +676,12 @@ test.describe('the worksheet', () => {
 
     await reveal(page).click();
     await page.waitForURL(new RegExp(`/${NUMERIC.answers}$`));
+    /*
+      AND ON THE FRAME THIS TEST IS ABOUT, TOO — a blank canvas reads as zero whether the
+      page never drew the previous frame's strokes or simply has not hydrated yet, so
+      without this wait the one assertion below could pass with nothing running.
+    */
+    await paneReady(page);
     await openSketch();
     await expect
       .poll(ink, { message: 'the previous frame’s sketch is drawn on this one' })
@@ -653,6 +700,7 @@ test.describe('the worksheet', () => {
 
     await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
+    await paneReady(page);
     await openSketch();
     const box = (await page.getByLabel(/draw your answer/i).boundingBox())!;
     await page.mouse.move(box.x + 80, box.y + 50);
