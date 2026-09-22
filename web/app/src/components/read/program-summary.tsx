@@ -3,16 +3,19 @@ import Link from 'next/link';
 import { say, unitBefore, type Bundle, type Route, type Unit } from '@ab-ovo/web-kit';
 
 import { ConsentControl } from '@/components/consent/consent-control';
-import { LanguageChoice } from '@/components/language/language-choice';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
 import { labFor } from '@/lib/lab/protocol';
 
 import styles from './contents.module.css';
+import { ArrowLeft, ArrowRight } from './icons.tsx';
 import { ProgramGate } from './program-gate.tsx';
 import summaryStyles from './program-summary.module.css';
 import foot from './reading-foot.module.css';
 import { ReadingFoot } from './reading-foot.tsx';
+import { ReadingScreen } from './reading-screen.tsx';
+import { ReadingSettings } from './reading-settings.tsx';
+import { ReadingTop } from './reading-top.tsx';
 import { RichInline } from './rich-text.tsx';
 import { SummaryKeys } from './summary-keys.tsx';
 
@@ -74,71 +77,95 @@ export function ProgramSummary({
   const nextProgramAt = nextUnit ? `/read/${track}/${nextUnit.id}/${language}/1` : undefined;
 
   return (
-    <main className={styles.page} lang={language}>
-      {/*
-        The same gate the frames and the contents carry (ADR-0051): this screen is inside a
-        program, so a reader who has not reached the program has not reached its return
-        index either. It is the only one of the three that records nothing, so there is
-        nothing here for the gate to have to undo.
-      */}
-      <ProgramGate
-        language={language}
-        previous={unitBefore(bundle, unit.id)?.id}
-        track={track}
-        unit={unit.id}
-      />
-
-      {/*
-        The two keys this screen has, from the same flag `frame-keys.tsx` sets — so a reader
-        who arrived here by pressing `→` on the last frame finds the arrows still work,
-        which is the one thing that would make the hand-off feel like a dead end if it did
-        not.
-      */}
-      <SummaryKeys back={lastFrameAt} forward={nextProgramAt} />
-
-      {/*
-        ────────────────────────────────────────────────────────────────────────────────
-        THIS SCREEN RECORDS NO POSITION, AND THAT IS A CORRECTION RATHER THAN AN OMISSION.
-
-        A first cut of it recorded step N here, on the reasoning that a reader arriving
-        from the last frame has finished the program. The store holds a FRAME NUMBER, and
-        there is no number for "the summary" — so the only thing this page could write is
-        N, and N is a claim that the reader has read every frame of the program.
-
-        That claim is false for the one case this page is reachable in without having read
-        anything: a deep link. Paste `/read/<track>/<unit>/en/summary` into a fresh browser
-        and the index would afterwards offer "Continue at frame 45" for a program never
-        opened — a record invented by a page load, which is the one thing ADR-0009's thin
-        record is thin in order not to do.
-
-        Nothing is lost by the absence: a reader who got here by reading got here from
-        frame N, which recorded N on its own.
-        ────────────────────────────────────────────────────────────────────────────────
-      */}
-
-      {/* A `<div>` and not a `<p>`: the control is a `<nav>` — `program-contents.tsx` says why. */}
-      <div className={styles.crumb} lang={chrome.language}>
-        <span className={styles.crumbSide}>
-          <span>
-            <Link href={contentsAt}>{unit.id}</Link>
-            {' · '}
-            <Link href="/">{chrome.programs}</Link>
-          </span>
-          {/* THE language control for this screen, at the top of it (ADR-0052). */}
-          <LanguageChoice
-            current={language}
-            hrefs={editionHrefs(
-              bundle.track.languages,
-              (other) => `/read/${track}/${unit.id}/${other}/summary`,
-            )}
-            label={chrome.languageLabel}
-            labelLanguage={chrome.language}
-            languages={bundle.track.languages}
+    <ReadingScreen
+      before={
+        <>
+          {/*
+            The same gate the frames and the contents carry (ADR-0051): this screen is inside
+            a program, so a reader who has not reached the program has not reached its return
+            index either. It is the only one of the three that records nothing.
+          */}
+          <ProgramGate
+            language={language}
+            previous={unitBefore(bundle, unit.id)?.id}
+            track={track}
+            unit={unit.id}
           />
-        </span>
-        <Link href={at(unit.steps.length)}>{chrome.backToLastFrame}</Link>
-      </div>
+          {/*
+            The two keys this screen has, so a reader who arrived here by pressing `→` on the
+            last frame finds the arrows still work.
 
+            THIS SCREEN RECORDS NO POSITION, AND THAT IS A CORRECTION RATHER THAN AN OMISSION:
+            the store holds a FRAME NUMBER and there is no number for "the summary", so the
+            only thing it could write is N — the claim that the reader has read every frame,
+            which a deep link here would have invented from a page load.
+          */}
+          <SummaryKeys back={lastFrameAt} forward={nextProgramAt} />
+        </>
+      }
+      lang={language}
+      overlays={<ReadingSettings chrome={chrome} />}
+      pager={
+        /*
+          THE HAND-OFF, in the pager a reader has pressed on every frame of this program
+          (ADR-0063): back to the frame they came from, on to the next program. The centre is
+          empty — this screen is the end of a program rather than a place inside one.
+        */
+        <ReadingFoot
+          back={
+            <Link className={foot.pagerButton} href={lastFrameAt}>
+              <ArrowLeft className={foot.arrow} />
+              <span>{chrome.backToLastFrame}</span>
+            </Link>
+          }
+          chrome={chrome}
+          forward={
+            nextUnit && nextProgramAt ? (
+              /*
+                FILLED, AND THE ONE FILLED THING ON THIS PAGE — the reveal's place, on the
+                screen that has no reveal. The next program's title is in the tooltip rather
+                than the label: the label has to fit a phone's third of the pager.
+              */
+              <Link
+                className={foot.reveal}
+                href={nextProgramAt}
+                title={`${nextUnit.id} · ${say(nextUnit.titles, language)}`}
+              >
+                <span className={foot.label}>
+                  {chrome.nextProgramLabel}: {nextUnit.id}
+                </span>
+                <ArrowRight className={foot.arrow} />
+              </Link>
+            ) : (
+              /*
+                The last program in the track. `Programs` rather than a disabled `Next
+                program`: a control that names a destination and does not go there is the dead
+                control this project refuses, and the index IS where a reader who has finished
+                the last program goes.
+              */
+              <Link className={foot.reveal} href="/">
+                <span>{chrome.programs}</span>
+                <ArrowRight className={foot.arrow} />
+              </Link>
+            )
+          }
+        />
+      }
+      top={
+        <ReadingTop
+          chrome={chrome}
+          contentsHref={contentsAt}
+          language={language}
+          languageHrefs={editionHrefs(
+            bundle.track.languages,
+            (other) => `/read/${track}/${unit.id}/${other}/summary`,
+          )}
+          languages={bundle.track.languages}
+          unitId={unit.id}
+          unitTitle={say(unit.titles, language)}
+        />
+      }
+    >
       <h1 className={styles.programTitle}>
         <RichInline language={language} text={say(unit.titles, language)} />
       </h1>
@@ -178,55 +205,13 @@ export function ProgramSummary({
       ) : null}
 
       {/*
-        THE INVITATION, WHERE A READER HAS JUST FINISHED A PROGRAM. The index asks below
-        forty-seven tiles, where almost nobody scrolls; this is the one moment the reader
-        has something the instrument is about — the frames they just worked — and the ask
-        is still an invitation rather than a gate: the same component, the same three
-        states, the same one record (ADR-0022), so a reader who has answered anywhere is
-        not asked here, and a reader who answers here is not asked on the index. Below the
-        list and above the foot, absent from the first paint, where appearing moves
-        nothing a reader is about to press.
+        THE INVITATION, WHERE A READER HAS JUST FINISHED A PROGRAM — the one moment the reader
+        has something the instrument is about, and still an invitation rather than a gate: the
+        same component, the same three states, the same one record (ADR-0022). Below the list,
+        absent from the first paint, where appearing moves nothing a reader is about to press.
       */}
       <ConsentControl language={chrome.language} />
-
-      {/*
-        THE HAND-OFF. `ReadingFoot`, the same component the frame and the contents page use,
-        so a reader leaving a program meets the row they have met on every frame of it
-        (ADR-0058). The centre slot is empty: this screen is the end of a program rather
-        than a place inside one, and it has no position to state.
-      */}
-      <ReadingFoot
-        back={
-          <Link className={foot.navLink} href={contentsAt}>
-            {chrome.contents}
-          </Link>
-        }
-        chrome={chrome}
-        forward={
-          nextUnit && nextProgramAt ? (
-            /*
-              FILLED, AND THE ONE FILLED THING ON THIS PAGE — the reveal's role, on the
-              screen that has no reveal. A reader who has just finished a program is being
-              handed the next one, which is this screen's whole reason to exist.
-            */
-            <Link className={styles.start} href={nextProgramAt}>
-              {chrome.nextProgramLabel} → {nextUnit.id} ·{' '}
-              <RichInline language={language} text={say(nextUnit.titles, language)} />
-            </Link>
-          ) : (
-            /*
-              The last program in the track. `Programs` rather than a disabled `Next
-              program`: a control that names a destination and does not go there is the
-              dead control this project refuses elsewhere, and the index IS where a reader
-              who has finished the last program goes.
-            */
-            <Link className={styles.start} href="/">
-              {chrome.programs}
-            </Link>
-          )
-        }
-      />
-    </main>
+    </ReadingScreen>
   );
 }
 

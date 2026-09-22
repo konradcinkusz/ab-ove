@@ -121,9 +121,9 @@ clause is for the model: a tool description is a request and not a rule, so the 
 `SERVER_INSTRUCTIONS` §8, `open_program`'s description and the `read` prompt all say it,
 and none of them can stop an assistant reporting a reading order as a fault.
 
-**Every step says where it is.** A rendered step opens with the reading surface's place row,
-one transport over — `P01 · How a computer stores a number › Scientific notation · step 5
-of 48` — and the banner that follows names the step it answers. The first version printed a
+**Every step says where it is.** A rendered step opens with what the reading surface's top
+bar and pager say, in one line, one transport over — `P01 · How a computer stores a number ›
+Scientific notation · step 5 of 48` — and the banner that follows names the step it answers. The first version printed a
 number and no name, and `list_programs` printed ids: a reader thirty steps in had nothing to
 call the program, and a reader choosing one had nothing to choose by. The reader-facing
 closing line names no tool; the assistant has the tool's own description for that.

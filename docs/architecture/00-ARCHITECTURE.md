@@ -234,7 +234,7 @@ branch in them tests a macro, a program number or a language code, so the same c
 render a track that has no frames at all.
 
 **And what the pages need that the bundle does NOT supply is as much the boundary as what
-it does.** The reading controls — "Reveal the answer", "Contents", `5 ramek` — are in
+it does.** The reading controls — "Next", "Contents", `5 ramek` — are in
 `web/app/src/lib/i18n/chrome.ts` and never in a bundle
 ([ADR-0016](../adr/0016-the-reading-controls-follow-the-readers-edition.md)): labels there
 would make every track's compiler responsible for this application's chrome. It also keeps

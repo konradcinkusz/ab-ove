@@ -1,72 +1,17 @@
 /*
- * One program's contents.
+ * One program's contents, and the pages that share its type: the summary and the reveal
+ * gate's "Not there yet".
  *
  * It served the program list too until ADR-0036 made the index a grid at `/` with its own
  * stylesheet (`components/programs/program-grid.module.css`). The rules that only the list
  * used went with it rather than staying here as a set nothing selects — a stylesheet that
  * still describes a page this app no longer has is documentation that lies, and CSS is the
- * kind that no compiler reports.
+ * kind that no compiler reports. The crumb row went the same way when the top bar replaced it
+ * (ADR-0063, `reading-top.module.css`).
  *
- * Same measure as the frame view, from the same variable. A reader moving between a
- * contents page and a frame should not feel the column move — and the number is declared
- * once in globals.css rather than restated here, which is the rule frame-view.module.css
- * already records for itself.
+ * THE COLUMN IS THE FRAME'S, from the same shell (`reading-screen.module.css`): a reader
+ * moving between a contents page and a frame should not feel the column move.
  */
-.page {
-  margin: 0 auto;
-  max-width: var(--measure);
-  padding: 2rem 1.25rem 4rem;
-}
-
-/*
- * The crumb row: the way back up, and nothing that arrives after hydration.
- *
- * It kept `space-between` and `wrap` from when it also carried the resume, forget and
- * account controls. Those live in the grid's top row at `/` now (ADR-0036); what the shape
- * still buys here is a crumb that wraps rather than overflows at phone width.
- */
-.crumb {
-  align-items: baseline;
-  color: var(--ink-faint);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 0.8125rem;
-  gap: 0.5rem 1rem;
-  justify-content: space-between;
-  letter-spacing: 0.02em;
-  margin: 0 0 2rem;
-}
-
-.crumb a {
-  color: inherit;
-}
-
-/*
- * The left-hand group of the crumb row: the way back, and the language control beside it
- * (ADR-0052). Its own flex container so the two sit on one line and wrap together on a
- * narrow screen, rather than the control being pushed to the row's far end where
- * `justify-content: space-between` would put a third child.
- *
- * `baseline` rather than `center`, matching the row it is in: the control's type is the
- * crumb's, and two flex contexts aligning their children differently is what makes a row of
- * small text look like two rows of it.
- */
-.crumbSide {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-}
-
-/*
- * The control's own links are the accent colour by default; inside the crumb they are the
- * crumb's. The row is chrome and a language name in it is not a call to action — the reader
- * reaching for it already knows where it is, because it is in the same corner of every
- * screen in the product.
- */
-.crumbSide nav a {
-  color: inherit;
-}
 
 .heading {
   border-top: 1px solid var(--rule);
@@ -75,7 +20,7 @@
   font-size: 0.775rem;
   font-weight: 650;
   letter-spacing: 0.1em;
-  margin: 0 0 1.25rem;
+  margin: 0 0 0.5rem;
   padding-top: 0.5rem;
   text-transform: uppercase;
 }
@@ -86,7 +31,6 @@
   padding: 0;
 }
 
-/* One program's contents. */
 .programTitle {
   font-size: 1.5rem;
   font-weight: 500;
@@ -97,7 +41,22 @@
 .subtitle {
   color: var(--ink-faint);
   font-size: 0.9375rem;
+  margin: 0 0 1.5rem;
+}
+
+/*
+ * THE WAY IN, UNDER THE TITLE — the filled `Start at frame 1` / `Continue at frame N`, and the
+ * quiet `Start at frame 1` beside it for a reader who has a place. Both arrive from the
+ * browser, so the row holds its own height from the first paint (a finger's worth, the
+ * button's) and whatever arrives extends it sideways: nothing under it moves.
+ */
+.entry {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
   margin: 0 0 2rem;
+  min-height: var(--control-min);
 }
 
 .sectionEntry {
@@ -106,7 +65,7 @@
   display: grid;
   gap: 0 0.875rem;
   grid-template-columns: 3.75rem 1fr;
-  padding: 0.75rem 0;
+  padding: 0.375rem 0;
 }
 
 /*
@@ -114,8 +73,8 @@
  *
  * The book puts a frame's number in the margin beside a hairline so that "a reader thumbing
  * for frame 37 runs a finger down the edge of the block and never crosses the text". A
- * contents page is where that number is looked UP rather than found, so the range sits in
- * the same column the frame view's badge does and is the thing the eye runs down.
+ * contents page is where that number is looked UP rather than found, so the range is the
+ * thing the eye runs down.
  */
 .range {
   color: var(--ink-faint);
@@ -124,9 +83,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A heading is a finger tall to press, like every other control on the reading screens. */
 .sectionTitle {
+  display: inline-block;
   font-size: 1rem;
   line-height: 1.4;
+  padding: 0.5rem 0;
   text-decoration: none;
 }
 
@@ -141,32 +103,10 @@
   font-style: italic;
 }
 
-.start {
-  background: var(--accent);
-  border-radius: 3px;
-  color: var(--paper-raised);
-  display: inline-block;
-  font-size: 0.9375rem;
-  margin-top: 2rem;
-  padding: 0.5rem 1.125rem;
-  text-decoration: none;
-}
-
-.start:hover {
-  filter: brightness(1.1);
-}
-
-/* The same ring the reveal wears — frame-view.module.css says why a brightness was not one. */
-.start:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--paper),
-    0 0 0 4px var(--accent);
-  outline: none;
-}
-
 /*
- * THE FOOT MOVED — ADR-0058. `.foot`, `.footSide` and `.footShut` live in
- * `reading-foot.module.css` now, with the frame's and the summary's, because three copies
- * of one row in three stylesheets is what let ADR-0057 restyle one of them and leave the
- * other two behind. `when-open.tsx` reads `.footShut` from there.
+ * The page's one filled control — the shared button family's primary (`controls.module.css`),
+ * so it is the same shape as the pager's `Next` a reader will press next.
  */
+.start {
+  composes: primary from './controls.module.css';
+}

@@ -29,7 +29,7 @@ odpowiedzią, którą miałeś już zapisać.
 
 ### Ramka 3 pyta
 
-![Ramka programu F01. Otwiera się odpowiedzią z poprzedniej ramki w podbarwionym pudełku, wyjaśnia, czym jest liczba wymierna, a potem prosi czytelnika o zapisanie rozwinięcia dziesiętnego jednej trzeciej. Pod pytaniem: kropkowana linia odpowiedzi z napisem "Write it down before you read on", dwa obrysowane przyciski obok siebie — "Work it out" i "Draw it" — oraz wypełniony przycisk "Reveal the answer". W stópce wiersz trzech elementów: "← Previous", licznik ramek i "Next section →", a pod nim rozwijane "Reading settings".](assets/screenshots/frame-asks-english.png)
+![Ramka programu F01. U góry pasek: znak ab-ovo, "F01 Numbers, powers and roots", wybór języka i przycisk "Reading settings". Pod nim nagłówek, pod którym jest ramka, a dalej odpowiedź z poprzedniej ramki w podbarwionym pudełku podpisanym "Answer to frame 2"; ramka wyjaśnia, czym jest liczba wymierna, i prosi czytelnika o zapisanie rozwinięcia dziesiętnego jednej trzeciej. Pod pytaniem: linia odpowiedzi podpisana "Your answer", z napisem "Write it down before you read on", i dwa obrysowane przyciski obok siebie — "Work it out" i "Draw it". Przypięte do dołu ekranu: obrysowany przycisk "← Previous", pozycja "3 of 45" i wypełniony przycisk "Next →".](assets/screenshots/frame-asks-english.png)
 
 Pytanie brzmi: *zapisz rozwinięcie dziesiętne ⅓*. Odpowiedzi na nie **nie ma na tej stronie**:
 ani w elemencie, ani w atrybucie, ani w skrypcie, ani w prefetchu. Czytelnik, który otworzy
@@ -40,10 +40,11 @@ inspektor, nie znajdzie nic, bo nie ma czego znaleźć
 
 ![Kolejna ramka. Otwiera się napisem "0.333…, repeating without end" w tym samym podbarwionym pudełku, potem wyjaśnia, że rozwinięcie dziesiętne liczby wymiernej albo się kończy, albo się powtarza, i zadaje następne pytanie.](assets/screenshots/frame-reveals-english.png)
 
-Odsłonięcie jest **nawigacją**, a nie przełącznikiem. Otwarcie ramki 4 *jest* odpowiedzią
-ramki 3 i przyjechało razem z HTML-em ramki 4. To właśnie czyni tę własność strukturalną,
-zamiast dyscypliną, którą ktoś musi utrzymywać: nie ma widżetu do obejścia, bo odpowiedzi
-nigdy nie wysłano.
+Odsłonięcie jest **przewróceniem strony**, a nie przełącznikiem: `Next` podnosi miejsce
+czytelnika na serwerze i prosi o ramkę 4, której otwarcie *jest* odpowiedzią ramki 3 i
+przyjechało razem z HTML-em ramki 4. To właśnie czyni tę własność strukturalną, zamiast
+dyscypliną, którą ktoś musi utrzymywać: nie ma widżetu do obejścia, bo odpowiedzi nigdy nie
+wysłano.
 
 Obie połowy sprawdza pakiet akceptacyjny i obie widziano, jak czerwienieją, zanim w nie
 uwierzono.
@@ -52,14 +53,27 @@ uwierzono.
 
 ## Powierzchnia lektury
 
-### Wiersz miejsca jest jedyną obudową
+### Pasek u góry, a `Previous` i `Next` przypięte na dole
 
-Wiersz nad ramką niesie identyfikator programu, tytuł programu, sekcję, w której jesteś,
-wybór języka i to, gdzie jesteś — `3 / 45`. Ten numer ramki jest skokiem: naciśnij `g` i
-wpisz numer. **Pokazuje miejsce, nigdy postęp**
-([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md)) — procent z
-książki o czterdziestu siedmiu programach byłby liczbą o czytelniku, a ten produkt takich nie
-produkuje.
+Pasek nad ramką niesie znak, który jest drogą do wszystkich programów; identyfikator i tytuł
+programu, które prowadzą do jego spisu treści; wybór języka; i *Reading settings*. Pasek
+nawigacji przy dolnej krawędzi niesie **Previous**, to, gdzie jesteś — `3 of 45` — i
+**Next**, w tym samym miejscu na każdej ramce i na ekranie, gdy ramka przewija się pod nim
+([ADR-0063](adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)). Klawisze też działają
+(`→`, `←`, `g`), a nic na ramce ich nie reklamuje. **Pozycja pokazuje, gdzie jesteś, nigdy
+postęp** ([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md)) —
+procent z książki o czterdziestu siedmiu programach byłby liczbą o czytelniku, a ten produkt
+takich nie produkuje.
+
+### Mapa programu
+
+![Ta sama ramka z panelem otwartym nad nią, tuż nad paskiem nawigacji: "F01 Numbers, powers and roots" z przyciskiem zamknięcia, pole "Go to frame [3] of 45 [Go]", a dalej "Contents" i każdy nagłówek programu z zakresem ramek — "Which numbers there are 1–7" podbarwiony jako bieżący, a "Powers", "Roots", "Scientific notation" i reszta pokazane z kłódką i napisem "not reached yet". Przycisk pozycji w pasku jest wciśnięty.](assets/screenshots/frame-program-map-english.png)
+
+Naciśnięcie pozycji otwiera wszystkie nagłówki programu, każdy o jedno kliknięcie od dowolnej
+ramki, i pole, w którym wpiszesz numer ramki. To, czego bramka odsłonięć by odmówiła, nie
+jest oferowane: nagłówek za najdalszą ramką, do której czytelnik dotarł, jest pokazany jako
+zablokowany, z powodem, a numer za nią dostaje odpowiedź na miejscu, z drogą do najdalszej
+ramki — zamiast odnośnika, który prowadzi tylko do *Not there yet*.
 
 ### Ta sama ramka, po polsku
 
@@ -68,8 +82,9 @@ produkuje.
 Książka jest złożona po angielsku i po polsku, a edycja jest wyborem czytelnika, a nie czymś
 zgadniętym z nagłówka
 ([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)).
-Przełączenie to odnośnik w wierszu miejsca; zachowuje twój numer ramki — i zostaje
-zapamiętane, więc pytanie pada raz, a nie na każdym ekranie.
+Przełączenie to odnośnik w pasku u góry; zachowuje twój numer ramki — i zostaje
+zapamiętane, więc pytanie pada raz, a nie na każdym ekranie. Pasek nawigacji też mówi
+językiem edycji: `Wstecz`, `3 z 45`, `Dalej`.
 
 ### Arkusz
 
@@ -87,21 +102,24 @@ otwarty zajmuje cały wiersz
 
 ### Na szerokości telefonu
 
-![Ta sama ramka przy szerokości 360 pikseli. Wiersz miejsca się zawija, miara się zwęża, a kontrolki arkusza układają się w pionie; stópka daje jedną kontrolkę na wiersz, na pełną szerokość. Nic nie jest ucięte i nic nie leży na tekście.](assets/screenshots/frame-narrow-english.png)
+![Ta sama ramka przy szerokości 360 pikseli. Pasek u góry zajmuje dwa wiersze — znak, wybór języka i przycisk ustawień, a pod nimi program — miara się zwęża, a dwa przyciski arkusza dzielą jeden wiersz i mają jedną wysokość. Pasek nawigacji zostaje przypięty do dolnej krawędzi z "← Previous", "3 of 45" i "Next →" w jednej linii, każdy przycisk ze swoim słowem. Nic nie jest ucięte, a pasek nawigacji jest jedyną rzeczą nad tekstem.](assets/screenshots/frame-narrow-english.png)
 
-360 px jest sprawdzane przy płótnie w `specs/narrow-screen.spec.ts`, więc to własność
-weryfikowana, a nie zrzut, który ktoś kiedyś zrobił.
+360 px jest sprawdzane w `specs/narrow-screen.spec.ts` i `specs/pager.spec.ts` — nic nie
+przewija się w bok, trzy komórki paska mieszczą się ze swoimi słowami, a `Previous` i `Next`
+są na ekranie na najdłuższych ramkach programu — więc to własność weryfikowana, a nie zrzut,
+który ktoś kiedyś zrobił.
 
 ### W trybie ciemnym
 
-![Ta sama ramka na ciemnym tle z jasnym tekstem: pudełko z odpowiedzią, odnośniki i przycisk odsłonięcia mają nowe kolory, a nie odwrócone.](assets/screenshots/frame-dark-english.png)
+![Ta sama ramka na ciemnym tle z jasnym tekstem: pudełko z odpowiedzią, odnośniki i przyciski paska nawigacji mają nowe kolory, a nie odwrócone.](assets/screenshots/frame-dark-english.png)
 
 Tryb ciemny to pełna zamiana tokenów, a nie doczepka — czytelnik pracujący nad programem w
 nocy jest przypadkiem normalnym. Tak samo jak ten, który pracuje przy biurku pod lampą, i
 dlatego każdy ekran do czytania nosi trójpozycyjny przełącznik: **Systemowy**, **Jasny**,
-**Ciemny**. Leży w rozwijanym `Ustawienia czytania` na dole, razem z mapą klawiszy, a nie w
-wierszu, w którym czytelnik szuka drogi dalej
-([ADR-0058](adr/0058-the-reading-foot-is-one-pager-and-the-settings-leave-it.md)). Pierwsza pozycja jest domyślną i jest `prefers-color-scheme`, dokładnie
+**Ciemny**. Leży w panelu `Ustawienia czytania`, otwieranym z paska u góry, razem z mapą
+klawiszy — poza paskiem nawigacji, w którym czytelnik szuka drogi dalej
+([ADR-0058](adr/0058-the-reading-foot-is-one-pager-and-the-settings-leave-it.md),
+[ADR-0063](adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)). Pierwsza pozycja jest domyślną i jest `prefers-color-scheme`, dokładnie
 tak jak przed powstaniem przełącznika — to pozycja, do której czytelnik może wrócić, a nie brak
 wyboru, i jedyna, która nie potrzebuje JavaScriptu
 ([ADR-0048](adr/0048-the-theme-is-a-choice-and-the-system-is-a-position.md)).
@@ -140,11 +158,11 @@ ekranie (ADR-0052).
 
 ### Spis treści programu
 
-![Spis treści programu F01: tytuł programu, wypisane sekcje z ramką, od której każda się zaczyna, i wejście do lektury.](assets/screenshots/program-contents-english.png)
+![Spis treści programu F01: ten sam pasek u góry, tytuł programu, wypełniony przycisk "Start at frame 1" i wypisane sekcje z zakresem ramek, które każda obejmuje. Na dole "← Programs" i zdanie mówiące, kiedy otwiera się F02.](assets/screenshots/program-contents-english.png)
 
 ### I jego podsumowanie
 
-![Koniec programu F01: sekcja Summary, lista "Can you?" powtarzająca, czego program miał nauczyć, i wejście do kolejnego programu.](assets/screenshots/program-summary-english.png)
+![Koniec programu F01: sekcja Summary, lista "Can you?" powtarzająca, czego program miał nauczyć, a przypięte na dole "← Back to the frame" i wypełnione "Next program: F02 →".](assets/screenshots/program-summary-english.png)
 
 *Summary* i *Can you?* to własne sekcje zamykające książki, a nie coś, co ta aplikacja
 wymyśliła.

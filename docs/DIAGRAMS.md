@@ -536,7 +536,7 @@ would lose reading they did.
 
 %% THE READING SURFACE SHOWS POSITION AND NEVER PROGRESS (ADR-0041). A percentage over a
 %% book of 47 programs is a number about the reader, and this product does not make those.
-%% The place row says which frame of which section, and its frame number is a jumper.
+%% The pager says which frame of how many, and opens the map of the program (ADR-0063).
 
 %% LOCAL FIRST, AND THE LOCAL COPY HOLDS NOTHING WORTH SCORING (ADR-0017). An account buys
 %% one thing: the same place on a second machine. Everything else about the loop is

@@ -5,16 +5,21 @@
  * the page down under a reader who is mid-frame — the shift `specs/reading.spec.ts` bounds.
  * A fixed element takes part in no layout, so it can arrive at any moment and move nothing.
  *
- * Bottom-left rather than top-right: the top of every page here is the crumb row, which is
- * where the resume control it is talking about lives, and a notice over the top of that
- * control would obscure the thing it is about. The bottom of a reading column is empty.
+ * Bottom-left rather than top-right: the top of the page is where the resume control it is
+ * talking about lives — the index's header, and under a program's title — and a notice over
+ * that control would obscure the thing it is about.
+ *
+ * ABOVE THE PAGER, where there is one. A reading screen pins its pager to the bottom edge
+ * (ADR-0063), and a notice at `bottom: 1rem` would sit over its `Previous` button.
+ * `--pager-offset` is the pager's clearance while a pinned pager is on the page
+ * (`reading-screen.module.css`) and undefined everywhere else, where the fallback is nothing.
  */
 .notice {
   align-items: baseline;
   background: var(--paper-raised);
   border: 1px solid var(--rule);
   border-radius: 2px;
-  bottom: 1rem;
+  bottom: calc(1rem + var(--pager-offset, 0rem));
   box-shadow: 0 1px 6px rgb(0 0 0 / 12%);
   display: flex;
   flex-wrap: wrap;

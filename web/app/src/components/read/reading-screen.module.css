@@ -1,0 +1,71 @@
+/*
+ * The reading screens' column — see reading-screen.tsx for why a column and not a grid, and
+ * why nothing in it may take `overflow`.
+ */
+.screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  /* The SMALL viewport, not the dynamic one: `dvh` resizes as a phone's toolbar slides, and
+     the pager would move with it on every scroll. */
+  min-height: 100svh;
+}
+
+/*
+ * The page between the bars. It grows, which is what puts a short frame's pager on the
+ * bottom edge.
+ *
+ * THE MEASURE IS THE BOX, AND THE GUTTER IS INSIDE IT — as it was on every reading screen
+ * before this shell existed (each screen's own `.page`: `max-width: var(--measure)` and 1.25rem
+ * of padding). So the text is `--measure` less two gutters wide, the same line length as
+ * before, and a frame that reflows when KaTeX's faces arrive (`font-display: swap`,
+ * `prepare-katex-assets.mjs`) breaks its lines where it always did. An earlier draft of this
+ * file put the gutter outside the measure, which widened every line by 40 px; on F01's first
+ * frame that moved one `ℕ` to a line's end, and the swap then re-wrapped it and moved the
+ * paragraph under it — a shift `specs/reading.spec.ts` bounds and caught. `--gutter` is named
+ * so the frame's article can bleed over it (`frame-view.module.css`).
+ */
+.main {
+  --gutter: 1.25rem;
+
+  box-sizing: border-box;
+  flex: 1 0 auto;
+  margin: 0 auto;
+  max-width: var(--measure);
+  padding: 1.75rem var(--gutter) 2.5rem;
+  width: 100%;
+}
+
+/*
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ * WHAT A PINNED PAGER COSTS THE REST OF THE PAGE, SAID ONCE.
+ *
+ * It covers the bottom of the viewport, so:
+ *
+ *   - `scroll-padding-bottom` keeps anything the browser scrolls into view — a field reached
+ *     by Tab, an anchor — clear of it (WCAG 2.4.11, focus not obscured);
+ *   - `--pager-offset` lifts the one other thing on these pages that is fixed to the bottom,
+ *     the sync notice (`progress-sync.module.css`), above it rather than over its buttons.
+ *
+ * Keyed on the pinned pager being on the page, so the index and the shell pages are untouched.
+ * `:has()` is in the positive form: a browser without it keeps no scroll padding and a notice
+ * that can overlap — the page before this change, never a broken one.
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ */
+:global(:root:has([data-pager='pinned'])) {
+  --pager-offset: var(--pager-clearance);
+  scroll-padding-bottom: calc(var(--pager-clearance) + 1rem);
+}
+
+@media (max-width: 30rem) {
+  .main {
+    padding: 1.25rem var(--gutter) 2rem;
+  }
+}
+
+@media print {
+  .screen {
+    display: block;
+    min-height: 0;
+  }
+}

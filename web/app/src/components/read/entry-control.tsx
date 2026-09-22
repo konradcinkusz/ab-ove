@@ -91,9 +91,10 @@ export function EntryControl(props: EntryControlProps): React.JSX.Element {
 }
 
 /**
- * The quiet *Start at frame 1*, in the crumb row, for a reader who has a place and wants
- * the beginning anyway. Present only then: without a place the filled control below IS
- * the start, and a second link to frame 1 would be the dead duplication this page refuses.
+ * The quiet *Start at frame 1*, beside the filled control under the program's title, for a
+ * reader who has a place and wants the beginning anyway. Present only then: without a place
+ * the filled control IS the start, and a second link to frame 1 would be the dead
+ * duplication this page refuses.
  * The two controls together keep the page at exactly one link to the stored frame, which
  * `progress.spec.ts` counts, and always at least one to frame 1.
  *

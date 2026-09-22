@@ -1,60 +1,99 @@
 /*
- * The reading column.
+ * The frame itself — what sits between the top bar and the pager (ADR-0063). The bars, the
+ * buttons and the panels live in their own stylesheets; this is the page's text and the place
+ * to write beside it.
  *
- * UI-UX.md's phase 2a.5 fixes the measure at 34rem, which globals.css already declares as
- * --measure and the landing page already uses. Read from there rather than restated: one
- * number, one place. It is not a taste, either. The book
- * made the same decision and wrote down why: both its paper formats are set to about the
- * same measure because a wider block "would be some eighty-five characters, past the point
- * where the eye loses the line return". A wider column is not more content per screen; it
- * is a line the reader has to find the start of.
+ * THE MEASURE IS 34rem, and it is not a taste: UI-UX.md's phase 2a.5 fixed it, globals.css
+ * declares it as `--measure`, and the book made the same decision and wrote down why — a wider
+ * block "would be some eighty-five characters, past the point where the eye loses the line
+ * return". `reading.spec.ts` measures this element at 34rem on a wide screen.
+ *
+ * So the article is the whole of the `<main>` it sits in, gutter included: it bleeds over the
+ * main's gutter and puts the same gutter back as its own padding. The box is the measure, and
+ * the text inside it is exactly as wide as the other reading screens' text — the line length
+ * this frame has always had (`reading-screen.module.css` says why that matters).
  */
 .page {
-  margin: 0 auto;
-  max-width: var(--measure);
-  padding: 2rem 1.25rem 4rem;
+  animation: arrive 0.18s ease-out;
+  box-sizing: border-box;
+  margin: 0 calc(-1 * var(--gutter, 0rem));
+  padding: 0 var(--gutter, 0rem);
 }
 
 /*
- * ADR-0060 — the reveal is now a `<form action={revealStep}>` around the button that used to
- * be an `<a>`. `display: contents` removes the form's own box from the layout entirely, so
- * it contributes nothing to `.body`'s flow or `.forward`'s grid cell (reading-foot.module.css)
- * beyond the button already inside it — the same box the `<a>` used to be.
+ * A NEW FRAME ARRIVES, VISIBLY. The pager stands still now — that is its point — so the only
+ * sign that the page turned is the text, and two frames that open alike can look like no turn
+ * at all. Opacity only: nothing lays out, so no layout-shift bound can see it, and a reader
+ * who asks for less motion gets none.
  */
-.revealForm {
-  display: contents;
+@keyframes arrive {
+  from {
+    opacity: 0.35;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page {
+    animation: none;
+  }
 }
 
 /*
- * THE CRUMB, THE RULE AND THE BADGE USED TO BE HERE, AND THEY ARE NOW ONE ROW.
- *
- * `place-row.module.css` holds what replaced them. Three rules are gone rather than kept
- * for "something else might want them": the owner's complaint was that a frame carried too
- * much side text unrelated to the frame, and a stylesheet that still describes the three
- * blocks is an invitation to put one of them back. The badge's own reasoning — notes/07
- * §3, the frame number where a reader thumbing for frame 37 can find it without crossing
- * the text — survived the move and is written down there, beside the number it is about.
+ * The frame's heading, off the page — the standard visually-hidden idiom. Clipped to a pixel
+ * and absolute, which `narrow-screen.spec.ts`'s sweep exempts by exactly that shape.
  */
+.title {
+  clip-path: inset(50%);
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* Which heading of the program this frame is under — a quiet line in the UI face. */
+.section {
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  margin: 0 0 1rem;
+  text-transform: uppercase;
+}
 
 /*
  * The answer to the PREVIOUS step, opening this one.
  *
- * Set apart and centred "so the eye can find the edge to cover" — the book's own reason for
- * the shape of `\ans{}`. It is a real answer box rather than a decorative one: a reader who
- * has arrived here has already committed, because getting here at all took the reveal.
+ * Set apart "so the eye can find the edge to cover" — the book's own reason for the shape of
+ * `\ans{}`. The bottom padding is small because the reserved `You wrote` row under the answer
+ * (`worksheet.module.css`) is always there: an answer box with its own padding AND an empty
+ * reserved row read as a box with a hole in it.
  */
 .answer {
   background: var(--accent-soft);
   border-left: 3px solid var(--accent);
-  margin: 0 0 1.75rem;
-  padding: 1rem 1.25rem;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  margin: 0 0 1.5rem;
+  padding: 0.875rem 1.125rem 0.25rem;
 }
 
+/*
+ * `Answer to frame 2` — the UI face, in `--ink-soft` rather than the faintest ink: it sits on
+ * `--accent-soft`, where the faint grey was the 4.07:1 that failed WCAG 1.4.3.
+ */
 .answerLabel {
-  color: var(--ink-faint);
+  color: var(--ink-soft);
   display: block;
-  font-size: 0.6875rem;
-  letter-spacing: 0.1em;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
   margin-bottom: 0.375rem;
   text-transform: uppercase;
 }
@@ -69,143 +108,30 @@
   margin-bottom: 0;
 }
 
-/*
- * The cue, and then the reveal.
- *
- * The dotted row is `\dotline`'s job on paper: somewhere to write before turning over. Here
- * it is the visual pause between the question and the control that answers it, and it
- * carries no input — the reader's answer is theirs and the product never asks for it. That
- * is not an omission: METRIC-ETHICS and ADR-0009 put the instrument on the book, and a text
- * box here would be the first place a per-reader record could come from.
- */
-.dots {
-  border-bottom: 1px dashed var(--rule);
-  margin: 0 0 1.25rem;
-}
-
-
-/*
- * The frame's heading, off the page — the standard visually-hidden idiom (the worksheet's
- * live region uses the same one). Clipped to a pixel and absolute, which `narrow-screen.
- * spec.ts`'s sweep exempts by exactly that shape; it is the one absolutely positioned
- * element on the frame and it cannot overlap anything, because it has no size to.
- */
-.title {
-  clip-path: inset(50%);
-  height: 1px;
+/* The answer line and the two panes, as one block under the question. */
+.work {
   margin: 0;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
-  width: 1px;
 }
-
-.reveal {
-  align-items: center;
-  background: var(--accent);
-  border: 0;
-  border-radius: 3px;
-  color: var(--paper-raised);
-  cursor: pointer;
-  display: inline-flex;
-  font: inherit;
-  font-size: 0.9375rem;
-  gap: 0.45rem;
-  padding: 0.5rem 1.125rem;
-  text-decoration: none;
-}
-
-/*
- * THE ARROW SAYS THE TWO LABELS ARE ONE MOVE — ADR-0057.
- *
- * "Reveal the answer" and "Next frame" are the same control turning over the same page,
- * and reading as two different buttons because they carry no shared mark was the owner's
- * own complaint. `aria-hidden` keeps it out of the accessible name (`RevealLabel` alone is
- * still the whole of what a screen reader announces), so it costs nothing there and buys
- * the same "this goes forward" cue a sighted reader gets from every other arrow on the page.
- */
-.revealArrow {
-  font-size: 0.85em;
-}
-
-.reveal:hover {
-  filter: brightness(1.1);
-}
-
-/*
- * A RING, NOT A BRIGHTNESS. The filled controls used `filter: brightness(1.1)` as their
- * only `:focus-visible` treatment, which is a ten-percent change on a blue block — a
- * keyboard reader tabbing to the one control the frame is built around could not see they
- * had reached it (WCAG 2.4.7). The ring is the paper colour first and the accent second,
- * so it reads on the button's own fill and on the page behind it in either scheme.
- */
-.reveal:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--paper),
-    0 0 0 4px var(--accent);
-  outline: none;
-}
-
-/*
- * WHILE THE NEXT FRAME IS ON ITS WAY. `reveal-label.tsx` marks its span the moment the
- * link is pressed and until the navigation lands; the reveal is the one navigation that is
- * never prefetched, so this is the one place a wait is guaranteed. Opacity and a cursor —
- * nothing that lays out, so the reveal moves nothing (specs/reading.spec.ts).
- */
-.reveal:has([data-pending='yes']) {
-  cursor: progress;
-  opacity: 0.65;
-}
-
 
 /*
  * THE TWO WORKSHEET PANES, SIDE BY SIDE — ADR-0059.
  *
- * `Work it out` and `Draw it` were two stacked disclosures, each one line of the faintest
- * ink; the row they are in now is what makes them read as a pair of tools rather than as
- * two footnotes under the question. The buttons themselves are `worksheet.module.css`'s
- * `.paneSummary`, because everything else about a pane lives there.
- *
- * `1fr 1fr` AND NOT `auto-fit`: each button's width is decided by the row and not by its
- * own label, which is what lets the sketch say `Show my sketch` on a frame the reader has
- * drawn on without the row resizing after hydration. Nothing above the reveal may grow
- * after paint (specs/reading.spec.ts), and a grid whose tracks are fixed fractions cannot.
- *
- * Two columns at every width, including 360px, where `Work it out` and `Draw it` are 150px
- * each — the pane BODIES are what needed the narrow-screen work, never the buttons.
+ * `1fr 1fr` AND NOT `auto-fit`: each button's width is decided by the row and not by its own
+ * label, which is what lets the sketch say `Show my sketch` on a frame the reader has drawn on
+ * without the row resizing after hydration.
  */
 .panes {
   display: grid;
   gap: 0.5rem;
   grid-template-columns: 1fr 1fr;
-  /*
-   * More room below than above, because what is below is the reveal. The panes belong to
-   * the question they sit under; the reveal is the move away from it, and a button set
-   * hard against a row of other buttons reads as a fourth member of that row.
-   */
-  margin: 0.75rem 0 1.25rem;
+  margin: 0.5rem 0 0;
 }
 
 /*
- * ────────────────────────────────────────────────────────────────────────────────────────
- * THE TWO COLUMNS ARE FOR THE TWO BUTTONS, AND THEY STOP THE MOMENT ONE IS PRESSED.
- *
- * A pad or a canvas laid out in half a column is a 156 px canvas on a 360 px screen, and
- * the pad's own `1fr minmax(6rem, 14rem)` grid has more min-content than that track can
- * hold. It would not have shown up as a page that scrolls sideways — the absolute right
- * edge stays inside the viewport — so `narrow-screen.spec.ts`'s sweep would have called it
- * fine while a reader on a phone drew in a letterbox.
- *
- * The span alone was not enough: it widens the OPEN pane and leaves the shut one beside it
- * in a half-width column of its own, so `Draw it` sat at half the width of the pad above
- * it. One column while anything is open puts both at the same width, which is the only
- * arrangement in which they still read as a pair.
- *
- * `:has()` in the positive form, so a browser without it keeps two columns and the span
- * below still saves the open pane — the degradation is the old layout, never an overlap.
- * Opening a pane is a press, so the reflow is inside `hadRecentInput` and no shift bound
- * counts it.
- * ────────────────────────────────────────────────────────────────────────────────────────
+ * THE TWO COLUMNS ARE FOR THE TWO BUTTONS, AND THEY STOP THE MOMENT ONE IS PRESSED: a pad or
+ * a canvas in half a column is a letterbox on a phone. One column while anything is open puts
+ * both at the same width. `:has()` in the positive form, so a browser without it keeps two
+ * columns and the span below still saves the open pane.
  */
 .panes:has(details[open]) {
   grid-template-columns: 1fr;
@@ -215,148 +141,8 @@
   grid-column: 1 / -1;
 }
 
-/*
- * THE FOOT MOVED — ADR-0058. `.foot`, `.footLeft`, `.footRight`, `.navLink`, `.nextSection`
- * and `.position` all live in `reading-foot.module.css` now, because the frame, the
- * contents page and the summary each carried their own copy of the same row and ADR-0057
- * restyled exactly one of them. Its Consequences named the drift; one stylesheet is what
- * ends it. What stays here is what is the FRAME's and no other screen's: the reveal, the
- * answer box, the panes and the keyboard hint below.
- */
-
-/*
- * The keyboard hint, under the reveal.
- *
- * Quiet on purpose — it is read once and then not wanted in the way of the frame — but
- * present on every frame rather than on the first, because the reader who needs it is the
- * one who arrived at frame 30 through a deep link.
- */
-.keys {
-  color: var(--ink-faint);
-  /*
-   * A GRID WITH ONE CELL, holding one line per state (`.line` below). Every line sits in
-   * the same cell, so the tallest of them reserves the height once and switching from the
-   * reading line to a typing line moves nothing — the same reason the row uses
-   * `visibility` and not `display` in the first place.
-   */
-  display: grid;
-  font-size: 0.75rem;
-  letter-spacing: 0.02em;
-  margin: 0.625rem 0 0;
-  /*
-   * Hidden until the handler that makes it true is attached — frame-keys.tsx sets the flag
-   * when it binds and clears it when it unbinds, so the hint cannot outlive the shortcut.
-   *
-   * `visibility`, never `display`: the line keeps its space either way, so revealing it
-   * moves nothing on the page. Using `display` here would trade a lying hint for a layout
-   * shift, and specs/reading.spec.ts asserts against exactly that.
-   */
-  visibility: hidden;
-}
-
-:global([data-frame-keys='on']) .keys {
-  visibility: visible;
-}
-
-/*
- * NO KEYBOARD HINT WHERE THERE IS NO KEYBOARD. A phone showed `→ next frame · ← previous
- * frame · Ctrl+Enter commit and reveal` under every reveal — three keys the reader does not
- * have, in the way of the frame. `display` rather than `visibility` here, on purpose: the
- * query is decided at first paint, so removing the line moves nothing after it, and a
- * touch reader gets the space back. The full key map stays, inside `Reading settings`, for
- * the reader on a tablet with a keyboard attached (ADR-0058).
- */
-@media (hover: none) and (pointer: coarse) {
-  .keys {
-    display: none;
+@media print {
+  .page {
+    animation: none;
   }
-}
-
-/*
- * THE STATE DECIDES THE LINE. `frame-keys.tsx` mirrors the focused field's `data-typing`
- * onto `<html>`; no attribute is the reading state. A child's `visibility: visible` shows
- * through a hidden parent, which is why every rule here also requires the handler's own
- * flag — a line must not appear before the key it names is live.
- */
-.line {
-  grid-area: 1 / 1;
-  visibility: hidden;
-}
-
-:global([data-frame-keys='on']:not([data-typing])) .line[data-when='reading'],
-:global([data-frame-keys='on'][data-typing='answer-line']) .line[data-when='answer-line'],
-:global([data-frame-keys='on'][data-typing='working']) .line[data-when='working'],
-:global([data-frame-keys='on'][data-typing='jumper']) .line[data-when='jumper'] {
-  visibility: visible;
-}
-
-/*
- * ONE SEGMENT PER KEY, EACH GATED ON ITS OWN ISLAND.
- *
- * The line as a whole appears when `frame-keys.tsx` binds; each segment appears when the
- * thing it names does. `Ctrl+Enter` belongs to the answer line, which exists only on the
- * frames that ask for something, and `g` to the jumper — so a teaching frame's hint reads
- * "→ next frame · ← previous frame · g go to a frame number" and a cue frame's has the
- * fourth. A hint that promised a key the page has not got is worse than no hint: the
- * reader presses it, nothing happens, and they stop trying the others.
- *
- * `display: none` here rather than `visibility`, and the difference from the line above is
- * deliberate: the LINE must keep its space so revealing it shifts nothing, and a SEGMENT
- * inside it must take none so the separators close up.
- */
-.key {
-  display: none;
-}
-
-:global([data-answer-line='on']) .key[data-needs='answer-line'],
-:global([data-frame-jumper='on']) .key[data-needs='frame-jumper'],
-:global([data-frame-keys='on']) .key[data-needs='frame-keys'] {
-  display: inline;
-}
-
-/*
- * The chord's two spellings — see keys-details.module.css, which carries the same three
- * rules for the foot's list and the reasoning behind them.
- */
-.key [data-mod='meta'] {
-  display: none;
-}
-
-:global([data-modifier='meta']) .key [data-mod='meta'] {
-  display: inline;
-}
-
-:global([data-modifier='meta']) .key [data-mod='ctrl'] {
-  display: none;
-}
-
-/*
- * The frame's own exercise — issue #55.
- *
- * QUIET, AND DELIBERATELY NOT A SECOND `.reveal`. The reveal is the control the frame is
- * built around and it is the only filled button on the page; a second one beside it would
- * make a reader choose between two equal-looking things at the moment the frame is asking
- * them to commit to an answer. This is an aside — a rule and a line of text, in the key the
- * cue and the keyboard hint already use — which is what the offer is: something available,
- * not something being asked for.
- *
- * It renders as a <p> whether or not it is a link (see frame-view.tsx: on the composed
- * route, when the lab beside the frame is already the one the check names, there is nothing
- * to navigate to), so the block must look deliberate with no anchor in it at all.
- */
-.check {
-  border-top: 1px solid var(--rule);
-  color: var(--ink-faint);
-  font-size: 0.875rem;
-  margin: 2rem 0 0;
-  padding-top: 0.875rem;
-}
-
-.checkLink {
-  color: var(--accent);
-}
-
-.checkLink:hover,
-.checkLink:focus-visible {
-  text-decoration: underline;
 }

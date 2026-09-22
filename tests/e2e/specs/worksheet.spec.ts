@@ -166,6 +166,12 @@ async function paneReady(page: import('@playwright/test').Page): Promise<void> {
  * which cost three CI runs and a wrong diagnosis.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
+ * THE FLOOR IS THE PAGER'S TOP EDGE, NOT THE WINDOW'S. Since ADR-0063 the pager is pinned
+ * over the bottom of the window, and a stroke that reaches under it presses the pager instead
+ * of the pad. `scrollIntoViewIfNeeded` cannot see that — it asks whether the element is in
+ * the window, and a pad under an overlay is — so what is left of the pad under the bar is
+ * scrolled clear here, the way a reader would scroll it.
+ *
  * `reach` is the deepest point the caller's stroke touches, as an offset from the top of
  * the pad — the caller knows it and this cannot.
  */
@@ -176,15 +182,23 @@ async function sketchPad(
   const canvas = page.getByLabel(/draw your answer/i);
   await canvas.scrollIntoViewIfNeeded();
 
-  const box = await canvas.boundingBox();
-  expect(box, 'the pad has no box, so nothing below draws anything').toBeTruthy();
   const window = page.viewportSize();
   expect(window, 'a headless run always has a window; without one nothing below is measurable').toBeTruthy();
+  const pager = await page.locator('[data-pager="pinned"]').boundingBox();
+  const floor = pager ? pager.y : window!.height;
+
+  let box = await canvas.boundingBox();
+  expect(box, 'the pad has no box, so nothing below draws anything').toBeTruthy();
+  if (box!.y + reach > floor) {
+    const under = box!.y + reach - floor;
+    await page.evaluate((by) => document.scrollingElement?.scrollBy(0, by), Math.ceil(under) + 16);
+    box = await canvas.boundingBox();
+  }
 
   expect(
-    box!.y >= 0 && box!.y + reach <= window!.height,
-    `the pad is at ${box!.y.toFixed(0)}..${(box!.y + reach).toFixed(0)} in a ${window!.height}px window, ` +
-      'so `page.mouse` would press at a coordinate outside it and the stroke would land on nothing',
+    box!.y >= 0 && box!.y + reach <= floor,
+    `the pad is at ${box!.y.toFixed(0)}..${(box!.y + reach).toFixed(0)} above a floor at ${floor.toFixed(0)}px, ` +
+      'so `page.mouse` would press outside it and the stroke would land on nothing',
   ).toBe(true);
 
   return box!;
@@ -686,7 +700,7 @@ test.describe('the worksheet', () => {
       does not allow, so hydration failed and React regenerated the whole client tree on
       every frame page in the book. A component seeded from the server snapshot then gets
       the client one instead — invisible everywhere except here, where the seed was a
-      constant. `place-row.tsx` carries the finding; `hydration.spec.ts` is the guard.
+      constant. `hydration.spec.ts` carries the finding and is the guard.
 
       So this is a test about a background and it is really a test about hydration, which
       is why it is worth keeping even though the stylesheet could not care less.

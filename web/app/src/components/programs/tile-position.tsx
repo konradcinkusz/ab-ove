@@ -34,7 +34,7 @@ export interface TilePositionProps {
  * program, in the header, in the faintest type on the page. This says where they are in
  * every program they have opened, in the id's own register. It says nothing about how far
  * that is: no fraction, no bar, no count of frames read, because any of those is the
- * embellishment ADR-0009 §1 forbids and `[12] / 45` on the frame is the test of it.
+ * embellishment ADR-0009 §1 forbids and the frame's own `12 of 45` is the test of it.
  *
  * TEXT, NOT A LINK. `progress.spec.ts` holds the index to exactly one link back into the
  * stored frame, and that link is the resume control at the top of the page. A second one

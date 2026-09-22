@@ -1,0 +1,144 @@
+/*
+ * ONE FAMILY OF BUTTONS FOR THE READING SCREENS — ADR-0063.
+ *
+ * Before this file every module carried its own button: the reveal, the foot's outlined
+ * links, the pane openers, the run button and the sketch's controls had five radii between
+ * them (2, 3 and 4 px), two heights (38 and 44 px), a serif label on some and a sans label on
+ * others, and a border in `--rule` — about 1.3:1 against the paper — which is the reason the
+ * owner could look at a frame and report that it had no buttons. It had them; they did not
+ * look like anything.
+ *
+ * So there is one shape here and three weights of it, and the other modules `composes:` from
+ * this file rather than restating it:
+ *
+ *   `.primary`    filled — the move a screen is built around (`Next`, a program's entry,
+ *                 the summary's way on). One per screen, which is ADR-0057's rule kept.
+ *   `.secondary`  outlined in `--control-edge` (≥ 3:1, WCAG 1.4.11) — every other place to go
+ *                 and every tool the frame offers.
+ *   `.ghost`      no border until hovered — a readout that is also a control, like the
+ *                 pager's `3 of 45`, which opens the program map.
+ *
+ * Every one of them is a finger tall (`--control-min`, 44 px), sets its label in the UI face
+ * rather than the book's serif, shows a pointer, and wears the same two-colour focus ring —
+ * UI-UX.md's "focus is a ring, never a brightness".
+ */
+
+.button {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  gap: 0.5rem;
+  justify-content: center;
+  letter-spacing: 0;
+  line-height: 1.2;
+  margin: 0;
+  min-height: var(--control-min);
+  min-width: var(--control-min);
+  padding: 0.25rem 1rem;
+  text-align: center;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/*
+ * The ring is a box-shadow, which `reading.spec.ts` asserts on the reveal. The transparent
+ * outline is for Windows' forced colours, where box-shadows are not painted and an outline
+ * is drawn in the system's own colour instead: without it a keyboard reader in high contrast
+ * could not see which button they had reached.
+ */
+.button:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--accent);
+  outline: 2px solid transparent;
+}
+
+.primary {
+  composes: button;
+  background: var(--accent);
+  color: var(--paper-raised);
+}
+
+.primary:hover {
+  filter: brightness(1.08);
+}
+
+.primary:active {
+  filter: brightness(0.94);
+}
+
+.secondary {
+  composes: button;
+  background: var(--paper-raised);
+  border-color: var(--control-edge);
+  color: var(--ink);
+}
+
+.secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ghost {
+  composes: button;
+  background: transparent;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.ghost:hover {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+/* The pinned pager's own size: pressed on every frame, so a step larger than the rest. */
+.large {
+  font-size: 1rem;
+  min-height: var(--control-pager);
+  padding: 0.25rem 1.25rem;
+}
+
+/*
+ * An icon inside a labelled button. Never the whole label: the owner's complaint was a page
+ * whose controls did not say what they were, and an arrow alone says less than the word.
+ */
+.icon {
+  flex: none;
+  height: 1.125rem;
+  width: 1.125rem;
+}
+
+/* A label that may be long (a program's title) and must not push the button off a phone. */
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media print {
+  .button {
+    display: none;
+  }
+}
+
+/*
+ * Said to a screen reader and drawn for nobody — the standard clip idiom, which
+ * `narrow-screen.spec.ts`'s overflow sweep exempts by exactly this shape.
+ */
+.visuallyHidden {
+  clip-path: inset(50%);
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}

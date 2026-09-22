@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
+import { isPopoverOpen } from './popover.ts';
+
 export interface SummaryKeysProps {
   /** Back to the program's last frame. */
   readonly back: string;
@@ -20,10 +22,9 @@ export interface SummaryKeysProps {
  * destinations and both are already known when the page renders, so threading them through
  * the same arithmetic would be a branch bent to fit a shape it was not for.
  *
- * `data-frame-keys='on'` is the SAME flag `frame-keys.tsx` sets, on purpose: the foot's
- * keys hint is gated on it regardless of which of the two components put it there, so a
- * reader sees one consistent promise ("the arrows work") rather than two components each
- * making their own.
+ * `data-frame-keys='on'` is the SAME flag `frame-keys.tsx` sets, on purpose: it says "the
+ * arrows are live" whichever of the two components put it there, and the acceptance suite
+ * waits on that one flag before it presses a key on either screen (`specs/reading.spec.ts`).
  */
 export function SummaryKeys({ back, forward }: SummaryKeysProps): null {
   const router = useRouter();
@@ -34,6 +35,8 @@ export function SummaryKeys({ back, forward }: SummaryKeysProps): null {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.defaultPrevented) return;
       if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      // The reading settings are a panel on this screen too; with it open, its keys (ADR-0063).
+      if (isPopoverOpen()) return;
 
       const target = event.target as HTMLElement | null;
       if (target?.isContentEditable) return;

@@ -1,0 +1,149 @@
+/*
+ * The bar above every reading screen — reading-top.tsx says what is in it and why.
+ *
+ * WIDER THAN THE TEXT, like the index's own header (62rem): it is the application's chrome
+ * rather than part of the frame, and a bar as narrow as the measure would read as the first
+ * line of the page. In flow and never pinned — only the pager is (ADR-0063), so a phone keeps
+ * the whole of its height for the frame once the reader scrolls.
+ *
+ * Every control on it is a finger tall (UI-UX.md): the two links by a line of 1.25rem and
+ * 0.75rem above and below it — 44px, the same `--control-min` the settings button is held to,
+ * and a title that wraps grows by its lines rather than losing any. Set in the UI face throughout — it used to inherit the
+ * book's serif, which is half of why the old row read as a line of faint prose.
+ */
+.top {
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  line-height: 1.3;
+}
+
+.inner {
+  align-items: center;
+  box-sizing: border-box;
+  display: grid;
+  gap: 0 1rem;
+  grid-template-areas: 'mark program tools';
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  margin: 0 auto;
+  max-width: 62rem;
+  padding: 0.25rem 1.25rem;
+}
+
+.mark {
+  color: var(--ink);
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  grid-area: mark;
+  letter-spacing: 0.06em;
+  line-height: 1.25rem;
+  padding: 0.75rem 0;
+  text-decoration: none;
+}
+
+.hyphen {
+  color: var(--ink-faint);
+}
+
+.mark:hover,
+.mark:focus-visible {
+  color: var(--accent);
+}
+
+.program {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  grid-area: program;
+  min-width: 0;
+}
+
+.id {
+  color: var(--ink-faint);
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+}
+
+/* Wraps rather than truncating: a title can carry maths, and a clipped formula is worse than
+   a second line. */
+.title {
+  color: var(--ink-soft);
+  display: inline-block;
+  line-height: 1.25rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 0.75rem 0;
+  text-decoration: none;
+}
+
+a.title:hover,
+a.title:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.tools {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  grid-area: tools;
+}
+
+.settings {
+  padding: 0.25rem 0.625rem;
+}
+
+/* The mark, and every focusable thing on the bar, wears the controls' ring. */
+.mark:focus-visible,
+a.title:focus-visible {
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--accent);
+  outline: 2px solid transparent;
+}
+
+/*
+ * ════════════════════════════════════════════════════════════════════════════════════════
+ * NARROW SCREENS, LAST IN THE FILE — a media query adds no specificity, so rules written
+ * above it would lose every tie (reading-foot.module.css records the finding).
+ * ════════════════════════════════════════════════════════════════════════════════════════
+ */
+
+/* The settings button keeps its name for a screen reader and gives up its word to the width. */
+@media (max-width: 40rem) {
+  .settingsLabel {
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+  }
+}
+
+/*
+ * Two rows on a phone: home and the tools, then which program. The title keeps its finger's
+ * height there too — the bar scrolls away with the page, so the height costs nothing once the
+ * reader is reading, and a link a thumb misses is a cost every time.
+ */
+@media (max-width: 30rem) {
+  .inner {
+    grid-template-areas:
+      'mark tools'
+      'program program';
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 0 1rem 0.25rem;
+  }
+}
+
+@media print {
+  .tools {
+    display: none;
+  }
+}

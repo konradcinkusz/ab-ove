@@ -84,10 +84,11 @@ kolejnego kroku.
 
 Patrzysz na indeks programów. Wybierz **F01 — Numbers, powers and roots** i czytaj do ramki 3.
 
-![Ramka programu F01, prosząca czytelnika o zapisanie rozwinięcia dziesiętnego jednej trzeciej, z kropkowaną linią odpowiedzi pod spodem i przyciskiem "Reveal the answer".](../assets/screenshots/frame-asks-english.png)
+![Ramka programu F01, prosząca czytelnika o zapisanie rozwinięcia dziesiętnego jednej trzeciej, z podpisaną linią odpowiedzi pod spodem i przyciskami "Previous" i "Next" na dole ekranu.](../assets/screenshots/frame-asks-english.png)
 
 Ramka 3 mówi ci, czym jest liczba wymierna, a potem prosi o zapisanie rozwinięcia dziesiętnego
-⅓. Pod pytaniem jest kropkowana linia z napisem *write it down before you read on*.
+⅓. Pod pytaniem jest linia podpisana *Your answer*, z napisem *write it down before you read
+on*.
 
 Teraz zrób to, co zrobiłbyś z każdą inną stroną: otwórz inspektor przeglądarki i poszukaj w
 dokumencie odpowiedzi.
@@ -97,7 +98,7 @@ prefetchu. Nie ma czego znaleźć, bo odpowiedź na ramkę, na której stoisz, r
 *kolejną* ramkę i nic wcześniej. Odsłonięcie jest nawigacją, a nie przełącznikiem
 ([ADR-0014](../adr/0014-the-content-schema-is-json-schema-and-knows-nothing-about-frames.md)).
 
-Naciśnij <kbd>→</kbd> albo kliknij **Reveal the answer**.
+Kliknij **Next** na dole ekranu albo naciśnij <kbd>→</kbd>.
 
 ![Kolejna ramka, która otwiera się napisem "0.333…, repeating without end".](../assets/screenshots/frame-reveals-english.png)
 
@@ -124,8 +125,9 @@ Wypróbuj resztę, gdy backend jest wyłączony:
   ([ADR-0042](../adr/0042-the-evaluator-is-a-calculator-not-a-cas.md)).
 - Otwórz `Sketch` — płótno, które przyjmuje pociągnięcia i nigdy nie otwiera się samo
   ([ADR-0043](../adr/0043-a-sketch-is-strokes-and-the-pane-never-opens-itself.md)).
-- Przełącz edycję w wierszu miejsca. Ta sama ramka, po polsku, z zachowanym numerem ramki.
-- Naciśnij <kbd>g</kbd> i wpisz numer ramki.
+- Przełącz edycję w pasku u góry. Ta sama ramka, po polsku, z zachowanym numerem ramki.
+- Kliknij pozycję między **Previous** a **Next** — `3 of 45` — i wpisz numer ramki, albo
+  naciśnij <kbd>g</kbd>.
 
 ## Co zobaczyłeś
 
@@ -134,7 +136,7 @@ Wypróbuj resztę, gdy backend jest wyłączony:
 | Odpowiedzi nie ma, zamiast być ukrytą | Krok 4, w inspektorze |
 | Pętla czytelnika nie potrzebuje konta ani backendu | Krok 5, przy wszystkim wyłączonym |
 | Książka jest treścią, nie źródłem, i jest przypięta | Krok 2, skrót na każdy plik |
-| Edycja jest wyborem czytelnika, nigdy zgadywanym | Krok 5, wiersz miejsca |
+| Edycja jest wyborem czytelnika, nigdy zgadywanym | Krok 5, pasek u góry |
 
 ## Dokąd dalej
 

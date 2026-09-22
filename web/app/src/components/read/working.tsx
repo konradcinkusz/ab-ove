@@ -6,6 +6,7 @@ import { runSheet, type LineResult } from '@/lib/sheet/evaluate';
 import { upsertHere, useSheet } from '@/lib/sheet/client';
 import { WORKING_LIMIT } from '@/lib/sheet/store';
 
+import { Calculator } from './icons.tsx';
 import styles from './worksheet.module.css';
 
 export interface WorkingProps {
@@ -155,7 +156,10 @@ export function Working({
           `data-has-sketch="no"` on a pad that has no sketch to have.
         */}
         <span className={styles.paneLabels}>
-          <span className={styles.paneLabel}>{summary}</span>
+          <span className={styles.paneLabel}>
+            <Calculator className={styles.paneIcon} />
+            {summary}
+          </span>
         </span>
       </summary>
 
@@ -164,7 +168,6 @@ export function Working({
           <textarea
             aria-label={label}
             className={styles.workingField}
-            data-typing="working"
             maxLength={WORKING_LIMIT}
             onBlur={() => commit(text)}
             onChange={(event) => setText(event.target.value)}

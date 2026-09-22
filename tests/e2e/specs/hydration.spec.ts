@@ -151,7 +151,7 @@ test.describe('hydration', () => {
     });
   }
 
-  test('the place row holds the language switch rather than being closed by it @smoke', async ({
+  test('the top bar holds the language switch rather than being closed by it @smoke', async ({
     page,
   }) => {
     /*
@@ -159,17 +159,19 @@ test.describe('hydration', () => {
       day somebody reaches for `<p>` again because it reads like prose, the failure names
       the element rather than naming React.
 
-      `toBeTruthy` on the closest match: the switch must still be INSIDE the row in the
-      browser's own DOM. Under the old markup it was a sibling, which is what the parser
-      did with it and is exactly what React objected to.
+      The switch must be INSIDE the bar in the browser's own DOM, and not inside a
+      paragraph. Under the place row's old markup it was a sibling, which is what the parser
+      did with it and is exactly what React objected to; the bar that holds it now
+      (`reading-top.tsx`, ADR-0063) is a `<header>`. Found by what makes it the switch — a
+      `<nav>` offering the other edition — since the pager is a `<nav>` too.
     */
     await page.goto(`/read/${track}/F01/en/${CUE}`);
 
     const inside = await page.evaluate(() => {
-      const nav = document.querySelector('nav');
+      const nav = document.querySelector('nav:has(a[lang="pl"])');
       if (!nav) return 'no switch on the page at all';
-      const row = nav.closest('p');
-      return row ? 'the switch is inside a <p>, which the parser will not allow' : 'ok';
+      if (nav.closest('p')) return 'the switch is inside a <p>, which the parser will not allow';
+      return nav.closest('header') ? 'ok' : 'the switch is not in the top bar';
     });
 
     expect(inside).toBe('ok');

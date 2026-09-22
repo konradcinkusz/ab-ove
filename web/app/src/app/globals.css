@@ -49,7 +49,7 @@
 :root {
   --ink: #12151b;
   --ink-soft: #464f5d;
-  --ink-faint: #6b7583;
+  --ink-faint: #646d7a;
   --paper: #fbfaf8;
   --paper-raised: #ffffff;
   --rule: #e2ddd5;
@@ -59,7 +59,28 @@
   --live-soft: #e6f2ea;
   --degraded: #8a5a12;
   --degraded-soft: #faf0dc;
+  /*
+   * ADR-0063. `--ink-faint` above is the faintest ink a reader is asked to READ, so it holds
+   * WCAG 1.4.3's 4.5:1 on every surface it sits on — the paper, a raised panel and the
+   * answer box's `--accent-soft` (it was 4.48:1 and 4.07:1). `--control-edge` is the boundary
+   * of something to PRESS, held to 1.4.11's 3:1, which `--rule` (about 1.3:1) never was:
+   * `--rule` stays for lines that only separate. `lib/theme/tokens.test.ts` computes the
+   * ratios in both schemes.
+   */
+  --control-edge: #948f87;
   --measure: 34rem;
+
+  /*
+   * The controls' own sizes — ADR-0063. 44 px is the smallest target a finger hits reliably
+   * (UI-UX.md); the pinned pager's two buttons are a step larger because they are pressed on
+   * every frame. `--pager-clearance` is what the page reserves for the pager, so the
+   * scroll-padding that keeps a focused field above it and the sync notice lifted over it
+   * both read one number.
+   */
+  --radius-control: 8px;
+  --control-min: 2.75rem;
+  --control-pager: 3rem;
+  --pager-clearance: 4.5rem;
 
   --font-text: ui-serif, Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino,
     'Times New Roman', serif;
@@ -86,7 +107,7 @@
   :root:not([data-theme='light']) {
     --ink: #e8e6e1;
     --ink-soft: #b3b0a9;
-    --ink-faint: #8a8781;
+    --ink-faint: #918e87;
     --paper: #14161a;
     --paper-raised: #1b1e24;
     --rule: #2c3038;
@@ -96,6 +117,7 @@
     --live-soft: #16281f;
     --degraded: #d9ab5e;
     --degraded-soft: #2a2317;
+    --control-edge: #666b74;
 
     color-scheme: dark;
   }
@@ -105,7 +127,7 @@
 :root[data-theme='dark'] {
   --ink: #e8e6e1;
   --ink-soft: #b3b0a9;
-  --ink-faint: #8a8781;
+  --ink-faint: #918e87;
   --paper: #14161a;
   --paper-raised: #1b1e24;
   --rule: #2c3038;
@@ -115,6 +137,7 @@
   --live-soft: #16281f;
   --degraded: #d9ab5e;
   --degraded-soft: #2a2317;
+  --control-edge: #666b74;
 
   color-scheme: dark;
 }

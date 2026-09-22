@@ -1,0 +1,113 @@
+/*
+ * THE READING SCREENS' TWO PANELS — the program map and the reading settings (ADR-0063).
+ *
+ * Both are popovers: in the browser's top layer while open, `display: none` while shut, and
+ * closed by Esc, by a click anywhere else and by their own ✕. The UA stylesheet centres a
+ * popover in the viewport; these rules put each one where its door is — the map just above
+ * the pager that opens it, the settings just below the top bar — so a panel appears next to
+ * the control that asked for it rather than in the middle of the text.
+ *
+ * `position: fixed` is already the UA's for a popover; it is restated so the offsets below
+ * read as what they are. The top layer means nothing on the page can cover one, and a popover
+ * is never inside a `<details>`, so `narrow-screen.spec.ts`'s worksheet rule is untouched.
+ *
+ * NO SCRIM. Neither panel is modal — the reader can close it by clicking the page — and a
+ * dimmed page would say "you must answer this first", which is not true of either.
+ */
+.sheet {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  box-sizing: border-box;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  margin: 0 auto;
+  max-height: min(70svh, 36rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0;
+  position: fixed;
+  width: min(calc(var(--measure) + 2.5rem), calc(100% - 1rem));
+}
+
+/* Above the pager, which is where its door is. */
+.bottom {
+  bottom: calc(var(--pager-clearance) + 0.5rem);
+  inset-inline: 0;
+  top: auto;
+}
+
+/* Below the top bar, where its door is. */
+.top {
+  bottom: auto;
+  inset-inline: 0;
+  top: 4rem;
+}
+
+.head {
+  align-items: center;
+  background: var(--paper-raised);
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.25rem 0.5rem 0.25rem 1rem;
+  position: sticky;
+  top: 0;
+}
+
+.title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin: 0;
+  min-width: 0;
+}
+
+.close {
+  flex: none;
+  padding: 0.25rem;
+}
+
+.body {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1rem;
+}
+
+.group {
+  min-width: 0;
+}
+
+.groupHeading {
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+}
+
+/*
+ * A browser without the Popover API ignores the attribute, so the panels are ordinary blocks
+ * at the end of the page (reading-screen.tsx puts them there) and their doors do nothing.
+ * The doors go; the panels stay, readable, in flow — the degradation P8 asks for.
+ */
+@supports not selector(:popover-open) {
+  .sheet {
+    margin: 1rem auto;
+    max-height: none;
+    position: static;
+  }
+
+  :global([popovertarget]) {
+    display: none;
+  }
+}
+
+@media print {
+  .sheet {
+    display: none;
+  }
+}

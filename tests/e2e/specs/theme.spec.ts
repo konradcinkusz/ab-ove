@@ -35,7 +35,17 @@ import { track, unitNamed } from './support/bundle.ts';
  * a suite that passes while testing nothing.
  */
 
-const FRAME = `/read/${track}/${unitNamed('P01').id}/en/1`;
+/*
+  F01, THE PROGRAM EVERY READER MAY OPEN. This was P01's first frame, and a reader with no
+  record is not let into P01 — the gate returns them to the index once the page hydrates
+  (ADR-0051) — so every test here that pressed something on "the frame" was racing that
+  redirect, and passed only while its press landed first. ADR-0063's settings button is one
+  press further in, and the race became a timeout: the button was detached mid-click. The
+  claims below are about a frame, not about P01, so they are made on a frame the reader can
+  stay on.
+*/
+const FRAME_UNIT = unitNamed('F01').id;
+const FRAME = `/read/${track}/${FRAME_UNIT}/en/1`;
 
 /** What the page is actually painted in, which is the only thing a reader can see. */
 const paper = (page: Page): Promise<string> =>
@@ -54,17 +64,20 @@ const live = (page: Page): Promise<string | null> =>
  * ADR-0048's reasoning is untouched: the answer to "how do I turn on light mode" is still
  * this page rather than the operating system, and still one press from where the reader
  * already is. What changed is that a setting nobody touches twice a season stopped sharing
- * a row with the control they press on every frame. So the switch is one disclosure down,
- * and this suite opens it — the alternative, rendering that panel open, would have put the
- * whole key map under every frame to save six lines here.
+ * a row with the control they press on every frame. So the switch is one press down, and
+ * this suite makes it: since ADR-0063 the panel is a popover opened by the *Reading settings*
+ * button in the top bar, rather than a disclosure at the foot of the page.
  *
  * The index has no such panel (`program-grid.tsx` keeps the switch in its chrome row), so
- * this is a no-op there and the landing-page assertions below are unchanged.
+ * this is a no-op there and the landing-page assertions below are unchanged. A panel that is
+ * already open is left open — a press inside a popover does not close it.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 const reachTheme = async (page: Page): Promise<void> => {
   const settings = page.getByTestId('reading-settings');
-  if ((await settings.count()) > 0) await settings.locator('summary').click();
+  if ((await settings.count()) === 0 || (await settings.isVisible())) return;
+  await page.getByTestId('reading-settings-button').click();
+  await expect(settings, 'the Reading settings button did not open the panel').toBeVisible();
 };
 
 const press = async (page: Page, name: string) => {
@@ -207,7 +220,7 @@ test.describe('the theme', () => {
     // ADR-0016 — the reading controls follow the reader's edition. A control that appeared
     // in English on a Polish frame would be this application's vocabulary leaking into the
     // book's.
-    await page.goto(`/read/${track}/${unitNamed('P01').id}/pl/1`);
+    await page.goto(`/read/${track}/${FRAME_UNIT}/pl/1`);
     await reachTheme(page);
 
     const polish = page.getByRole('group', { name: 'Tryb' });
