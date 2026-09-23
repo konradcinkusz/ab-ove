@@ -168,6 +168,19 @@
   .youWrote {
     visibility: visible;
   }
+
+  /*
+   * NO CONTROL OF THE WORKSHEET PRINTS EITHER. The pad's `Do the sums` and the sketch's own
+   * buttons carry their own styles rather than the shared family's (`controls.module.css`,
+   * which hides every button on paper), and printed until `reading.spec.ts` looked. A CLOSED
+   * pane goes whole: its content is hidden with it, so all that reached the paper was
+   * `Draw it` in an outline. An open pane prints — its label heads the working under it.
+   */
+  .runButton,
+  .sketchButton,
+  .pane:not([open]) {
+    display: none;
+  }
 }
 
 /*
@@ -461,7 +474,7 @@
  * NOT A SECOND `.reveal`. The reveal is the one filled control on the page and the frame is
  * built around it; a second filled button beside it would make the reader choose between
  * two equal-looking things at the moment they are being asked to commit. This is an
- * outlined control in the foot's own key.
+ * outlined control, the weight the pager's `Previous` has.
  */
 .runButton {
   background: var(--paper-raised);
