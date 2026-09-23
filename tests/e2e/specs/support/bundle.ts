@@ -60,11 +60,24 @@ export interface ServedStep {
   readonly check?: { readonly lab: string; readonly exercise: string };
 }
 
+/**
+ * One entry of a program's return index — the book's own Summary items (`summary`), its
+ * *Can you?* outcomes (`outcome`) and its quizzes — each over a range of frames. The summary
+ * screen prints the first two kinds and nothing else (`program-summary.tsx`).
+ */
+export interface ServedRoute {
+  readonly kind: string;
+  readonly from: number;
+  readonly to: number;
+  readonly labels?: Record<string, string>;
+}
+
 export interface ServedUnit {
   readonly id: string;
   readonly titles: Record<string, string>;
   readonly sections: readonly ServedSection[];
   readonly steps: readonly ServedStep[];
+  readonly routes?: readonly ServedRoute[];
 }
 
 export interface ServedTrack {

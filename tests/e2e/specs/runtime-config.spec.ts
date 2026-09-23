@@ -207,3 +207,22 @@ test.describe('runtime configuration', () => {
     expect(offOrigin, `the page fetched from another origin:\n${offOrigin.join('\n')}`).toEqual([]);
   });
 });
+
+/**
+ * THE HEALTH CHECK THE PLATFORM POLLS.
+ *
+ * `flyio/web.fly.toml` points its HTTP check at `/healthz`, and Fly's checker does not follow
+ * redirects. The middleware once answered it with the 307 to `/login` it gives every path it
+ * does not know is public, and every web deploy failed on it — caught by running the finished
+ * image, because the route rendered and only the check saw the redirect (`middleware.ts`).
+ * Nothing held it since: this is the check's own request, made the check's own way.
+ */
+test.describe('the health check the platform polls', () => {
+  test('answers 200 to a caller with no session, and never from a cache @smoke', async ({ request }) => {
+    const response = await request.get('/healthz', { maxRedirects: 0 });
+    expect(response.status(), '/healthz redirected or failed for a caller with no session').toBe(200);
+    // A cached health check reports the state of whichever machine answered first.
+    expect(response.headers()['cache-control'] ?? '').toContain('no-store');
+    expect(await response.json()).toMatchObject({ status: 'healthy', service: 'ab-ovo-web' });
+  });
+});

@@ -38,10 +38,55 @@ because this heading said *three* over a table of four from this file's first co
 
 ## What this suite covers
 
-One file in `specs/` per journey, over two layers. How many tests that is, in total or per
-layer, is deliberately not written here: `playwright test --list` answers it in a second and
-is never stale. This file already took that decision for the counts in its *Running it*
-section, and the ones it left standing here had gone the same way.
+One file in `specs/` per journey, over two layers — `@smoke` and `@core` — with the signed-in
+journeys in the `identity` project and the documentation's pictures in `screenshots`. How many
+tests that is, in total or per layer, is deliberately not written here: `playwright test
+--list` answers it in a second and is never stale. This file already took that decision for
+the counts in its *Running it* section, and the ones it left standing here had gone the same
+way.
+
+### Every file, and the journey it holds
+
+Each spec's own header carries its reasoning — which defect it exists for, and what it
+deliberately does not assert — and that is where a reader of the spec will look. This table is
+the index to them; the numbered sections after it go deeper into the six journeys this file
+was first written with.
+
+| File | The journey |
+|---|---|
+| `about.spec.ts` | the argument renders, and states the anti-goal: the instrument measures the book, never the reader |
+| `accessibility.spec.ts` | every screen holds WCAG 2.2 A and AA as far as axe-core can decide — both schemes, each panel open, 360 px, and the forms behind an account |
+| `account-deletion.spec.ts` | closing an account, and everything about it that needs no account |
+| `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
+| `consent.spec.ts` | being asked once whether outcomes may be counted, and being left alone |
+| `courses.spec.ts` | the courses, and the index narrowed to one of them |
+| `frame-view.spec.ts` | the answer is absent before the reveal, asserted in both directions and both editions |
+| `gate.spec.ts` | the book is entered at the beginning: a program opens when the one before it has |
+| `hydration.spec.ts` | every page hydrates — the one defect that leaves no trace on screen |
+| `instrument-view.spec.ts` | the author's view, and the promise it must not break |
+| `instrument.spec.ts` | the instrument, which a reader is entitled never to notice |
+| `integration-report.spec.ts` | the integration report, P8 seen from a browser |
+| `lab-p01.spec.ts` | the Lab P1 pane, Python in the browser |
+| `landing.spec.ts` | the landing page is the programs, one click from one of them |
+| `language-choice.spec.ts` | the same frame in the other edition, and the choice remembered |
+| `narrow-screen.spec.ts` | the reading surface at 360 px: nothing scrolls sideways, and the loop still runs |
+| `navigation.spec.ts` | finding a program, opening it, and coming back to the same frame |
+| `no-backend.spec.ts` | the app with no backend in reach of the browser |
+| `pager.spec.ts` | `Previous` and `Next` on screen and clickable on every frame, desktop and phone, with and without JavaScript (ADR-0063) |
+| `program-ends.spec.ts` | the summary's return index and its way on, and the contents page's way back |
+| `progress.spec.ts` | coming back to where one was, with no account |
+| `reader-identity.spec.ts` | an anonymous reader's place is held in a cookie the page cannot read, and no header can claim it (ADR-0061) |
+| `reading.spec.ts` | reading a program end to end from the keyboard, the frame's ergonomics, and the frame on paper |
+| `registration.spec.ts` | a reader with no account gets one |
+| `runtime-config.spec.ts` | `/api/config` resolved at request time, and the `/healthz` check the platform polls |
+| `runtime-cost.spec.ts` | what the Python runtime costs in this browser, cold and warm |
+| `screenshots.spec.ts` | the pictures `docs/SCREENSHOTS.md` shows, captured from the real application — not a gate |
+| `second-factor.spec.ts` | signing in to an account that has a second factor |
+| `sign-in-identity.spec.ts` | the signed-in path, against an identity service this suite starts itself |
+| `sign-in.spec.ts` | the sign-in screen, and everything about it that needs no account |
+| `sync.spec.ts` | the same reader on a second machine |
+| `theme.spec.ts` | a reader turns on light mode, and it stays on |
+| `worksheet.spec.ts` | committing an answer before turning over, which is the method the book is |
 
 ### 1. The product's argument, and its anti-goal — `specs/about.spec.ts`
 
@@ -341,20 +386,23 @@ checking.
 - **A second lab.** `specs/lab-p01.spec.ts` drives P1 because P1 is the only lab the book
   has. The suite's fixtures read `web/content/book/lab/{exercises,solutions}/p01_floating_point.py`
   by name; a second lab is a second spec and a parameter, not a rewrite.
-- **The frame view and the content schema — Phase 2, not built.** 47 programs, two languages,
-  one structure. The *reading* half of the reader loop — read a frame, commit an answer,
-  reveal the next — is therefore **untested**, because there is no frame view to drive. The
-  *working* half is now covered by journey 5. This is the single largest gap in the suite and
-  it is a gap in the product, not in the tests.
-  `specs/about.spec.ts` asserts `/about` still names it among the phases, which is the
-  cheapest available signal that this section has gone stale.
-- **Progress and accounts — Phase 3, not built.** No sign-in, no registration, no session.
-  Consequently there is **no `storageState`** in this suite. `E2E-ACCEPTANCE-TESTING.md §3`
-  requires tests that do not exercise login to start from a saved authenticated state rather
-  than driving the login form; that rule has nothing to bite on until an authenticated flow
-  exists, and setting up a `storageState` for a session no test needs would be config nobody
-  runs. `web/app/src/app/login/page.tsx` exists but is not on any journey.
-- **The instrument — Phase 4, not built.**
+- **Signed-in state is not saved and reused.** `E2E-ACCEPTANCE-TESTING.md §3` asks that a test
+  which does not exercise sign-in start from a saved authenticated state; there is no
+  `storageState` here, and every signed-in spec signs in through the form
+  (`specs/support/sign-in.ts`). It costs a sign-in per test in the `identity` project, and it
+  is what that section's rule exists to prevent.
+- **The API failing underneath a page that is being rendered.** A reading page whose
+  `AbOvo.Api` call fails on the server throws to `app/error.tsx`; every spec shares one live
+  API, so no test can take it away from one page. `specs/no-backend.spec.ts` covers the
+  browser-side failure — the API out of the browser's reach — and not this one.
+- **A browser without the Popover API.** The reading screens' two panels fall back to blocks in
+  the page's flow (`components/read/sheet.module.css`), and the one browser here has the API.
+- **What a machine cannot decide about accessibility.** `specs/accessibility.spec.ts` covers the
+  rules axe-core can decide from the DOM. Whether a name is a good one, whether the focus order
+  makes sense and how a screen reader reads the maths are asserted only where a spec asserts
+  them (`reading.spec.ts`, `pager.spec.ts`), and otherwise by a person.
+- **The MCP transport.** `web/mcp` serves the book to an MCP host; its tests are unit tests in
+  that package, run by CI's `pnpm test`, and nothing drives it end to end.
 - **The API's own behaviour.** `/api/v1/info`, `/health`, `/alive`, JWT validation, the
   candidate ladder, the bearer injection. Those are `tests/AbOvo.Api.Tests`'s job.
   `TESTING-STRATEGY.md §1` names "duplicate backend integration tests through a browser" as a
@@ -374,9 +422,12 @@ checking.
 - **Mutation testing, as a tool.** `E2E-ACCEPTANCE-TESTING.md §2` asks for Stryker to be run
   at least once after an assertion-discipline pass, as the actual proof the assertions catch
   broken code. **Stryker has not been run against this suite** and is outstanding. What has
-  been done is the same argument by hand, for journey 5 only: every test in that file was
-  watched failing against a pane deliberately broken in one specific way, and the table is in
-  that journey's section above. Journeys 1 to 4 have had no such pass.
+  been done is the same argument by hand, in places: every test in `lab-p01.spec.ts` was
+  watched failing against a pane deliberately broken in one specific way (the table is in
+  that journey's section above); the reader-identity and health-check tests were each watched
+  failing against a build with the one protection they hold taken out; the accessibility spec
+  carries its own control; and the print test failed against the stylesheet it then fixed.
+  Most other journeys have had no such pass.
 
 ---
 
@@ -528,14 +579,15 @@ pointed at it, so the signed-in half of the product is gated rather than measure
 A gate that only ran after merge would report on a commit you can no longer decline, which
 is why it is on the pull request too.
 
-The fixture knows three accounts, in `fixtures/accounts.mts`, and each exists for a
-property rather than for a scenario:
+The fixture's accounts are in `fixtures/accounts.mts`, and each exists for a property rather
+than for a scenario:
 
 | account | what it is for |
 |---|---|
 | `READER` | one role, so the token carries the role claim as a **bare string** |
 | `AUTHOR` | two roles, so it carries an **array** — the shape a naive consumer gets wrong |
 | `TWO_FACTOR` | a correct password answers with a **challenge** rather than tokens (ADR-0029) |
+| `ADMIN` | the `Admin` role ADR-0060's ingestion endpoint requires; `fixtures/ingest-content.mts` signs in as it, and no spec does |
 
 None of them is a credential: no deployment of ab-ovo has ever accepted them, and they are
 in the tree rather than in the environment because a test's inputs must not depend on a
@@ -657,17 +709,20 @@ have nothing to hide. Every assertion and every wait is in a spec file, in plain
 Decided explicitly rather than assumed, because generated-per-test data buys independence and
 deletes nothing.
 
-**This suite creates no server-side state at all.** Every test navigates, intercepts its own
-page's requests, and asserts; none signs up, signs in, writes a record or uploads a file.
-There is therefore nothing to tear down, and no orphan data can accumulate against a
-persistent environment however often it runs. `fullyParallel` is safe by construction:
+**The state this suite writes belongs to nobody else, and that is what keeps it parallel.**
 Playwright gives each test its own browser context, and `page.route` handlers are scoped to
-that context, so two tests interfering is not possible rather than merely unlikely.
+that context. A reading spec that goes past frame 1 first raises its reader's cursor through
+the real `advance` endpoint (`specs/support/walk.ts`, ADR-0060), which writes a
+`ReaderProgress` row — for a reader id the app minted for that one context and nobody else
+holds (ADR-0061, asserted by `specs/reader-identity.spec.ts`). So two tests cannot see each
+other's rows, none depends on a row existing, and nothing needs tearing down; the rows
+accumulate in whatever database the suite runs against, which in CI is a Postgres container
+thrown away with the job. Against a persistent environment they are orphans, one per context
+per run, and that is the price of reading through the real gate.
 
-This stops being true the moment a journey signs in. When Phase 3 lands, that test needs both
-a generated identity (`test.user.{uuid}@example.com`) **and** a teardown that deletes it —
-unless the environment it runs against is mechanically guaranteed to be thrown away, which
-the shared dev estate is not.
+**Registration writes too, into the identity fixture's memory** (`specs/registration.spec.ts`):
+each test registers a generated address, the fixture forgets it when its process exits, and
+no account is shared between tests.
 
 **And one file now does create server-side state, so the paragraph above has an exception
 rather than a slow drift into being false.** `specs/bearer-hop.spec.ts` writes progress rows
@@ -683,9 +738,10 @@ both taken deliberately:
   only teardown available is "forget everything for this subject". CI already runs one worker;
   the serial mode is what makes a local run deterministic as well.
 
-Generating an identity per test is the right answer and is not available: the identity
-service here is a fixture with three accounts compiled into it (`fixtures/accounts.mts`), and
-inventing a registration endpoint for it would be a fixture proving something about itself.
+Generating an identity per test would be the right answer for these as well, and they keep
+the fixture's own accounts (`fixtures/accounts.mts`) instead: the accounts exist for the claim
+shapes a token carries — one role or several, a second factor — and a registered account has
+no role at all, so it could not stand in for the shape a test is about.
 
 ---
 
@@ -715,7 +771,9 @@ exposes.
    `data-testid` **to the component, in the same change**, kebab-case as
    `<feature>-<element>-<role>`.
 5. It waits for conditions, never for a duration.
-6. It creates no server-side state — or it cleans up what it creates.
+6. It creates no server-side state another test could see — or it cleans up what it creates.
+   The cursor row a reading spec writes for its own fresh reader is the one standing exception,
+   and *Independence and cleanup* says why it is safe.
 7. `pnpm run typecheck` passes.
 
 ---
@@ -727,21 +785,25 @@ tests/e2e/
   package.json                      scripts; every one is run by a CI context
   playwright.config.ts              base URL, layers, harness defaults, webServer
   tsconfig.json                     strict; `pnpm run typecheck` is a real gate
+  fixtures/                         the identity service stub, its accounts, the content ingest
   specs/
-    about.spec.ts                   journey 1 — the argument and its anti-goal
-    landing.spec.ts                 journey 1b — the index, its tiles and the language control
-    runtime-config.spec.ts          journey 2 — GET /api/config, resolved at request time
-    integration-report.spec.ts      journey 3 — P8, seen from a browser
-    no-backend.spec.ts              journey 4 — the reader loop's premise
-    lab-p01.spec.ts                 journey 5 — the Lab P1 pane, Pyodide in the browser
+    *.spec.ts                       one journey each — the table under *What this suite covers*
     support/
-      service-info.ts               the API's payload shape and the route handlers
-      page-errors.ts                uncaught-exception collector
-      lab.ts                        the pinned book's exercise file, solutions and splices
       bundle.ts                     the served bundle, and the needles the reading specs assert
-      reveal.ts                     the reveal's locator: the article's own child, not any href
+      forget.ts                     forgetting the reader's place, as the page's own control does
+      gate.ts                       seeding the record ADR-0051's program gate reads
+      lab.ts                        the pinned book's exercise file, solutions and splices
+      page-errors.ts                uncaught-exception collector
+      pane.ts                       a worksheet pane, and the button that opens it
+      reveal.ts                     the reveal's locator: the pager's `Next`, by its test id
+      service-info.ts               the API's payload shape and the route handlers
       sign-in.ts                    signing in against the identity fixture
+      walk.ts                       raising the reader's cursor through the real advance endpoint
 ```
+
+`@axe-core/playwright` is the one dependency beside Playwright itself: the accessibility scan
+in `specs/accessibility.spec.ts`. Pinned like the others, and audited with them by
+`codeql.yml`'s dependency job.
 
 `specs/support/` holds no assertions and no waits, by design. Playwright's default
 `testMatch` collects only `*.spec.ts`, so nothing in there is mistaken for a test.
