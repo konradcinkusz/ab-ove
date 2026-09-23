@@ -86,11 +86,11 @@ is the point of the next step.
 You are looking at the index of programs. Pick **F01 — Numbers, powers and roots**, and read
 to frame 3.
 
-![A frame of program F01, asking the reader to write down the decimal expansion of one third, with a dotted answer line below it and a "Reveal the answer" button.](../assets/screenshots/frame-asks-english.png)
+![A frame of program F01, asking the reader to write down the decimal expansion of one third, with a labelled answer line below it and the pager's "Previous" and "Next" buttons at the bottom of the screen.](../assets/screenshots/frame-asks-english.png)
 
 Frame 3 tells you what a rational number is and then asks you to write down the decimal
-expansion of ⅓. Below the question is a dotted line that says *write it down before you read
-on*.
+expansion of ⅓. Below the question is a line labelled *Your answer* that says *write it down
+before you read on*.
 
 Now do the thing you would do with any other web page: open your browser's inspector and
 search the document for the answer.
@@ -100,7 +100,7 @@ prefetch. There is nothing to find, because the answer to the frame you are on i
 the request for the *next* frame and by nothing before it. The reveal is a navigation, not a
 toggle ([ADR-0014](../adr/0014-the-content-schema-is-json-schema-and-knows-nothing-about-frames.md)).
 
-Press <kbd>→</kbd>, or click **Reveal the answer**.
+Click **Next** at the bottom of the screen, or press <kbd>→</kbd>.
 
 ![The next frame, which opens with "0.333…, repeating without end".](../assets/screenshots/frame-reveals-english.png)
 
@@ -127,8 +127,10 @@ Try the rest of it while the backend is off:
   ([ADR-0042](../adr/0042-the-evaluator-is-a-calculator-not-a-cas.md)).
 - Open `Sketch` — a canvas that takes strokes and never opens itself
   ([ADR-0043](../adr/0043-a-sketch-is-strokes-and-the-pane-never-opens-itself.md)).
-- Switch the edition in the place row. The same frame, in Polish, keeping your frame number.
-- Press <kbd>g</kbd> and type a frame number.
+- Switch the edition in the bar at the top. The same frame, in Polish, keeping your frame
+  number.
+- Click the position between **Previous** and **Next** — `3 of 45` — and type a frame number,
+  or press <kbd>g</kbd>.
 
 ## What you have seen
 
@@ -137,7 +139,7 @@ Try the rest of it while the backend is off:
 | The answer is absent rather than hidden | Step 4, in the inspector |
 | The reader loop needs no account and no backend | Step 5, with everything stopped |
 | The book is content, not source, and is pinned | Step 2, one digest per file |
-| The edition is the reader's choice, never guessed | Step 5, the place row |
+| The edition is the reader's choice, never guessed | Step 5, the top bar |
 
 ## Where to go next
 

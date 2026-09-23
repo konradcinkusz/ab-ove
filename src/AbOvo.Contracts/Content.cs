@@ -65,7 +65,25 @@ public sealed record StepContent(
 /// </summary>
 public sealed record GateRefusal(string Kind, int Requested, int Furthest, int Steps, string Message);
 
-public sealed record StepResponse(bool Ok, StepContent? Step, GateRefusal? Refusal);
+/// <summary>
+/// A step, or the gate's refusal of one.
+///
+/// <para>
+/// <see cref="Furthest"/> is this reader's cursor — the furthest step the gate will serve them
+/// in this unit — on a SUCCESSFUL read as well as on a refusal (ADR-0063). The reading surface
+/// needs it to draw its program map honestly: a section, or a typed frame number, past it is a
+/// place the gate will refuse, and offering it as a link was a control that is reliably refused.
+/// The browser cannot know it by itself — its own record is the frame last viewed, not the
+/// furthest reached. It says nothing a refusal did not already say to the same reader about
+/// their own place, and nothing about any other reader (ADR-0009).
+/// </para>
+///
+/// <para>
+/// Optional with a default so every existing construction and every older caller stays valid:
+/// a response without it is read as "not known", and the map falls back to plain links.
+/// </para>
+/// </summary>
+public sealed record StepResponse(bool Ok, StepContent? Step, GateRefusal? Refusal, int? Furthest = null);
 
 /// <summary>
 /// A cursor advance. Names the step it answers rather than a target step — the same

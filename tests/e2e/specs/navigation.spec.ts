@@ -261,8 +261,13 @@ test.describe('navigation', () => {
 
     await page.goto(frameAt('en', 1));
     // Frame 1 has nowhere to go back to, and the control for that is that the link is not
-    // there at all rather than disabled — a disabled control is a thing a reader tries.
+    // there at all rather than disabled — a disabled control is a thing a reader tries. The
+    // pager's back cell leads to the contents instead, in the same place (ADR-0063).
     await expect(page.getByRole('link', { name: /previous/i })).toHaveCount(0);
+    await expect(
+      page.locator('[data-pager]').getByRole('link', { name: 'Contents' }),
+      'frame 1 has no way back at all',
+    ).toHaveAttribute('href', contentsAt('en'));
 
     await reveal(page).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt('en', 2)}$`));
@@ -272,63 +277,75 @@ test.describe('navigation', () => {
     await expect(page.locator('body')).toContainText(uniqueProbeIn(program, 1, 'en'));
   });
 
-  test('every heading of the program is one hop from a frame, and the id is the way to the index @core', async ({
+  test('every heading the reader has reached is one hop from a frame, and the wordmark is the way to the index @core', async ({
     page,
   }) => {
     /*
       Section navigation was two hops — place row, contents, section, frame — and `Next
-      section →` appeared only on a section's last frame. The section in the place row is
-      a disclosure now: the summary is the current heading, and under it every heading of
-      the program links to its first frame, with the current one as text. A heading
-      carries no question and no answer (the contents page's own rule), which is what makes
-      listing them on a frame safe; the answer's absence is still asserted by
-      frame-view.spec.ts over the whole document.
+      section →` appeared only on a section's last frame. ADR-0041 made the section in the
+      place row a disclosure; ADR-0063 moved the list into the program map, the panel the
+      pager's position opens. Every heading the reader has reached links to its first frame,
+      the current one is said as text, and a heading past the reader's furthest frame is
+      shown locked rather than linked — the reveal gate would refuse it (ADR-0060), and a
+      control that is reliably refused is a dead one. A heading carries no question and no
+      answer (the contents page's own rule), which is what makes listing them on a frame
+      safe; the answer's absence is still asserted by frame-view.spec.ts over the whole
+      document.
     */
-    expect(sections.length, 'this needs at least two sections to move between').toBeGreaterThan(1);
+    expect(sections.length, 'this needs a heading behind, one here and one ahead').toBeGreaterThan(2);
     const [first, second] = sections;
     await walkTo(page, unit, 'en', second!.firstStep);
     await page.goto(frameAt('en', second!.firstStep));
 
     /*
-      By attribute while it is closed — a closed `<details>` hides its content, and a role
-      query excludes hidden elements, which is right: the list is not there for a reader
-      until they open it. By role once it is open, which is also what asserts the `<ul>`
-      is still a list to assistive technology (a `list-style: none` list loses its role
-      in Chromium without an explicit one; place-row.tsx says so).
+      Closed on arrival, and by test id while it is: a closed popover is `display: none`, and
+      a role query excludes hidden elements, which is right — the list is not there for a
+      reader until they open it. By role once it is open, which is also what asserts the
+      `<ul>` is still a list to assistive technology (a `list-style: none` list loses its
+      role in Chromium without an explicit one; program-map.tsx says so).
     */
-    const closed = page.locator('details ul[aria-label="Sections"]');
-    // `has` is relative to the candidate `<details>`, so the inner locator names the list alone.
-    const picker = page.locator('details', { has: page.locator('ul[aria-label="Sections"]') });
-    await expect(picker).toHaveCount(1);
-    // Closed on arrival: the row is one line until the reader asks for the list.
-    await expect(closed).toBeHidden();
-    await expect(picker).not.toHaveAttribute('open', /.*/);
-
-    await picker.locator('summary').click();
-    const list = page.getByRole('list', { name: 'Sections' });
+    const map = page.getByTestId('program-map');
+    await expect(map).toBeHidden();
+    await page.getByTestId('frame-position').click();
+    await expect(map, 'the position did not open the program map').toBeVisible();
+    const list = map.getByRole('list', { name: 'Sections' });
     await expect(list).toBeVisible();
 
-    // The current heading is said, not linked; every other one links to where it starts.
+    // The current heading is said, not linked.
     const current = list.locator('[aria-current="true"]');
     await expect(current).toHaveCount(1);
     await expect(current).toHaveText(second!.titles.en!);
     await expect(current.locator('a')).toHaveCount(0);
+
+    // Behind the reader, one hop; past their furthest frame, named and not offered.
     for (const section of sections) {
       if (section.id === second!.id) continue;
-      await expect(
-        list.getByRole('link', { name: section.titles.en! }),
-        `section "${section.id}" is not one hop away`,
-      ).toHaveAttribute('href', frameAt('en', section.firstStep));
+      const title = section.titles.en!;
+      const row = list.getByRole('listitem').filter({ hasText: title });
+      await expect(row, `section "${section.id}" is not in the map`).not.toHaveCount(0);
+      if (section.firstStep <= second!.firstStep) {
+        await expect(
+          list.getByRole('link', { name: title }),
+          `section "${section.id}" is not one hop away`,
+        ).toHaveAttribute('href', frameAt('en', section.firstStep));
+      } else {
+        await expect(
+          row.getByRole('link'),
+          `section "${section.id}" starts past the reader's furthest frame and is still a link`,
+        ).toHaveCount(0);
+      }
     }
     await expect(list.getByRole('link', { name: 'Contents' })).toHaveAttribute('href', contentsAt('en'));
 
-    // One hop: from the first frame of the second section to the first frame of the first.
+    // One hop: from the first frame of the second section to the first frame of the first,
+    // and the map does not stay open over the frame it led to.
     await list.getByRole('link', { name: first!.titles.en! }).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt('en', first!.firstStep)}$`));
     await expect(page.locator('body')).toContainText(uniqueProbeIn(program, first!.firstStep, 'en'));
+    await expect(map, 'the program map stayed open after it navigated').toBeHidden();
 
-    // And the id in the row is the way to the programs, for a reader who arrived by link.
-    await expect(page.getByRole('link', { name: unit, exact: true })).toHaveAttribute('href', '/');
+    // And the wordmark in the top bar is the way to the programs, for a reader who arrived by link.
+    await expect(page.getByRole('link', { name: 'ab-ovo', exact: true })).toHaveAttribute('href', '/');
   });
 
   test('a frame leads back up to its own contents @core', async ({ page }) => {
@@ -378,7 +395,7 @@ test.describe('navigation', () => {
     }
 
     // And the controls follow the edition, which is what #6 settled: on a Polish frame the
-    // reveal is Polish and says so. Located by its shape and place rather than by its words,
+    // pager's `Next` is Polish and says so. Located by its hook rather than by its words,
     // because a locator matching the words would be a second copy of the string it is
     // testing.
     for (const language of languages) {

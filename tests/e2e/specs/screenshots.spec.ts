@@ -82,8 +82,17 @@ async function ready(page: Page, url: string): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
 }
 
-/** Capture the whole page, not the viewport, unless a test says otherwise. */
+/**
+ * Capture the whole page, not the viewport, unless a test says otherwise.
+ *
+ * A WHOLE-PAGE CAPTURE PUTS THE PAGER BACK IN FLOW FIRST. The reading screens pin their pager
+ * to the bottom edge of the window (ADR-0063), and a capture taller than the window keeps it
+ * pinned to the window it was laid out in — measured: drawn across the frame's own buttons,
+ * with blank paper under it. In flow, it sits where a reader who has scrolled to the end of
+ * the frame sees it. A viewport capture leaves it pinned, which is how a reader meets it.
+ */
 async function shoot(page: Page, name: string, fullPage = true): Promise<void> {
+  if (fullPage) await page.addStyleTag({ content: '[data-pager] { position: static !important; }' });
   await page.screenshot({ path: join(SHOTS, `${name}.png`), fullPage, animations: 'disabled' });
 }
 
@@ -128,6 +137,20 @@ test.describe('@screenshots the documentation set', () => {
     await ready(page, read('en', REVEALS));
     await expect(page.locator('article[lang="en"]')).toBeVisible();
     await shoot(page, 'frame-reveals-english');
+  });
+
+  test('the program map, opened from the pager', async ({ page }) => {
+    /*
+      A VIEWPORT CAPTURE, because the map is a panel over the frame and the pager it opened
+      from is the point of the picture: every heading of the program, the current one marked,
+      the ones past the reader's furthest frame locked (ADR-0063). Walked to REVEALS so the
+      locks are real — the gate's cursor is what the map reads them from.
+    */
+    await walkTo(page, UNIT, 'en', REVEALS);
+    await ready(page, read('en', ASKS));
+    await page.getByTestId('frame-position').click();
+    await expect(page.getByTestId('program-map')).toBeVisible();
+    await shoot(page, 'frame-program-map-english', false);
   });
 
   test('the contents of a program, and its summary', async ({ page }) => {

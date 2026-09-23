@@ -159,8 +159,8 @@ test.describe('one control, remembered', () => {
       /*
         Counted by the thing that makes a control a control: a `<nav>` naming the OTHER
         edition. Two of them on one screen is the defect this change removed — and it is
-        also, exactly, the ambiguity `place-row.tsx` records as the reason that row is a
-        `<div>` rather than a `<nav>`.
+        also, exactly, the ambiguity `reading-top.tsx` records as the reason the bar holding
+        the control is a `<header>` rather than a `<nav>`.
       */
       const controls = page
         .getByRole('navigation')

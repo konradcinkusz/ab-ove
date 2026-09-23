@@ -95,9 +95,11 @@ This repository stands at **builds, tests green, images build**. There is no run
 instance of ab-ovo, at any address, for anybody.
 
 What exists is **the reading surface, over the whole book**: all 47 programs in both
-editions, one frame a screen, with the book's own Markdown and maths; a place row that is
-the only chrome and whose frame number is a jumper; and a worksheet on every frame that asks
-for something — a line to answer on, a pad that evaluates arithmetic, a canvas to sketch on.
+editions, one frame a screen, with the book's own Markdown and maths; a pager pinned to the
+bottom of the screen with a labelled `Previous` and `Next`, and between them the position,
+which opens a map of the program's headings and a jump to any frame reached; and a worksheet
+on every frame that asks for something — a line to answer on, a pad that evaluates
+arithmetic, a canvas to sketch on.
 Behind it: an API with a health endpoint and a service-info endpoint, a web app whose
 landing page is the index of programs — narrowable to one course, with `/courses` listing
 every course the deployment carries — and whose `/about` carries the argument and a live

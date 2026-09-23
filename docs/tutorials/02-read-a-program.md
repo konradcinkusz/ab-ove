@@ -45,9 +45,9 @@ Pick **F01 — Numbers, powers and roots**. Every reader starts there.
 
 A frame is one idea, sometimes one line. Read it, and stop at the question.
 
-Most frames ask for something. When one does, the dotted line below it says *write it down
-before you read on*. Use it, or use paper — the line is local to your browser and nothing
-reads it
+Most frames ask for something. When one does, the line below it — labelled *Your answer* —
+says *write it down before you read on*. Use it, or use paper — the line is local to your
+browser and nothing reads it
 ([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
 
 Two things sit beside it, both optional:
@@ -66,7 +66,8 @@ not commit, you did not read the frame.
 
 ## Step 3 — turn it, and compare
 
-Press <kbd>→</kbd>, or click **Reveal the answer**.
+Click **Next** — the filled button at the bottom right of the screen, in the same place on
+every frame — or press <kbd>→</kbd>.
 
 The next frame opens with the answer to the one you just left. **Compare what you wrote with
 what the book says. That comparison is the teaching** — nothing grades it, no score is kept,
@@ -77,17 +78,21 @@ Where the book's whole answer is a single number, the application may say *match
 It never says anything else. In particular it never says *wrong*: it does not know what you
 meant, and a machine that guessed would be worse than one that stays quiet.
 
-If you did not get it, press <kbd>←</kbd> and read the frame again. Going back one frame is
-the intended move, not a failure state.
+If you did not get it, click **Previous** beside it (or press <kbd>←</kbd>) and read the
+frame again. Going back one frame is the intended move, not a failure state.
 
 ## Step 4 — keep your place, without being measured
 
-The place row above the frame says `3 / 45`. That is **where you are**, not how far along you
-are ([ADR-0041](../adr/0041-the-reading-surface-shows-position-and-never-progress.md)). There
-is no percentage, no streak, no badge and no estimate of when you will finish, because those
-are numbers about a reader and this product does not make them.
+Between **Previous** and **Next** the pager says `3 of 45`. That is **where you are**, not how
+far along you are
+([ADR-0041](../adr/0041-the-reading-surface-shows-position-and-never-progress.md)). There is
+no percentage, no streak, no badge and no estimate of when you will finish, because those are
+numbers about a reader and this product does not make them.
 
-Press <kbd>g</kbd> and type a number to jump. Your position is remembered in this browser. If
+Click it — or press <kbd>g</kbd> — for every heading of the program and a box to jump to a
+frame by its number. A heading that starts past the furthest frame you have reached is shown
+locked, with the reason, rather than offered: that is the book's order, and a link that would
+only be refused is not a way anywhere. Your position is remembered in this browser. If
 you sign in it follows you to another machine, and **furthest frame wins** — two machines that
 disagree are not a conflict, because you have read up to the further of the two
 ([ADR-0019](../adr/0019-furthest-frame-wins.md)).

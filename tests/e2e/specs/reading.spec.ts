@@ -47,14 +47,16 @@ const at = (language: string, n: number): string =>
  * measured, by pressing the key immediately after a deep link and getting nothing, then
  * pressing it after a settle and getting the next frame. The first draft of this suite
  * pressed immediately and failed for that reason, which is a race in the TEST rather than
- * a defect in the page: the reveal link is a real `<a>` and works before any JavaScript
- * runs, so the no-JS path is never broken and the shortcut is an enhancement on top of it.
+ * a defect in the page: the pager's `Next` is a real `<form>` and works before any
+ * JavaScript runs, so the no-JS path is never broken and the shortcut is an enhancement on
+ * top of it.
  *
- * What it waits on is the hint — the visible line telling the reader the key exists, which
- * the stylesheet reveals from the same flag the handler sets when it binds. So the page
- * cannot promise a shortcut that is not live, and this suite cannot press one. One
- * mechanism, serving a reader and a test, rather than an attribute that exists for the
- * suite alone.
+ * What it waits on is the flag the handler sets on `<html>` when it binds and removes when it
+ * unbinds (`frame-keys.tsx`). It used to be read through the hint — a visible line of
+ * shortcuts the stylesheet revealed from the same flag — and ADR-0063 took the line off the
+ * frame: the keys are an option, listed in *Reading settings*, and every move they make is a
+ * labelled button. The flag stayed, because a test still must not press a key the page has
+ * not bound.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 async function openReady(
@@ -204,7 +206,7 @@ test.describe('reading ergonomics', () => {
     expect(page.url(), 'an arrow key inside a contenteditable navigated the frame').toBe(wasAt);
   });
 
-  test('Enter opens the answer line, Esc returns to reading, and the hint says which @core', async ({
+  test('Enter opens the answer line, and Esc returns to reading with what was typed @core', async ({
     page,
   }) => {
     /*
@@ -212,12 +214,15 @@ test.describe('reading ergonomics', () => {
       ADR-0041 DECIDED THESE TWO KEYS AND THE CODE DID NOT HAVE THEM.
 
       "`Enter` with nothing focused puts the caret in the answer line; `Esc` returns to
-      reading … while a field has focus the line says what is true there." UI-UX.md
-      repeated it. `frame-keys.tsx` handled the arrows and `g`, so a keyboard reader
-      reached the answer line on every cue frame through four Tab stops, and the hint went
-      on promising the arrows inside a field where they are dead. This is the decision,
-      executed — and it is the reason "read end to end from the keyboard" (the first test
-      in this file) can now be "read AND answered".
+      reading." UI-UX.md repeated it. `frame-keys.tsx` handled the arrows and `g`, so a
+      keyboard reader reached the answer line on every cue frame through four Tab stops.
+      This is the decision, executed — and it is the reason "read end to end from the
+      keyboard" (the first test in this file) can be "read AND answered".
+
+      What is asserted is what the keys DO. A line under the question used to say which
+      keys were live and this test read it; ADR-0063 took that line off the frame (the keys
+      are an option, listed in *Reading settings*), and a page that teaches its shortcuts
+      is not what makes them work.
       ──────────────────────────────────────────────────────────────────────────────────
     */
     const cue = steps.find((step) => step.cue && step.n > 1);
@@ -225,29 +230,21 @@ test.describe('reading ergonomics', () => {
 
     await openReady(page, 'en', cue.n);
     const line = page.getByRole('textbox', { name: /your answer/i });
-    const hint = page.getByTestId('frame-keys-hint');
-
-    // Reading state: the arrows and Enter are offered; nothing about Esc yet. `useInnerText`
-    // throughout: every state's line is in the markup and only one is visible, and the
-    // question is what the reader can see.
-    const shown = { useInnerText: true } as const;
-    await expect(hint).toContainText('→', shown);
-    await expect(hint).toContainText('Enter', shown);
-    await expect(hint).not.toContainText('Esc', shown);
 
     await page.keyboard.press('Enter');
     await expect(line, 'Enter with nothing focused did not open the answer line').toBeFocused();
 
-    // Typing state: the arrows are dead in a field, so the hint stops promising them and
-    // says what is true here instead.
-    await expect(hint).toContainText('Esc', shown);
-    await expect(hint).not.toContainText('→', shown);
+    // Typing: the arrows are the caret's inside a field, so this `→` must not turn the page.
     await page.keyboard.type('a line the reader wrote');
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(250);
+    expect(page.url(), 'an arrow key inside the answer line turned the page').toContain(
+      at('en', cue.n),
+    );
 
     await page.keyboard.press('Escape');
     await expect(line, 'Esc did not return the reader to reading').not.toBeFocused();
     await expect(line, 'Esc threw away what was typed').toHaveValue('a line the reader wrote');
-    await expect(hint).toContainText('→', shown);
 
     // And the arrows are live again, which is what "back to reading" means.
     await page.keyboard.press('ArrowRight');
@@ -257,19 +254,24 @@ test.describe('reading ergonomics', () => {
   test('Esc in the frame number cancels what was typed rather than going there @core', async ({
     page,
   }) => {
-    // The jumper commits on blur — the number itself is the control — so an Esc that merely
-    // blurred it would NAVIGATE to a half-typed number. Cancel first, then leave.
+    // `g` opens the program map with the caret in its frame number (ADR-0063). The number
+    // moves only on `Go` or Enter — it used to commit on blur, so an Esc that merely blurred
+    // it NAVIGATED to a half-typed number — and Esc is the way out: it puts the number back,
+    // closes the map, and goes nowhere.
     const n = Math.min(3, steps.length);
     await openReady(page, 'en', n);
     const jumper = page.locator('#frame-jumper');
+    const map = page.getByTestId('program-map');
 
     await page.keyboard.press('g');
+    await expect(map, '`g` did not open the program map').toBeVisible();
     await expect(jumper).toBeFocused();
     await jumper.fill('1');
     await page.keyboard.press('Escape');
 
+    await expect(map, 'Esc left the program map open').toBeHidden();
     await expect(jumper).not.toBeFocused();
-    await expect(jumper, 'Esc left a stray number in the place row').toHaveValue(String(n));
+    await expect(jumper, 'Esc left a stray number in the frame number').toHaveValue(String(n));
     await page.waitForTimeout(400);
     expect(page.url(), 'Esc navigated to the number that was being typed').toContain(`/${n}`);
   });
@@ -294,36 +296,36 @@ test.describe('reading ergonomics', () => {
     expect(ring, 'the reveal has no visible focus ring').not.toBe('none');
 
     // And the label carries the pending flag the stylesheet dims on — idle here, because
-    // the fetch is too quick to catch; the attribute's presence is what says the island is
-    // wired to the link at all.
+    // the round trip is too quick to catch; the attribute's presence is what says the island
+    // is wired to the form at all.
     await expect(control.locator('[data-pending]')).toHaveAttribute('data-pending', 'no');
   });
 
-  test('the place row, the foot and the panes are a finger tall to press @core', async ({
+  test('the bars, the pager and the panes are a finger tall to press @core', async ({
     page,
   }) => {
-    // 44 px is the smallest target a finger hits reliably; the rows are set in small type,
-    // so the controls are padded to it and given the space back with a negative margin.
-    // What is measured is the box a press lands in, not the type.
+    // 44 px is the smallest target a finger hits reliably, and the bound here is 40 so that
+    // a sub-pixel of rounding is not a failure. What is measured is the box a press lands in,
+    // not the type: every control below is set in small type and padded to the height.
     await openReady(page, 'en', 2);
     const targets = [
-      page.locator('#frame-jumper'),
+      // The top bar (ADR-0063): the way to the index, the way to the contents, the settings.
+      page.getByRole('link', { name: 'ab-ovo' }),
       page.getByRole('link', { name: unit.titles['en']! }),
+      page.getByTestId('reading-settings-button'),
+      // The pager: the two buttons the owner asked for, and the position between them.
       page.getByRole('link', { name: /previous/i }),
+      page.getByTestId('frame-position'),
+      reveal(page),
       /*
         ────────────────────────────────────────────────────────────────────────────────
         THE TWO PANE BUTTONS, ADDED WITH ADR-0059 AND NOT BEFORE.
 
-        They are the reason this list grew. `Work it out` and `Draw it` opened from 13px of
-        the faintest ink with no padding at all, while the Grid / Axes / Undo / Clear
-        buttons INSIDE the sketch already carried `min-height: 44px` each — so the only
-        control in the worksheet that was never a finger tall was the one a reader had to
-        find first, which is what "the sketch is hard to open" meant.
-
-        They rest on `min-height` rather than on the foot's negative-margin idiom, because
-        that idiom exists to grow the box around a line of TEXT and these are bordered
-        boxes of their own. Different mechanism, same claim — so it is measured here rather
-        than asserted in a document.
+        `Work it out` and `Draw it` opened from 13px of the faintest ink with no padding at
+        all, while the Grid / Axes / Undo / Clear buttons INSIDE the sketch already carried
+        `min-height: 44px` each — so the only control in the worksheet that was never a
+        finger tall was the one a reader had to find first, which is what "the sketch is
+        hard to open" meant.
         ────────────────────────────────────────────────────────────────────────────────
       */
       page.locator('details[data-pane="working"] summary'),
@@ -336,26 +338,33 @@ test.describe('reading ergonomics', () => {
     }
   });
 
-  test('the shortcut is told to the reader, in their own edition @core', async ({ page }) => {
-    // A keyboard path nobody is told about is not an ergonomic feature, it is a secret. The
-    // assertion is relational and needs no copy of either string — see language-choice.spec.
+  test('the keys are told to the reader, in their own edition, behind the settings @core', async ({
+    page,
+  }) => {
+    // A keyboard path nobody is told about is not an ergonomic feature, it is a secret. It
+    // used to be told on every frame, in a line under the question; ADR-0063 made the keys
+    // an option — the owner's word — and put the list where options live, in *Reading
+    // settings*, with each pager button carrying its key in its tooltip. The assertion is
+    // relational and needs no copy of either string — see language-choice.spec.
     const said: Record<string, string> = {};
     for (const language of languages) {
-      await openReady(page, language, 1);
-      // BY ITS OWN HOOK, and that is a change this suite had to make rather than chose.
-      // The locator used to be "the last element carrying this language that contains an
-      // arrow", which worked while the hint was the only such thing on the page. The foot
-      // now carries a `Keys` disclosure holding the same arrows, and it is always visible
-      // — so the old locator would have quietly moved to an element that cannot fail the
-      // visibility assertion below, and this test would have gone on passing while testing
-      // nothing. See frame-view.tsx for why the hook is a `data-testid`.
-      const hint = page.getByTestId('frame-keys-hint');
-      await expect(hint, `the hint is not one element on the ${language} frame`).toHaveCount(1);
-      // VISIBLE, not merely present: the hint is hidden until the shortcut is live, so
-      // `toHaveCount(1)` alone would pass on a page that never promises anything a reader
-      // can see.
-      await expect(hint, `no keyboard hint on the ${language} frame`).toBeVisible();
-      said[language] = (await hint.innerText()).trim();
+      await openReady(page, language, 2);
+      await expect(
+        page.getByTestId('frame-keys-hint'),
+        `the ${language} frame still prints its shortcuts`,
+      ).toHaveCount(0);
+
+      // Each pager button names its arrow in its tooltip, so a reader who hovers it learns it.
+      await expect(page.locator('[data-pager] a[title*="←"]')).toHaveCount(1);
+      await expect(reveal(page)).toHaveAttribute('title', /→/);
+
+      await page.getByTestId('reading-settings-button').click();
+      const settings = page.getByTestId('reading-settings');
+      await expect(settings, `the ${language} settings did not open`).toBeVisible();
+      const keys = settings.getByRole('list');
+      await expect(keys, `no list of keys in the ${language} settings`).toBeVisible();
+      said[language] = (await keys.innerText()).trim();
+      expect(said[language]!.length).toBeGreaterThan(0);
     }
     expect(said[languages[0]!]).not.toBe(said[languages[1]!]);
   });
@@ -442,26 +451,32 @@ test.describe('reading ergonomics', () => {
 /**
  * A phone has no arrow keys. The one-line hint under the reveal used to say `→ next frame
  * · ← previous frame · Ctrl+Enter commit and reveal` on a 360 px screen, in the way of the
- * frame, about keys the reader does not have. It is not rendered on a coarse-pointer device;
- * the full key map stays, for a tablet with a keyboard attached — inside *Reading settings*
- * since ADR-0058, which is where every setting on a reading screen now lives.
+ * frame, about keys the reader does not have; it was hidden on a coarse pointer, and then
+ * ADR-0063 took it off every frame. What a touch reader has instead is the pager — two
+ * labelled buttons at the bottom edge of the screen — and the full key map is still in
+ * *Reading settings*, for a tablet with a keyboard attached.
  */
 test.describe('the reading surface on a touch screen', () => {
   // Not a `devices[...]` preset: those carry `defaultBrowserType`, which is worker-scoped
-  // and cannot be set inside a describe. The three options below are what the hint's media
-  // query reads — Chromium's mobile emulation is what answers `hover: none` and
-  // `pointer: coarse` — and they are test-scoped, so the block shares the project's worker.
+  // and cannot be set inside a describe. The three options below are test-scoped — Chromium's
+  // mobile emulation is what answers `hover: none` and `pointer: coarse` — so the block
+  // shares the project's worker.
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 393, height: 851 } });
 
-  test('the keyboard hint is not there, and the key map still is @core', async ({ page }) => {
+  test('the way on is a pair of buttons under the thumb, and the key map is still there @core', async ({
+    page,
+  }) => {
     await walkTo(page, unitId, 'en', 2);
     await page.goto(at('en', 2));
     await keysReady(page);
-    await expect(page.getByTestId('frame-keys-hint')).toBeHidden();
+
+    // On screen with nothing scrolled: the pager is pinned to the bottom edge.
+    await expect(page.getByRole('link', { name: /previous/i })).toBeInViewport();
+    await expect(reveal(page)).toBeInViewport();
 
     /*
       ────────────────────────────────────────────────────────────────────────────────────
-      THE SECOND HALF IS ASSERTED AGAINST THE LIST ITSELF, WHICH IT USED NOT TO BE.
+      THE KEY MAP IS ASSERTED AGAINST THE LIST ITSELF, WHICH IT USED NOT TO BE.
 
       It was `getByRole('group').filter({ hasText: /keys/i })`, counting one. That passed,
       and would have gone on passing after ADR-0058 moved the map inside *Reading settings*
@@ -471,14 +486,13 @@ test.describe('the reading surface on a touch screen', () => {
       reader with a keyboard attached to a tablet can still find out what the keys do, and
       only the LIST can carry that claim.
 
-      `role="list"` is said out loud in `keys-details.tsx` for the reason `place-row.tsx`
+      `role="list"` is said out loud in `keys-details.tsx` for the reason `program-map.tsx`
       records: a `<ul>` styled `list-style: none` loses the role in WebKit and Chromium, so
       without it these shortcuts are announced as loose text and this locator finds nothing.
       ────────────────────────────────────────────────────────────────────────────────────
     */
-    const settings = page.getByTestId('reading-settings');
-    await expect(settings, 'the reading settings are not on a touch frame').toHaveCount(1);
-    await settings.locator('summary').click();
+    await page.getByTestId('reading-settings-button').tap();
+    await expect(page.getByTestId('reading-settings')).toBeVisible();
     await expect(page.getByRole('list', { name: 'Keys' })).toBeVisible();
   });
 });

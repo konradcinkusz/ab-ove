@@ -22,12 +22,12 @@ import { walkTo } from './support/walk.ts';
  * that width. Both are now asserted against the plain route, which is where every reader
  * meets them.
  *
- * WHAT IS DELIBERATELY NOT ASSERTED: that the reveal is above the fold. It is not, on most
- * frames, and saying otherwise would be a test written against a wish. The median cue frame
- * is some 450 characters, which at 360 px is about a screen of text on its own before the
- * place row and the previous frame's answer are counted — so one scroll to the reveal is
- * the accepted cost of a 34-rem measure on a phone, and it is recorded here rather than
- * tested away.
+ * WHAT THIS FILE USED TO DECLINE TO ASSERT, AND NOW DOES: that the way on is on screen. It
+ * was not, on most frames — the reveal sat under the question, and the median cue frame is
+ * some 450 characters, about a screen of text at 360 px on its own — so one scroll to it was
+ * recorded here as the accepted cost of a 34-rem measure on a phone. ADR-0063 pinned the
+ * pager to the bottom edge, and `Next` with it, so the cost is gone and the reader loop
+ * below presses it without scrolling; `specs/pager.spec.ts` holds the pager's own geometry.
  * ────────────────────────────────────────────────────────────────────────────────────────
  *
  * WHY THE HEAVY ASSERTIONS ARE @smoke AND NOT @core. CI's `pull_request` job runs
@@ -206,14 +206,13 @@ test.describe('the reading surface at 360 px', () => {
     ).not.toContain(answer);
 
     /*
-     * The reveal, located by its shape and place rather than by what it says or where it
-     * goes — support/reveal.ts records why. `scrollIntoViewIfNeeded` is the honest part of
-     * this test: on most frames the control is below the fold at this width, which is the
-     * accepted cost recorded in this file's header, and a reader scrolls to it.
+     * The reveal — the pager's `Next` — located by its hook rather than by what it says or
+     * where it goes; support/reveal.ts records why. On screen WITHOUT a scroll: it used to
+     * be below the fold on most frames at this width, and the pinned pager is what ended
+     * that (this file's header).
      */
     const control = reveal(page);
-    await control.scrollIntoViewIfNeeded();
-    await expect(control, 'the reveal is not reachable at 360 px').toBeVisible();
+    await expect(control, 'the reveal is not on screen at 360 px').toBeInViewport();
 
     await control.click();
     await expect(page).toHaveURL(new RegExp(`${at('en', answering.n)}$`));
@@ -222,29 +221,65 @@ test.describe('the reading surface at 360 px', () => {
     );
   });
 
-  test('the place row wraps rather than truncating @core', async ({ page }) => {
+  test('the pager fits the width, and so does the frame number behind it @core', async ({
+    page,
+  }) => {
     /*
-     * The row carries four things — which program, which section, which edition, which
-     * frame — and at 1600 px they sit on one line. At 360 px they cannot, so the question
-     * is what gives: a wrap costs a line and an overflow costs the reader the frame number,
-     * which is the one thing on the row they navigate by.
+     * The pager carries three things — the way back, where the reader is, and the way on —
+     * and at 360 px they share one line, each with its word: a button that gave up its label
+     * to fit would be an arrow a reader has to guess at, which is what the owner asked this
+     * change to end. Polish, because its words are the longer.
      *
-     * Asserted as "the jumper is on screen and inside the viewport", because that is the
-     * consequence rather than the mechanism: a row that truncated, scrolled or hid the
-     * control would fail this, and a row that wraps to three lines would not.
+     * The frame number used to sit in the place row, and this test asserted that the row
+     * wrapped rather than pushing it off the edge. It is in the program map now (ADR-0063),
+     * so the same claim is made there: opened on a phone, the field is on screen and inside
+     * the viewport.
      */
     await walkTo(page, unit, 'pl', asking.n);
     await page.goto(at('pl', asking.n));
 
-    const jumper = page.locator('#frame-jumper');
-    await expect(jumper, 'the frame jumper is not on the page at 360 px').toBeVisible();
+    const pager = page.locator('[data-pager]');
+    const cells = [pager.getByRole('link').first(), page.getByTestId('frame-position'), reveal(page)];
+    for (const cell of cells) {
+      await expect(cell).toBeInViewport();
+      const box = (await cell.boundingBox())!;
+      expect(box, 'a pager cell has no box, so nothing here measured anything').toBeTruthy();
+      expect(box.x, 'a pager cell starts off the left edge at 360 px').toBeGreaterThanOrEqual(0);
+      expect(
+        Math.round(box.x + box.width),
+        'a pager cell is pushed off the right edge at 360 px',
+      ).toBeLessThanOrEqual(PHONE.width);
+      expect((await cell.innerText()).trim(), 'a pager cell has lost its words at 360 px').not.toBe('');
+    }
 
+    await page.getByTestId('frame-position').click();
+    const jumper = page.locator('#frame-jumper');
+    await expect(jumper, 'the frame number is not on screen at 360 px').toBeInViewport();
     const box = (await jumper.boundingBox())!;
-    expect(box, 'the jumper has no box, so nothing here measured anything').toBeTruthy();
     expect(
       Math.round(box.x + box.width),
-      'the frame jumper is pushed off the right edge at 360 px',
+      'the frame number is pushed off the right edge at 360 px',
     ).toBeLessThanOrEqual(PHONE.width);
+    expect(await overflowing(page), 'the open program map reaches past 360 px').toEqual([]);
+  });
+
+  test('the two pane buttons are one height, whichever label wraps @core', async ({ page }) => {
+    /*
+     * The sketch's button carries both its labels from the first paint, one of them hidden,
+     * so that saying the second moves nothing (`worksheet.module.css`). At this width the
+     * hidden `Show my sketch` takes two lines in its half of the row, and the sketch's button
+     * was a line taller than `Work it out` beside it — two buttons in one row, visibly not a
+     * pair. Both editions, because the Polish labels wrap at other widths than the English.
+     */
+    await walkTo(page, unit, 'en', asking.n);
+    for (const language of ['en', 'pl']) {
+      await page.goto(at(language, asking.n));
+      const heights = await page
+        .locator('details[data-pane] > summary')
+        .evaluateAll((nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().height)));
+      expect(heights, `the ${language} frame does not have its two pane buttons`).toHaveLength(2);
+      expect(heights[0], `the ${language} pane buttons are different heights at 360 px`).toBe(heights[1]);
+    }
   });
 
   test('the canvas takes a finger without taking the page @core', async ({ page }) => {

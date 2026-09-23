@@ -313,8 +313,9 @@ const GROUP_LABELS: Readonly<Record<string, string>> = { F: 'Foundation', P: 'Ma
 /**
  * Where a step is: `P01 · How a computer stores a number › Scientific notation · step 5 of 48`.
  *
- * The reading surface's place row, one transport over — the program's id and title, the
- * section the step is under, the position. The first version of this file printed
+ * What the reading surface's top bar and pager say, one transport over — the program's id
+ * and title, the section the step is under, the position; the surface said it in one place
+ * row until ADR-0063 split it between the two bars. The first version of this file printed
  * `## Step 5 of 48` and nothing else, so a reader thirty steps in had a number and no
  * name, and a reader choosing a program in `list_programs` had forty-seven ids to choose
  * among. The title lives in the bundle; it was never emitted.

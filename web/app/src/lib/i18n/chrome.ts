@@ -45,20 +45,14 @@ interface Plural {
 }
 
 /**
- * The states a frame can be in from the keyboard's point of view, and the reason the hint
- * has more than one line.
+ * One row of the keyboard map, shown in `Reading settings` and nowhere else.
  *
- * ADR-0041: "while a field has focus the line says what is true there instead — the arrows
- * are dead inside a text field and a hint that promised them would be lying twice a frame."
- * `reading` is nothing focused; the other three are the fields a reader types in, each
- * carrying its own name on a `data-typing` attribute that `frame-keys.tsx` mirrors onto
- * `<html>` as focus moves.
+ * ADR-0063 took the one-line hint off the frame: the reading surface is worked with the
+ * mouse and the finger first — every move has a labelled button in the pinned pager — and
+ * the keys are an extra for whoever wants them, listed where a reader looks for settings
+ * rather than under every question. So an entry no longer carries the states and flags the
+ * hint line used to filter by; it is a key, what it does, and where that meaning applies.
  */
-export const HINT_STATES = ['reading', 'answer-line', 'working', 'jumper'] as const;
-
-export type HintState = (typeof HINT_STATES)[number];
-
-/** One row of the keyboard map, shown in the frame's own hint and in `Reading settings`. */
 export interface KeyEntry {
   readonly key: string;
   /**
@@ -69,28 +63,10 @@ export interface KeyEntry {
   readonly macKey?: string;
   readonly does: string;
   /**
-   * Where the key means this, when the foot's full list needs to say so — `Enter` in the
-   * frame number is not `Enter` on the page. The hint line never prints it: the line is
-   * only ever shown in the state the entry belongs to.
+   * Where the key means this, when the list needs to say so — `Enter` in the frame number is
+   * not `Enter` on the page.
    */
   readonly where?: string;
-  /** The states this entry is true in. The foot lists every entry; the hint filters by this. */
-  readonly when: readonly HintState[];
-  /**
-   * The `data-` flag on `<html>` this entry's hint segment is gated on, when it is gated.
-   *
-   * ────────────────────────────────────────────────────────────────────────────────────
-   * A PAGE MUST NOT PROMISE A KEY THAT IS NOT LIVE YET, AND NOT EVERY KEY IS LIVE ON EVERY
-   * FRAME. The arrows come from `frame-keys.tsx`, which is on every frame; `Ctrl+Enter`
-   * comes from the answer line, which is only on the frames that ask for something; and
-   * `g` needs the jumper. Each island sets its own flag when it binds and clears it when
-   * it unbinds, so the one-line hint says exactly what currently works.
-   *
-   * `undefined` means "always", which is nothing today and is the honest default for an
-   * entry in a list the foot's `<details>` also prints in full.
-   * ────────────────────────────────────────────────────────────────────────────────────
-   */
-  readonly needs?: string;
 }
 
 /**
@@ -200,7 +176,6 @@ interface ConsentStrings {
 }
 
 interface Strings {
-  readonly answer: string;
   readonly forget: string;
   /**
    * The second press of *Forget where I am*, which is the one that destroys anything. It
@@ -217,7 +192,19 @@ interface Strings {
   readonly raised: (unit: string, step: number) => string;
   readonly dismiss: string;
   readonly cue: string;
-  readonly reveal: string;
+  /**
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * THE PINNED PAGER'S TWO BUTTONS, AND THEY SAY THE SAME THING ON EVERY FRAME — ADR-0063.
+   *
+   * The owner's words: "there is no next and previous button to click with the mouse …
+   * the button has to be there, and the keyboard is an option". The forward control used to
+   * read *Reveal the answer* on a frame that asks and *Next frame* on one that teaches, and
+   * sat in the text rather than beside *Previous*, so the pair a reader looks for never
+   * existed. It is `Next` everywhere now. The mechanic is unchanged — pressing it on a frame
+   * that asks is still what turns the page to the one that opens with the answer — and the
+   * book's instruction is said where it applies, in the answer line's `writeItDown`.
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
   readonly next: string;
   readonly previous: string;
   readonly languageLabel: string;
@@ -331,7 +318,7 @@ interface Strings {
    * four times in five.
    * ────────────────────────────────────────────────────────────────────────────────────
    */
-  /** The answer line's accessible name — it has no visible label, only the dotted rule. */
+  /** The answer line's label, shown above the field since ADR-0063 as well as announced. */
   readonly yourAnswer: string;
   /** Its placeholder: the book's own instruction, in the edition's words. */
   readonly writeItDown: string;
@@ -384,12 +371,27 @@ interface Strings {
    * `programs`, because that string is also this application's index heading and an arrow
    * belongs on the crumb's link and nowhere near an `<h1>`. */
   readonly programsCrumb: string;
-  /** The frame-jumper's accessible name — it has no visible label, only the number itself. */
+  /** The frame-jumper's label, in the program map: `Go to frame [ 12 ] of 45 [Go]`. */
   readonly goToFrame: string;
+  /** The rest of that line: `of 45`. */
+  readonly ofTotal: (total: number) => string;
+  /** The jumper's button, which is the only thing that commits it (ADR-0063). */
+  readonly go: string;
+  /** A popover's own way shut, for the reader who does not know Esc or a click outside. */
+  readonly close: string;
   /**
-   * The one disclosure under the foot, holding every setting a reader might want WHILE
-   * reading — the theme and the key map (ADR-0058). It names the panel; the controls
-   * inside it keep their own labels.
+   * The program map's name — the popover the pager's position opens, with every section of
+   * the program and the jump to a frame number in it (ADR-0063).
+   */
+  readonly programMap: string;
+  /**
+   * Beside a section the reader has not reached: a row in the map that is text rather than
+   * a link, because the gate would refuse the frame it starts at (ADR-0060, ADR-0056).
+   */
+  readonly lockedSection: string;
+  /**
+   * The top bar's settings button and the popover it opens, holding every setting a reader
+   * might want WHILE reading — the theme and the key map (ADR-0058, moved by ADR-0063).
    */
   readonly readingSettings: string;
   /** The heading over the key map inside that disclosure. */
@@ -406,12 +408,22 @@ interface Strings {
    * OUT of the program, to the next one.
    */
   readonly footNav: string;
-  /** On the last frame of a section that is not the program's last: `Next section →`. */
-  readonly nextSection: string;
-  /** Frame 1's own foot link, replacing `previous` where there is nowhere to go back to. */
+  /** Frame 1's own back button, replacing `previous` where there is nowhere to go back to. */
   readonly backToContents: string;
-  /** The last frame's reveal-shaped control, opening `/summary` instead of a frame. */
-  readonly summaryAndChecklist: string;
+  /** The last frame's forward button, in `next`'s place: it opens `/summary`, not a frame. */
+  readonly toSummary: string;
+  /** The answer box's label: the answer it holds is to the PREVIOUS frame's question. */
+  readonly answerTo: (n: number) => string;
+  /**
+   * A way to a frame named by its number: the "Not there yet" screen's way on, and the
+   * program map's answer to a number typed past the reader's furthest frame. Deliberately
+   * not `continueAtFrame`, which on the contents page means the frame this BROWSER last
+   * opened — the gate's furthest frame is a different fact, and one phrase for both would
+   * make a reader wonder which one they are looking at.
+   */
+  readonly goToFrameNumber: (n: number) => string;
+  /** The program map's answer to a frame number the program does not have. */
+  readonly frameRange: (last: number) => string;
   readonly summaryHeading: string;
   readonly canYouHeading: string;
   /** Honest, for now: schema v1 carries no Test exercises or Further problems to show. */
@@ -419,7 +431,7 @@ interface Strings {
   readonly nextProgramLabel: string;
   /** Its mirror, on the contents page's foot: the program before this one. */
   readonly previousProgramLabel: string;
-  /** The summary screen's own way back, mirroring the frame's crumb. */
+  /** The summary screen's way back to the program's last frame, in its pager's back cell. */
   readonly backToLastFrame: string;
   readonly labOptional: string;
   /**
@@ -432,8 +444,8 @@ interface Strings {
    */
   readonly groupLabels: Readonly<Record<string, string>>;
   /**
-   * The accessible name of the place row's section list — the disclosure under the
-   * section's title that reaches every heading of the program in one hop (ADR-0041).
+   * The accessible name of the program map's list of headings — every heading of the program,
+   * one hop from any frame (ADR-0041), in the panel the pager's position opens (ADR-0063).
    */
   readonly sectionsLabel: string;
   /**
@@ -521,7 +533,6 @@ interface Strings {
  */
 export const TABLE: Readonly<Record<string, Strings>> = {
   en: {
-    answer: 'Answer',
     forget: 'Forget where I am',
     forgetConfirm: 'Forget it \u2014 on every device',
     signIn: 'Sign in',
@@ -584,8 +595,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       `${unit} moved to frame ${step}, read on another device. The furthest frame wins.`,
     dismiss: 'Got it',
     cue: 'The next frame answers this.',
-    reveal: 'Reveal the answer',
-    next: 'Next frame',
+    next: 'Next',
     previous: 'Previous',
     languageLabel: 'Language',
     programs: 'Programs',
@@ -633,46 +643,29 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     clearWorksheetsConfirm: 'Clear them — this cannot be undone',
     programsCrumb: '← Programs',
     goToFrame: 'Go to frame',
+    ofTotal: (total) => `of ${total}`,
+    go: 'Go',
+    close: 'Close',
+    programMap: 'Sections and frames',
+    lockedSection: 'not reached yet',
     readingSettings: 'Reading settings',
     keysHeading: 'Keys',
     keysMap: [
-      { key: '→', does: 'next frame', needs: 'frame-keys', when: ['reading'] },
-      { key: '←', does: 'previous frame', needs: 'frame-keys', when: ['reading'] },
-      { key: 'Enter', does: 'write an answer', needs: 'answer-line', when: ['reading'] },
-      { key: 'g', does: 'go to a frame number', needs: 'frame-jumper', when: ['reading'] },
-      {
-        key: 'Ctrl+Enter',
-        macKey: '⌘+Enter',
-        does: 'commit and reveal',
-        needs: 'answer-line',
-        when: ['answer-line'],
-      },
-      {
-        key: 'Ctrl+Enter',
-        macKey: '⌘+Enter',
-        does: 'work it out',
-        where: 'in the pad',
-        needs: 'answer-line',
-        when: ['working'],
-      },
-      {
-        key: 'Enter',
-        does: 'go to that frame',
-        where: 'in the frame number',
-        needs: 'frame-jumper',
-        when: ['jumper'],
-      },
-      {
-        key: 'Esc',
-        does: 'back to reading',
-        needs: 'frame-keys',
-        when: ['answer-line', 'working', 'jumper'],
-      },
+      { key: '→', does: 'next frame' },
+      { key: '←', does: 'previous frame' },
+      { key: 'Enter', does: 'write an answer' },
+      { key: 'g', does: 'sections and frames' },
+      { key: 'Ctrl+Enter', macKey: '⌘+Enter', does: 'keep your answer and go on', where: 'in your answer' },
+      { key: 'Ctrl+Enter', macKey: '⌘+Enter', does: 'work it out', where: 'in the pad' },
+      { key: 'Enter', does: 'go to that frame', where: 'in the frame number' },
+      { key: 'Esc', does: 'back to reading', where: 'in a field or a panel' },
     ],
     footNav: 'Where to next',
-    nextSection: 'Next section →',
     backToContents: 'Contents',
-    summaryAndChecklist: 'Summary and checklist',
+    toSummary: 'Summary',
+    answerTo: (n) => `Answer to frame ${n}`,
+    goToFrameNumber: (n) => `Go to frame ${n}`,
+    frameRange: (last) => `Enter a frame from 1 to ${last}.`,
     summaryHeading: 'Summary',
     canYouHeading: 'Can you?',
     exercisesNotYet:
@@ -694,11 +687,10 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     notReachedHeading: 'Not there yet',
     notReachedBody: (furthest) =>
       `This frame has not been reached yet. The furthest read frame in this program is ${furthest}.`,
-    backToLastFrame: '← Back to the frame',
+    backToLastFrame: 'Back to the frame',
     labOptional: 'This program also has computer exercises in Python, optional',
   },
   pl: {
-    answer: 'Odpowiedź',
     forget: 'Zapomnij, gdzie jestem',
     forgetConfirm: 'Zapomnij \u2014 na ka\u017cdym urz\u0105dzeniu',
     signIn: 'Zaloguj się',
@@ -762,9 +754,11 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       `${unit} przesunięto do ramki ${step}, czytanej na innym urządzeniu. Wygrywa najdalsza ramka.`,
     dismiss: 'Rozumiem',
     cue: 'Odpowiedź znajdziesz w kolejnej ramce.',
-    reveal: 'Pokaż odpowiedź',
-    next: 'Kolejna ramka',
-    previous: 'Poprzednia',
+    // `Dalej` / `Wstecz` — the pair a Polish reader already knows from every wizard and form
+    // that has a Next and a Back, and short enough that both keep their words on a phone's
+    // third of the pager (ADR-0063), where `Poprzednia` / `Następna` did not quite.
+    next: 'Dalej',
+    previous: 'Wstecz',
     languageLabel: 'Język',
     programs: 'Programy',
     about: 'O ab-ovo',
@@ -813,8 +807,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     workingHint: 'Po jednej linii. Nazwie można nadać wartość: w = 0,5',
     workingLabel: 'Twoje obliczenia',
     sketch: 'Narysuj to',
-    // `Pokaż` is already this table's word for *show* (`reveal`), so nothing here invents a
-    // second word for a concept the product already names.
+    // `Pokaż` is this table's word for *show*, so nothing here invents a second word for a
+    // concept the product already names.
     showMySketch: 'Pokaż mój szkic',
     sketchLabel: 'Narysuj swoją odpowiedź',
     sketchGrid: 'Siatka',
@@ -828,46 +822,31 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     clearWorksheetsConfirm: 'Wyczyść — nie da się cofnąć',
     programsCrumb: '← Programy',
     goToFrame: 'Przejdź do ramki',
+    ofTotal: (total) => `z ${total}`,
+    go: 'Przejdź',
+    close: 'Zamknij',
+    programMap: 'Sekcje i ramki',
+    // Impersonal, like `youWrote`: a second-person "you have not reached" would have to pick
+    // a gender in Polish.
+    lockedSection: 'jeszcze niedostępna',
     readingSettings: 'Ustawienia czytania',
     keysHeading: 'Klawisze',
     keysMap: [
-      { key: '→', does: 'kolejna ramka', needs: 'frame-keys', when: ['reading'] },
-      { key: '←', does: 'poprzednia ramka', needs: 'frame-keys', when: ['reading'] },
-      { key: 'Enter', does: 'wpisz odpowiedź', needs: 'answer-line', when: ['reading'] },
-      { key: 'g', does: 'przejdź do numeru ramki', needs: 'frame-jumper', when: ['reading'] },
-      {
-        key: 'Ctrl+Enter',
-        macKey: '⌘+Enter',
-        does: 'zapisz i odsłoń',
-        needs: 'answer-line',
-        when: ['answer-line'],
-      },
-      {
-        key: 'Ctrl+Enter',
-        macKey: '⌘+Enter',
-        does: 'policz',
-        where: 'w obliczeniach',
-        needs: 'answer-line',
-        when: ['working'],
-      },
-      {
-        key: 'Enter',
-        does: 'przejdź do tej ramki',
-        where: 'w numerze ramki',
-        needs: 'frame-jumper',
-        when: ['jumper'],
-      },
-      {
-        key: 'Esc',
-        does: 'wróć do czytania',
-        needs: 'frame-keys',
-        when: ['answer-line', 'working', 'jumper'],
-      },
+      { key: '→', does: 'następna ramka' },
+      { key: '←', does: 'poprzednia ramka' },
+      { key: 'Enter', does: 'wpisz odpowiedź' },
+      { key: 'g', does: 'sekcje i ramki' },
+      { key: 'Ctrl+Enter', macKey: '⌘+Enter', does: 'zapisz odpowiedź i dalej', where: 'w odpowiedzi' },
+      { key: 'Ctrl+Enter', macKey: '⌘+Enter', does: 'policz', where: 'w obliczeniach' },
+      { key: 'Enter', does: 'przejdź do tej ramki', where: 'w numerze ramki' },
+      { key: 'Esc', does: 'wróć do czytania', where: 'w polu lub panelu' },
     ],
     footNav: 'Dokąd dalej',
-    nextSection: 'Następna sekcja →',
     backToContents: 'Spis treści',
-    summaryAndChecklist: 'Podsumowanie i lista',
+    toSummary: 'Podsumowanie',
+    answerTo: (n) => `Odpowiedź do ramki ${n}`,
+    goToFrameNumber: (n) => `Przejdź do ramki ${n}`,
+    frameRange: (last) => `Wpisz numer ramki od 1 do ${last}.`,
     summaryHeading: 'Podsumowanie',
     canYouHeading: 'Czy potrafisz?',
     exercisesNotYet:
@@ -890,7 +869,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     notReachedHeading: 'Jeszcze nie tutaj',
     notReachedBody: (furthest) =>
       `Ta ramka nie jest jeszcze dostępna. Najdalsza przeczytana ramka w tym programie: ${furthest}.`,
-    backToLastFrame: '← Wróć do ramki',
+    backToLastFrame: 'Wróć do ramki',
     labOptional: 'Ten program ma też ćwiczenia komputerowe w Pythonie, opcjonalne',
   },
 };
@@ -951,7 +930,6 @@ export interface Chrome {
    * asked for. Put it on a `lang` attribute; that is the whole reason it is returned.
    */
   readonly language: string;
-  readonly answer: string;
   readonly forget: string;
   /**
    * The second press of *Forget where I am*, which is the one that destroys anything. It
@@ -967,7 +945,6 @@ export interface Chrome {
   readonly raised: (unit: string, step: number) => string;
   readonly dismiss: string;
   readonly cue: string;
-  readonly reveal: string;
   readonly next: string;
   readonly previous: string;
   readonly languageLabel: string;
@@ -1021,13 +998,20 @@ export interface Chrome {
   readonly clearWorksheetsConfirm: string;
   readonly programsCrumb: string;
   readonly goToFrame: string;
+  readonly ofTotal: (total: number) => string;
+  readonly go: string;
+  readonly close: string;
+  readonly programMap: string;
+  readonly lockedSection: string;
   readonly readingSettings: string;
   readonly keysHeading: string;
   readonly keysMap: readonly KeyEntry[];
   readonly footNav: string;
-  readonly nextSection: string;
   readonly backToContents: string;
-  readonly summaryAndChecklist: string;
+  readonly toSummary: string;
+  readonly answerTo: (n: number) => string;
+  readonly goToFrameNumber: (n: number) => string;
+  readonly frameRange: (last: number) => string;
   readonly summaryHeading: string;
   readonly canYouHeading: string;
   readonly exercisesNotYet: string;

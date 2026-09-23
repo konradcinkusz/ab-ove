@@ -141,6 +141,9 @@ public sealed class ContentEndpointTests
         var first = await client.GetFromJsonAsync<StepResponse>($"/api/v1/content/{Track}/{Unit}/1", token);
         Assert.True(first!.Ok);
         Assert.Equal(1, first.Step!.N);
+        // ADR-0063: a successful read says how far this reader may go, so the reading
+        // surface's map can lock what the gate would refuse instead of linking to it.
+        Assert.Equal(1, first.Furthest);
 
         var second = await client.GetFromJsonAsync<StepResponse>($"/api/v1/content/{Track}/{Unit}/2", token);
         Assert.False(second!.Ok);
@@ -184,9 +187,11 @@ public sealed class ContentEndpointTests
         var revealed = await advanced.Content.ReadFromJsonAsync<StepResponse>(token);
         Assert.True(revealed!.Ok);
         Assert.Equal(2, revealed.Step!.N);
+        Assert.Equal(2, revealed.Furthest);
 
         var readBack = await client.GetFromJsonAsync<StepResponse>($"/api/v1/content/{Track}/{Unit}/2", token);
         Assert.True(readBack!.Ok);
+        Assert.Equal(2, readBack.Furthest);
 
         var stillGated = await client.GetFromJsonAsync<StepResponse>($"/api/v1/content/{Track}/{Unit}/3", token);
         Assert.False(stillGated!.Ok);
@@ -253,12 +258,46 @@ public sealed class ContentEndpointTests
 
         Assert.True(body!.Ok);
         Assert.Equal(2, body.Step!.N);
+        Assert.Equal(2, body.Furthest);
 
         // Pins Subject via equality, as ReaderScopedQueries requires (ADR-0009 §1) — this
         // test's own row, not a scan of the table.
         var row = await db.ReaderProgress.AsNoTracking()
             .SingleAsync(p => p.Subject == subject && p.Track == Track && p.Unit == Unit, token);
         Assert.Equal(2, row.Step);
+    }
+
+    /// <summary>
+    /// ADR-0063 — the case the browser cannot answer by itself. Its own record is the frame
+    /// last VIEWED, so a reader who has read to step 3 and gone back to step 1 is "at 1" as far
+    /// as the browser knows; only the cursor says they may still open 2 and 3. A successful
+    /// read of the earlier step carries that cursor, which is what lets the program map offer
+    /// every section the reader has reached rather than only the ones before where they stand.
+    /// </summary>
+    [Fact]
+    public async Task A_read_of_an_earlier_step_still_says_how_far_the_reader_has_reached()
+    {
+        using var factory = new SignedInApiFactory();
+        using var scope = factory.Services.CreateScope();
+        await Seed(scope.ServiceProvider.GetRequiredService<AbOvoDbContext>(), TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+
+        using var client = factory.CreateClient();
+        UseAnonymousReader(client, Guid.NewGuid());
+
+        foreach (var answering in new[] { 1, 2 })
+        {
+            using var step = await client.PostAsJsonAsync(
+                $"/api/v1/content/{Track}/{Unit}/advance",
+                new AdvanceRequest { AnsweringStep = answering, Language = "en" }, token);
+            Assert.Equal(HttpStatusCode.OK, step.StatusCode);
+        }
+
+        var back = await client.GetFromJsonAsync<StepResponse>($"/api/v1/content/{Track}/{Unit}/1", token);
+
+        Assert.True(back!.Ok);
+        Assert.Equal(1, back.Step!.N);
+        Assert.Equal(3, back.Furthest);
     }
 
     [Fact]

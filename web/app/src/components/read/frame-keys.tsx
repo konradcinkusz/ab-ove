@@ -5,6 +5,8 @@ import { useEffect } from 'react';
 
 import { revealStep } from '@/lib/actions/reveal';
 
+import { PROGRAM_MAP_ID, isPopoverOpen, showPopover } from './popover.ts';
+
 export interface FrameKeysProps {
   /** `/read/<track>/<unit>/<lang>` — the path a frame number is appended to. */
   readonly base: string;
@@ -29,13 +31,16 @@ export interface FrameKeysProps {
 }
 
 /**
- * One keystroke per frame, so a program can be read end to end without a mouse.
+ * One keystroke per frame, so a program can be read end to end without a mouse — for the
+ * reader who wants that. It is an extra, not the way in: every move it makes is a labelled
+ * button in the pinned pager, and the page no longer advertises the keys under the text
+ * (ADR-0063; the full list is in `Reading settings`).
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * IT RECEIVES A PATH AND AN INTEGER, AND THAT IS A SECURITY PROPERTY RATHER THAN A STYLE.
  *
- * This is the reading surface's only Client Component, and the props of a Client Component
- * are SERIALISED INTO THE DOCUMENT so the browser can hydrate them. Hand it the next step —
+ * The props of a Client Component are SERIALISED INTO THE DOCUMENT so the browser can
+ * hydrate them. Hand it the next step —
  * the obvious shape, and what every other component on this page takes — and the next
  * frame's answer would be sitting in the HTML of the frame that asks the question, which is
  * the one thing this whole product is built not to do (#4, ADR-0014).
@@ -68,14 +73,17 @@ export interface FrameKeysProps {
  * handler on any focusable element would need three tabs first, which is the state this
  * component exists to replace.
  *
- * `g` FOCUSES THE FRAME JUMPER RATHER THAN NAVIGATING ANYTHING ITSELF. It is the one letter
- * key this handler recognises, on the reasoning `place-row.tsx`'s own header gives for why
- * the jumper is one Tab from the top for a reader who never learns it: `g` is what every
- * reading application a reader has met already uses to "go to", so a single guarded letter
- * costs nothing that Space or the arrows would. It reaches the input by DOM id rather than
- * by any prop this component holds, because `frame-jumper.tsx` is an independently-mounted
- * Client Component and a `ref` cannot cross that boundary — the id is the one thing both
- * sides can agree on without either one holding a reference to the other.
+ * `g` OPENS THE PROGRAM MAP AND PUTS THE CARET IN ITS FRAME NUMBER, rather than navigating
+ * anything itself (ADR-0063 moved the jump into the map, behind the pager's position). It is
+ * the one letter key this handler recognises: `g` is what reading applications already use
+ * to "go to", so a single guarded letter costs nothing that Space or the arrows would. It
+ * reaches the map and the field by DOM id rather than by any prop, because both are
+ * independently-mounted and a `ref` cannot cross that boundary.
+ *
+ * NOTHING HERE ACTS WHILE A PANEL IS OPEN. The arrows' forward is a WRITE (ADR-0060), and a
+ * reader with a link in the program map focused who presses `→` means "the next link", not
+ * "reveal the frame behind this panel" — so with any popover showing, the page's keys stand
+ * aside and the panel's own (Tab, Enter, Esc) are the only ones that do anything.
  *
  * `Enter` WITH NOTHING FOCUSED PUTS THE CARET IN THE ANSWER LINE, by the same mechanism and
  * for a reason ADR-0041 already wrote down and this file did not have: without it a reader
@@ -85,37 +93,23 @@ export interface FrameKeysProps {
  * tabbed to still follows Enter, as it always did.
  *
  * `Esc` IS NOT HANDLED HERE. Each field returns the reader to reading by blurring itself
- * (`answer-line.tsx`, `working.tsx`, `frame-jumper.tsx`), because only the field knows
- * whether leaving means committing (the line, the pad) or cancelling (the jumper, whose
- * blur would otherwise NAVIGATE to a half-typed number).
- *
- * WHICH FIELD IS FOCUSED IS MIRRORED ONTO `<html>` AS `data-typing`, read off the field's
- * own `data-typing` attribute as focus moves, so the hint can say what is true where the
- * caret is (ADR-0041: "the arrows are dead inside a text field and a hint that promised
- * them would be lying twice a frame"). A field joins the hint by carrying the attribute;
- * nothing here knows their ids.
+ * (`answer-line.tsx`, `working.tsx`), because only the field knows whether leaving means
+ * keeping what was typed; the jumper cancels and closes its panel (`frame-jumper.tsx`), and
+ * a panel closes itself.
  */
 export function FrameKeys({ base, last, after, track, unit, language }: FrameKeysProps): null {
   const router = useRouter();
 
   useEffect(() => {
     /*
-      THE HINT MUST NOT PROMISE A SHORTCUT THAT IS NOT LIVE YET.
+      THE FLAG SAYS THE KEYS ARE LIVE. This is a Client Component, so the handler below does
+      not exist until the page hydrates — measured: a key pressed immediately after a deep
+      link does nothing, a few hundred milliseconds later it works. The flag is on while the
+      listener is attached and off with it, and the acceptance suite waits on it before it
+      presses anything (`specs/reading.spec.ts`), so a test never races the hydration.
 
-      This is a Client Component, so the handler below does not exist until the page
-      hydrates — measured: pressing the key immediately after a deep link does nothing, and
-      pressing it a few hundred milliseconds later works. That gap is unavoidable (the
-      alternative is an inline script, which is worse) and it is invisible to a reader who
-      is reading rather than racing the browser. What is NOT acceptable is a page that tells
-      them about a key before the key does anything.
-
-      So the flag goes on while the listener is attached and comes off with it, and the
-      stylesheet reveals the hint from it. `visibility` rather than `display`, deliberately:
-      the line occupies its space either way, so nothing on the page moves when it appears —
-      which `specs/reading.spec.ts` asserts as a layout-shift bound rather than trusting.
-
-      The reveal link is a real `<a>` and needs none of this, so the no-JS path is never
-      broken: the shortcut is an enhancement on top of a page that already works.
+      The pager's buttons are a real `<form>` and real links and need none of this: the
+      shortcut is an enhancement on top of a page that already works without JavaScript.
     */
     document.documentElement.dataset.frameKeys = 'on';
 
@@ -127,19 +121,23 @@ export function FrameKeys({ base, last, after, track, unit, language }: FrameKey
       // Stealing those would break navigation to fix navigation.
       if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
 
-      // Anywhere a reader might be typing. There is no field on a frame today; there is one
-      // on /login and there will be an editor in the lab pane, and a global key handler that
-      // waits for those to exist before considering them is a handler that eats an arrow
-      // key in somebody's answer.
+      // A panel is open: its own keys, not the page's (this file's header).
+      if (isPopoverOpen()) return;
+
+      // Anywhere a reader might be typing — the answer line, the pad, the frame number — and
+      // anywhere a field is added later: a global key handler that waits for a field to exist
+      // before considering it is a handler that eats an arrow key in somebody's answer.
       const target = event.target as HTMLElement | null;
       if (target?.isContentEditable) return;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
 
       if (event.key === 'g') {
         const jumper = document.getElementById('frame-jumper');
-        if (!jumper) return; // Not mounted yet, or not on this screen — do nothing.
+        if (!(jumper instanceof HTMLInputElement)) return; // Not on this screen — do nothing.
+        if (!showPopover(PROGRAM_MAP_ID)) return; // No Popover API: the map is in the page.
         event.preventDefault();
         jumper.focus();
+        jumper.select();
         return;
       }
 
@@ -197,28 +195,10 @@ export function FrameKeys({ base, last, after, track, unit, language }: FrameKey
       void revealStep(track, unit, language, here, `${base}/${to}`);
     };
 
-    // The typing state, for the hint. `focusin` carries the element gaining focus, so one
-    // listener both sets the state on entering a field and clears it on entering anything
-    // else; `focusout` with no `relatedTarget` is focus leaving to the document itself,
-    // which `focusin` never reports.
-    const onFocusIn = (event: FocusEvent): void => {
-      const state = (event.target as HTMLElement | null)?.dataset?.['typing'];
-      if (state) document.documentElement.dataset.typing = state;
-      else delete document.documentElement.dataset.typing;
-    };
-    const onFocusOut = (event: FocusEvent): void => {
-      if (!event.relatedTarget) delete document.documentElement.dataset.typing;
-    };
-
     document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('focusin', onFocusIn);
-    document.addEventListener('focusout', onFocusOut);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      document.removeEventListener('focusin', onFocusIn);
-      document.removeEventListener('focusout', onFocusOut);
       delete document.documentElement.dataset.frameKeys;
-      delete document.documentElement.dataset.typing;
     };
   }, [base, last, after, router, track, unit, language]);
 

@@ -69,30 +69,28 @@ test('a language with no controls here gets English ones, and SAYS they are Engl
   // The whole reason chromeFor returns a language. A track may declare a language this
   // repository has no word for; serving its content under English controls is right, and
   // serving it under controls that CLAIM to be in that language is not — a screen reader
-  // would read "Reveal the answer" with a German voice.
+  // would read the pager's "Next" with a German voice.
   const de = chromeFor('de');
   assert.equal(de.language, FALLBACK_LANGUAGE);
-  assert.equal(de.reveal, chromeFor('en').reveal);
+  assert.equal(de.next, chromeFor('en').next);
 });
 
 test('a language with controls here reports itself, not the fallback', () => {
   // The positive control for the test above: without it, a chromeFor() that always returned
   // English would satisfy it.
   assert.equal(chromeFor('pl').language, 'pl');
-  assert.notEqual(chromeFor('pl').reveal, chromeFor('en').reveal);
+  assert.notEqual(chromeFor('pl').next, chromeFor('en').next);
 });
 
 test('every language carries the same key map, entry for entry', () => {
-  // The hint on a frame and the foot's full list are both derived from `keysMap`, so a
-  // Polish entry that dropped a key, its gate or the state it belongs to would silently
-  // show a Polish reader a shorter map than an English one. The WORDS may differ; the
-  // keys, the islands they wait for and the states they belong to may not.
+  // `Reading settings` prints `keysMap` whole, so a Polish entry that dropped a key or its
+  // Apple spelling would silently show a Polish reader a shorter map than an English one.
+  // The WORDS may differ; the keys, and whether an entry says where it applies, may not.
   const shape = (language: string) =>
     TABLE[language]!.keysMap.map((entry) => ({
       key: entry.key,
       macKey: entry.macKey,
-      needs: entry.needs,
-      when: [...entry.when],
+      scoped: entry.where !== undefined,
     }));
   for (const language of CHROME_LANGUAGES) {
     assert.deepEqual(shape(language), shape(FALLBACK_LANGUAGE), `${language} has a different key map`);

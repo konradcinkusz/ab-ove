@@ -2,15 +2,18 @@ import Link from 'next/link';
 
 import { say, sectionSpans, unitBefore, type Bundle, type Unit } from '@ab-ovo/web-kit';
 
-import { LanguageChoice } from '@/components/language/language-choice';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
 
 import styles from './contents.module.css';
 import { EntryControl, StartAfresh } from './entry-control.tsx';
+import { ArrowLeft } from './icons.tsx';
 import { ProgramGate } from './program-gate.tsx';
 import foot from './reading-foot.module.css';
 import { ReadingFoot } from './reading-foot.tsx';
+import { ReadingScreen } from './reading-screen.tsx';
+import { ReadingSettings } from './reading-settings.tsx';
+import { ReadingTop } from './reading-top.tsx';
 import { RichInline } from './rich-text.tsx';
 import { WhenOpen } from './when-open.tsx';
 
@@ -46,12 +49,15 @@ export interface ProgramContentsProps {
  * reader has got there, and by URL.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * THE FOOT CARRIES THE TWO NEIGHBOURING PROGRAMS AND THE KEY MAP — PR3.
+ * THE PAGER CARRIES THE TWO NEIGHBOURING PROGRAMS — PR3, in the shape ADR-0063 gave every
+ * reading screen. Between-program movement used to exist only on the index: a reader
+ * finishing F01 went up two levels to reach F02. The neighbours are found by ADJACENCY IN
+ * `bundle.units`, never by adding one to a parsed id — the book renumbered its own main
+ * sequence once already when P07 was inserted, and an id is a name rather than an index.
  *
- * Between-program movement used to exist only on the index: a reader finishing F01 went
- * up two levels to reach F02. The neighbours are found by ADJACENCY IN `bundle.units`,
- * never by adding one to a parsed id — the book renumbered its own main sequence once
- * already when P07 was inserted, and an id is a name rather than an index.
+ * THE WAY IN IS UNDER THE TITLE, where the page is first looked at, rather than under the list
+ * of headings: a reader who came here to start or to carry on should not have to scroll past
+ * eight headings to find the button that does it (ADR-0063).
  */
 export function ProgramContents({
   bundle,
@@ -69,84 +75,99 @@ export function ProgramContents({
   const openingEnds = (spans[0]?.from ?? 1) - 1;
 
   const index = bundle.units.findIndex((candidate) => candidate.id === unit.id);
-  // Through `unitBefore` rather than `index - 1`, so the gate and this foot read the
+  // Through `unitBefore` rather than `index - 1`, so the gate and this pager read the
   // book's order out of one function (ADR-0051). The forward neighbour has no such
   // sharer and stays here.
   const previousUnit = unitBefore(bundle, unit.id);
   const nextUnit = index >= 0 ? bundle.units[index + 1] : undefined;
 
   return (
-    <main className={styles.page} lang={language}>
-      {/*
-        A reader who has not reached this program is returned to the index, where the tile
-        says which program opens it (ADR-0051). It renders nothing and cannot run on the
-        server, which is why the page below it is written as though every reader belongs
-        here — see `program-gate.tsx` for why that is the product rather than a shortcut.
-      */}
-      <ProgramGate
-        language={language}
-        previous={previousUnit?.id}
-        track={track}
-        unit={unit.id}
-      />
-
-      {/*
-        `← Programs` rather than the wordmark chain it replaced. The chain said ab-ovo ·
-        Programs on a page whose own `<h1>` already names the program, which is three levels
-        of "where am I" for a two-level tree — and the owner's complaint about the reading
-        surface was side text, of which a crumb naming the product is the purest kind. The
-        wordmark still leads home from the index, which is the page it belongs on.
-
-        The right-hand end of this row used to carry the resume control; it carries the
-        quiet *Start at frame 1* now, and only for a reader who has a place — the filled
-        control at the foot of the list is the one that follows the reader
-        (`entry-control.tsx`). Either way it is read from the browser, so it cannot exist in
-        the first paint, and extending a line moves nothing where adding a block would move
-        everything under it.
-      */}
-      {/*
-        A `<div>` AND NOT A `<p>`, since ADR-0052 put the language control in this row. The
-        control is a `<nav>`, `<p>` cannot legally contain one, and the parser closes the
-        paragraph when it meets it — which React reports as a hydration mismatch and pays
-        for by regenerating the whole client tree. `place-row.tsx`'s header has the full
-        finding; it cost a PR to notice, because nothing looks broken when it happens.
-      */}
-      <div className={styles.crumb} lang={chrome.language}>
-        <span className={styles.crumbSide}>
-          <Link href="/">{chrome.programsCrumb}</Link>
-          {/*
-            THE LANGUAGE CONTROL — this screen's only one, at the top of it. It sits beside
-            the way back rather than on a line of its own, which is the line ADR-0052
-            removed: a block between the crumb and the programme's title, on every contents
-            page, saying nothing the reader had not already been asked twice.
-          */}
-          <LanguageChoice
-            current={language}
-            hrefs={editionHrefs(
-              bundle.track.languages,
-              (other) => `/read/${track}/${unit.id}/${other}`,
-            )}
-            label={chrome.languageLabel}
-            labelLanguage={chrome.language}
-            languages={bundle.track.languages}
-          />
-        </span>
-        <StartAfresh language={language} last={unit.steps.length} track={track} unit={unit.id} />
-      </div>
-
+    <ReadingScreen
+      before={
+        /*
+          A reader who has not reached this program is returned to the index, where the tile
+          says which program opens it (ADR-0051). It renders nothing and cannot run on the
+          server, which is why the page below it is written as though every reader belongs
+          here — see `program-gate.tsx` for why that is the product rather than a shortcut.
+        */
+        <ProgramGate language={language} previous={previousUnit?.id} track={track} unit={unit.id} />
+      }
+      lang={language}
+      overlays={<ReadingSettings chrome={chrome} />}
+      pager={
+        /*
+          IN THE PAGE'S FLOW, NOT PINNED (reading-foot.tsx): the way on is a SENTENCE until
+          the next program opens and a link after, decided after hydration, and a bar pinned
+          to the viewport would change height under the reader's thumb when it did.
+        */
+        <ReadingFoot
+          back={
+            previousUnit ? (
+              <Link className={foot.pagerButton} href={`/read/${track}/${previousUnit.id}/${language}`}>
+                ← {previousUnit.id}
+              </Link>
+            ) : (
+              <Link className={foot.pagerButton} href="/">
+                <ArrowLeft className={foot.arrow} />
+                <span>{chrome.programs}</span>
+              </Link>
+            )
+          }
+          chrome={chrome}
+          forward={
+            /*
+              The way on, offered only once this program has been opened: the next program is
+              shut until the reader has a place in this one, and a link that bounced off the
+              gate would be a control that is reliably refused (ADR-0056 — the sentence that
+              says what opens it stands in its place).
+            */
+            nextUnit ? (
+              <WhenOpen language={chrome.language} previous={unit.id} track={track} unit={nextUnit.id}>
+                <Link className={foot.pagerButton} href={`/read/${track}/${nextUnit.id}/${language}`}>
+                  {nextUnit.id} →
+                </Link>
+              </WhenOpen>
+            ) : null
+          }
+          pinned={false}
+        />
+      }
+      top={
+        <ReadingTop
+          chrome={chrome}
+          language={language}
+          languageHrefs={editionHrefs(bundle.track.languages, (other) => `/read/${track}/${unit.id}/${other}`)}
+          languages={bundle.track.languages}
+          unitId={unit.id}
+        />
+      }
+    >
       <h1 className={styles.programTitle}>
         <RichInline language={language} text={say(unit.titles, language)} />
       </h1>
       {/*
         Two languages in one line, so the attribute cannot sit on the paragraph: the track's
         title is the reader's EDITION and the count is the application's CHROME, and those
-        are different language sets (lib/i18n/chrome.ts). They agree today for en and pl and
-        would not for a track declaring a language this repository has no controls for.
+        are different language sets (lib/i18n/chrome.ts).
       */}
       <p className={styles.subtitle}>
         {say(bundle.track.titles, language)}{' '}
         <span lang={chrome.language}>· {chrome.frames(unit.steps.length)}</span>
       </p>
+
+      {/*
+        The page's one filled control: *Start at frame 1* for a reader who has not, and
+        *Continue at frame N* for one who has — the primary action follows the reader rather
+        than always pointing at the beginning — with the quiet *Start at frame 1* beside it
+        for a reader who has a place. Both are read from the browser, so neither can exist in
+        the first paint: the row has its height from the start, and a label that changes or
+        a link that arrives extends the row sideways and moves nothing below it
+        (`progress.spec.ts` holds the page to its shift bound).
+      */}
+      <div className={styles.entry}>
+        <EntryControl language={language} last={unit.steps.length} track={track} unit={unit.id} />
+        <StartAfresh language={language} last={unit.steps.length} track={track} unit={unit.id} />
+      </div>
 
       {spans.length > 0 ? (
         <>
@@ -169,11 +190,9 @@ export function ProgramContents({
 
             {spans.map(({ section, from, to }) => (
               /*
-                `id="s-<section.id>"` is what the frame's place row links UP to: a reader
-                three sections into a program lands on this page at the heading they were
-                reading rather than at its top. The id is prefixed because a section id
-                comes out of the book and a bare one could collide with an element id this
-                page already has; `s-` makes the namespace explicit.
+                `id="s-<section.id>"` so a link can land on this page at the heading rather than
+                at its top; prefixed because a section id comes out of the book and a bare one
+                could collide with an element id this page already has.
               */
               <li className={styles.sectionEntry} id={`s-${section.id}`} key={section.id}>
                 {/*
@@ -184,14 +203,14 @@ export function ProgramContents({
                 <span className={styles.range}>{from === to ? from : `${from}–${to}`}</span>
                 {/*
                   `prefetch={false}`: a section's first frame opens with the answer to the
-                  frame before it, and a contents page in the viewport was pulling every
-                  one of them over the wire. The reveal's own reasoning (frame-view.tsx).
+                  frame before it, and a contents page in the viewport was pulling every one
+                  of them over the wire. The reveal's own reasoning (frame-view.tsx).
                 */}
                 <Link className={styles.sectionTitle} href={at(from)} prefetch={false}>
                   {/*
                     Through the renderer, not raw: the pinned bundle's section titles carry
-                    ten maths spans between them, and a raw `say()` here would print `$` and
-                    a TeX macro on the one page whose whole job is to be scanned.
+                    maths spans, and a raw `say()` here would print `$` and a TeX macro on the
+                    one page whose whole job is to be scanned.
                   */}
                   <RichInline language={language} text={say(section.titles, language)} />
                 </Link>
@@ -200,58 +219,6 @@ export function ProgramContents({
           </ol>
         </>
       ) : null}
-
-      {/*
-        The page's one filled control: *Start at frame 1* for a reader who has not, and
-        *Continue at frame N* for one who has — the primary action follows the reader
-        rather than always pointing at the beginning.
-      */}
-      <EntryControl language={language} last={unit.steps.length} track={track} unit={unit.id} />
-
-      {/*
-        THE FOOT IS THE TWO NEIGHBOURING PROGRAMS, AND IT IS THE FRAME'S OWN FOOT NOW.
-
-        Between-program movement used to exist only on the index: a reader finishing F01
-        went up two levels to reach F02. The neighbours are found by ADJACENCY IN
-        `bundle.units`, never by adding one to a parsed id — the book renumbered its own
-        main sequence once already when P07 was inserted, and an id is a name rather than
-        an index.
-
-        `ReadingFoot` rather than a `.foot` of this page's own: ADR-0057 gave the frame's
-        foot visible buttons and named bringing this one to the same tier as follow-up it
-        had deliberately not done. This is that follow-up (ADR-0058). The centre slot is
-        empty here — the page's own `<h1>` says which program this is, and a position chip
-        repeating it would be the side text this screen was stripped of.
-      */}
-      <ReadingFoot
-        back={
-          previousUnit ? (
-            <Link className={foot.navLink} href={`/read/${track}/${previousUnit.id}/${language}`}>
-              ← {previousUnit.id}
-            </Link>
-          ) : null
-        }
-        chrome={chrome}
-        forward={
-          /*
-            The way on, offered only once this program has been opened: the next program is
-            shut until the reader has a place in this one, and a foot link that bounced off
-            the gate would be a control that is reliably refused.
-          */
-          nextUnit ? (
-            <WhenOpen
-              language={chrome.language}
-              previous={unit.id}
-              track={track}
-              unit={nextUnit.id}
-            >
-              <Link className={foot.navLink} href={`/read/${track}/${nextUnit.id}/${language}`}>
-                {nextUnit.id} →
-              </Link>
-            </WhenOpen>
-          ) : null
-        }
-      />
-    </main>
+    </ReadingScreen>
   );
 }

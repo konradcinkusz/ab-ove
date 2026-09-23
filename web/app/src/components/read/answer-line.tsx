@@ -16,7 +16,6 @@ export interface AnswerLineProps {
   readonly tag: string;
   /** Where the reveal goes, so `Ctrl+Enter` can commit and turn over in one stroke. */
   readonly forward: string;
-  readonly label: string;
   readonly placeholder: string;
   readonly lockedNote: string;
   readonly earlierEdition: string;
@@ -64,7 +63,13 @@ export interface AnswerLineProps {
  * `Esc` RETURNS TO READING — it blurs the field, which commits (the `onBlur` below), so a
  * keyboard reader leaving by Esc keeps exactly what a mouse reader leaving by a click
  * keeps. `frame-keys.tsx` then sees focus on the document again and the arrows are live.
- * The `id` is what that file's `Enter` focuses; the `data-typing` is what its hint reads.
+ * The `id` is what that file's `Enter` focuses, and what the visible `<label>` above the
+ * field names it by (`frame-view.tsx`, ADR-0063) — so it carries no `aria-label` of its own.
+ *
+ * THE NOTE UNDER A LOCKED LINE HAS ITS ROW ALREADY. It can only be decided in the browser,
+ * after the sheet has been read, and the panes sit under it: a row that appeared then would
+ * push them down under a reader who was already looking at them. So the row is always there,
+ * a line tall, and empty until there is something to say.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * THE LOCK PROTECTS SOMETHING OR IT DOES NOT APPLY. A line is read-only once it holds text
@@ -79,7 +84,6 @@ export function AnswerLine({
   n,
   tag,
   forward,
-  label,
   placeholder,
   lockedNote,
   earlierEdition,
@@ -142,26 +146,6 @@ export function AnswerLine({
   const locked = (stored?.answer.trim().length ?? 0) > 0 && stored?.revealed === true;
   const stale = stored !== undefined && stored.tag !== tag;
 
-  /*
-    THE FLAG GOES ON `<html>`, WHICH IS WHERE THE HINT CAN SEE IT.
-
-    `frame-keys.tsx` sets `data-frame-keys` the same way and for the same reason: the
-    keyboard hint is a sibling several elements up the tree, so a flag on this field would
-    be invisible to it. A first draft put `data-answer-line` on the `<textarea>` alone; the
-    stylesheet's `:global([data-answer-line='on']) .key` then matched nothing and the
-    `Ctrl+Enter` segment never appeared — a hint silently one item short, which is the
-    quiet half of the failure this gating exists to prevent.
-
-    Set when this component mounts and cleared when it unmounts, so a teaching frame — which
-    renders no answer line — does not inherit the promise from the frame before it.
-  */
-  useEffect(() => {
-    document.documentElement.dataset.answerLine = 'on';
-    return () => {
-      delete document.documentElement.dataset.answerLine;
-    };
-  }, []);
-
   // Autogrow. `auto` first, then the measured height: without the reset the box can only
   // ever get taller, so deleting a line leaves the empty row behind.
   useEffect(() => {
@@ -182,11 +166,9 @@ export function AnswerLine({
   return (
     <div className={styles.answerLine}>
       <textarea
-        aria-label={label}
         autoCapitalize="off"
         autoCorrect="off"
         className={styles.field}
-        data-typing="answer-line"
         id="answer-line"
         maxLength={ANSWER_LIMIT}
         onBlur={() => commit(value)}
@@ -214,16 +196,11 @@ export function AnswerLine({
         spellCheck={false}
         value={value}
       />
-      {locked ? (
-        <p className={styles.note} lang={language}>
-          {lockedNote}
-          {stale ? ` · ${earlierEdition}` : null}
-        </p>
-      ) : stale ? (
-        <p className={styles.note} lang={language}>
-          {earlierEdition}
-        </p>
-      ) : null}
+      <p className={styles.note} lang={language}>
+        {locked ? lockedNote : null}
+        {locked && stale ? ' · ' : null}
+        {stale ? earlierEdition : null}
+      </p>
     </div>
   );
 }

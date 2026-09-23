@@ -27,7 +27,7 @@ opens with the answer you were supposed to have written down.
 
 ### Frame 3 asks
 
-![A frame of program F01. It opens with the previous frame's answer in a tinted box, explains what a rational number is, then asks the reader to write down the decimal expansion of one third. Below the question: a dotted answer line reading "Write it down before you read on", two outlined buttons side by side reading "Work it out" and "Draw it", and a filled "Reveal the answer" button. At the foot, a row of three: "← Previous", the frame count, and "Next section →", with a "Reading settings" disclosure below it.](assets/screenshots/frame-asks-english.png)
+![A frame of program F01. A bar across the top: the ab-ovo wordmark, "F01 Numbers, powers and roots", the language control and a "Reading settings" button. Under it, the heading the frame is in, then the previous frame's answer in a tinted box labelled "Answer to frame 2"; the frame explains what a rational number is and asks the reader to write down the decimal expansion of one third. Below the question: an answer line labelled "Your answer" reading "Write it down before you read on", and two outlined buttons side by side, "Work it out" and "Draw it". Pinned to the bottom of the screen: an outlined "← Previous" button, the position "3 of 45", and a filled "Next →" button.](assets/screenshots/frame-asks-english.png)
 
 The question is *write down the decimal expansion of ⅓*. The answer to it is **not on this
 page**: not in an element, not in an attribute, not in a script, and not prefetched. A reader
@@ -38,10 +38,10 @@ who opens the inspector finds nothing, because there is nothing to find
 
 ![The next frame. It opens with "0.333…, repeating without end" in the same tinted box, then carries on to explain that a rational number's decimal expansion either stops or repeats, and asks the next question.](assets/screenshots/frame-reveals-english.png)
 
-The reveal is a **navigation**, not a toggle. Frame 4's opening *is* frame 3's answer, and it
-arrived with frame 4's HTML. That is what makes the property structural rather than a
-discipline somebody has to keep: there is no disclosure widget to defeat, because the answer
-was never sent.
+The reveal is a **turn of the page**, not a toggle: `Next` raises the reader's place on the
+server and asks for frame 4, whose opening *is* frame 3's answer and arrived with frame 4's
+HTML. That is what makes the property structural rather than a discipline somebody has to
+keep: there is no disclosure widget to defeat, because the answer was never sent.
 
 Both halves are asserted by the acceptance suite, and both were watched failing before they
 were believed.
@@ -50,14 +50,27 @@ were believed.
 
 ## The reading surface
 
-### The place row is the only chrome
+### A bar above, and `Previous` and `Next` pinned below
 
-The row above the frame carries the program id, the program's title, the section you are in,
-the language control, and where you are — `3 / 45`. That frame number is a jumper: press `g` and
-type a number. **It shows position and never progress**
-([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md)) — a percentage
-over a book of 47 programs would be a number about the reader, and this product does not make
-those.
+The bar above the frame carries the wordmark, which is the way to every program; the program's
+id and title, which lead to its contents; the language control; and *Reading settings*. The
+pager at the bottom edge carries **Previous**, where you are — `3 of 45` — and **Next**, in the
+same place on every frame and on screen while the frame scrolls under it
+([ADR-0063](adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)). The keys work too
+(`→`, `←`, `g`), and nothing on the frame advertises them. **The position shows where you are
+and never progress** ([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md))
+— a percentage over a book of 47 programs would be a number about the reader, and this product
+does not make those.
+
+### The program map
+
+![The same frame with a panel open over it, just above the pager: "F01 Numbers, powers and roots" with a close button, a "Go to frame [3] of 45 [Go]" field, then "Contents" and every heading of the program with its frame range — "Which numbers there are 1–7" tinted as the current one, and "Powers", "Roots", "Scientific notation" and the rest each shown with a lock and "not reached yet". The position button in the pager is pressed.](assets/screenshots/frame-program-map-english.png)
+
+Pressing the position opens every heading of the program, one click from any frame, and a box
+to go to a frame by its number. What the reveal gate would refuse is not offered: a heading
+past the furthest frame the reader has reached is shown locked, with the reason, and a number
+past it is answered in place with the way to the furthest frame — rather than a link that only
+leads to *Not there yet*.
 
 ### The same frame, in Polish
 
@@ -66,8 +79,9 @@ those.
 The book is set in English and Polish, and the edition is the reader's choice rather than
 something guessed from a header
 ([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)). Switching
-is a link in the place row; it keeps your frame number — and it is remembered, so the
-question is asked once rather than on every screen.
+is a link in the top bar; it keeps your frame number — and it is remembered, so the question
+is asked once rather than on every screen. The pager speaks the edition too: `Wstecz`, `3 z
+45`, `Dalej`.
 
 ### The worksheet
 
@@ -85,21 +99,24 @@ either one taking the whole row when it opens
 
 ### At a phone width
 
-![The same frame at 360 pixels wide. The place row wraps, the measure narrows, and the worksheet controls stack; the foot becomes one full-width control per row. Nothing is cut off and nothing is positioned over the text.](assets/screenshots/frame-narrow-english.png)
+![The same frame at 360 pixels wide. The top bar takes two rows — the wordmark, the language control and the settings button, then the program — the measure narrows, and the two worksheet buttons share a row at one height. The pager stays pinned to the bottom edge with "← Previous", "3 of 45" and "Next →" on one line, every button with its word. Nothing is cut off, and the pager is the only thing over the text.](assets/screenshots/frame-narrow-english.png)
 
-360 px is asserted against the canvas in `specs/narrow-screen.spec.ts`, so this is a checked
-property rather than a screenshot somebody once took.
+360 px is asserted in `specs/narrow-screen.spec.ts` and `specs/pager.spec.ts` — nothing
+scrolls sideways, the pager's three cells fit with their words, and `Previous` and `Next` are
+on screen on the program's longest frames — so this is a checked property rather than a
+screenshot somebody once took.
 
 ### In dark mode
 
-![The same frame with a dark background and light text: the answer box, the links and the reveal button all re-coloured, not merely inverted.](assets/screenshots/frame-dark-english.png)
+![The same frame with a dark background and light text: the answer box, the links and the pager's buttons all re-coloured, not merely inverted.](assets/screenshots/frame-dark-english.png)
 
 Dark mode is a full token swap, not an afterthought — a reader working through a program at
 night is the normal case. So is one working it at a desk under a lamp, which is why every
-reading screen carries a three-position switch: **System**, **Light**, **Dark**. It is inside
-the *Reading settings* disclosure at the foot, with the keyboard map, rather than in the row a
+reading screen carries a three-position switch: **System**, **Light**, **Dark**. It is in the
+*Reading settings* panel, opened from the top bar, with the keyboard map — out of the pager a
 reader scans for the way forward
-([ADR-0058](adr/0058-the-reading-foot-is-one-pager-and-the-settings-leave-it.md)). The
+([ADR-0058](adr/0058-the-reading-foot-is-one-pager-and-the-settings-leave-it.md),
+[ADR-0063](adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)). The
 first is the default and is `prefers-color-scheme`, exactly as it was before the switch
 existed — it is a position a reader can return to rather than the absence of a choice, and it
 is the one that needs no JavaScript
@@ -138,11 +155,11 @@ screen (ADR-0052).
 
 ### A program's contents
 
-![The contents of program F01: the program's title, its sections listed with the frame each one starts at, and a way in.](assets/screenshots/program-contents-english.png)
+![The contents of program F01: the same top bar, the program's title, a filled "Start at frame 1" button, and its sections listed with the range of frames each one covers. At the foot, "← Programs" and the sentence saying when F02 opens.](assets/screenshots/program-contents-english.png)
 
 ### And its summary
 
-![The end of program F01: a Summary section, a "Can you?" checklist restating what the program set out to teach, and the way into the next program.](assets/screenshots/program-summary-english.png)
+![The end of program F01: a Summary section, a "Can you?" checklist restating what the program set out to teach, and, pinned at the bottom, "← Back to the frame" and a filled "Next program: F02 →".](assets/screenshots/program-summary-english.png)
 
 *Summary* and *Can you?* are the book's own closing sections, not something this application
 invented.

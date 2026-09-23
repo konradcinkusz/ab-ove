@@ -19,6 +19,7 @@ import {
   type Stroke,
 } from '@/lib/sheet/strokes';
 
+import { Pencil } from './icons.tsx';
 import styles from './worksheet.module.css';
 
 export interface SketchProps {
@@ -334,11 +335,14 @@ export function Sketch({
       onToggle={(event) => event.currentTarget.open && load()}
     >
       <summary className={styles.paneSummary}>
+        {/* The icon is inside each label, so the word and its mark centre together. */}
         <span className={styles.paneLabels}>
           <span className={styles.paneLabel} data-when="none">
+            <Pencil className={styles.paneIcon} />
             {summary}
           </span>
           <span className={styles.paneLabel} data-when="saved">
+            <Pencil className={styles.paneIcon} />
             {saved}
           </span>
         </span>

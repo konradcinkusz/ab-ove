@@ -1,80 +1,87 @@
 /*
- * THE FOOT OF EVERY READING SCREEN — ADR-0058. See reading-foot.tsx for why there is one
- * of these rather than three.
+ * THE PAGER — reading-foot.tsx says what it holds and why it is pinned (ADR-0063).
  *
  * ────────────────────────────────────────────────────────────────────────────────────────
- * A GRID AND NOT A FLEX ROW, WHICH IS THE WHOLE FIX.
+ * A GRID AND NOT A FLEX ROW — ADR-0058's finding, kept.
  *
- * The three feet this replaces were `display: flex; flex-wrap: wrap; justify-content:
- * space-between`, and flex decides where a row breaks from the WIDTH OF ITS CONTENT. The
- * content here is a button named by the book ("Next program → F03 · The language of
- * algebra") and a disclosure that has to be full-width to lay its panel out — so the break
- * landed differently on every screen and at every viewport, and one item was always left
- * stranded on a line of its own. That is what the owner's screenshots show.
- *
- * Named areas state the break instead of deriving it. There is no width at which this can
- * surprise anybody, because there is no width at which it is measured.
+ * Flex decides where a row breaks from the width of its content, and the content here is as
+ * long as the book makes it ("Next program → F03 · The language of algebra"). Named areas
+ * state the break instead, so there is no width at which an item strands on a line of its
+ * own.
  * ────────────────────────────────────────────────────────────────────────────────────────
  */
-.foot {
-  align-items: center;
+.pager {
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  line-height: 1.3;
+}
+
+/*
+ * PINNED TO THE BOTTOM EDGE, above the text that scrolls under it — hence an opaque
+ * background and a rule rather than a shadow (UI-UX.md: "rules and cards rather than shadows
+ * and gradients"). `z-index` only has to beat the page's own content; the popovers are in the
+ * top layer and above everything regardless.
+ *
+ * The safe-area inset is a no-op on a page that does not ask for `viewport-fit: cover`, which
+ * this one does not; it is here so the bar does not sit under a home indicator the day one does.
+ */
+.pinned {
+  background: var(--paper);
   border-top: 1px solid var(--rule);
-  color: var(--ink-faint);
+  bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  position: sticky;
+  z-index: 5;
+}
+
+/* In the page's flow (the contents page): a rule above it and room to breathe. */
+.pager:not(.pinned) {
+  border-top: 1px solid var(--rule);
+  margin-top: 1rem;
+}
+
+.inner {
+  align-items: center;
+  box-sizing: border-box;
   display: grid;
-  font-size: 0.8125rem;
+  gap: 0.5rem;
+  grid-template-areas: 'back where forward';
   /*
-   * COLUMN GAP ONLY, and the rows space themselves. A grid gutter sits between TRACKS
-   * whether or not anything is in them, and `aside` is empty on every teaching frame while
-   * `where` is empty on two of the three screens — so a declared `row-gap` would have paid
-   * for a row nobody can see, under the one row a reader is looking at. The margins below
-   * are carried by the items that exist.
+   * `1fr auto 1fr` and not three equal columns: the centre takes exactly the position's
+   * width and the flanks share the rest, so `3 of 45` sits on the page's centre line
+   * whatever the buttons are called — and stays there on frame 1 and the last frame.
    */
-  column-gap: 1rem;
-  row-gap: 0;
-  /*
-   * `1fr auto 1fr` and not three equal columns: the centre takes exactly the width of the
-   * position and the two flanks share what is left, so `Frame 45 of 50` sits on the page's
-   * centre line whatever the buttons beside it are called — and stays there on frame 1,
-   * where there is no `back` at all.
-   */
-  grid-template-areas:
-    'back where forward'
-    'aside aside aside';
-  grid-template-columns: 1fr auto 1fr;
-  margin-top: 3rem;
-  padding-top: 1.25rem;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  margin: 0 auto;
+  /* The text column's own edges: the measure, less the gutter (`reading-screen.module.css`). */
+  max-width: var(--measure);
+  padding: 0.625rem 1.25rem;
 }
 
 .back {
   grid-area: back;
-  justify-self: start;
+  justify-self: stretch;
+  min-width: 0;
+  text-align: left;
 }
 
 .where {
   grid-area: where;
   justify-self: center;
+  min-width: 0;
 }
 
 /*
  * ────────────────────────────────────────────────────────────────────────────────────────
- * IT STRETCHES, AND `text-align` DOES THE ALIGNING — WHICH IS A MEASURED FINDING.
+ * THE FORWARD CELL STRETCHES AND `text-align` DOES THE ALIGNING — A MEASURED FINDING, KEPT.
  *
- * The obvious spelling is `justify-self: end`, sizing the cell to its content. It shifts the
- * page. `when-open.tsx` puts a SENTENCE in this slot while the next program is shut and a
- * LINK in it once the reader opens it, and it decides which from a record it can only read
- * in the browser — so on a contents page the content of this cell changes after hydration.
- * With the cell sized to its content, that swap moved the box itself, and
- * `progress.spec.ts`'s shift bound saw it: 0.0143 against a ceiling of 0.01.
- *
- * Stretched, the cell IS the 1fr column at every moment, so its rect never changes and only
- * what is drawn inside it does. `text-align: right` puts the link where `justify-self: end`
- * put it, and the replacement child has no previous rect to have moved from. Measured after
- * the change, not assumed: 0.0000.
- *
- * `min-width: 0` because the summary's forward control carries a program's own title, which
- * is as long as the book made it. Without it a grid item refuses to shrink below its
- * content and the 1fr columns stop being 1fr — the centre would slide off the page's centre
- * line on exactly the one screen whose button is longest.
+ * On the contents page `when-open.tsx` puts a SENTENCE in this slot while the next program is
+ * shut and a LINK once it opens, decided in the browser after hydration. Sized to its content,
+ * the cell's own box moved when that swap happened, and `progress.spec.ts`'s shift bound saw
+ * it (0.0143 against 0.01). Stretched, the cell is the 1fr column at every moment and only
+ * what is drawn inside it changes (0.0000). The back cell is the same, mirrored, so the two
+ * flanks behave alike.
  * ────────────────────────────────────────────────────────────────────────────────────────
  */
 .forward {
@@ -85,273 +92,155 @@
 }
 
 /*
- * NEITHER A PLACE TO GO NOR A SETTING. `Clear my answer` is destructive and belongs in
- * neither row; it gets its own, below the three buttons and still below the reveal, which
- * is the property `frame-view.tsx` put it down here for in the first place. Its quiet tone
- * is unchanged — ADR-0057's finding was that one tone over two KINDS of control is what
- * hid the buttons, so separating the kinds is the fix and re-toning the control is not.
+ * THE BUTTONS. `.pagerButton` is the secondary shape at the pager's size — the way back, and a
+ * program's neighbours; `.reveal` is the one filled control, the way on; `.position` below is
+ * the plain one between them. All three come from `controls.module.css`, so the pager and the
+ * rest of the reading surface cannot drift into two families of buttons again.
  */
-.aside {
-  grid-area: aside;
-  justify-self: start;
-  margin-top: 0.75rem;
+.pagerButton {
+  composes: secondary large from './controls.module.css';
+  max-width: 100%;
 }
 
-
-/*
- * A FINGER'S WORTH OF TARGET ON A LINE OF SMALL TYPE — the idiom this repository already
- * uses everywhere else on small type (`place-row.module.css`, `theme-switch.module.css`).
- * The foot is set at 0.8125rem, so an unpadded link in it is some twenty pixels tall,
- * under half the 44px a finger hits reliably. The padding grows the box a press lands in
- * and the negative margin gives the space back, so the line sits where it did and only the
- * hit area changed. `specs/reading.spec.ts` measures the box, not the type.
- */
-.foot a,
-.foot button {
-  margin: -0.75rem -0.375rem;
-  padding: 0.75rem 0.375rem;
+.reveal {
+  composes: primary large from './controls.module.css';
+  max-width: 100%;
 }
 
-/*
- * The colour goes on `.navLink` and NOT on `.foot a`, and that is a specificity finding
- * rather than a preference: `.foot a` is (0,1,1) and `.nextSection` below is (0,1,0), so a
- * grouped `color: inherit` up there wins wherever it is written and the section skip loses
- * its accent silently. Equal specificity here lets source order decide, which is what the
- * two rules were written expecting.
- */
-/*
- * ────────────────────────────────────────────────────────────────────────────────────────
- * A VISIBLE BUTTON, FOR THE CONTROLS THAT ARE NAVIGATION — ADR-0057, now on all three
- * reading screens rather than on the frame alone.
- *
- * ADR-0057's own Consequences named this: the contents page's foot and the summary's
- * carried the identical faint-link pattern it had just left behind on the frame, and
- * bringing them to the same tier was follow-up it declined to do quietly. This is that
- * follow-up. An outline and never a fill — the reveal (frame) and the start control
- * (contents, summary) stay the one filled thing on their page, so these read as the second
- * tier: reachable, not competing with the move the screen is built around.
- * ────────────────────────────────────────────────────────────────────────────────────────
- */
-.navLink {
-  /*
-   * `background`, `font` and `cursor` are here for `.foot button` (ADR-0060's reveal-as-a-
-   * form), which without them inherits the platform's own button chrome — a grey fill and
-   * the UI font — underneath everything this rule already sets. An `<a>` never had either by
-   * default, so restating them costs that element nothing.
-   */
-  background: none;
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  /*
-   * The colour lives HERE and not on `.foot a`, and that is a specificity finding rather
-   * than a preference: `.foot a` is (0,1,1) and `.nextSection` below is (0,1,0), so a
-   * grouped `color: inherit` up there would win wherever it were written and the section
-   * skip would lose its accent silently. Equal specificity lets source order decide, which
-   * is what the two rules were written expecting.
-   */
-  color: inherit;
-  cursor: pointer;
-  display: inline-block;
-  font: inherit;
-  text-decoration: none;
-}
-
-.navLink:hover {
-  border-color: var(--accent);
-}
-
-/* The ring the reveal wears. A border-colour change alone is a contrast delta too small for
-   `:focus-visible` to rely on (WCAG 2.4.7) — UI-UX.md's "focus is a ring, never a
-   brightness". */
-.navLink:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--paper),
-    0 0 0 3px var(--accent);
-  outline: none;
-}
-
-/*
- * A SECTION SKIP IS ONE CLICK FROM THE FRAME. It renders only on the last frame of a
- * section that is not the program's last, so on the other forty-odd frames the foot is
- * unchanged.
- */
-.nextSection {
-  color: var(--accent);
-}
-
-/*
- * THE POSITION, MADE EASIER TO FIND — still text, still no bar and no fraction rendered as
- * one (ADR-0041 stands: this is the same `n of total` string the row always printed). A
- * quiet chip rather than a heavier tone, because a reader is not choosing to press this —
- * it is the answer to "where am I", asked at a glance rather than read.
- */
+/* The position: a readout that is also the program map's door, so quiet until hovered. */
 .position {
-  background: var(--paper-raised);
-  border: 1px solid var(--rule);
-  border-radius: 3px;
-  color: var(--ink-soft);
-  padding: 0.2rem 0.5rem;
+  composes: ghost from './controls.module.css';
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  gap: 0.25rem;
+  min-height: var(--control-pager);
   white-space: nowrap;
 }
 
 /*
- * The way on, when there is not one yet (`when-open.tsx`): the sentence that replaces the
- * `F03 →` link while the next program is shut. It takes the foot's own colour and size and
- * adds nothing — no border, no icon, no emphasis. It is a fact about the book's order, not
- * a warning, and it sits in the slot the link would have occupied so the foot is the same
- * shape either way.
+ * ADR-0060 — the reveal is a `<form action={revealStep}>` around the button. `display:
+ * contents` removes the form's own box, so the forward cell lays out the button alone.
+ */
+.revealForm {
+  display: contents;
+}
+
+/*
+ * WHILE THE NEXT FRAME IS ON ITS WAY. The reveal is a round trip on every press (a Server
+ * Action, never prefetched — ADR-0060), so the press has to show it registered: the cursor
+ * says so and the arrow keeps moving. Nothing lays out, so the pager moves by nothing.
+ */
+.reveal:has([data-pending='yes']) {
+  cursor: progress;
+}
+
+.reveal:has([data-pending='yes']) .arrow {
+  animation: nudge 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes nudge {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal:has([data-pending='yes']) .arrow {
+    animation: none;
+  }
+
+  .reveal:has([data-pending='yes']) {
+    opacity: 0.75;
+  }
+}
+
+.arrow {
+  flex: none;
+  height: 1.125rem;
+  width: 1.125rem;
+}
+
+/* A label the book makes long — a program's title — takes what the cell has and no more. */
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The way on, when there is not one yet (`when-open.tsx`): the sentence in the slot a link
+ * would occupy while the next program is shut. A fact about the book's order, not a warning,
+ * so it takes the pager's own colour and nothing else.
  */
 .footShut {
   color: var(--ink-faint);
+  display: inline-block;
   max-width: 28rem;
   text-align: right;
 }
 
 /*
- * ────────────────────────────────────────────────────────────────────────────────────────
- * READING SETTINGS: ONE DISCLOSURE, BELOW THE NAVIGATION, LAST ON THE PAGE.
- *
- * It is outside the `<nav>` on purpose (reading-foot.tsx says why) and last on purpose:
- * a `<details>` under every control cannot push anything a reader is looking at when it
- * opens, which is the layout-shift bound `specs/reading.spec.ts` asserts. `keys-details.tsx`
- * held that property before this file did, and it is kept the same way — by placement,
- * never by measurement.
- *
- * NO `flex-basis: 100%` HERE, and its absence is the point. The rule it replaces existed
- * because a `<details>` inside a flex row is sized to its SUMMARY — some 40px, the word
- * `Keys` — and its panel is then laid out inside that 40px box, overflowing the page at
- * every width and reaching 24px past a 360px screen. This is a block in normal flow, so it
- * is the width of the column and its rows wrap the way any paragraph does.
- * ────────────────────────────────────────────────────────────────────────────────────────
- */
-.settings {
-  color: var(--ink-faint);
-  font-size: 0.8125rem;
-  margin-top: 1.25rem;
-}
-
-.settingsSummary {
-  cursor: pointer;
-  /* The same finger-sized box the foot's own links get, for the same reason. */
-  margin: -0.75rem -0.375rem;
-  padding: 0.75rem 0.375rem;
-  width: fit-content;
-}
-
-.settingsBody {
-  display: grid;
-  gap: 1.25rem;
-  margin-top: 0.75rem;
-}
-
-.setting {
-  min-width: 0;
-}
-
-/*
- * A real heading, at level two, and not a styled `<span>`: this panel is where a reader who
- * is looking for the shortcuts goes, and a heading is how a screen reader user gets there.
- * It takes the foot's own size so it reads as a label rather than as a section of the page.
- */
-.settingHeading {
-  color: var(--ink-faint);
-  font-family: var(--font-ui);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  margin: 0 0 0.375rem;
-  text-transform: uppercase;
-}
-
-/*
  * ════════════════════════════════════════════════════════════════════════════════════════
- * EVERYTHING BELOW IS THE NARROW SCREEN, AND IT IS LAST IN THE FILE ON PURPOSE.
- *
- * A media query adds NO specificity. `.back > *` and `.foot a` inside one tie with the
- * `.navLink` and `.foot a` rules above, so source order is what decides — and written
- * higher up they lost every tie silently: the query matched, `text-align` took effect
- * because nothing else set it, and `display` and `margin` did not, which showed up as two
- * content-width buttons overlapping by 12 px on a 360 px capture. Nothing about it looked
- * like a specificity problem.
+ * EVERYTHING BELOW IS THE NARROW SCREEN, AND IT IS LAST IN THE FILE ON PURPOSE: a media query
+ * adds no specificity, so rules written above it lose every tie silently (ADR-0058 found this
+ * as two buttons overlapping by 12 px on a 360 px capture).
  * ════════════════════════════════════════════════════════════════════════════════════════
  */
 
 /*
- * ────────────────────────────────────────────────────────────────────────────────────────
- * ON A PHONE THE WAY BACK AND THE WAY ON EACH TAKE A ROW, AND THAT IS NOT A SPACE DECISION.
- *
- * Two half-width cells would be enough for `← Previous` and `Next section →`. They are not
- * enough for the OTHER thing this slot holds: `when-open.tsx` puts a whole sentence there
- * while the next program is shut — "F02 opens once you have read any frame of this
- * program" — and in a 156 px cell that is a six-line right-aligned block beside a one-line
- * button, which is the raggedness this change exists to remove.
- *
- * Giving the slot the row rather than reflowing it when it happens to hold prose is what
- * keeps the layout decided in the stylesheet instead of by the content. The first attempt
- * did reflow it, with `:has()`, and it cost a layout shift on every contents page — see
- * `.forward` above, which carries the measurement.
- * ────────────────────────────────────────────────────────────────────────────────────────
+ * ON A PHONE THE PINNED PAGER STAYS ONE ROW OF THREE — that is what makes it a pager — and
+ * pays for it in padding rather than in words: every button keeps its label, because a bare
+ * arrow is exactly the unlabelled control the owner could not find.
  */
 @media (max-width: 30rem) {
-  .foot {
+  .inner {
+    gap: 0.375rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .pagerButton,
+  .reveal {
+    font-size: 0.9375rem;
+    gap: 0.375rem;
+    padding: 0.25rem 0.75rem;
+  }
+
+  .position {
+    padding: 0.25rem 0.375rem;
+  }
+
+  /*
+   * THE CONTENTS PAGE'S PAGER, IN FLOW, STACKS — its way on can be a whole sentence ("F02
+   * opens once you have read any frame of this program"), and in a third of 360 px that is a
+   * six-line block beside a one-line button. Giving the slot a row of its own is decided here,
+   * by the stylesheet, and never by the content.
+   */
+  .pager:not(.pinned) .inner {
     grid-template-areas:
       'back'
       'forward'
-      'where'
-      'aside';
+      'where';
     grid-template-columns: 1fr;
   }
 
-  /*
-   * FULL WIDTH AND CENTRED, so the two buttons read as a stack rather than a zigzag. On
-   * one row, `start` and `end` are what make a pager; stacked, they put one control at the
-   * left margin and the next at the right, and the eye travels twice as far as the page is
-   * wide to get from one to the other.
-   */
-  .back,
-  .forward {
-    justify-self: stretch;
+  .pager:not(.pinned) .back,
+  .pager:not(.pinned) .forward {
     text-align: center;
   }
 
-  .back > *,
-  .forward > * {
-    display: block;
-  }
-
-  /*
-   * ──────────────────────────────────────────────────────────────────────────────────────
-   * AND THE NEGATIVE MARGIN GOES, WHICH IS NOT A TIDY-UP.
-   *
-   * `margin: -0.75rem -0.375rem` with matching padding is this repository's idiom for
-   * giving a line of small TYPE a finger-sized box without moving the line. It assumes the
-   * control is inline on a row with something beside it. Here the controls are blocks in a
-   * stack, and the idiom does two things it was never meant to:
-   *
-   *   - the vertical half pulls each row 12 px into the one above, so `← Previous` and
-   *     `Next section →` OVERLAP — seen on a 360 px capture, not reasoned about;
-   *   - the horizontal half makes a stretched block 12 px wider than its own cell, which is
-   *     an element reaching past 360 px and is what `narrow-screen.spec.ts` exists to catch.
-   *
-   * The padding stays, so the box is still the 44 px `reading.spec.ts` measures — it is now
-   * paid for in height, which is free here because each control has a row to itself.
-   * ──────────────────────────────────────────────────────────────────────────────────────
-   */
-  .foot a,
-  .foot button {
-    margin: 0;
-  }
-
-  /* Each on its own row now, so they carry the gutter the grid does not declare. */
-  .forward,
-  .where,
-  .aside {
-    margin-top: 0.25rem;
+  .pager:not(.pinned) .back > *,
+  .pager:not(.pinned) .forward > * {
+    width: 100%;
   }
 }
 
 @media print {
-  .settings {
+  .pager {
     display: none;
   }
 }

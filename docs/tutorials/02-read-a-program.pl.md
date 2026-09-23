@@ -45,9 +45,9 @@ Wybierz **F01 — Liczby, potęgi i pierwiastki**. Każdy czytelnik zaczyna tam.
 
 Ramka to jedna myśl, czasem jeden wiersz. Przeczytaj ją i zatrzymaj się na pytaniu.
 
-Większość ramek o coś prosi. Gdy któraś prosi, kropkowana linia pod nią mówi *zapisz to, zanim
-przeczytasz dalej*. Użyj jej albo kartki — linia jest lokalna dla twojej przeglądarki i nic jej
-nie czyta ([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
+Większość ramek o coś prosi. Gdy któraś prosi, linia pod nią — podpisana *Twoja odpowiedź* —
+mówi *Zapisz, zanim pójdziesz dalej*. Użyj jej albo kartki — linia jest lokalna dla twojej
+przeglądarki i nic jej nie czyta ([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
 
 Obok stoją dwie rzeczy, obie opcjonalne:
 
@@ -64,7 +64,8 @@ zobowiązałeś, nie przeczytałeś ramki.
 
 ## Krok 3 — odwróć ją i porównaj
 
-Naciśnij <kbd>→</kbd> albo kliknij **Reveal the answer**.
+Kliknij **Dalej** — wypełniony przycisk w prawym dolnym rogu ekranu, w tym samym miejscu na
+każdej ramce — albo naciśnij <kbd>→</kbd>.
 
 Kolejna ramka otwiera się odpowiedzią na tę, którą właśnie zostawiłeś. **Porównaj to, co
 napisałeś, z tym, co mówi książka. To porównanie jest nauczaniem** — nic go nie ocenia, żaden
@@ -75,17 +76,21 @@ Tam, gdzie cała odpowiedź książki to jedna liczba, aplikacja może powiedzie
 książką*. Nie mówi nigdy nic innego. W szczególności nigdy nie mówi *źle*: nie wie, co miałeś
 na myśli, a maszyna, która by zgadywała, byłaby gorsza od takiej, która milczy.
 
-Jeśli nie trafiłeś, naciśnij <kbd>←</kbd> i przeczytaj ramkę jeszcze raz. Cofnięcie się o jedną
-ramkę jest zamierzonym ruchem, a nie stanem porażki.
+Jeśli nie trafiłeś, kliknij obok **Wstecz** (albo naciśnij <kbd>←</kbd>) i przeczytaj ramkę
+jeszcze raz. Cofnięcie się o jedną ramkę jest zamierzonym ruchem, a nie stanem porażki.
 
 ## Krok 4 — trzymaj swoje miejsce, nie będąc mierzonym
 
-Wiersz miejsca nad ramką mówi `3 / 45`. To **gdzie jesteś**, a nie jak daleko zaszedłeś
-([ADR-0041](../adr/0041-the-reading-surface-shows-position-and-never-progress.md)). Nie ma
-procentu, nie ma serii, nie ma odznaki i nie ma szacunku, kiedy skończysz, bo to są liczby o
-czytelniku, a ten produkt takich nie produkuje.
+Między **Wstecz** a **Dalej** pasek mówi `3 z 45`. To **gdzie jesteś**, a nie jak daleko
+zaszedłeś ([ADR-0041](../adr/0041-the-reading-surface-shows-position-and-never-progress.md)).
+Nie ma procentu, nie ma serii, nie ma odznaki i nie ma szacunku, kiedy skończysz, bo to są
+liczby o czytelniku, a ten produkt takich nie produkuje.
 
-Naciśnij <kbd>g</kbd> i wpisz numer, żeby skoczyć. Twoje miejsce jest pamiętane w tej
+Kliknij go — albo naciśnij <kbd>g</kbd> — a zobaczysz wszystkie nagłówki programu i pole, w
+które wpiszesz numer ramki, żeby do niej skoczyć. Nagłówek, który zaczyna się za najdalszą
+ramką, do jakiej dotarłeś, jest pokazany jako zablokowany, z powodem, zamiast podany jako
+link: to kolejność książki, a link, który zostałby tylko odrzucony, nigdzie nie prowadzi.
+Twoje miejsce jest pamiętane w tej
 przeglądarce. Jeśli się zalogujesz, pójdzie za tobą na inną maszynę, a **wygrywa najdalsza
 ramka** — dwie maszyny, które się nie zgadzają, to nie konflikt, bo przeczytałeś do dalszej z
 nich ([ADR-0019](../adr/0019-furthest-frame-wins.md)).

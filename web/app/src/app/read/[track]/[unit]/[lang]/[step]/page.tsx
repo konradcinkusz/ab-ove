@@ -174,12 +174,20 @@ export default async function FramePage({
         furthest={refusal.furthest}
         furthestHref={`${reading}/${refusal.furthest}`}
         language={language}
+        trackLanguages={trackContent.languages}
+        unitId={unit.id}
+        unitTitle={say(unit.titles, language)}
+        requested={requestedStep}
+        track={track}
       />
     );
   }
 
   return (
     <FrameView
+      // ADR-0063 — the gate's own cursor, so the program map can lock what it would refuse.
+      // An older API sends none, and the map then links every section and lets the gate answer.
+      furthest={stepOutcome.data.furthest ?? undefined}
       hasNext={requestedStep < unit.stepCount}
       language={language}
       previousUnitId={previousProgramId(trackContent, unit.id)}

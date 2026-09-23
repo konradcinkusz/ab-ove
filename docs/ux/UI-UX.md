@@ -304,11 +304,14 @@ all (ADR-0004).
 ### `/read/<track>/<unit>/<lang>/<step>` — one frame
 
 `web/app/src/app/read/[track]/[unit]/[lang]/[step]/page.tsx`. A Server Component that renders
-the frame, with three client islands on it and no client boundary around the frame itself —
-which is what makes the answer **absent rather than hidden**: the reveal is a navigation to
-`n + 1`, so the answer to the frame you are on is rendered by the request for the *next* one
-and by nothing before it. `prefetch={false}` on that one link is part of the same property and
-is the half that is easy to lose.
+the frame, with client islands on it and no client boundary around the frame itself — which
+is what makes the answer **absent rather than hidden**: the answer to the frame you are on is
+rendered by the request for the *next* one and by nothing before it, and the reveal gate
+refuses that request until the reveal has run
+([ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)).
+The reveal is therefore a form — a Server Action that raises the reader's cursor and then goes
+to `n + 1` — and a form cannot be prefetched; `prefetch={false}` on every link that leads to a
+frame mid-program is the half of the same property that is easy to lose.
 
 The URL is the position, so it survives a reload with no session. `/read/` is in the
 middleware's public-prefix list, and so is `/katex/`, without which every font request from a
@@ -318,73 +321,87 @@ reader with no session redirects to `/login` and the system-font fallback hides 
 allow-list that throws on anything it does not know — tables, code fences, the six admonition
 kinds, 21 714 maths spans. [ADR-0037](../adr/0037-the-books-prose-is-rendered-not-interpolated.md).
 
-#### One place row, and the rest of the chrome is gone
+#### One screen: a bar above, the frame, and `Previous` and `Next` pinned below
 
-`F01 · <title>  ›  <section ▾>    English · polski    [12] / 45`. It replaced a crumb chain,
-a language row with its own label, a rule-and-badge row and a foot count — four things saying
-where the reader is in four ways, around one question. The frame number **is** an input: type
-a number, press Enter, arrive. **The section is a disclosure**: closed, it is the heading the
-reader is under; open, it is every heading of the program, each linking to its first frame,
-the current one as text, and *Contents* first — one hop to anywhere in the program, where it
-was two through the contents page. A heading carries no question and no answer, which is
-the contents page's own rule and the reason the list leaks nothing; every link in it, the
-foot's *Next section →*, the contents page's headings and the summary's frame ranges are
-`prefetch={false}` on the reveal's own reasoning, because a frame mid-program opens with an
-answer. The list is in flow, never positioned, and opening it is the reader's act. **The id
-links to the index**, so a reader who arrived by deep link is one click from the programs;
-a separate *Programs* entry would be the side text this row was built against. `→`/`←` move; `g` focuses the jumper; `Enter` with nothing
-focused puts the caret in the answer line; `Ctrl+Enter` — spelt `⌘+Enter` on an Apple
-keyboard, from a flag the page sets rather than a string it rewrites — commits and reveals;
-`Esc` returns to reading. Every segment of the one-line hint is gated on the island that
-implements it, and while a field has focus the line says what is true *there*, because the
-arrows are dead inside a text field: the hint is one line per state, all in one grid cell so
-that switching moves nothing, and *Reading settings*' key map is the whole map with a note beside
-a key that means something else elsewhere. **The two keys and the typing-state hint were
-decided in ADR-0041 and shipped later than the rest of it** — this paragraph described them
-for a while before `frame-keys.tsx` had them, and `specs/reading.spec.ts` now presses both.
+The owner, after three passes at the foot: *"navigation between the tiles is a tragedy"*, and
+of the first plan for this change: *"there is no next and previous button to click with the
+mouse on the computer … on the computer the button has to be there, and the keyboard is an
+option."* There never was a pair. The way forward was the reveal, under the question,
+wherever the question ended; the way back was `← Previous` at the other end of the page,
+under a line of keyboard shortcuts; the foot's forward cell held *Next section →* on a
+section's last frame and nothing on the others. Every reading screen is now one shell
+(`components/read/reading-screen.tsx`) of three parts, and
+[ADR-0063](../adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md) is the decision.
 
-The frame carries a heading nobody sees: the program's title and the position, in a
-visually-hidden `<h1>`, so heading navigation lands on the frame's name rather than on the
-foot's `Keys`.
+**The pager** (`reading-foot.tsx`) is pinned to the bottom edge — `position: sticky` as the
+last item of a column at least one screen tall, so a short frame puts it on the edge and a long
+one keeps it there. It is a grid of three cells, the same on every frame:
 
-The row is a `<div>`. It must not be a `<nav>` — `language-choice.spec.ts` counts navigations
-containing a `[lang]` descendant and expects one — and it was a `<p>`, which **cannot contain
-a `<nav>`**, so hydration failed on every frame page in the book until it was measured.
-`hydration.spec.ts` is the guard. [ADR-0041](../adr/0041-the-reading-surface-shows-position-and-never-progress.md).
+- **`← Previous`**, outlined, 48 px, always with its word. On frame 1, where there is nowhere
+  to go back to, the same button leads to the program's *Contents*, with its own mark —
+  never a `Previous` greyed out, because a control that names a place and does not go there
+  is a thing a reader tries.
+- **The position**, `3 of 45 ▴` — the one place it is shown, and the door to the program map.
+  A position and never a progress: no bar, no percentage
+  ([ADR-0041](../adr/0041-the-reading-surface-shows-position-and-never-progress.md)).
+- **`Next →`**, filled, 48 px — the reveal's form, reading `Next` on every frame, a frame that
+  asks included. The instruction the mechanic runs on is where the reader acts on it: the
+  answer line's placeholder says *Write it down before you read on*, and the next frame
+  opens with the answer under *Answer to frame 3*. On the last frame the same button reads
+  `Summary` and is the one link to `/summary`.
 
-#### The reveal carries an arrow, and the foot below it reads as buttons
+It is the one element on these pages positioned over the text, and the page pays for it:
+`scroll-padding-bottom` keeps a field reached by Tab clear of it (WCAG 2.4.11), and the sync
+notice is lifted over it. `specs/pager.spec.ts` asserts the owner's requirement itself — at
+1280 × 800 and at 360 × 640, on the program's longest frames, both buttons are on screen
+before and after scrolling, labelled, a finger tall, in the same place on consecutive frames,
+and a click on each goes where it says, with JavaScript and without.
 
-The owner's report: *"hard to understand what is going on on the bottom, not really known
-how to properly navigate, there are no properly visible buttons."* Two fixes, one
-[ADR](../adr/0057-the-frames-foot-is-buttons-not-text.md). `RevealLabel`'s two sentences —
-*Reveal the answer*, *Next frame* — now share a trailing `→` (`aria-hidden`, so the
-accessible name is unchanged) saying the one thing both of them do: turn the page. And
-`← Previous`, `Contents` and `Next section →` — the foot's own way to move, as distinct from
-the reveal's — are outlined buttons rather than the same faint text as everything beside
-them. The position keeps ADR-0041's `[12] / 45` exactly, in a quiet chip rather than a
-heavier tone — still text, still no bar. `Clear my answer` stays as quiet as it was: it is a
-destructive control rather than a place to go, and the contrast is what tells the two kinds
-apart.
+**The top bar** (`reading-top.tsx`) scrolls away with the page: `ab-ovo`, which is the way to
+every program; the program's id and its title, the title leading to its contents; the
+language control, unchanged ([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md));
+and a *Reading settings* button opening the theme switch and the key map in a panel. It is a
+`<header>` and not a `<nav>` — `language-choice.spec.ts` counts navigations holding a link to
+the other edition and expects one. The place row it replaced was a `<p>` for a while, which
+**cannot contain a `<nav>`**, so hydration failed on every frame page in the book until it was
+measured; `hydration.spec.ts` is the guard.
 
-#### And then the settings left the row entirely
+**The program map** (`program-map.tsx`) is a panel opened from the position, or by `g`. It
+holds the jump — `Go to frame [ n ] of 45 [Go]`, a labelled field that moves only on `Go` or
+Enter — and every heading of the program with its frame range, *Contents* first, the current
+heading as text. A heading carries no question and no answer, which is the contents page's own
+rule and the reason the list leaks nothing; every link in it is `prefetch={false}` on the
+reveal's reasoning. **What the gate would refuse is not offered**: a heading that starts past
+the reader's furthest frame is shown locked, with the reason, instead of linked, and a frame
+number past it is answered in place with a link to the furthest frame, rather than landing on
+*Not there yet*. Only the gate's cursor knows the furthest frame — the browser's record is the
+frame last viewed — so the API sends it with each frame (`StepResponse.Furthest`). Both panels
+are native popovers: they open with no script, close on Esc or a click elsewhere, and a
+browser without the Popover API renders them in flow at the end of the page and hides their
+buttons.
 
-[ADR-0058](../adr/0058-the-reading-foot-is-one-pager-and-the-settings-leave-it.md), on the
-rest of the same report: *"why is there System Light Dark here? It is to remove, keys and any
-other unrelated things."* The tone was only half of it — one row was still holding somewhere
-to go, something to press once and regret, a readout and two settings, and `flex-wrap` was
-deciding where that row broke from whichever item happened to be widest. The key map, which
-has to be full width to lay its panel out at all, therefore always broke to a line of its
-own: the stranded row in the report's screenshots.
+**The keys stay and are not advertised.** `→` and `←` move; `Enter` with nothing focused puts
+the caret in the answer line; `Ctrl+Enter` — spelt `⌘+Enter` on an Apple keyboard, from a flag
+the page sets rather than a string it rewrites — keeps the answer and goes on; `Esc` returns
+to reading; `g` opens the map with the caret in its frame number. The frame used to print a
+line of them under every question, one state at a time; it prints none now. Every move is a
+labelled button, the pager's buttons carry their key in their tooltip, and the whole map is in
+*Reading settings*. While a panel is open the page's keys stand aside, because the arrows'
+forward is a write. `specs/reading.spec.ts` still reads a program end to end by pressing `→`.
 
-One component renders the foot of all three reading screens now
-(`components/read/reading-foot.tsx`), as a **grid with named areas** — `back`, `where`,
-`forward`, and `aside` for what is neither — collapsing at 30rem to one control per row. The
-break is written down rather than derived, so there is no width at which an item can strand.
-The theme switch and the key map moved out of the navigation landmark into one *Reading
-settings* disclosure below it, which is also what makes that landmark's name, *Where to
-next*, true. `Clear my answer` takes the `aside` row. And the contents page and the summary
-finally read ADR-0057's stylesheet rather than each carrying a copy of the pattern it
-replaced — which is the follow-up that ADR named and declined to do quietly.
+**The frame itself** is quiet: a line naming the heading it is under; the answer box labelled
+with the frame it answers; the book's text; and, on a frame that asks, the answer line under a
+visible `Your answer` label with `Clear my answer` beside it, and the two pane buttons. A
+heading nobody sees — the program's title and the position, in a visually-hidden `<h1>` — is
+for the reader who navigates by headings. A new frame fades in over a fifth of a second, the
+one sign with the pager standing still that the page turned; a reader who asks for less motion
+gets none.
+
+<!-- Superseded, and kept for the trail: ADR-0041's place row (`F01 · <title> › <section ▾>
+English · polski [12] / 45`, the frame number an input styled as text, the sections a
+disclosure), ADR-0057's outlined foot and trailing arrow on the reveal, and ADR-0058's foot
+grid with *Reading settings* as a disclosure under it. ADR-0058's named grid areas and its
+finding that the forward cell must stretch are what the pager is built on. -->
 
 #### The dotted row is the answer line, and that reverses what this document used to say
 
@@ -438,15 +455,19 @@ tab*, and its reasoning was that a tab hides the frame a reader is working from,
 positioned, floated or given a `z-index` cannot overlap by construction, and that a guarantee
 beats a promise somebody keeps. The worksheet is built on exactly that: one column, source
 order, nothing sticky, `touch-action: none` on the canvas **alone** so that a finger drawing
-does not scroll the page and a finger beside it still can.
+does not scroll the page and a finger beside it still can. The pinned pager is the one
+exception on the reading screens, and it is outside the worksheet
+([ADR-0063](../adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)): nothing inside a
+pane or beside the canvas is positioned, and `specs/narrow-screen.spec.ts` still asserts it.
 
 **What it cost is now smaller and is still a cost.** The old stacked route put the editor about
 1 390 px down and ran to 2 800. The worksheet's own honest figure is one scroll: measured on a
 cue frame following a cue frame — the stack that is the book's answer, the reader's own line,
-the body, the answer line, the two disclosures and the reveal — the median such frame puts the
-reveal about one screen down at 640 px. That is the accepted cost and `specs/narrow-screen.spec.ts`
-asserts the source order, the absence of anything positioned and that the canvas does not
-capture page scroll, rather than asserting a fold it cannot honestly claim.
+the body, the answer line and the two disclosures — the median such frame runs about one
+screen past the fold at 640 px. It used to put the reveal there too, and that part of the cost
+is gone: the reveal is the pager's `Next`, pinned to the bottom edge, so the way on is on
+screen at every scroll position and `specs/narrow-screen.spec.ts` presses it without
+scrolling.
 
 ### `/lab/<id>` — the exercises
 
@@ -546,36 +567,42 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   before the first paint. The system position is the ABSENCE of `data-theme` rather than a
   third value of it, which is what keeps the swap working with no JavaScript at all
   ([ADR-0048](../adr/0048-the-theme-is-a-choice-and-the-system-is-a-position.md)). The switch
-  is in the index's chrome row, and on the three reading screens it is inside the *Reading
-  settings* disclosure with the keyboard map — below the foot's navigation and last on the
-  page, so opening it cannot push anything a reader is looking at
-  ([ADR-0058](../adr/0058-the-reading-foot-is-one-pager-and-the-settings-leave-it.md)).
-- **Focus is a ring, never a brightness.** Every filled control — the reveal, the contents
-  page's start, the shell pages' way in, the two forms' submit — wears a two-colour ring
-  on `:focus-visible` (paper, then the control's own colour), because a ten-percent
+  is in the index's chrome row, and on the reading screens it is in the *Reading settings*
+  panel with the key map, opened from the top bar and drawn over the page, so opening it
+  pushes nothing a reader is looking at
+  ([ADR-0063](../adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)).
+- **One family of buttons, in the UI face** (`components/read/controls.module.css`). Filled
+  for the way on — the pager's `Next`, the contents page's start — outlined for the way back
+  and the panes, and plain for the position, the settings and a panel's close. Every one of
+  them is set in sans rather than inheriting the book's serif, which is half of why the old
+  chrome read as a line of faint prose.
+- **Focus is a ring, never a brightness.** Every control on the reading screens wears a
+  two-colour ring on `:focus-visible` (paper, then the accent), because a ten-percent
   brightness on a blue block is invisible to the keyboard reader it was for (WCAG 2.4.7).
+- **Two colour floors are held by a test, not a sentence** (`lib/theme/tokens.test.ts`, in
+  both schemes): `--ink-faint` at 4.5:1 or more on the paper, a raised panel and the answer
+  box (WCAG 1.4.3), and `--control-edge` at 3:1 or more for the edge of anything pressable
+  (WCAG 1.4.11). The faint grey used to sit just under both, and outlined buttons wore
+  `--rule`, a hairline the eye reads as decoration.
 - **A line a reader writes on is `--ink-faint`; a rule that is only a rule is `--rule`.**
   The answer line and the pad's field carry a dashed rule that clears 3:1 against the
-  paper (WCAG 1.4.11), and the teaching frame's dotted rule stays faint, so the two marks
-  no longer look the same.
-- **Every control on a line of small type is a finger tall.** The place row's links, the
-  frame number, the language control and the foot's links are padded to about 44 px and
-  given the space back with a matching negative margin, so the hit area grew and nothing on
-  the page moved. Where a control is a bordered box of its own rather than a line of type —
-  the worksheet's two pane buttons, the sketch's own controls — it takes the height directly
-  instead, because the negative-margin idiom assumes a control sharing a line with something
-  else and overlaps the rows when it does not
-  ([ADR-0058](../adr/0058-the-reading-foot-is-one-pager-and-the-settings-leave-it.md)).
-  `specs/reading.spec.ts` measures the box either way.
-- **The reveal says when it is under way.** It is the one navigation that is never
-  prefetched, so it always costs a round trip; while the next frame is on its way the
-  control dims and its cursor says so (`reveal-label.tsx`, Next's `useLinkStatus`).
-  Nothing lays out, so the reveal's shift bound holds.
-- **No keyboard hint where there is no keyboard.** On a coarse-pointer device the one-line
-  hint under the reveal is not rendered at all; the full key map stays, inside *Reading
-  settings*, for a tablet with a keyboard attached. The two are not a duplication: the hint
-  is the state the reader is in and the map is every entry, which is why one is on the page
-  and the other is behind a disclosure.
+  paper (WCAG 1.4.11), and a frame that teaches draws no dashed line at all, so a dashed
+  line always means somewhere to write.
+- **Every control is a finger tall.** The pager's buttons are 48 px (`--control-pager`); every
+  other button and the map's rows take 44 px (`--control-min`) directly, and the top bar's
+  links are 44 px by their line and padding. The language control, a pair of words on a line,
+  is padded to about 44 px and given the space back with a matching negative margin, so its
+  hit area grew and nothing moved.
+  `specs/reading.spec.ts` and `specs/pager.spec.ts` measure the box.
+- **The reveal says when it is under way.** It is the one move that is never prefetched, so
+  it always costs a round trip; while the next frame is on its way the button dims, its arrow
+  nudges and its cursor says so (`reveal-button-label.tsx`, the form's `useFormStatus`; the
+  last frame's `Summary` link reads `useLinkStatus`). Nothing lays out, so the reveal's
+  shift bound holds.
+- **No keyboard hint on the page.** The keys are an option (ADR-0063): the frame prints no
+  line of them, every move is a labelled button, the pager's buttons name their key in a
+  tooltip, and the whole map is inside *Reading settings* for whoever wants it — a tablet
+  with a keyboard attached included.
 
 ---
 
@@ -809,11 +836,13 @@ HTTP API, and it owns no store. What a second copy would mean here is a second l
 second cursor or a second answer to where a reader is — and the sketch's §6 exit condition
 exists so that the first of those cannot arrive quietly.
 
-The reveal is the thing that does NOT travel for free. It is a navigation on the reading
-surface and it is nothing on a transport with no navigation, so the property is rebuilt
-there rather than inherited: a step is served only at or below the reader's furthest, which
-makes an unreached answer unselectable rather than filtered. What does travel: the place row
-(every step opens with program, title, section and position), the summary screen (the last
+The reveal is the thing that does NOT travel for free. On the reading surface it is a form
+that raises the reader's cursor and turns the page, and there is no page to turn on a
+transport with no navigation, so the property is rebuilt there rather than inherited: a step
+is served only at or below the reader's furthest, which makes an unreached answer
+unselectable rather than filtered. What does travel: where the reader is (every step opens
+with program, title, section and position — what the surface's top bar and pager say), the
+summary screen (the last
 step hands off to the program's Summary, *Can you?* and the next program), and the book's
 runs in the program list — each from the same function the surface uses, so the two never
 divide or name the book two ways. The note above about the
