@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { languages, track, uniqueProbeIn, unitNamed } from './support/bundle.ts';
+import { openPane, pane } from './support/pane.ts';
 import { reveal } from './support/reveal.ts';
 import { walkTo } from './support/walk.ts';
 
@@ -494,5 +495,63 @@ test.describe('the reading surface on a touch screen', () => {
     await page.getByTestId('reading-settings-button').tap();
     await expect(page.getByTestId('reading-settings')).toBeVisible();
     await expect(page.getByRole('list', { name: 'Keys' })).toBeVisible();
+  });
+});
+
+/**
+ * THE FRAME ON PAPER, AND FOR A READER WHO ASKS FOR LESS MOTION — two promises the
+ * stylesheets make and nothing held.
+ *
+ * `worksheet.module.css`: "Ctrl+P is the reader's export. The frame, their answer and their
+ * working print; the controls do not, because a printed button is ink spent on nothing." And
+ * `frame-view.module.css`: a new frame fades in — with the pager standing still, the one sign
+ * the page turned — and "a reader who asks for less motion gets none".
+ */
+test.describe('the frame on paper, and with less motion', () => {
+  test('prints the frame, the reader’s answer and their working, and not one control @core', async ({
+    page,
+  }) => {
+    const cue = steps.find((step) => step.cue && step.n > 1);
+    if (!cue) throw new Error(`${unitId} has no cue frame past the first, so this proves nothing`);
+    const written = 'the line the reader wrote';
+
+    await openReady(page, 'en', cue.n);
+    const line = page.getByRole('textbox', { name: /your answer/i });
+    await line.fill(written);
+    await openPane(page, 'working');
+    const pad = page.getByRole('textbox', { name: /your working/i });
+    await pad.fill('2^10');
+
+    await page.emulateMedia({ media: 'print' });
+    await expect(page.locator('article')).toBeVisible();
+    await expect(line, 'the reader’s answer did not print').toBeVisible();
+    await expect(line).toHaveValue(written);
+    await expect(pad, 'the reader’s working did not print').toBeVisible();
+    await expect(pad).toHaveValue('2^10');
+    // No control reaches the paper: not the pager, not the settings, not a closed pane's
+    // button, not the pad's own. Counted by role, so a control added later is counted too.
+    await expect(page.getByRole('button'), 'a button printed').toHaveCount(0);
+    await expect(page.locator('[data-pager]')).toBeHidden();
+    await expect(pane(page, 'sketch'), 'a closed pane printed its button').toBeHidden();
+
+    // And on the frame that answers it, what the reader wrote prints beside the book's answer.
+    await page.emulateMedia({ media: 'screen' });
+    await reveal(page).click();
+    await page.waitForURL(`**${at('en', cue.n + 1)}`);
+    await page.emulateMedia({ media: 'print' });
+    await expect(page.getByText(written), 'what the reader wrote did not print').toBeVisible();
+
+    await page.emulateMedia({ media: 'screen' });
+    await expect(page.locator('[data-pager]'), 'the screen did not come back from paper').toBeVisible();
+  });
+
+  test('a new frame arrives without motion for a reader who asks for none @core', async ({ page }) => {
+    await openReady(page, 'en', 2);
+    const animation = (): Promise<string> =>
+      page.locator('article').evaluate((node) => getComputedStyle(node).animationName);
+
+    expect(await animation(), 'a new frame arrives with no sign that the page turned').not.toBe('none');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    expect(await animation(), 'a reader who asked for less motion still gets the fade').toBe('none');
   });
 });
