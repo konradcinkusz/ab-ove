@@ -473,13 +473,15 @@ export function Sketch({
             BOTH LABELS, ONE CELL, SO ARMING MOVES NOTHING (`two-step-label.tsx`). The second
             press has to land on the control the first one armed. A button that swapped its
             text grew to the second label's width, and wherever the foot had room for `Clear`
-            and not for `Clear the whole sketch` (414–480 px, measured) the row wrapped and
-            the button jumped to the next line — so the reader's second press, in the same
-            place, landed on the empty foot. The price is paid before anything is pressed: the
-            button is as wide as `Clear the whole sketch` from the first paint, so across that
-            same range it starts on the foot's second line where `Clear` alone would have fit
-            on the first (`docs/ux/UI-UX.md` has the measurement). `specs/worksheet.spec.ts`
-            presses it twice at one point on a phone's width.
+            and not for `Clear the whole sketch` (391–510 px in English, 442–511 px in Polish,
+            measured 2026-09-25 against a production build) the row wrapped and the button
+            jumped to the next line — so the reader's second press, in the same place, landed
+            on the empty foot. The price is paid before anything is pressed: the button is as
+            wide as `Clear the whole sketch` from the first paint, so across that same range —
+            which in English takes in the 393 and 414 px of common phones — it starts on the
+            foot's second line where `Clear` alone would have fit on the first
+            (`docs/ux/UI-UX.md` has the measurement). `specs/worksheet.spec.ts` presses it
+            twice at one point on a phone's width.
           */}
           <button className={styles.sketchButton} type="button" {...clearControl}>
             <TwoStepLabel armed={clearArmed} confirm={clearConfirm} idle={clear} />
