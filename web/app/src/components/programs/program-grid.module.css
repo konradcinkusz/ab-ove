@@ -136,6 +136,16 @@
 }
 
 /*
+ * FOCUSED FROM SCRIPT, once either destructive control in the top row has acted and taken
+ * itself away with it (`program-grid.tsx`, `use-two-step.ts`, #151). The same ring as
+ * `.shutNotice` above, for the same kind of focus, rather than the browser's default blue.
+ */
+.heading:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+/*
  * The live position, said with a rule under the word rather than with weight alone.
  *
  * `aria-current` is the attribute a screen reader announces and it is also the selector, so

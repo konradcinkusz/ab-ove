@@ -8,6 +8,7 @@ import { serverSnapshot, snapshot, subscribe } from '@/lib/progress/client';
 import { forgetEverywhere } from '@/lib/progress/sync';
 
 import styles from './resume.module.css';
+import { TwoStepStatus } from './two-step-status.tsx';
 import { useTwoStep } from './use-two-step.ts';
 
 /**
@@ -103,7 +104,8 @@ export function ResumeLast({ limits, language }: ResumeLastProps): React.JSX.Ele
  * does not bring back the phone's. ADR-0019 kept the one click for a different reason —
  * a destructive control behind a modal is a privacy control that is measurably less used
  * — and that reason argues against a MODAL, not against a second press: the control stays
- * where the pointer is, renames itself to say what it will do, and reverts in five seconds.
+ * where the pointer is, renames itself to say what it will do, and stands down when the
+ * reader goes elsewhere (`use-two-step.ts` says why that is no longer five seconds, #151).
  * It is the shape `ClearWorksheets` beside it already had, so the two destructive controls
  * on the row stop behaving two ways. ADR-0047 is the record.
  *
@@ -114,7 +116,17 @@ export function ResumeLast({ limits, language }: ResumeLastProps): React.JSX.Ele
  * restored (the grid had put it beside the resume link).
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
-export function ForgetProgress({ language }: { readonly language: string }): React.JSX.Element | null {
+export function ForgetProgress({
+  language,
+  settleOn,
+}: {
+  readonly language: string;
+  /**
+   * The id of the element focus moves to after the second press — this control and the
+   * resume link are both gone by then (`use-two-step.ts`).
+   */
+  readonly settleOn: string;
+}): React.JSX.Element | null {
   const progress = useProgress();
   const chrome = chromeFor(language);
 
@@ -127,14 +139,23 @@ export function ForgetProgress({ language }: { readonly language: string }): Rea
     that has already happened as far as this browser is concerned.
   */
   const act = useCallback(() => void forgetEverywhere(), []);
-  const { armed, press } = useTwoStep(act);
-
+  const settle = useCallback(() => document.getElementById(settleOn), [settleOn]);
   const has = progress.last !== undefined || Object.keys(progress.positions).length > 0;
+  const { armed, control } = useTwoStep(act, settle, has);
+
   if (!has) return null;
 
+  /*
+    ONE LABEL AT A TIME, as `ClearWorksheets` beside it and for its reason (`use-two-step.ts`):
+    the second label is the longer, and the row it would widen arrives after hydration. A
+    second press on the space the control left is a miss, not a cancel.
+  */
   return (
-    <button className={styles.forget} lang={chrome.language} onClick={press} type="button">
-      {armed ? chrome.forgetConfirm : chrome.forget}
-    </button>
+    <>
+      <button className={styles.forget} lang={chrome.language} type="button" {...control}>
+        {armed ? chrome.forgetConfirm : chrome.forget}
+      </button>
+      <TwoStepStatus armed={armed} confirm={chrome.forgetConfirm} language={chrome.language} />
+    </>
   );
 }

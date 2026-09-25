@@ -117,10 +117,20 @@ Its parts, in order:
    before the two ways to lose something, because nothing it does is destructive
    ([ADR-0055](../adr/0055-the-notebook-exports-what-stands-today-never-a-history.md)); it
    renders nothing when there is nothing to export. *Clear my worksheets* and *Forget where
-   I am* are both two presses — the control renames itself to say what the second press does,
-   and reverts in five seconds — and *Forget* is the last of them, furthest from the link
-   a returning reader is reaching for
-   ([ADR-0047](../adr/0047-forgetting-is-two-presses-because-it-reaches-the-account.md)).
+   I am* are both two presses — the control renames itself to say what the second press does —
+   and *Forget* is the last of them, furthest from the link a returning reader is reaching
+   for ([ADR-0047](../adr/0047-forgetting-is-two-presses-because-it-reaches-the-account.md)).
+   An armed control stands down when the reader presses another control, moves focus
+   elsewhere or presses Esc, and not on a clock: the five seconds it used to allow were a
+   time limit a screen-reader or switch user could run out of. A press on bare page does not
+   stand it down, because both second labels are longer than the first and can carry the
+   control onto the next line of this row, so a second press where the first one was would
+   land on the space it left; that press is a miss, and the control is still armed where it
+   went. Reserving the longer label's width instead would widen a row that already arrives
+   after the first paint. The first press is also said aloud,
+   through a polite live region beside the control, because a button renamed under focus is
+   silent in most screen readers; and since both controls are gone once they have acted,
+   focus then lands on the page's heading rather than on nothing (#151).
 2. **The heading and the language control**, sharing a line — where the three-position
    edition switch used to be, and the only language control on the page
    ([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md)). It
@@ -550,6 +560,22 @@ And the sketch's button says **Show my sketch** once that frame holds a drawing 
 from the synchronous flag rather than from IndexedDB, which is the whole reason the flag is
 duplicated into localStorage, and which nothing read until ADR-0059. Both labels are in the
 markup from the first paint and `visibility` picks one, so saying the second moves nothing.
+
+Inside the sketch, **Clear** is two presses, the shape of every other control that destroys a
+reader's own work: `Undo` takes back one stroke and cannot take back a cleared pad, so the
+first press renames the button *Clear the whole sketch* and only the second empties it, and
+focus goes back to the canvas (#151). Both of its labels are in the button from the first
+paint, the pane's own button's arrangement, so the rename cannot push it onto the next line
+of the foot on a phone and put the second press somewhere else. That costs a line before
+anything is pressed: the button is as wide as *Clear the whole sketch* from the start, so
+from 391 to 510 px in English, and from 442 to 511 px in Polish, it begins on the foot's
+second line and the foot is two rows (96 px) where a one-word `Clear` would have left it one
+(44 px). Narrower than that — measured down to 360 px — the foot is two rows either way, and
+wider it is one row either way. That range takes in the common phone widths of 393 and
+414 px in English (measured on 2026-09-25 against a production build in Chromium with its
+fonts loaded, at every width from 360 to 560 px, against the same button with its armed
+label taken out). `Clear my answer` is the same two presses, keeps its box the same way at
+no cost — its first label is the longer — and sends focus to the line it emptied.
 
 #### The lab pane is not on this route any more
 

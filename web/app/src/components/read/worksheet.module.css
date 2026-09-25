@@ -534,7 +534,10 @@
   font-size: 0.75rem;
 }
 
-/* The standard visually-hidden idiom, for the live region that reads the results aloud. */
+/*
+ * The standard visually-hidden idiom, for the live regions that read aloud what the eye
+ * already sees: the Working pad's results, and `two-step-status.tsx`'s armed controls.
+ */
 .visuallyHidden {
   clip-path: inset(50%);
   height: 1px;
@@ -619,6 +622,43 @@
 .sketchButton[aria-pressed='true'] {
   border-color: var(--accent);
   color: var(--ink);
+}
+
+/*
+ * A TWO-PRESS CONTROL THAT DOES NOT MOVE WHEN IT ARMS — `two-step-label.tsx` (#151), for the
+ * sketch's `Clear` and `Clear my answer`.
+ *
+ * `.paneLabels`' arrangement, inside a button: both labels in one grid cell, as wide and as
+ * tall as the wider, and `data-armed` picks which is seen. The sketch's foot wraps
+ * (`.paneFoot`), so a button that changed width on the first press could change line, and
+ * the second press would land where it had been — `sketch.tsx` has the measurement. On a
+ * span inside the button and not on the button itself, whose `display` is the print rule's
+ * to set.
+ *
+ * `text-decoration: inherit` because an inline grid is an atomic inline, and a decoration
+ * on the button does not reach into one: without it `Clear my answer` would lose the
+ * underline that says it is a control. Only the shown label draws it, since a decoration
+ * follows the `visibility` of the text it is on.
+ */
+.twoLabels {
+  align-items: center;
+  display: inline-grid;
+  justify-items: center;
+  text-decoration: inherit;
+}
+
+.twoLabels[data-align='start'] {
+  justify-items: start;
+}
+
+.twoLabel {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+
+.twoLabels[data-armed='no'] > .twoLabel[data-when='idle'],
+.twoLabels[data-armed='yes'] > .twoLabel[data-when='armed'] {
+  visibility: visible;
 }
 
 .sketchFull {
