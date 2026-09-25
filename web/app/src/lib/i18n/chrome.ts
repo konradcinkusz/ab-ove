@@ -175,6 +175,43 @@ interface ConsentStrings {
   readonly withdrawCannotRetract: string;
 }
 
+/**
+ * The page behind a render failure — `app/error.tsx`, and `app/global-error.tsx` when the
+ * root layout itself failed (issue #139).
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * TWO HEADINGS, BECAUSE THE PAGE KNOWS THE CAUSE OF ONE FAILURE AND OF NO OTHER.
+ *
+ * Since ADR-0060 the usual one is the content API not answering, and the reading page marks
+ * it where it throws (`lib/read/render-failure.ts`), so `unavailableTitle` says exactly that.
+ * Anything else gets `failedTitle` and `failedWhere`, which say whose fault it is without
+ * naming a cause the page cannot know. The page this replaced named the compiled bundle for
+ * every failure, and once content left the bundle it was wrong about all of them.
+ *
+ * `nothingLost` is the sentence that makes waiting safe, and it promises only what holds for
+ * every failure: what a reader wrote is in this browser, their place is on the server under
+ * their cookie or their account (ADR-0060, ADR-0061), and a page that failed to render
+ * touched neither. It used to say the place was "kept in this browser", which ADR-0060 made
+ * untrue.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+interface RenderErrorStrings {
+  readonly unavailableTitle: string;
+  readonly failedTitle: string;
+  readonly failedWhere: string;
+  readonly nothingLost: string;
+  readonly tryLater: string;
+  /** The button. It asks the server again — Next's `retry` — which is what can recover. */
+  readonly retry: string;
+  /** The way back when the failed address names a program. */
+  readonly toContents: string;
+  /** And when it does not. */
+  readonly toPrograms: string;
+  readonly reportTitle: string;
+  /** Before the digest, the one thing a reader can quote and an operator can find in the log. */
+  readonly reference: string;
+}
+
 interface Strings {
   readonly forget: string;
   /**
@@ -431,6 +468,12 @@ interface Strings {
    * make a reader wonder which one they are looking at.
    */
   readonly goToFrameNumber: (n: number) => string;
+  /**
+   * A frame named by its number and nothing else — `Frame 12` — in a frame's tab title, and
+   * before `ofTotal` in its description. `generateMetadata` wrote both in English for every
+   * edition until issue #139.
+   */
+  readonly frameNumbered: (n: number) => string;
   /** The program map's answer to a frame number the program does not have. */
   readonly frameRange: (last: number) => string;
   readonly summaryHeading: string;
@@ -515,6 +558,12 @@ interface Strings {
    * be the page the reader is already on.
    */
   readonly shutNextProgram: (unit: string) => string;
+  /**
+   * The page behind a render failure. A block of its own, like `deleteAccount`, because it is
+   * a page's worth of words — see `RenderErrorStrings`. Beside the frame-level refusal below,
+   * which is the other way a frame can be absent without a reader's typo being the reason.
+   */
+  readonly renderError: RenderErrorStrings;
   /**
    * ADR-0060 — the FRAME-level refusal, answered by the same live call that serves the
    * frame rather than by a client-side redirect. `shutNotice` above is the PROGRAM-level
@@ -676,6 +725,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     toSummary: 'Summary',
     answerTo: (n) => `Answer to frame ${n}`,
     goToFrameNumber: (n) => `Go to frame ${n}`,
+    frameNumbered: (n) => `Frame ${n}`,
     frameRange: (last) => `Enter a frame from 1 to ${last}.`,
     summaryHeading: 'Summary',
     canYouHeading: 'Can you?',
@@ -695,6 +745,18 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       `order: ${unit} opens as soon as you have a place in ${previous}, and one frame of ` +
       `${previous} is enough. ${unit} is marked in the list below.`,
     shutNextProgram: (unit) => `${unit} opens once you have read any frame of this program.`,
+    renderError: {
+      unavailableTitle: 'The book\u2019s server did not answer.',
+      failedTitle: 'This page could not be shown.',
+      failedWhere: 'The fault is on this side, not in the address you asked for.',
+      nothingLost: 'Nothing you have written is lost, and neither is your place in the book.',
+      tryLater: 'Try again in a moment.',
+      retry: 'Try again',
+      toContents: 'Back to the program\u2019s contents',
+      toPrograms: 'Open the programs',
+      reportTitle: 'If you report this',
+      reference: 'reference',
+    },
     notReachedHeading: 'Not there yet',
     notReachedBody: (furthest) =>
       `This frame has not been reached yet. The furthest read frame in this program is ${furthest}.`,
@@ -859,6 +921,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     toSummary: 'Podsumowanie',
     answerTo: (n) => `Odpowiedź do ramki ${n}`,
     goToFrameNumber: (n) => `Przejdź do ramki ${n}`,
+    frameNumbered: (n) => `Ramka ${n}`,
     frameRange: (last) => `Wpisz numer ramki od 1 do ${last}.`,
     summaryHeading: 'Podsumowanie',
     canYouHeading: 'Czy potrafisz?',
@@ -879,6 +942,21 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       `${previous} — wystarczy jedna ramka ${previous}. ${unit} jest zaznaczony na liście niżej.`,
     shutNextProgram: (unit) =>
       `${unit} otworzy się, gdy przeczytasz dowolną ramkę tego programu.`,
+    renderError: {
+      unavailableTitle: 'Serwer książki nie odpowiedział.',
+      failedTitle: 'Nie udało się pokazać tej strony.',
+      // `po naszej stronie` and not `po tej stronie`: `strona` is also the page, and "on this
+      // page" is the one thing the sentence must not be read as saying.
+      failedWhere: 'Błąd jest po naszej stronie, a nie w adresie, o który prosisz.',
+      // Impersonal, like `youWrote`: "nic, co zapisałeś" would pick a gender for every reader.
+      nothingLost: 'Nic, co zapisano, nie przepadło, twoje miejsce w książce też nie.',
+      tryLater: 'Spróbuj ponownie za chwilę.',
+      retry: 'Spróbuj ponownie',
+      toContents: 'Wróć do spisu treści programu',
+      toPrograms: 'Przejdź do programów',
+      reportTitle: 'Jeśli zgłaszasz ten błąd',
+      reference: 'identyfikator',
+    },
     notReachedHeading: 'Jeszcze nie tutaj',
     notReachedBody: (furthest) =>
       `Ta ramka nie jest jeszcze dostępna. Najdalsza przeczytana ramka w tym programie: ${furthest}.`,
@@ -1026,6 +1104,7 @@ export interface Chrome {
   readonly toSummary: string;
   readonly answerTo: (n: number) => string;
   readonly goToFrameNumber: (n: number) => string;
+  readonly frameNumbered: (n: number) => string;
   readonly frameRange: (last: number) => string;
   readonly summaryHeading: string;
   readonly canYouHeading: string;
@@ -1041,6 +1120,7 @@ export interface Chrome {
   readonly shutExplain: (previous: string) => string;
   readonly shutNotice: (unit: string, previous: string) => string;
   readonly shutNextProgram: (unit: string) => string;
+  readonly renderError: RenderErrorStrings;
   readonly notReachedHeading: string;
   readonly notReachedBody: (furthest: number) => string;
 }
