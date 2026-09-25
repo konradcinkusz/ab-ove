@@ -46,7 +46,7 @@ Pick **F01 — Numbers, powers and roots**. Every reader starts there.
 A frame is one idea, sometimes one line. Read it, and stop at the question.
 
 Most frames ask for something. When one does, the line below it — labelled *Your answer* —
-says *write it down before you read on*. Use it, or use paper — the line is local to your
+says *Write it down before you read on*. Use it, or use paper — the line is local to your
 browser and nothing reads it
 ([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
 
@@ -114,7 +114,8 @@ At the foot of the landing page is a card headed **Help fix the book?**
 
 ![The consent invitation at the foot of the landing page.](../assets/screenshots/landing-english.png)
 
-Here is exactly what saying yes does, and it is worth reading rather than skipping:
+Here is exactly what saying yes — **Yes, count my answers anonymously** — does, and it is
+worth reading rather than skipping:
 
 - It records, for each frame you answer: **which version of the book it was in**, **which
   attempt this was**, and **whether your answer matched the book's**.
@@ -128,8 +129,9 @@ nothing knows which rows were yours, **withdrawing stops the next one and cannot
 ones already counted**
 ([ADR-0021](../adr/0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md)).
 
-Either answer leaves the book, the exercises and your place exactly as they are. You will not
-be asked again.
+Whichever you choose, the book and your place in it stay exactly as they are, and you will not
+be asked again. The card becomes one line saying what you chose, with the way to change it
+beside it.
 
 ## What the measurements are for
 

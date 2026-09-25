@@ -163,7 +163,11 @@ Its parts, in order:
    than a gate — a reader who came to read reaches the programs first and the question
    afterwards. The same invitation is on a program's summary, below the list, where a
    reader has just finished the frames the instrument is about; one record, so an answer
-   on either page is the answer on both (ADR-0022, Consequences).
+   on either page is the answer on both (ADR-0022, Consequences). It is worded for a reader
+   rather than a schema — what is counted, and that neither the answer nor the reader ever
+   is — and the accept says what it does: *Yes, count my answers anonymously* (#153).
+   Answering replaces the card with one line, a `role="status"` region that takes focus,
+   so the button that went away does not leave a keyboard reader at the top of the page.
 
 `/read` is a 308 to this page and the deep links under it do not move.
 

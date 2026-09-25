@@ -113,7 +113,10 @@ touching to fix one.
 **Two Polish strings chose a gender for every reader, and now choose none.** A
 second-person past tense in Polish cannot be written without one — *Zapisałeś* is a man
 who wrote, *Zapisałaś* a woman — so the reveal's label and the deletion screen's password
-hint were addressing half the readers as the other half. Both are impersonal now
-(*Zapisano*; *hasło nigdy nie zostało ustawione*), which is the register Polish interfaces
-use for exactly this reason; the sketch's plain background is *Bez tła* rather than an
-adverb. The strings have still had no native review.
+hint were addressing half the readers as the other half. Neither chooses one now: the
+password hint is impersonal (*hasło nigdy nie zostało ustawione*), which is the register
+Polish interfaces use for exactly this reason, and the reveal's label is a noun phrase,
+*Twoja odpowiedź*. It was the impersonal *Zapisano* first, which kept the rule and read as a
+save confirmation — "Saved: 42" — in front of what the reader wrote (issue #152). The
+sketch's plain background is *Bez tła* rather than an adverb. The strings have still had no
+native review.

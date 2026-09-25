@@ -59,7 +59,7 @@ was first written with.
 | `account-deletion.spec.ts` | closing an account, and everything about it that needs no account |
 | `app-icon.spec.ts` | the tab shows the mark, served by this origin to a reader with no account, and `theme-color` is the paper in each scheme |
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
-| `consent.spec.ts` | being asked once whether outcomes may be counted, and being left alone |
+| `consent.spec.ts` | being asked once whether answers may be counted, focus landing on the answer given, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
 | `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload |
 | `focus-ring.spec.ts` | the controls that showed focus by a colour or a brightness wear the shared ring, in light, dark and forced colours |

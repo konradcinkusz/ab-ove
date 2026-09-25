@@ -25,6 +25,12 @@ const KEY = 'ab-ovo:consent';
 const invitation = (page: import('@playwright/test').Page) =>
   page.getByRole('heading', { name: /Help fix the book|Pomo/i });
 
+/**
+ * The accept, by the words that say what it does (issue #153). It used to read "Yes, use my
+ * outcomes", and the Polish `wyniki` in that sentence reads as *scores*.
+ */
+const GRANT = /Yes, count my answers anonymously/i;
+
 /*
  * THERE IS NO `beforeEach` THAT CLEARS STORAGE, AND THAT IS A CORRECTION RATHER THAN AN
  * OMISSION.
@@ -60,7 +66,9 @@ test.describe('the ask', () => {
     // because a rewrite that kept the first clause and dropped this one would be the
     // exact regression ADR-0022 requires a re-consent for.
     await expect(panel).toContainText('your words stay in this browser');
-    await expect(panel).toContainText('not a column, not a hash, not a join away');
+    // And that no reader is on any of it, in the reader's words rather than a database's —
+    // it said "not a column, not a hash, not a join away" until issue #153.
+    await expect(panel).toContainText('Nothing counted says who you are');
     // The sentence that makes declining safe to do.
     await expect(panel).toContainText('You will not be asked again');
   });
@@ -107,7 +115,7 @@ test.describe('the ask', () => {
      */
     await page.goto('/');
 
-    const grant = page.getByRole('button', { name: /Yes, use my outcomes/i });
+    const grant = page.getByRole('button', { name: GRANT });
     const decline = page.getByRole('button', { name: /No thanks/i });
 
     await expect(grant).toBeVisible();
@@ -138,6 +146,42 @@ test.describe('the ask', () => {
     expect(b.paddingInline, 'the decline must not be a smaller target').toBe(a.paddingInline);
     expect(b.opacity, 'the decline must not be faded').toBe(a.opacity);
   });
+
+  /*
+   * ──────────────────────────────────────────────────────────────────────────────────────
+   * AN ANSWER LEAVES FOCUS ON THE ANSWER, NOT ON THE PAGE — issue #153.
+   *
+   * Either press replaces the invitation with the status line, so the button that had focus
+   * leaves the document. Without the component's help focus falls to `<body>`, a screen
+   * reader says nothing about what the press did, and the next `Tab` starts from the top of
+   * the page. So the line is a `role="status"` region and takes focus, and the next `Tab`
+   * reaches the control that changes the answer.
+   *
+   * Pressed from the keyboard, because focus is what a keyboard reader has instead of a
+   * pointer. A mouse click would pass too; it would not be the reader this is for.
+   * ──────────────────────────────────────────────────────────────────────────────────────
+   */
+  for (const { answer, name, says, change } of [
+    { answer: 'yes', name: GRANT, says: 'You are helping measure the book', change: /Stop contributing/i },
+    { answer: 'no', name: /No thanks/i, says: 'You are not contributing', change: /Start contributing/i },
+  ]) {
+    test(`answering ${answer} puts focus on the answer given @core`, async ({ page }) => {
+      await page.goto('/');
+
+      await page.getByRole('button', { name }).focus();
+      await page.keyboard.press('Enter');
+
+      await expect(invitation(page)).toHaveCount(0);
+      const status = page.getByRole('status').filter({ hasText: says });
+      await expect(status, 'focus fell to the page when the pressed button went away').toBeFocused();
+
+      await page.keyboard.press('Tab');
+      await expect(
+        page.getByRole('button', { name: change }),
+        'the next Tab did not reach the way to change the answer',
+      ).toBeFocused();
+    });
+  }
 });
 
 test.describe('declining, and being left alone', () => {
@@ -174,7 +218,7 @@ test.describe('declining, and being left alone', () => {
      * would go stale the first time a control is added, and would go stale silently.
      */
     await page.goto('/');
-    await page.getByRole('button', { name: /Yes, use my outcomes/i }).click();
+    await page.getByRole('button', { name: GRANT }).click();
     const granted = await page
       .locator('main')
       .getByRole('link')
@@ -206,10 +250,10 @@ test.describe('the durable control', () => {
 
     // What withdrawing cannot do is said while contributing, and only then: a reader who is
     // already not contributing has nothing to be told about what stopping cannot undo.
-    await expect(page.getByText('It cannot take back an outcome already counted')).toBeVisible();
+    await expect(page.getByText('What was already counted cannot be taken back')).toBeVisible();
 
     await page.getByRole('button', { name: /Stop contributing/i }).click();
-    await expect(page.getByText('It cannot take back an outcome already counted')).toHaveCount(0);
+    await expect(page.getByText('What was already counted cannot be taken back')).toHaveCount(0);
   });
 
   test('a reader who agreed to the old tally is asked again @smoke', async ({ page }) => {
@@ -257,7 +301,7 @@ test.describe('the durable control', () => {
 
   test('the answer persists across a reload @core', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: /Yes, use my outcomes/i }).click();
+    await page.getByRole('button', { name: GRANT }).click();
     await expect(page.getByText('You are helping measure the book')).toBeVisible();
 
     await page.reload();

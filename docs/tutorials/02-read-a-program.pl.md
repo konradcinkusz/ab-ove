@@ -46,8 +46,9 @@ Wybierz **F01 — Liczby, potęgi i pierwiastki**. Każdy czytelnik zaczyna tam.
 Ramka to jedna myśl, czasem jeden wiersz. Przeczytaj ją i zatrzymaj się na pytaniu.
 
 Większość ramek o coś prosi. Gdy któraś prosi, linia pod nią — podpisana *Twoja odpowiedź* —
-mówi *Zapisz, zanim pójdziesz dalej*. Użyj jej albo kartki — linia jest lokalna dla twojej
-przeglądarki i nic jej nie czyta ([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
+mówi *Napisz odpowiedź, zanim przejdziesz dalej*. Użyj jej albo kartki — linia jest lokalna
+dla twojej przeglądarki i nic jej nie czyta
+([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
 
 Obok stoją dwie rzeczy, obie opcjonalne:
 
@@ -112,7 +113,8 @@ U dołu strony startowej jest karta zatytułowana **Pomożesz poprawić książk
 
 ![Zaproszenie do zgody u dołu strony startowej.](../assets/screenshots/landing-polish.png)
 
-Oto dokładnie, co robi zgoda, i warto to przeczytać, a nie pominąć:
+Oto dokładnie, co robi zgoda — **Tak, licz moje odpowiedzi anonimowo** — i warto to
+przeczytać, a nie pominąć:
 
 - Zapisuje dla każdej ramki, na którą odpowiesz: **w której wersji książki się znajdowała**,
   **które to było podejście** i **czy twoja odpowiedź zgadza się z tą z książki**.
@@ -126,8 +128,9 @@ nic nie wie, które wiersze były twoje, **rezygnacja zatrzymuje kolejny i nie c
 policzonych**
 ([ADR-0021](../adr/0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md)).
 
-Każda z odpowiedzi zostawia książkę, ćwiczenia i twoje miejsce dokładnie takimi, jakie są. Nie
-zapytamy ponownie.
+Cokolwiek wybierzesz, książka i twoje miejsce w niej zostaną dokładnie takie, jakie są, i nie
+zapytamy ponownie. Karta zamienia się w jeden wiersz, który mówi, jaki jest twój wybór, a obok
+niego jest sposób, by go zmienić.
 
 ## Po co są te pomiary
 
