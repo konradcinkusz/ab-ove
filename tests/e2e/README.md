@@ -58,7 +58,7 @@ was first written with.
 | `accessibility.spec.ts` | every screen holds WCAG 2.2 A and AA as far as axe-core can decide — both schemes, each panel open, 360 px, and the forms behind an account |
 | `account-deletion.spec.ts` | closing an account, and everything about it that needs no account |
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
-| `consent.spec.ts` | being asked once whether outcomes may be counted, and being left alone |
+| `consent.spec.ts` | being asked once whether answers may be counted, focus landing on the answer given, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
 | `frame-view.spec.ts` | the answer is absent before the reveal, asserted in both directions and both editions |
 | `gate.spec.ts` | the book is entered at the beginning: a program opens when the one before it has |

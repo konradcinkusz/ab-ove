@@ -1,6 +1,6 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 
 import { answer, serverSnapshot, snapshot, subscribe } from '@/lib/consent/client';
 import { chromeFor } from '@/lib/i18n/chrome';
@@ -38,6 +38,22 @@ import styles from './consent-control.module.css';
  * That also means the control is absent from the first paint, so it lives at the END of the
  * page where appearing costs no layout shift — the same constraint the resume controls have
  * (issue #7), solved the same way.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * ANSWERING MOVES FOCUS TO THE ANSWER, BECAUSE THE BUTTON THAT HAD IT IS GONE (issue #153).
+ *
+ * Both answers replace the invitation with the status line, so the button just pressed
+ * leaves the document and focus falls to `<body>`: a keyboard reader's next `Tab` starts
+ * from the top of the page, and a screen reader says nothing about what the press did. So
+ * the status line is `role="status"` and takes focus — `shut-notice.tsx`'s remedy, for the
+ * same loss — and what is read out is the answer just given and the way to change it, which
+ * is the next thing in tab order.
+ *
+ * ONLY AFTER A PRESS IN THIS COMPONENT, guarded by a ref rather than by the dependency list.
+ * The record also changes from another tab (the store's `storage` event), and a line that
+ * took focus then would be taking the page away from a reader who is doing something else.
+ * The toggle inside the line needs no help: it stays in the document, and keeps its focus.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export function ConsentControl({
   language,
@@ -47,6 +63,19 @@ export function ConsentControl({
   const consent = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   const chrome = chromeFor(language);
   const strings = chrome.consent;
+  const status = useRef<HTMLParagraphElement>(null);
+  const answeredHere = useRef(false);
+
+  useEffect(() => {
+    if (consent === 'undecided' || !answeredHere.current) return;
+    answeredHere.current = false;
+    status.current?.focus();
+  }, [consent]);
+
+  const reply = (value: 'granted' | 'declined'): void => {
+    answeredHere.current = true;
+    answer(value);
+  };
 
   /*
     Whether this is the client yet.
@@ -78,7 +107,7 @@ export function ConsentControl({
         */}
         <p className={styles.reassurance}>{strings.invitationEitherWay}</p>
         <div className={styles.answers}>
-          <button className={styles.grant} onClick={() => answer('granted')} type="button">
+          <button className={styles.grant} onClick={() => reply('granted')} type="button">
             {strings.grant}
           </button>
           {/*
@@ -86,7 +115,7 @@ export function ConsentControl({
             greyed. A decline that is harder to press than the accept is an opt-in in
             wording only.
           */}
-          <button className={styles.decline} onClick={() => answer('declined')} type="button">
+          <button className={styles.decline} onClick={() => reply('declined')} type="button">
             {strings.decline}
           </button>
         </div>
@@ -97,7 +126,13 @@ export function ConsentControl({
   const granted = consent === 'granted';
 
   return (
-    <p className={styles.status} lang={chrome.language}>
+    <p
+      className={styles.status}
+      lang={chrome.language}
+      ref={status}
+      role="status"
+      tabIndex={-1}
+    >
       <span className={styles.statusText}>
         {granted ? strings.statusGranted : strings.statusDeclined}
       </span>{' '}

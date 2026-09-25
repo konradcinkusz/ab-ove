@@ -113,7 +113,8 @@ U dołu strony startowej jest karta zatytułowana **Pomożesz poprawić książk
 
 ![Zaproszenie do zgody u dołu strony startowej.](../assets/screenshots/landing-polish.png)
 
-Oto dokładnie, co robi zgoda, i warto to przeczytać, a nie pominąć:
+Oto dokładnie, co robi zgoda — **Tak, licz moje odpowiedzi anonimowo** — i warto to
+przeczytać, a nie pominąć:
 
 - Zapisuje dla każdej ramki, na którą odpowiesz: **w której wersji książki się znajdowała**,
   **które to było podejście** i **czy twoja odpowiedź zgadza się z tą z książki**.
@@ -127,8 +128,9 @@ nic nie wie, które wiersze były twoje, **rezygnacja zatrzymuje kolejny i nie c
 policzonych**
 ([ADR-0021](../adr/0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md)).
 
-Każda z odpowiedzi zostawia książkę, ćwiczenia i twoje miejsce dokładnie takimi, jakie są. Nie
-zapytamy ponownie.
+Cokolwiek wybierzesz, książka i twoje miejsce w niej zostaną dokładnie takie, jakie są, i nie
+zapytamy ponownie. Karta zamienia się w jeden wiersz, który mówi, jaki jest twój wybór, a obok
+niego jest sposób, by go zmienić.
 
 ## Po co są te pomiary
 
