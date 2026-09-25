@@ -86,6 +86,7 @@ was first written with.
 | `sign-in.spec.ts` | the sign-in screen, and everything about it that needs no account |
 | `sync.spec.ts` | the same reader on a second machine |
 | `theme.spec.ts` | a reader turns on light mode, and it stays on |
+| `unknown-address.spec.ts` | a mistyped address still meets the sign-in redirect, and the page it lands on says there is no page there |
 | `worksheet.spec.ts` | committing an answer before turning over, which is the method the book is |
 
 ### 1. The product's argument, and its anti-goal — `specs/about.spec.ts`

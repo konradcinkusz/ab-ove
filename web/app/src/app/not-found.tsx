@@ -23,7 +23,9 @@ import Link from 'next/link';
  * answered with the sign-in redirect before any 404 renders; this page is what a reader
  * reaches under the public prefixes — `/read/…`, `/lab/…` — and anywhere at all once
  * signed in. That is a property of the gate rather than of this file, and UI-UX.md says
- * so beside the routes table.
+ * so beside the routes table. The sign-in page that redirect lands on says what this page
+ * says, under this page's headline, and names the address this page cannot
+ * (`login/page.tsx`'s `NoPageAt`, issue #140) — so a typo is not a page wherever it is met.
  *
  * NOTHING HERE IS FETCHED, and it takes no props: `not-found.tsx` receives none, which is
  * why it cannot say which segment was wrong. It says what the shape of a right address

@@ -13,7 +13,7 @@ import styles from '../credentials-form.module.css';
  * ──────────────────────────────────────────────────────────────────────────────────────
  * THE PAGE THAT WAS MISSING, AND THE MIDDLEWARE ALREADY KNEW IT.
  *
- * `middleware.ts` has carried `/register` in `PUBLIC_PATHS` since the gate was written —
+ * The page gate has carried `/register` in `PUBLIC_PATHS` since it was written —
  * "a reader deciding whether to trust what this system measures must not have to register
  * first" — and there was no page behind it. So `/login` invited a reader to use "the email
  * address and password you registered with", the only way to get one was to POST to

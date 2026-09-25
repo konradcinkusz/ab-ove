@@ -118,6 +118,7 @@ const SCREENS: readonly Screen[] = [
   { what: 'a program’s summary', path: `${contentsAt('en')}/summary` },
   { what: 'a frame the reader has not reached', path: frameAt('en', program.steps.length) },
   { what: 'a page that does not exist', path: `/read/${track}/NOPE/en` },
+  { what: 'an address no page answers, on the sign-in page', path: '/nope' },
   { what: 'sign-in, with no identity service', path: '/login' },
   { what: 'registration, with no identity service', path: '/register' },
   { what: 'the page a deleted account ends on', path: '/account/deleted' },

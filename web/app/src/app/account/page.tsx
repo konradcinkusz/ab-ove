@@ -35,7 +35,9 @@ import styles from './account.module.css';
  *
  * Private by default: it is in neither `PUBLIC_PATHS` nor `PUBLIC_PREFIXES`, so the
  * middleware gates it with no entry needed. `/account/deleted` is public, and has to be —
- * see its own page.
+ * see its own page. It IS named in `PRIVATE_PAGES` (`lib/page-gate.ts`), which the gate never
+ * reads: that is how `/login` tells a reader bounced off this page that it is one, rather
+ * than an address that does not exist (issue #140).
  *
  * No `'use client'`, for `/login`'s reason: the reading surface works with script
  * disabled, and a reader who has decided to leave is the last person to demand a working

@@ -58,7 +58,8 @@ fault is the deployment's, that nothing written in the browser is lost, and offe
 again*. Both are English only, on `/login`'s reasoning. The middleware is private by
 default, so an unknown *top-level* path meets the sign-in redirect first; the pages are met
 under `/read/` and `/lab/`, and anywhere at all once signed in. `specs/navigation.spec.ts`
-asserts the 404's way back.
+asserts the 404's way back. What the redirect lands on says the same thing — see `/login`
+below — so a typo is never described to the reader as a page that needs an account.
 
 ### `/` — the landing page, which is the index
 
@@ -218,6 +219,27 @@ with the session key that survives form restore and screenshots.
 It still branches on whether an identity service is configured at all, and says so plainly
 rather than offering a button that cannot work (P8) — a deployment with no identity service is
 a supported configuration, not a broken one.
+
+**It says what stands at the address it was handed**, because the gate cannot. The middleware
+is private by default, so a mistyped `/nope` is redirected here exactly as `/account` is, and
+until issue #140 the page told that reader they had asked for "one of the few pages that needs
+to know who you are". The page now asks `web/app/src/lib/page-gate.ts`, which holds the gate's
+own lists — moved there from `middleware.ts` word for word, so the page and the gate put one
+question to one answer — and one more, `PRIVATE_PAGES`, the pages the gate closes, named:
+
+- **a page the gate closes**, which is one `PRIVATE_PAGES` names, keeps the sentence and the
+  form, which carries the reader there after signing in;
+- **an address the gate opens** is one the reader chose to sign in from — every *Sign in* link
+  carries where the reader was — and is carried as before;
+- **an address the gate closes with no page behind it** gets *There is no page at this
+  address*, the address itself, the filled way to the programs and — where an identity
+  service is configured — a fresh sign-in with no destination attached. No form: signing in
+  cannot make a page appear.
+
+The gate never reads `PRIVATE_PAGES`, so a private page added without an entry would be
+described to its own reader as missing. `page-gate.test.ts` walks `app/` and holds the list
+equal to the pages the gate closes; `specs/unknown-address.spec.ts` is the reader's view of
+both halves — the redirect still happens, and the page says what is true.
 
 ### `/register` — where an account comes from
 

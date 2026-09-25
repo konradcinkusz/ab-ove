@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { backendConfigured } from '@/lib/server/backends';
+import { destinationAt } from '@/lib/page-gate';
 import { safeRedirectTarget } from '@/lib/redirect-target';
 import { signInProblem } from '@/lib/sign-in-problem';
 
@@ -29,6 +30,22 @@ import styles from '../credentials-form.module.css';
  * sits outside `/read/[lang]`, so there is no language for it to follow. Giving it one is a
  * decision about what a reader's interface language IS, and that is a separate question
  * from which edition they are reading.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * AN ADDRESS NO PAGE ANSWERS IS SAID TO BE ONE (issue #140).
+ *
+ * The middleware is private by default, so a typo — `/nope` — is bounced here exactly as
+ * `/account` is, and this page used to tell that reader they had asked for "one of the few
+ * pages that needs to know who you are". It now asks `destinationAt` what stands at the
+ * address, which is the gate's own answer plus `PRIVATE_PAGES` (`lib/page-gate.ts`): a page
+ * the gate closes gets the words it always had, an address the gate opens is one the reader
+ * chose to sign in from and is carried as before, and an address the gate closes with no
+ * page behind it gets a page saying so — the programs, a fresh sign-in, and NOT the form,
+ * because signing in cannot make a page appear and the destination would be a 404.
+ *
+ * The gate itself is untouched by this: the typo still meets the sign-in redirect. What
+ * changed is only what the sign-in page says when it gets there.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  */
 
 export const dynamic = 'force-dynamic';
@@ -50,6 +67,12 @@ export default async function LoginPage({
    * SERVER was told where identity is.
    */
   const identityConfigured = backendConfigured('authservice');
+
+  // Issue #140 — see the header. The address is never carried any further when no page
+  // answers it: not into the form, not onward to `/register`.
+  if (intended !== null && destinationAt(intended) === 'no-page') {
+    return <NoPageAt address={intended} identityConfigured={identityConfigured} />;
+  }
 
   // Validated against a closed set, never rendered from the URL. See sign-in-problem.ts:
   // a page that echoed `?error=<text>` would put any sentence an attacker chose into this
@@ -222,6 +245,62 @@ export default async function LoginPage({
           <Link href="/">Back to the reader</Link>
         </p>
       </footer>
+    </main>
+  );
+}
+
+/**
+ * What a reader bounced off an address with no page behind it is shown — issue #140.
+ *
+ * The words are `not-found.tsx`'s, because it is the same fact: there is no page here. What
+ * this adds is the one thing that page cannot say, the address itself (the gate carried it,
+ * so this page has it where `not-found.tsx` has none), and why the reader is looking at a
+ * sign-in page to learn it. Rendered as text inside `<code>`, never as markup, and only
+ * after `safeRedirectTarget` has refused anything that is not a same-origin path.
+ *
+ * The way to sign in is a FRESH `/login`, with no destination: the one this address would
+ * have carried is a page that does not exist.
+ */
+function NoPageAt({
+  address,
+  identityConfigured,
+}: {
+  address: string;
+  identityConfigured: boolean;
+}): React.JSX.Element {
+  return (
+    <main className="shell">
+      <header className="masthead">
+        <p className="wordmark">
+          ab<span>-</span>ovo
+        </p>
+        <h1 className="lede">There is no page at this address.</h1>
+        <p className="standfirst">
+          You asked for <code>{address}</code>, and nothing in ab-ovo is there &mdash; a
+          mistyped address or an out-of-date link does this. It is not a page that needs an
+          account, and signing in would not make one appear.
+        </p>
+        <p className="enter">
+          <Link href="/">Open the programs</Link>
+          {identityConfigured ? (
+            <Link className="quiet" href="/login">
+              Sign in
+            </Link>
+          ) : null}
+        </p>
+      </header>
+
+      <section className="section">
+        <h2>Why you are on the sign-in page</h2>
+        <p>
+          An address this site does not recognise is treated as private until it is shown
+          otherwise, so a mistyped one lands here rather than on a page that says it is
+          missing. The programs, the frames and the lab need no account at all.
+          {identityConfigured
+            ? null
+            : ' This deployment has no identity service configured, so there is nothing to sign in to either.'}
+        </p>
+      </section>
     </main>
   );
 }
