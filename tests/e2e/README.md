@@ -60,6 +60,7 @@ was first written with.
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
 | `consent.spec.ts` | being asked once whether outcomes may be counted, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
+| `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload |
 | `frame-view.spec.ts` | the answer is absent before the reveal, asserted in both directions and both editions |
 | `gate.spec.ts` | the book is entered at the beginning: a program opens when the one before it has |
 | `hydration.spec.ts` | every page hydrates — the one defect that leaves no trace on screen |
@@ -391,10 +392,10 @@ checking.
   `storageState` here, and every signed-in spec signs in through the form
   (`specs/support/sign-in.ts`). It costs a sign-in per test in the `identity` project, and it
   is what that section's rule exists to prevent.
-- **The API failing underneath a page that is being rendered.** A reading page whose
-  `AbOvo.Api` call fails on the server throws to `app/error.tsx`; every spec shares one live
-  API, so no test can take it away from one page. `specs/no-backend.spec.ts` covers the
-  browser-side failure — the API out of the browser's reach — and not this one.
+- **The root layout failing.** `app/global-error.tsx` stands behind it, and nothing a test can
+  do from outside makes `app/layout.tsx` throw, so that page is held by the build and by the
+  component it shares with `app/error.tsx` — which *is* driven, by `specs/error-page.spec.ts`,
+  through the fault fixture below.
 - **A browser without the Popover API.** The reading screens' two panels fall back to blocks in
   the page's flow (`components/read/sheet.module.css`), and the one browser here has the API.
 - **What a machine cannot decide about accessibility.** `specs/accessibility.spec.ts` covers the
@@ -517,7 +518,8 @@ deployments (ADR-0060) did not change that.** That test reads the API through th
 proxy's own `/api/proxy/` route, against a target the operator names explicitly — issue
 #270's ground, a deployed environment, not this runner-local one. `:3000` and `:3100` both
 get `AB_OVO_API_URL` now (reading needs no account, so a live API is no longer the axis they
-differ on — see `playwright.config.ts`'s `apiBaseUrl`), but that is a Server Component's own
+differ on — see `playwright.config.ts`'s `apiBaseUrl`; `:3000`'s is the fault fixture's
+address, which forwards to it — see `faultBaseUrl`), but that is a Server Component's own
 direct, server-side call, a different mechanism from the browser's proxied one this test
 exercises. The genuinely backend-less run this suite still needs is `no-backend.spec.ts`'s —
 a real absence injected in the browser with route interception, deterministic on every run,
@@ -724,6 +726,14 @@ per run, and that is the price of reading through the real gate.
 each test registers a generated address, the fixture forgets it when its process exits, and
 no account is shared between tests.
 
+**And the API can be taken away from one reader without taking it from the rest.** The first
+deployment reaches `AbOvo.Api` through `fixtures/api-fault.mts`, a pass-through that drops the
+requests of a reader a spec has cut and forwards everybody else's untouched. It keys the cut
+on the reader id the middleware minted for that one context (ADR-0061), so
+`specs/error-page.spec.ts` can stop the API under its own frame while every other spec reads
+on through the same process. The set of cut readers lives in the fixture's memory and goes
+with it; a cut a failed test leaves behind names a reader nobody else holds.
+
 **And one file now does create server-side state, so the paragraph above has an exception
 rather than a slow drift into being false.** `specs/bearer-hop.spec.ts` writes progress rows
 to a real `AbOvo.Api`, because a hop that carries nothing proves nothing. Two consequences,
@@ -785,7 +795,8 @@ tests/e2e/
   package.json                      scripts; every one is run by a CI context
   playwright.config.ts              base URL, layers, harness defaults, webServer
   tsconfig.json                     strict; `pnpm run typecheck` is a real gate
-  fixtures/                         the identity service stub, its accounts, the content ingest
+  fixtures/                         the identity service stub, its accounts, the content ingest,
+                                    and the API pass-through that can cut one reader off
   specs/
     *.spec.ts                       one journey each — the table under *What this suite covers*
     support/

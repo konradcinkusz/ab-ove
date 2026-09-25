@@ -53,12 +53,21 @@ the index. The content layer calls a course a *track*, which is the word in the 
 `app/error.tsx` stand behind the two statuses the routes already answer: a frame number
 past the end of a program, a program the book does not have or an edition it is not
 published in is a 404 with the wordmark, one sentence about the shape of a right address
-and the filled way back to the programs; a bundle that will not load is a 500 that says the
-fault is the deployment's, that nothing written in the browser is lost, and offers *Try
-again*. Both are English only, on `/login`'s reasoning. The middleware is private by
-default, so an unknown *top-level* path meets the sign-in redirect first; the pages are met
-under `/read/` and `/lab/`, and anywhere at all once signed in. `specs/navigation.spec.ts`
-asserts the 404's way back.
+and the filled way back to the programs. A frame whose content API did not answer — the
+usual 500 since [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+— says exactly that: the book's server did not answer, nothing written is lost and neither
+is the place in the book, try again in a moment. Its *Try again* asks the server again and
+brings the frame back into the same page once it answers, and its way back is the program's
+contents. The page knows that cause because the reading page marks the error it throws;
+any other failure gets the same page saying the fault is on this side, not in the address,
+and names no cause it cannot know. Its tab is the frame's number and never "Not found",
+which is a claim about the address nobody could check. The 404 is English only, on
+`/login`'s reasoning; the 500 follows the edition in the address and is English where there
+is none, and `app/global-error.tsx` says the same when the root layout itself fails. The
+middleware is private by default, so an unknown *top-level* path meets the sign-in redirect
+first; the pages are met under `/read/` and `/lab/`, and anywhere at all once signed in.
+`specs/navigation.spec.ts` asserts the 404's way back, and `specs/error-page.spec.ts` the
+500's words, its recovery and its Polish.
 
 ### `/` — the landing page, which is the index
 

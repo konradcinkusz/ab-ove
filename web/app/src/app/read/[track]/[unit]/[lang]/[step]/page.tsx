@@ -9,6 +9,7 @@ import { say } from '@ab-ovo/web-kit';
 import { FrameView } from '@/components/read/frame-view';
 import { NotReached } from '@/components/read/not-reached';
 import { chromeFor } from '@/lib/i18n/chrome';
+import { contentUnavailable } from '@/lib/read/render-failure';
 import { READER_ID_COOKIE } from '@/lib/reader-cookie';
 import { fetchStep, fetchTrackContent, fetchUnitSummary } from '@/lib/server/content';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/session-cookies';
@@ -107,19 +108,31 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const resolvedParams = await params;
   const resolved = await resolveUnit(resolvedParams);
-  if (resolved.kind !== 'ok') return { title: 'Not found — ab-ovo' };
-
   const step = Number(resolvedParams.step);
-  if (!Number.isInteger(step) || step < 1 || step > resolved.unit.stepCount) {
+  const numbered = Number.isInteger(step) && step >= 1;
+
+  /*
+   * THE SERVER DID NOT ANSWER, SO NOTHING IS KNOWN ABOUT THIS ADDRESS — and the title says
+   * nothing it does not know (issue #139). It used to fall in with `not-found` and read
+   * "Not found" over a page saying the book's server had not answered, which was a claim
+   * about the address nobody had checked. The frame number is the reader's own, so it is
+   * safe to repeat, in the edition the address asks for (English where there are no words
+   * for it); the program's title came from the server that did not answer, so it is not.
+   */
+  if (resolved.kind === 'unavailable') {
+    return { title: numbered ? `${chromeFor(resolvedParams.lang).frameNumbered(step)} — ab-ovo` : 'ab-ovo' };
+  }
+  if (resolved.kind === 'not-found' || !numbered || step > resolved.unit.stepCount) {
     return { title: 'Not found — ab-ovo' };
   }
 
+  const chrome = chromeFor(resolved.language);
   return {
-    title: `Frame ${step} — ${say(resolved.unit.titles, resolved.language)} — ab-ovo`,
+    title: `${chrome.frameNumbered(step)} — ${say(resolved.unit.titles, resolved.language)} — ab-ovo`,
     // Deliberately not the body: a description is served to crawlers and to link previews,
     // and a frame's body is the question. The answer is already structurally absent; the
     // question does not need to be handed out either.
-    description: `Frame ${step} of ${resolved.unit.stepCount}.`,
+    description: `${chrome.frameNumbered(step)} ${chrome.ofTotal(resolved.unit.stepCount)}.`,
   };
 }
 
@@ -135,8 +148,9 @@ export default async function FramePage({
     // Caught by `app/error.tsx` — a deployment fault (the content API could not be
     // reached), never a reader's problem. `bundleFor`'s own doc comment drew this line
     // first: "nothing a reader typed can cause either and nothing a reader does can fix
-    // it," carried from a missing file on disk to an unreachable service.
-    throw new Error(`content API unavailable: ${resolved.reason}`);
+    // it," carried from a missing file on disk to an unreachable service. The error is
+    // MARKED as this failure, so that page can say so and not guess (issue #139).
+    throw contentUnavailable(resolved.reason);
   }
   if (resolved.kind === 'not-found') notFound();
 
@@ -152,7 +166,7 @@ export default async function FramePage({
   const stepOutcome = await fetchStep(resolvedParams.track, resolvedParams.unit, requestedStep, identity);
 
   if (stepOutcome.kind === 'unavailable') {
-    throw new Error(`content API unavailable: ${stepOutcome.reason}`);
+    throw contentUnavailable(stepOutcome.reason);
   }
   if (stepOutcome.kind === 'not-found') notFound();
 

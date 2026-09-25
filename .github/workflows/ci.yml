@@ -361,7 +361,9 @@ jobs:
   #
   #   :3000  no identity service — a reader here can never be signed in, which is the one
   #          un-intercepted run this repository has against that state, and the product's
-  #          remaining "no account" requirement (ADR-0060 superseding ADR-0004's other half)
+  #          remaining "no account" requirement (ADR-0060 superseding ADR-0004's other half).
+  #          It reaches the API through tests/e2e/fixtures/api-fault.mts, a pass-through
+  #          that can cut ONE reader off it, so the error page can be driven (issue #139)
   #   :3100  the signed-in deployment, pointed at the identity fixture as well as the API
   #
   # The API still listens on 8180 and not on its own 8080: 8080 is rung four of
