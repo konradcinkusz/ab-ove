@@ -3,8 +3,8 @@
 ## Status
 
 **Accepted.** Date: 2026-09-25. Decided for #154 (order 540 in
-[`docs/ux/UI-UX.md`](../ux/UI-UX.md#the-order)) under the owner's delegation of that date,
-with his instruction that the reading order he asked for stays.
+[`docs/ux/UI-UX.md`](../ux/UI-UX.md#the-order)) under the owner's delegation of that date.
+The option taken keeps the reading order the owner asked for in ADR-0051.
 
 Confirms [ADR-0051](0051-a-program-opens-when-the-one-before-it-has-been-opened.md) and
 [ADR-0056](0056-the-reading-order-is-gated-on-every-surface-and-every-refusal-says-what-opens-it.md)
@@ -56,17 +56,20 @@ says that programs open in order and that one frame is enough. The shut notice l
 program that opens the shut one. The wording and the Polish belong to that issue. What this
 decision asks of it is that a reader who knows the material learns three things: the Main
 sequence is built on the Foundation programs, one frame of each is all it takes to go on,
-and nothing is hidden or paid for. Those are ADR-0056's four questions again, asked on the
-first screen instead of after a refusal.
+and nothing is hidden or paid for. ADR-0056's refusals already say why a program is shut
+and how small the move that opens it is, but only after a door has been tried. The legend
+says all three on the first screen.
 
 **Option 2 is not taken.** It makes the gate a stored fact:
 
 - **The choice needs somewhere to live, and has nowhere cheap.** ADR-0051 chose its rule
   because it stores nothing. A declared choice is neither a position nor derivable from one.
-  Since ADR-0060, `localStorage` is only a resume hint. `ReaderPreference` holds the edition
-  and nothing else, and its endpoints need a sign-in. So the choice would need either a new
-  field (a migration) or a new entity, and AGENTS.md item 3 holds the model at its size until
-  a ticket says otherwise.
+  The browser could hold it: an anonymous reader's gate is still computed from
+  `localStorage` today (`web/app/src/lib/progress/gate.ts`). But ADR-0060 decided that this
+  store becomes a resume hint, and the next bullet says why the browser alone is not enough.
+  `ReaderPreference` holds the edition and nothing else, and its endpoints need a sign-in. So
+  a server-held choice would need either a new field (a migration) or a new entity, and
+  AGENTS.md item 3 holds the model at its size until a ticket says otherwise.
 - **Both surfaces would have to know it.** Suppose the browser held the choice and the MCP
   server did not. That is the disagreement ADR-0056 was written to end. So the choice would
   have to be held by the server for anonymous readers too, which widens the per-reader state
@@ -115,9 +118,12 @@ click per program, not a reading: arriving on a frame records the place, and not
 that frame to be answered. #163's sentence and its link make the cost cheaper to understand.
 They do not remove it.
 
-**On the MCP server the same walk is one `open_program` call per Foundation program.** An
-agent can make those calls for the reader. ADR-0056's refusal already names the program that
-opens the next one, so the agent knows which call to make, and nothing here changes that.
+**On the MCP server the same walk is one `open_program` call per Foundation program.** It
+stays one call for an anonymous reader once #171 lands, because
+[ADR-0066](0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
+§2 gives that reader a write that records opening a program. An agent can make those calls
+for the reader. ADR-0056's refusal already names the program that opens the next one, so the
+agent knows which call to make, and nothing here changes that.
 
 **The program order is still held by the surfaces and never by `AbOvo.Api`.**
 `ContentEndpoints` serves the first step of any program to any caller, and a step's reveal

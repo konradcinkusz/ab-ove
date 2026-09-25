@@ -255,8 +255,10 @@ answers the questions this section left open:**
 - **The implementation.** This package stays in TypeScript and becomes a client of the
   content API (#171). No .NET client is planned.
 - **An anonymous reader's identity.** It is an opaque id on ADR-0061's pattern, minted once
-  by the process and kept in a file in the user's state directory. Pairing it with a browser
-  is out: an account is what joins the two surfaces.
+  by the process and kept in a file in the user's state directory, one id per API origin.
+  Pairing it with a browser is out: an account is what joins the two surfaces. #171 gives
+  that reader an anonymous read of every place and a write that records opening a program,
+  so `open_program` keeps a place without `PUT`.
 - **The order.** A one-command package comes first (#172). This Streamable HTTP shape comes
   after the first deploy, and only if a probe shows that `authservice` can be the
   authorization server for a third-party host (#173).

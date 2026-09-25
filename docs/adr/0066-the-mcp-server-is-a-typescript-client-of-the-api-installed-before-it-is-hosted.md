@@ -125,13 +125,17 @@ function, so it is not a copy.
 - The file is in the user's own state directory, readable by that user alone.
 - Not the working directory, which the host chooses (`web/mcp/README.md`). Not the package
   directory either, which a package runner's cache may throw away.
+- The file holds one id per API origin, keyed by the origin of `AB_OVO_API_URL`. Anyone may
+  run an instance (ADR-0033), so one id sent everywhere would let any instance's operator
+  replay it against another. An id goes only to the origin it was minted for.
 - Every later process run by that user on that machine reads the same file, so every host
-  there reads as one reader.
+  there reads as one reader of each instance.
 - The host keeps nothing. An id in the host's configuration would be a credential in a file
   that people copy into bug reports and dotfile repositories.
 
 **The id is a credential**, because possession is the only credential (ADR-0061). It never
-appears in a tool result or on stderr, and it is never sent to anything but `AbOvo.Api`.
+appears in a tool result or on stderr, and it is never sent to anything but the `AbOvo.Api`
+instance it was minted for.
 
 **A place that cannot be kept is said out loud.** If the file cannot be written, the process
 holds the place in memory and says so in its results. The in-memory store follows the same
@@ -150,12 +154,30 @@ for as long as that token lives.
 - The way to one place on both surfaces is an account. An account buys synchronisation and
   nothing else (ADR-0004).
 
-**#171 adds two things to the API side:**
+**#171 adds three things to the API side:**
 
 - A way for an anonymous reader to read every place they have in one call.
   `CursorStore.readAll` needs it for `list_programs` and for the program gate, and
   `GET /api/v1/progress` accepts only a bearer today. The read stays pinned to one `Subject`
   (`ReaderScopedQueries`).
+- A write that records opening a program, for a reader with or without an account. One
+  shape that fits is `POST /api/v1/content/{track}/{unit}/open` in `openWriteApi`, carrying
+  the chosen edition.
+  - **Why.** Today `open_program` records the step-1 place with
+    `PUT /api/v1/progress/{track}/{unit}`, which takes a bearer only. `GET …/{step}` writes
+    nothing, and `POST …/advance` creates a row only once step 1 has been answered. Without
+    this write an anonymous `open_program` keeps neither the place nor the edition, and the
+    program gate would need one answered step per program instead of one opened frame. That
+    breaks ADR-0056's one rule on every surface: the browser records a place on arrival
+    (`remember-position.tsx`), and ADR-0065 counts on one `open_program` per program.
+  - **What it does.** It is pinned to one `Subject`. When no row exists it creates one at
+    `Reveal.FirstStep` with the chosen edition. It never raises `Step`, and on an existing
+    row it writes nothing: an edition switch is recorded by the next `POST …/advance`, which
+    already carries the edition.
+  - **What it does not do.** It does not check the reading order, which the API still does
+    not hold (ADR-0065). The MCP server asks `isOpenWhere` before it writes, as
+    `remember-position.tsx` does in the browser. With this write `web/mcp` needs `PUT` for
+    nothing.
 - A correction to the doc comment on `ReaderIdentity.HeaderName`, which says the header is
   "never trusted from anywhere else" than the BFF. What protects an id is that nobody can
   guess it, not where it came from: the API cannot tell a BFF from any other caller. What the
@@ -199,7 +221,9 @@ Both routes, in this order:
 **A hosted server still serves readers with no account** (AGENTS.md item 5). A host that has
 not signed its reader in can still read. The hosted server mints that reader an id on
 ADR-0061's pattern for the MCP session, and the place lasts as long as the session does. The
-results say so. OAuth is what keeps the place and shares it with the browser.
+results say so. OAuth is what keeps the place and shares it with the browser. The id is never
+derived from, or equal to, the `Mcp-Session-Id`: the MCP specification forbids a server to
+use sessions for authentication. #173 settles how the server binds the two.
 
 ### 4. What the licence allows on each route
 
@@ -229,18 +253,21 @@ with one more row for the MCP credit.
 **The register's .NET exit is replaced.** The row's exit now names #171 and this decision,
 and #171 is what discharges it.
 
-**#171 gets larger than its issue says.** It adds an anonymous "all my places" read to
-`AbOvo.Api`, corrects the `ReaderIdentity` comment, and moves the wire shapes into
+**#171 gets larger than its issue says.** It adds two anonymous endpoints to `AbOvo.Api`: an
+"all my places" read, and a write that records opening a program at step 1 and never raises
+`Step`. It also corrects the `ReaderIdentity` comment and moves the wire shapes into
 `@ab-ovo/web-kit`. #164 and #167 need not wait for any of it: they are TypeScript either way.
 
-**Anonymous MCP readers add rows to `ReaderProgress`**: one per user account on each machine
-from the package, and one per anonymous session from a hosted server. ADR-0061's retention
-job, which is required before production, now has to cover these rows too. A reader who deletes the id file leaves an orphan row they cannot delete, because
-`DELETE /api/v1/progress` needs a bearer. Clearing a cookie leaves the same kind of row.
+**Anonymous MCP readers add rows to `ReaderProgress`.** The package adds one reader per user
+account on each machine, for each instance it is pointed at. A hosted server adds one reader
+per anonymous session. ADR-0061's retention job, which is required before production, now
+has to cover these rows too. A reader who deletes the id file leaves orphan rows they cannot
+delete, because `DELETE /api/v1/progress` needs a bearer. Clearing a cookie leaves the same
+kind of rows.
 
-**One file is one reader.** Two people who share an operating-system account are one reader.
-A host that runs the server in a sandbox with no lasting home loses the place at every start,
-and says so.
+**One file is one reader of each instance.** Two people who share an operating-system account
+are one reader. A host that runs the server in a sandbox with no lasting home loses the place
+at every start, and says so.
 
 **The published package ships JavaScript.** Node does not strip types from a file under
 `node_modules`, so the launcher that imports `src/server.ts` from a checkout cannot be what

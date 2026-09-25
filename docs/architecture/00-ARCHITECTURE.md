@@ -553,14 +553,18 @@ own `ReaderProgress` rows are reachable through it.
 
 **Exit.** #171 (order 710) makes `web/mcp` a client of the content API that calls
 `POST .../advance` directly, as `web/app`'s reading surface already does
-(`web/app/src/lib/server/content.ts`). It stays in TypeScript: that is
-[ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md),
-which replaced the .NET client this line used to name. Once no caller depends on `PUT` to
-raise `Step`, its handler is narrowed to reject `update.Step > existing.Step` outright (or
-the field is dropped from `ProgressUpdate` entirely) and this row is discharged.
+(`web/app/src/lib/server/content.ts`). It records opening a program through a new write that
+creates a place at step 1 and never raises `Step`, so `web/mcp` stops calling `PUT` at all.
+It stays in TypeScript: that is
+[ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
+§1 and §2, which replaced the .NET client this line used to name. Once no caller depends on
+`PUT` to raise `Step`, its handler is narrowed to reject `update.Step > existing.Step`
+outright (or the field is dropped from `ProgressUpdate` entirely) and this row is discharged.
 
 **Recorded in.** [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md);
-`src/AbOvo.Api/Endpoints/ProgressEndpoints.cs`, at the `MapPut` handler.
+`src/AbOvo.Api/Endpoints/ProgressEndpoints.cs`, at the `MapPut` handler. Exit amended on
+2026-09-25 by
+[ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md).
 
 ---
 
