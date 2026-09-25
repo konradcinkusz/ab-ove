@@ -208,7 +208,7 @@ Both routes, in this order:
    - It is published to npm, so a host starts it with one `npx` command.
    - `AB_OVO_API_URL` configures it, and a token can be added.
    - Publishing is the owner's manual step. CI builds and packs, and the owner publishes from
-     his own npm account, under a name that is his to choose. A version number once
+     the owner's own npm account, under a name the owner chooses. A version number once
      published to npm cannot be used again, so the step that makes a version public stays
      with a person. Publishing from CI later is not ruled out: npm's trusted publishing over
      GitHub OIDC stores no token. Whether to move to it is #172's to decide.
