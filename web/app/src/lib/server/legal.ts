@@ -116,7 +116,9 @@ export function classifyLegalResponse(
   if (!plain) return { kind: 'unpublished' };
 
   // A byte-order mark is an encoding artefact of whichever editor saved the file, not text.
-  const body = text.replace(/^﻿/, '');
+  // Written as an escape, not the character: a literal U+FEFF is invisible, and an editor
+  // or formatter that strips byte-order marks would empty this pattern without a diff.
+  const body = text.replace(/^\uFEFF/, '');
   return body.trim().length > 0 ? { kind: 'published', text: body } : { kind: 'unpublished' };
 }
 
@@ -151,6 +153,12 @@ export async function legalDocument(
       method: 'GET',
       headers: { accept: 'text/plain' },
       cache: 'no-store',
+      // A redirect is NOT followed. The text a reader is asked to accept is served from this
+      // origin as the configured host's, so it has to be the configured host's: followed, a
+      // 3xx would hand over whatever another host answered, under this deployment's name.
+      // Not followed, it reaches `classifyLegalResponse` as the status it is — `unavailable`
+      // — and the operator publishes the file at the address `AB_OVO_LEGAL_URL` names.
+      redirect: 'manual',
       signal: controller.signal,
     });
     // A body that is not going to be read is cancelled, so the connection is released now

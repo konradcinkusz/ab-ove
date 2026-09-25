@@ -146,7 +146,8 @@ is an identifier for a text that lives somewhere else, so there was nothing to p
   `lib/server/legal.ts`. Only `text/plain` is accepted, and it is rendered as text. HTML from
   another host served from this origin would run with this origin's cookies. A static host's
   HTML fallback page, answering 200 for a missing file, reads as "not published" rather than
-  as the document.
+  as the document. A redirect is not followed: it reads as the host not answering, so the
+  text shown as the configured host's is only ever that host's.
 - **Each name in the consent sentence links to the exact version the hidden field carries**,
   never to "the current" text. The link opens in a new tab, so the form keeps what the reader
   has typed.

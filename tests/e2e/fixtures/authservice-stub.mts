@@ -51,9 +51,9 @@
  * next, and a fixture that forgot it between two requests would fail a test about an
  * application that works.
  *
- * ONE ROUTE IS NOT authservice's, AND SAYS SO WHERE IT IS: `GET /legal/…`, the host the
- * deployment publishes its Terms and Privacy Policy on, because authservice publishes none
- * (#141). Everything else here is the identity service's.
+ * A ROUTE THAT IS NOT authservice's SAYS SO WHERE IT IS, in a banner over the handler.
+ * `GET /legal/…` is such a route: the host the deployment publishes its Terms and Privacy
+ * Policy on, because authservice publishes none (#141).
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
@@ -276,7 +276,7 @@ const server = createServer(async (request, response) => {
 
   /*
    * ══════════════════════════════════════════════════════════════════════════════════
-   * NOT authservice's. THE ONE ROUTE IN THIS FILE THAT IMPERSONATES SOMETHING ELSE.
+   * NOT authservice's. A DOCUMENT HOST, PLAYED BY THIS PROCESS (see the file header).
    *
    * authservice publishes the consent versions and no text for them — read at the pinned
    * tag and at the latest one, docs/architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md §8 —

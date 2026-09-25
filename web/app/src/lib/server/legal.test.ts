@@ -9,6 +9,8 @@
  * is not a file name — are here.
  */
 import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, test } from 'node:test';
 
 import {
@@ -106,7 +108,7 @@ test('a plain-text 200 with something in it is the document', () => {
 });
 
 test('a byte-order mark is stripped, and an empty file is not a document', () => {
-  assert.deepEqual(classifyLegalResponse(200, 'text/plain', '﻿Terms.'), {
+  assert.deepEqual(classifyLegalResponse(200, 'text/plain', '\uFEFFTerms.'), {
     kind: 'published',
     text: 'Terms.',
   });
@@ -167,6 +169,37 @@ test('an answer that is not the document has its body cancelled, not left open',
     kind: 'unpublished',
   });
   assert.equal(answer.bodyUsed, true, 'the 404 body was released');
+});
+
+/**
+ * A REDIRECT IS NOT FOLLOWED, against the runtime's own fetch rather than a stand-in: what
+ * is under test is how `fetch` treats the request `legalDocument` builds, and an injected
+ * fake would only repeat the option back. A loopback server on an ephemeral port, so
+ * nothing leaves the machine. Followed, the second path would be served as the document.
+ */
+test('a host that redirects is unavailable, and the address it points to is never read', async () => {
+  const requested: string[] = [];
+  const server = createServer((request, response) => {
+    requested.push(request.url ?? '');
+    if (request.url === '/terms/2026-01-01.txt') {
+      response.writeHead(302, { location: '/elsewhere.txt' });
+      response.end();
+      return;
+    }
+    response.writeHead(200, { 'content-type': 'text/plain' });
+    response.end('Somebody else’s text.');
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const { port } = server.address() as AddressInfo;
+    process.env.AB_OVO_LEGAL_URL = `http://127.0.0.1:${port}`;
+    const outcome = await legalDocument('terms', '2026-01-01');
+    assert.deepEqual(outcome, { kind: 'unavailable', reason: 'document host answered 302' });
+    assert.deepEqual(requested, ['/terms/2026-01-01.txt']);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
 });
 
 test('a host that cannot be reached is unavailable, and says which host', async () => {

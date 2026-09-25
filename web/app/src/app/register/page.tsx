@@ -295,9 +295,13 @@ export default async function RegisterPage({
                   and back is not guaranteed to bring back what they typed (#141). A link
                   inside a <label> does not tick the box it labels — activating it follows the
                   link and nothing else.
+
+                  "The" Terms, not "the identity service's": authservice records which version
+                  was accepted and publishes no text, so the documents are this deployment's
+                  (ADR-0049's amendment), and the sentence does not name an owner they lack.
                 */}
                 <label className={styles.consentLabel} htmlFor="accept">
-                  I accept the identity service&rsquo;s{' '}
+                  I accept the{' '}
                   <a href={legalPath('terms', consent.terms)} target="_blank" rel="noopener">
                     Terms of Use <span className={styles.version}>{consent.terms}</span>
                   </a>{' '}

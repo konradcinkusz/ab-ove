@@ -458,9 +458,16 @@ console.
 
 ### The example accounts, and how to get one
 
-`/register` makes an account the way a reader does, and a reader's account holds no role —
-`POST /api/v1/auth/register` grants none, so the author's view at `/instrument` is behind a
-gate nothing on screen can open. That gap is what the **`seed` resource** is for.
+**Under the AppHost `/register` withdraws its form.** Nothing in `AppHost.cs` sets
+`AB_OVO_LEGAL_URL`, so this deployment publishes no Terms of Use or Privacy Policy, and a
+consent to a document nobody can read is not one
+([ADR-0049](docs/adr/0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)'s
+amendment). The page says so and makes no account. The registration journey runs where a
+document host exists: the acceptance suite's identity deployment, which
+`tests/e2e/playwright.config.ts` points at the fixture texts. And even where the form is
+offered, a reader's account holds no role — `POST /api/v1/auth/register` grants none, so the
+author's view at `/instrument` is behind a gate nothing on screen can open. The way to an
+account locally is the **`seed` resource**.
 
 It is in the dashboard, stopped, with a Start button: `WithExplicitStart()`, so it never runs
 because the system came up. Press Start and it registers two accounts against the local
