@@ -825,6 +825,7 @@ written.
 | 660 | feature | #166 | Sign-in, registration, 2FA, `/about` and the error pages follow the reader's edition | — |
 | 670 | feature | #167 | MCP speaks the reader's edition | — |
 | 680 | feature | #168 | The reveal shows the reader's own working and sketch | — |
+| 685 | feature | #176 | The account adopts an anonymous reader's places at sign-in, so sync stops raising a step through `PUT` | — |
 | 690 | feature | #169 | One button system and one page header outside the reading screens | — |
 | 700 | feature | #170 | A way back from a forgotten password or a lost verification email | — |
 | 710 | feature | #171 | The MCP server reads and advances through `AbOvo.Api`; `PUT` stops raising a step | — |
@@ -853,7 +854,7 @@ what it waits for at its top, so a stage is a claim a reader can check against t
    items wait on their answers.
 2. **570–640 each wait on something in 360–560,** and they are larger. They can run beside one
    another; where two share a file, the issues say which.
-3. **650–680, then 690–710, then 720–740 follow the same rule, one stage further on each.** 690
+3. **650–685, then 690–710, then 720–740 follow the same rule, one stage further on each.** 690
    is last on the web side on purpose: it unifies the styles every earlier item edits.
 4. **730 and 740 are blocked on things no change to this code provides** — the first deploy,
    and the book's placement model for figures — and say so, rather than leaving it to be
