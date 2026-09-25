@@ -551,10 +551,13 @@ caller do is see a later frame's text and the answer it opens with, without havi
 the one before it. No credential, no other reader's data, and no write outside the caller's
 own `ReaderProgress` rows are reachable through it.
 
-**Exit.** Phase 5 replaces `web/mcp` with a .NET client that calls `POST .../advance`
-directly, the way `web/app`'s reading surface will from phase 3. Once no caller depends on
-`PUT` to raise `Step`, its handler is narrowed to reject `update.Step > existing.Step`
-outright (or the field is dropped from `ProgressUpdate` entirely) and this row is discharged.
+**Exit.** #171 (order 710) makes `web/mcp` a client of the content API that calls
+`POST .../advance` directly, as `web/app`'s reading surface already does
+(`web/app/src/lib/server/content.ts`). It stays in TypeScript: that is
+[ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md),
+which replaced the .NET client this line used to name. Once no caller depends on `PUT` to
+raise `Step`, its handler is narrowed to reject `update.Step > existing.Step` outright (or
+the field is dropped from `ProgressUpdate` entirely) and this row is discharged.
 
 **Recorded in.** [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md);
 `src/AbOvo.Api/Endpoints/ProgressEndpoints.cs`, at the `MapPut` handler.
