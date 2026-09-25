@@ -123,7 +123,7 @@ for (const mode of MODES) {
     await page.goto('/');
 
     // The two answers are equal in every other respect (consent.spec.ts), and in focus too.
-    await wearsTheRing(page, page.getByRole('button', { name: 'Yes, use my outcomes' }), 'the grant', mode);
+    await wearsTheRing(page, page.getByRole('button', { name: 'Yes, count my answers anonymously' }), 'the grant', mode);
     await wearsTheRing(page, page.getByRole('button', { name: 'No thanks' }), 'the decline', mode);
   });
 }
