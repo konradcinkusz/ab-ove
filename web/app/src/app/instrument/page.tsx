@@ -29,9 +29,10 @@ import styles from './instrument.module.css';
  * ───────────────────────────────────────────────────────────────────────────
  *
  * Private by construction: `/instrument` is in neither `PUBLIC_PATHS` nor `PUBLIC_PREFIXES`,
- * so the middleware gates it with no entry needed. The API gates the data separately and is
- * the authority — see `RateRanking`, which asks and reports what it is told rather than
- * deciding for itself whether the caller may look.
+ * so the middleware gates it with no entry needed. `PRIVATE_PAGES` (`lib/page-gate.ts`) names
+ * it and the rankings under it, for `/login`'s sake rather than the gate's (issue #140). The
+ * API gates the data separately and is the authority — see `RateRanking`, which asks and
+ * reports what it is told rather than deciding for itself whether the caller may look.
  */
 export const metadata: Metadata = {
   title: 'Instrument — ab-ovo',

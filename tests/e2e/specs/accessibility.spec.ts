@@ -118,6 +118,7 @@ const SCREENS: readonly Screen[] = [
   { what: 'a program’s summary', path: `${contentsAt('en')}/summary` },
   { what: 'a frame the reader has not reached', path: frameAt('en', program.steps.length) },
   { what: 'a page that does not exist', path: `/read/${track}/NOPE/en` },
+  { what: 'an address no page answers, on the sign-in page', path: '/nope' },
   { what: 'sign-in, with no identity service', path: '/login' },
   { what: 'registration, with no identity service', path: '/register' },
   { what: 'the page a deleted account ends on', path: '/account/deleted' },
@@ -172,6 +173,19 @@ test.describe('accessibility behind an account', () => {
   test('the sign-in form has no WCAG A or AA violation @identity', async ({ page }) => {
     await page.goto('/login');
     await expect(page.locator('input[name="email"]')).toBeVisible();
+    await settle(page);
+    expect(await violations(page)).toEqual([]);
+  });
+
+  // Not a form, but the variant of the no-page view (issue #140) that only this deployment
+  // renders: the quiet *Sign in* link beside the programs is here and not above.
+  test('an address no page answers, with its way to sign in, has no WCAG A or AA violation @identity', async ({
+    page,
+  }) => {
+    await page.goto('/nope');
+    await expect(
+      page.getByRole('main').getByRole('link', { name: 'Sign in', exact: true }),
+    ).toBeVisible();
     await settle(page);
     expect(await violations(page)).toEqual([]);
   });

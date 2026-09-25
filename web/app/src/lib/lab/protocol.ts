@@ -37,7 +37,7 @@ export const LAB_ROOT = '/book';
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * OUTSTANDING, and the pane does not work without it: BOTH PREFIXES HAVE TO BE ADDED TO
- * `PUBLIC_PREFIXES` IN src/middleware.ts.
+ * `PUBLIC_PREFIXES` — the middleware's list, in src/lib/page-gate.ts since issue #140.
  *
  * The page gate is private by default and opts paths out one at a time, and `/lab` being on
  * that list covers the pages and the worker — but not these, which are different entries.

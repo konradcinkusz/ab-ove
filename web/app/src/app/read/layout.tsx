@@ -23,9 +23,9 @@
  * fallback glyph immediately rather than hiding the maths for up to 3 s.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * `/katex/` is public in `middleware.ts`'s `PUBLIC_PREFIXES`, on the same terms as
- * `/pyodide/` and `/book/` — the reading loop needs no account, and that has to be true of
- * every byte it fetches, not only the pages that frame them.
+ * `/katex/` is public in the middleware's `PUBLIC_PREFIXES` (`lib/page-gate.ts`), on the
+ * same terms as `/pyodide/` and `/book/` — the reading loop needs no account, and that has
+ * to be true of every byte it fetches, not only the pages that frame them.
  */
 export default function ReadLayout({
   children,
