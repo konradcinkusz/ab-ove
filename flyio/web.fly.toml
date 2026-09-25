@@ -114,8 +114,8 @@ primary_region = "waw"                       # ADR-0002
   # 0. This app is entered only from a browser: there is no in-request call from
   # another service to it, so nothing depends on it being warm. A cold start behind a
   # browser is a slow first page, not a failed call (§7). What a reader reads behind it
-  # is served by ab-ovo-api-dev on every frame (ADR-0060), which is why that app, and not
-  # this one, is the one pinned at 1.
+  # is served by ab-ovo-api-dev on every frame (ADR-0060), which is why that app is
+  # pinned at 1 and this one is not.
   min_machines_running = 0
 
   [http_service.concurrency]

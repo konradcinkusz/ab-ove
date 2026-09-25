@@ -6,9 +6,11 @@
 %% are two requirements, and this file used to draw them as one. ADR-0060 kept the first and
 %% reversed the second: every frame and every reveal is a live, gated call to AbOvo.Api,
 %% which serves the book's compiled bundle (ADR-0038) one step at a time and raises the
-%% reader's place when they reveal. An anonymous reader's place is held under an opaque
-%% cookie, not a token (ADR-0061), and what the reader writes on a frame still stays in
-%% their browser (ADR-0039).
+%% reader's place whenever they move forward: the reveal on a frame that asks and Next on
+%% one that does not are the same POST (web/app/src/lib/actions/reveal.ts), so both edges
+%% into the API are drawn. An anonymous reader's place is held under an opaque cookie, not
+%% a token (ADR-0061), and what the reader writes on a frame still stays in their browser
+%% (ADR-0039).
 
 %% THE API IS DRAWN SOLID BECAUSE IT IS NOT OPTIONAL. Content is the one integration this
 %% product does not degrade around (P8 does not reach it): with the API down no frame is
@@ -61,7 +63,7 @@ flowchart TD
   SUMMARY --> START
 
   API -->|"every frame, live"| READ
-  REVEAL -->|"raises the reader's place"| API
+  REVEAL & NEXT -->|"raises the reader's place"| API
 
   NEXT -.->|"optional, phase 3"| SYNC
   COMPARE -.->|"opt-in consent, phase 4"| INST

@@ -188,9 +188,12 @@ from anywhere else, and a web app with no API configured serves the index and no
 asymmetry, not an inconsistency with P8: P8 is for *optional* integrations — the ones
 `IntegrationStatus.cs` records above degrade and are reported — and content was never optional, so
 treating "no API answered" as a configuration a reader could read in was the category error ADR-0060
-corrects. Reading still needs no account: `auth` stays optional, and an anonymous reader is
-identified by an opaque cookie rather than anything `authservice` issues
-([ADR-0061](../adr/0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)). The pages
+corrects. Reading still needs no account: `auth` stays optional at read time, and an anonymous
+reader is identified by an opaque cookie rather than anything `authservice` issues
+([ADR-0061](../adr/0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)). It is
+not optional for the estate as a whole: ingesting the book takes an `Admin` bearer only an issuer
+can mint, so an estate that has never had one has nothing to read
+([INFRASTRUCTURE-ANALYSIS §3(c)](../../flyio/INFRASTRUCTURE-ANALYSIS.md#c-do-not-deploy-authservice-at-all-until-phase-3--1-machine--3month)). The pages
 that read the compiled bundle built into the web app — the index, `/courses`, a program's contents
 and its summary — still render without the API; that is today's placement rather than a requirement,
 and 580 in [the order](../ux/UI-UX.md#the-order) moves the contents and the summary onto it.

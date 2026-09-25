@@ -380,10 +380,12 @@ i żadna nie leży na ścieżce.
 %% KAŻDE POLE TEGO DIAGRAMU DZIAŁA BEZ KONTA, A KAŻDA RAMKA PRZYCHODZI Z API. To dwa wymogi
 %% i ten plik rysował je kiedyś jako jeden. ADR-0060 utrzymał pierwszy i odwrócił drugi:
 %% każda ramka i każde odsłonięcie to żywe, bramkowane wywołanie AbOvo.Api, które podaje
-%% skompilowaną paczkę treści książki (ADR-0038) krok po kroku i przesuwa pozycję w lekturze,
-%% gdy czytelnik odsłania. Pozycję anonimowego czytelnika przechowuje nieprzezroczyste
-%% ciasteczko, nie token (ADR-0061), a to, co czytelnik napisze na ramce, nadal zostaje w jego
-%% przeglądarce (ADR-0039).
+%% skompilowaną paczkę treści książki (ADR-0038) krok po kroku i przesuwa pozycję w lekturze
+%% za każdym razem, gdy czytelnik idzie dalej: odsłonięcie na ramce, która o coś prosi, i
+%% Dalej na ramce, która nie prosi, to ten sam POST (web/app/src/lib/actions/reveal.ts), więc
+%% narysowano obie krawędzie do API. Pozycję anonimowego czytelnika przechowuje
+%% nieprzezroczyste ciasteczko, nie token (ADR-0061), a to, co czytelnik napisze na ramce,
+%% nadal zostaje w jego przeglądarce (ADR-0039).
 
 %% API JEST NARYSOWANE CIĄGŁĄ LINIĄ, BO NIE JEST OPCJONALNE. Treść to jedyna integracja,
 %% wokół której ten produkt się nie degraduje (P8 jej nie obejmuje): gdy API nie działa, nie
@@ -437,7 +439,7 @@ flowchart TD
   SUMMARY --> START
 
   API -->|"każda ramka, na żywo"| READ
-  REVEAL -->|"przesuwa pozycję w lekturze"| API
+  REVEAL & NEXT -->|"przesuwa pozycję w lekturze"| API
 
   NEXT -.->|"opcjonalnie, faza 3"| SYNC
   COMPARE -.->|"zgoda, faza 4"| INST

@@ -79,8 +79,8 @@ which is why this step runs the AppHost.
 
 **And the API has to hold the book.** It serves the compiled bundle it was given through an
 admin-only endpoint, `POST /api/v1/admin/content/bundles`, and a fresh database holds none.
-Nothing in the AppHost ingests it today: the one scripted ingestion is the acceptance job's,
-`tests/e2e/fixtures/ingest-content.mts`, which signs in against the suite's own identity stub
+Nothing in the AppHost ingests it today. The acceptance suite does, in
+`tests/e2e/fixtures/ingest-content.mts`, but it signs in against the suite's own identity stub
 rather than the AppHost's identity service. Until the book is in, the index lists every
 program and a frame answers *not found*.
 

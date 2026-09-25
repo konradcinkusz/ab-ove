@@ -80,9 +80,9 @@ i dlatego ten krok uruchamia AppHost.
 
 **A API musi mieć książkę.** Podaje skompilowaną paczkę treści, którą dostało przez punkt
 końcowy tylko dla administratora, `POST /api/v1/admin/content/bundles`, a świeża baza nie ma
-żadnej. Nic w AppHoście jej dziś nie wczytuje: jedyne skryptowe wczytanie należy do zadania
-testów akceptacyjnych, `tests/e2e/fixtures/ingest-content.mts`, które loguje się do własnej
-zaślepki serwisu tożsamości tego zestawu, a nie do serwisu tożsamości AppHosta. Dopóki
+żadnej. Nic w AppHoście jej dziś nie wczytuje. Robią to testy akceptacyjne, w
+`tests/e2e/fixtures/ingest-content.mts`, ale logują się do własnej zaślepki serwisu tożsamości
+tego zestawu, a nie do serwisu tożsamości AppHosta. Dopóki
 książki tam nie ma, indeks wymienia każdy program, a ramka odpowiada *nie znaleziono*.
 
 **Nie wyślesz jej też jeszcze ręcznie.** Oczywista droga to zalogować się jako

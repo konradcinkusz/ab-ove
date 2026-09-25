@@ -20,8 +20,8 @@ import { NextResponse } from 'next/server';
  *    call to `AbOvo.Api`, so a reader cannot read while the API is down — but this check is
  *    the WEB machine's, and failing it then would take out of rotation the process that
  *    still serves the index and the page that tells a reader the fault is on this side —
- *    the legible failure P8 asks for, traded for a proxy error that says nothing — for a
- *    condition restarting it cannot fix. It would also make the API's cold start a web
+ *    a legible failure, traded for a proxy error that says nothing — for a condition
+ *    restarting it cannot fix. It would also make the API's cold start a web
  *    outage, which is the coupling `min_machines_running` exists to avoid (P7). The API's
  *    own health is reported at the API's own /health.
  */

@@ -344,12 +344,16 @@ The reveal is therefore a form — a Server Action that raises the reader's curs
 to `n + 1` — and a form cannot be prefetched; `prefetch={false}` on every link that leads to a
 frame mid-program is the half of the same property that is easy to lose.
 
-**The frame comes from `AbOvo.Api` on every request, and from nowhere else.** The web app
-holds no copy of a frame's text: the server asks the API for the step, as the reader — their
-bearer when they are signed in, and otherwise the opaque cookie
+**The frame comes from `AbOvo.Api` on every request, and from nowhere else.** The frame
+route reads no copy of a frame's text: the server asks the API for the step, as the reader —
+their bearer when they are signed in, and otherwise the opaque cookie
 [ADR-0061](../adr/0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)
 defines, so reading still needs no account. An API that does not answer is the 500 described
-above, never a frame rendered from something else (`lib/server/content.ts`).
+above, never a frame rendered from something else (`lib/server/content.ts`). The web app's
+image still carries the compiled bundle, every answer in it (`web/app/Dockerfile`), because
+the index, `/courses`, a program's contents and its summary read it, and `/instrument` takes
+its list of programs from it; 580 in [the order](#the-order) moves the contents and the
+summary onto the API. Nothing on the frame route reads it.
 
 The URL is the position, so it survives a reload with no account: the furthest frame the gate
 allows is held by the API under that cookie, not by a session. `/read/` is in the
