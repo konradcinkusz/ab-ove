@@ -555,7 +555,12 @@ sans, code in mono, all three from the reader's own system — there is no webfo
 - **Measure `34rem`.** A line length chosen for prose, not for a dashboard. A frame is a
   paragraph or two and it has to be comfortable at length.
 - **Paper, not chrome.** `--paper: #fbfaf8` under `--ink: #12151b`; rules and cards rather
-  than shadows and gradients.
+  than shadows and gradients. The browser's own furniture wears the paper too: `theme-color`
+  is `--paper` for each of the machine's schemes (`app/layout.tsx`'s `viewport`), and the tab
+  carries the mark from `docs/assets/brand/` as `app/icon.svg`, drawn in `--ink` and
+  `--accent` and served from this origin outside the page gate. Both are literals the
+  stylesheet cannot reach, so `lib/theme/tokens.test.ts` holds them to the tokens, and the
+  icon's paths to the brand mark's.
 - **Two semantic colours only** — `--live` green and `--degraded` amber — both with a soft
   companion for backgrounds. They mean *this integration is present* and *this one is
   absent*, and they are not decoration to be borrowed for anything else.

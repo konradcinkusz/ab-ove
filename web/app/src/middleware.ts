@@ -255,7 +255,13 @@ export const config = {
      *
      * The static exclusions keep the gate off assets: a redirect on a stylesheet is a page
      * that renders unstyled rather than a page that asks anybody to sign in.
+     *
+     * `icon.svg` is the tab's icon (`app/icon.svg`, issue #150), and it is beside
+     * `favicon.ico` because it is the same file doing the same job. Left to the gate, it is
+     * private like any path nobody opted out: measured on a build without this entry, a
+     * reader with no account was answered with a 307 to `/login` for it, and
+     * `specs/app-icon.spec.ts` is the test that went red.
      */
-    '/((?!api/|_next/static/|_next/image/|favicon\\.ico$|robots\\.txt$|sitemap\\.xml$).*)',
+    '/((?!api/|_next/static/|_next/image/|favicon\\.ico$|icon\\.svg$|robots\\.txt$|sitemap\\.xml$).*)',
   ],
 };

@@ -57,6 +57,7 @@ was first written with.
 | `about.spec.ts` | the argument renders, and states the anti-goal: the instrument measures the book, never the reader |
 | `accessibility.spec.ts` | every screen holds WCAG 2.2 A and AA as far as axe-core can decide — both schemes, each panel open, 360 px, and the forms behind an account |
 | `account-deletion.spec.ts` | closing an account, and everything about it that needs no account |
+| `app-icon.spec.ts` | the tab shows the mark, served by this origin to a reader with no account, and `theme-color` is the paper in each scheme |
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
 | `consent.spec.ts` | being asked once whether outcomes may be counted, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |

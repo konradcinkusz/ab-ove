@@ -14,7 +14,9 @@
   one because GitHub's Markdown sanitiser strips a style element out of an inline SVG, so a
   single file cannot switch itself between themes; <picture> is the mechanism GitHub does
   honour. Colours are the app's own tokens from web/app/src/app/globals.css, and the
-  wordmark is a system serif because globals.css ships no webfont to anybody.
+  wordmark is a system serif because globals.css ships no webfont to anybody. The app's tab
+  icon, web/app/src/app/icon.svg, is the mark alone, drawn with these files' own paths, and
+  web/app/src/lib/theme/tokens.test.ts fails if it ever draws one ab-ovo-logo.svg does not.
 
   BADGE ROW — README-BADGES.md §The two zones (item 1). Metadata and status only, in one
   row immediately after the H1 and before the first paragraph. There is no second zone in
