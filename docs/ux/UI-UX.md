@@ -448,8 +448,10 @@ markup from the first paint and `visibility` picks one, so saying the second mov
 Inside the sketch, **Clear** is two presses, the shape of every other control that destroys a
 reader's own work: `Undo` takes back one stroke and cannot take back a cleared pad, so the
 first press renames the button *Clear the whole sketch* and only the second empties it, and
-focus goes back to the canvas (#151). `Clear my answer` is the same two presses, and sends
-focus to the line it emptied.
+focus goes back to the canvas (#151). Both of its labels are in the button from the first
+paint, the pane's own button's arrangement, so the rename cannot push it onto the next line
+of the foot on a phone and put the second press somewhere else. `Clear my answer` is the same
+two presses, and sends focus to the line it emptied.
 
 #### The lab pane is not on this route any more
 

@@ -468,8 +468,28 @@ export function Sketch({
           >
             {undo}
           </button>
+          {/*
+            BOTH LABELS, ONE CELL, SO ARMING MOVES NOTHING. The second press has to land on
+            the control the first one armed, because a press anywhere else stands it down
+            (`use-two-step.ts`). A button that swapped its text grew to the second label's
+            width, and wherever the foot had room for `Clear` and not for `Clear the whole
+            sketch` (414–480 px, measured) the row wrapped and the button jumped to the next
+            line — so the reader's second press, in the same place, cancelled. Both labels are
+            therefore in the button from the first paint, stacked in one grid cell as wide as
+            the wider, and `visibility` picks one: the rule `.paneLabels` states for the
+            pane's own button. A `visibility: hidden` label is not part of the accessible
+            name, so the button is still called by the one it shows. `specs/worksheet.spec.ts`
+            presses it twice at one point on a phone's width.
+          */}
           <button className={styles.sketchButton} type="button" {...clearControl}>
-            {clearArmed ? clearConfirm : clear}
+            <span className={styles.twoLabels} data-armed={clearArmed ? 'yes' : 'no'}>
+              <span className={styles.twoLabel} data-when="idle">
+                {clear}
+              </span>
+              <span className={styles.twoLabel} data-when="armed">
+                {clearConfirm}
+              </span>
+            </span>
           </button>
           <TwoStepStatus armed={clearArmed} confirm={clearConfirm} language={language} />
         </p>

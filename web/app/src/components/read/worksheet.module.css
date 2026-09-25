@@ -585,6 +585,31 @@
   color: var(--ink);
 }
 
+/*
+ * A TWO-PRESS CONTROL THAT DOES NOT MOVE WHEN IT ARMS — the sketch's `Clear` (#151).
+ *
+ * `.paneLabels`' arrangement, inside a button: both labels in one grid cell, as wide and as
+ * tall as the wider, and `data-armed` picks which is seen. The foot wraps (`.paneFoot`), so
+ * a button that changed width on the first press could change line, and the second press
+ * would land on whatever took its place — `sketch.tsx` has the measurement. On a span inside
+ * the button and not on the button itself, whose `display` is the print rule's to set.
+ */
+.twoLabels {
+  align-items: center;
+  display: inline-grid;
+  justify-items: center;
+}
+
+.twoLabel {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+
+.twoLabels[data-armed='no'] > .twoLabel[data-when='idle'],
+.twoLabels[data-armed='yes'] > .twoLabel[data-when='armed'] {
+  visibility: visible;
+}
+
 .sketchFull {
   color: var(--degraded);
   font-size: 0.85rem;

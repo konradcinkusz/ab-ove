@@ -8,7 +8,6 @@ export interface TwoStep {
   /** Spread onto the control's `<button>`. */
   readonly control: {
     readonly onClick: (event: React.MouseEvent<HTMLElement>) => void;
-    readonly onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => void;
   };
 }
 
@@ -39,7 +38,7 @@ export interface TwoStep {
  *
  *   - a press anywhere but this control — a stroke on the canvas, another button, the page;
  *   - focus arriving anywhere but this control — Tab, Shift+Tab, a field clicked into;
- *   - `Esc` on the control itself — the keyboard's own word for "not this";
+ *   - `Esc`, wherever focus is — the keyboard's own word for "not this";
  *   - the page being hidden — another tab, another application, a phone locked.
  *
  * A PRESS OR A FOCUS ELSEWHERE, NOT A `blur`, IS WHAT COUNTS AS LEAVING. Safari and
@@ -48,7 +47,10 @@ export interface TwoStep {
  * waiting for it would stay armed indefinitely; and whatever a browser does with focus on
  * the way to a second click, a press ON the control must never count as leaving it. A
  * capturing listener on the document sees every press and every arrival of focus, and asks
- * one question of each — was it this control.
+ * one question of each — was it this control. `Esc` is heard on the document for the same
+ * reason: after a click in those browsers the key goes to whatever held focus before, or to
+ * `<body>`, and a listener on the button alone would never hear the cancel the announcement
+ * offers.
  *
  * What the clock did that this does not: a reader who pressed once and left the machine
  * untouched comes back to the armed label. It says what the next press will do, in as many
@@ -92,15 +94,23 @@ export function useTwoStep(act: () => void, settle?: () => HTMLElement | null): 
     const hidden = (): void => {
       if (document.visibilityState === 'hidden') setArmed(false);
     };
+    // Not `preventDefault()`: standing this control down is not all an `Esc` means where
+    // the reader pressed it — a field or a menu with focus may have its own use for the
+    // key — so nothing here claims it.
+    const escape = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setArmed(false);
+    };
 
     // Capturing, so a handler that stops propagation further down cannot keep a stale
     // control armed behind the reader's back.
     document.addEventListener('pointerdown', elsewhere, true);
     document.addEventListener('focusin', elsewhere, true);
+    document.addEventListener('keydown', escape, true);
     document.addEventListener('visibilitychange', hidden);
     return () => {
       document.removeEventListener('pointerdown', elsewhere, true);
       document.removeEventListener('focusin', elsewhere, true);
+      document.removeEventListener('keydown', escape, true);
       document.removeEventListener('visibilitychange', hidden);
     };
   }, [armed]);
@@ -119,17 +129,7 @@ export function useTwoStep(act: () => void, settle?: () => HTMLElement | null): 
     [armed, act, settle],
   );
 
-  const onKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLElement>) => {
-      if (!armed || event.key !== 'Escape') return;
-      // Consumed, so nothing listening further out reads the same Esc as its own.
-      event.preventDefault();
-      setArmed(false);
-    },
-    [armed],
-  );
-
-  const control = useMemo(() => ({ onClick, onKeyDown }), [onClick, onKeyDown]);
+  const control = useMemo(() => ({ onClick }), [onClick]);
 
   return { armed, control };
 }

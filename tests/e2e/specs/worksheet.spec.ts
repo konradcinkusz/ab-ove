@@ -204,6 +204,20 @@ async function sketchPad(
   return box!;
 }
 
+/**
+ * How many of the pad's pixels carry ink. The canvas is the only place a stroke is visible,
+ * so what a `Clear` did or did not erase is read from it rather than from the store alone.
+ */
+async function inkOn(page: import('@playwright/test').Page): Promise<number> {
+  return page.getByLabel(/draw your answer/i).evaluate((node) => {
+    const canvas = node as HTMLCanvasElement;
+    const data = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
+    let lit = 0;
+    for (let i = 3; i < data.length; i += 4) if (data[i]! > 0) lit += 1;
+    return lit;
+  });
+}
+
 test.describe('the worksheet', () => {
   /*
     THE READER OF THIS SUITE WALKED HERE — ADR-0051. F02 is shut until there is a place in
@@ -877,14 +891,7 @@ test.describe('the worksheet', () => {
     const key = `ab-ovo:sheet:v1:${track}/${unit}/${NUMERIC.asks}`;
     const stored = (): Promise<unknown> =>
       page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? '{}').hasSketch, key);
-    const ink = async (): Promise<number> =>
-      page.getByLabel(/draw your answer/i).evaluate((node) => {
-        const canvas = node as HTMLCanvasElement;
-        const data = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
-        let lit = 0;
-        for (let i = 3; i < data.length; i += 4) if (data[i]! > 0) lit += 1;
-        return lit;
-      });
+    const ink = (): Promise<number> => inkOn(page);
 
     await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
@@ -897,15 +904,24 @@ test.describe('the worksheet', () => {
     await page.mouse.up();
     await expect.poll(stored, { message: 'nothing was drawn, so nothing below proves anything' }).toBe(true);
 
+    /*
+      THE REGION IS THERE, AND EMPTY, BEFORE THE FIRST PRESS. A live region that arrives
+      WITH its text is one many screen readers never announce (`two-step-status.tsx`), so a
+      change that mounted it only while the control is armed would keep every assertion
+      below green and silence it. Found through the pane, which is the one locator that
+      names the same element in both of the control's states.
+    */
+    const said = pane(page, 'sketch').locator('[aria-live="polite"]');
+    await expect(said, 'the live region was not there before the press it has to announce').toHaveCount(1);
+    await expect(said, 'the live region spoke before anything was pressed').toHaveText('');
+
     await page.getByRole('button', { name: 'Clear', exact: true }).click();
     const armed = page.getByRole('button', { name: 'Clear the whole sketch' });
     await expect(armed, 'the first press did not arm the control').toBeVisible();
     expect(await ink(), 'one press erased the drawing').toBeGreaterThan(0);
     expect(await stored(), 'one press erased the stored copy').toBe(true);
-    await expect(
-      page.locator('[aria-live="polite"]').filter({ hasText: 'Clear the whole sketch' }),
-      'the armed control was not announced',
-    ).toContainText('Press again');
+    await expect(said, 'the armed control was not announced').toContainText('Clear the whole sketch');
+    await expect(said, 'the announcement did not say how to go on').toContainText('Press again');
 
     await page.clock.fastForward(60_000);
     await expect(armed, 'a clock stood the armed control down').toBeVisible();
@@ -916,30 +932,26 @@ test.describe('the worksheet', () => {
     // whole, so the flag goes from `true` to absent rather than to `false`.
     await expect.poll(stored, { message: 'the second press left the drawing stored' }).not.toBe(true);
     await expect(page.getByRole('button', { name: 'Clear', exact: true })).toBeVisible();
-    await expect(
-      page.locator('[aria-live="polite"]').filter({ hasText: 'Press again' }),
-      'the announcement outlived the act',
-    ).toHaveCount(0);
+    await expect(said, 'the announcement outlived the act').toHaveText('');
     // Back where the reader draws, as the one-press control always put them.
     await expect(page.getByLabel(/draw your answer/i)).toBeFocused();
   });
 
   test('an armed Clear stands down when the reader goes anywhere else @core', async ({ page }) => {
     /*
-      With no clock, going elsewhere is the only thing that disarms the control, so each way
-      of going elsewhere is pressed here: `Esc` on the control, a stroke on the canvas, and
-      Tab away from it. After each the label is back, the announcement is gone, and the
-      drawing is where it was — a control that stayed armed would be waiting under a reader
-      who had moved on.
+      With no clock, going elsewhere is the only thing that disarms the control, so the ways
+      of going elsewhere a reader here has are pressed: `Esc` on the control, `Esc` with focus
+      left where it was, a stroke on the canvas, and Tab away from it. After each the label
+      is back, the announcement is gone, and the drawing is where it was — a control that
+      stayed armed would be waiting under a reader who had moved on.
+
+      `Esc` WITH FOCUS ELSEWHERE is what a click is in Safari and Firefox on macOS, which do
+      not focus a clicked button (`use-two-step.ts`): the key goes to whatever held focus
+      before, or to `<body>`. Chromium does focus it, so the focus is taken off the control
+      by script — a `blur`, which the hook does not listen for and must not need — before
+      the key is pressed. A listener on the button alone never hears that `Esc`.
     */
-    const ink = async (): Promise<number> =>
-      page.getByLabel(/draw your answer/i).evaluate((node) => {
-        const canvas = node as HTMLCanvasElement;
-        const data = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
-        let lit = 0;
-        for (let i = 3; i < data.length; i += 4) if (data[i]! > 0) lit += 1;
-        return lit;
-      });
+    const ink = (): Promise<number> => inkOn(page);
 
     await walkTo(page, unit, 'en', NUMERIC.asks);
     await page.goto(at('en', NUMERIC.asks));
@@ -960,6 +972,13 @@ test.describe('the worksheet', () => {
     const said = page.locator('[aria-live="polite"]').filter({ hasText: 'Press again' });
     const goneElsewhere: ReadonlyArray<readonly [string, () => Promise<void>]> = [
       ['Esc', () => page.keyboard.press('Escape')],
+      [
+        'Esc with focus not on the control',
+        async () => {
+          await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+          await page.keyboard.press('Escape');
+        },
+      ],
       ['a stroke on the canvas', () => stroke(160)],
       ['Tab', () => page.keyboard.press('Tab')],
     ];
@@ -973,6 +992,78 @@ test.describe('the worksheet', () => {
       await expect(said, `${how} left the announcement standing`).toHaveCount(0);
       expect(await ink(), `${how} erased the drawing`).toBeGreaterThan(0);
     }
+  });
+
+  test('an armed Clear stays under the press that armed it, at a phone’s width @core', async ({ page }) => {
+    /*
+      ──────────────────────────────────────────────────────────────────────────────────
+      THE SECOND PRESS HAS TO LAND ON THE CONTROL THE FIRST ONE ARMED, OR IT IS A PRESS
+      ELSEWHERE — and a press elsewhere stands the control down (`use-two-step.ts`).
+
+      So a control that moves when it arms turns the reader's second press, in the same
+      place, into a cancel. At 414 px — the portrait width of the larger phones — the
+      sketch's foot had room for `Clear` and not for `Clear the whole sketch`: the row
+      wrapped, the button went to the start of a new line 52 px down, and what lay under
+      the finger was the empty foot. It is the thing ADR-0047 chose two presses over a
+      dialog FOR — the control stays where the pointer is — undone by a label's length.
+
+      Both labels are therefore in the button from the first paint and `visibility` picks
+      one (`sketch.tsx`), and what is asserted is what measured the defect: the armed
+      button still covers the point that armed it, the foot is the height it was, and a
+      second press at that same point is the one that clears. The press is by coordinate,
+      not by locator — `locator.click()` would find the button wherever it had gone, which
+      is exactly what a finger does not do.
+      ──────────────────────────────────────────────────────────────────────────────────
+    */
+    await page.setViewportSize({ width: 414, height: 900 });
+    await walkTo(page, unit, 'en', NUMERIC.asks);
+    await page.goto(at('en', NUMERIC.asks));
+    await paneReady(page);
+    await openPane(page, 'sketch');
+    const box = await sketchPad(page, 184);
+    await page.mouse.move(box.x + 60, box.y + 40);
+    await page.mouse.down();
+    for (let i = 1; i <= 12; i += 1) await page.mouse.move(box.x + 60, box.y + 40 + i * 12);
+    await page.mouse.up();
+    expect(await inkOn(page), 'nothing was drawn, so nothing below proves anything').toBeGreaterThan(0);
+
+    const clear = page.getByRole('button', { name: 'Clear', exact: true });
+    const armed = page.getByRole('button', { name: 'Clear the whole sketch' });
+    // The foot, by the one button in it whose name never changes.
+    const foot = pane(page, 'sketch').locator('p', { has: page.getByRole('button', { name: 'Undo', exact: true }) });
+
+    // The middle of the window, clear of the pager pinned over its foot (ADR-0063).
+    await foot.evaluate((node) => node.scrollIntoView({ block: 'center' }));
+    const before = await clear.boundingBox();
+    const row = await foot.boundingBox();
+    expect(before && row, 'the control or its row has no box, so nothing below is measurable').toBeTruthy();
+    const press = { x: before!.x + before!.width / 2, y: before!.y + before!.height / 2 };
+    const pager = await page.locator('[data-pager="pinned"]').boundingBox();
+    expect(
+      press.y < (pager ? pager.y : page.viewportSize()!.height),
+      'the press point is under the pinned pager, so the press would not reach the control',
+    ).toBe(true);
+
+    await page.mouse.click(press.x, press.y);
+    await expect(armed, 'the first press did not arm the control').toBeVisible();
+    const after = await armed.boundingBox();
+    expect(
+      after!.x <= press.x &&
+        press.x <= after!.x + after!.width &&
+        after!.y <= press.y &&
+        press.y <= after!.y + after!.height,
+      `arming moved the control from (${before!.x.toFixed(0)}, ${before!.y.toFixed(0)}) to ` +
+        `(${after!.x.toFixed(0)}, ${after!.y.toFixed(0)}), off the point (${press.x.toFixed(0)}, ` +
+        `${press.y.toFixed(0)}) that armed it`,
+    ).toBe(true);
+    expect((await foot.boundingBox())!.height, 'arming the control changed the height of its row').toBe(
+      row!.height,
+    );
+
+    await page.mouse.click(press.x, press.y);
+    await expect
+      .poll(() => inkOn(page), { message: 'the second press, where the first one was, did not clear' })
+      .toBe(0);
   });
 
   test('a frame that asks nothing offers no pad @core', async ({ page }) => {
