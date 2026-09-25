@@ -51,14 +51,20 @@ once the reader has a place in F13, just as every other program opens after the 
 it. Nothing in the code changes.
 
 **The index says why the Foundation programs come first, and it says so without a hover.**
-#163 (order 630) carries this. A legend line above the grid, visible whenever a tile is shut,
-says that programs open in order and that one frame is enough. The shut notice links the
-program that opens the shut one. The wording and the Polish belong to that issue. What this
-decision asks of it is that a reader who knows the material learns three things: the Main
-sequence is built on the Foundation programs, one frame of each is all it takes to go on,
-and nothing is hidden or paid for. ADR-0056's refusals already say why a program is shut
-and how small the move that opens it is, but only after a door has been tried. The legend
-says all three on the first screen.
+The place for it is #163 (order 630). That issue puts a legend line above the grid whenever
+a tile is shut, and links the shut notice to the program that opens it. As its body reads on
+2026-09-25, the legend says only that programs open in order and that one frame of a program
+opens the next. This decision adds two things the legend must also say, as visible text:
+
+- the Main sequence is built on the Foundation programs;
+- nothing is hidden or paid for. Today that clause is only in the shut tile's `title`
+  tooltip (`web/app/src/components/programs/tile-entry.tsx`), which touch and keyboard
+  readers never see.
+
+#163's body has to be amended to carry both before it is built. The wording and the Polish
+belong to that issue. ADR-0056's refusals already say why a program is shut and how small the
+move that opens it is, but only after a door has been tried. The legend says it on the first
+screen.
 
 **Option 2 is not taken.** It makes the gate a stored fact:
 
@@ -105,9 +111,12 @@ says all three on the first screen.
    readers at the gate (ADR-0009;
    [ADR-0020](0020-no-aggregate-touches-the-progress-store.md)), and no metric is to be added
    to find out.
-4. **ADR-0051's own argument.** Since ADR-0047, *Forget where I am* costs a reader access as
-   well as a place. That ADR already calls this "the strongest argument anybody will have for
-   reopening this decision".
+
+**One argument for reopening it is already standing, and was weighed here.** Since ADR-0047,
+*Forget where I am* costs a reader access as well as a place. ADR-0051 calls this "the
+strongest argument anybody will have for reopening this decision". It is not a future fact,
+so it is not in the list above. This decision keeps the order anyway: what a forget costs is
+the same walk a new reader takes, one frame per program.
 
 ## Consequences
 

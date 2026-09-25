@@ -5,7 +5,7 @@
 **Accepted.** Date: 2026-09-25. Decided for #155 (order 550 in
 [`docs/ux/UI-UX.md`](../ux/UI-UX.md#the-order)) under the owner's delegation of that date.
 
-It amends the exit condition of one row in the deviation register
+It amends the reason and the exit condition of one row in the deviation register
 ([`docs/architecture/00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md)): "`PUT
 /api/v1/progress/{track}/{unit}` can still name a step it did not earn". It answers the
 questions that [`MCP-SERVER-SKETCH.md`](../architecture/MCP-SERVER-SKETCH.md) §4 and §7 left
@@ -60,6 +60,12 @@ Measured for #155 on 2026-09-24, and read again on 2026-09-25.
 with a .NET client that calls `POST .../advance`". #155 records that no issue and no ADR
 carried that plan.
 
+**`PUT` has a second caller that raises `Step`, and the row did not name it.**
+`web/app/src/lib/progress/sync.ts` pushes `reconcile.ts`'s `toPush` rows through
+`PUT /api/v1/progress/{track}/{unit}`, under [ADR-0019](0019-furthest-frame-wins.md): frame
+40 in this browser and frame 12 on the account pushes 40. That lands in the handler's
+`update.Step > existing.Step` branch, or creates the row when the account holds none.
+
 **What `authservice` v0.3.1 is known to do**, from this repository:
 
 - sign in with a password, called server-side
@@ -96,8 +102,8 @@ Nothing here shows it issuing a token to a client that is not this web app.
 
 **The reasons:**
 
-- **What the register needs has nothing to do with language.** It needs a client that calls
-  `POST …/advance` and never raises a step with `PUT`.
+- **What the register needs from `web/mcp` has nothing to do with language.** It needs a
+  client that calls `POST …/advance` and never raises a step with `PUT`.
 - **The expensive part is the contract hosts see, and the tests that hold it.** #171 must
   leave that contract unchanged. A rewrite would have to derive it again on a second SDK.
 - **A one-command package is a Node package.** #172's done-when is a machine with only Node
@@ -130,6 +136,9 @@ function, so it is not a copy.
   replay it against another. An id goes only to the origin it was minted for.
 - Every later process run by that user on that machine reads the same file, so every host
   there reads as one reader of each instance.
+- The file is created atomically, by an exclusive create or by writing and renaming. A
+  process that loses the race reads the file again, so two hosts that start together for the
+  first time still end on one id.
 - The host keeps nothing. An id in the host's configuration would be a credential in a file
   that people copy into bug reports and dotfile repositories.
 
@@ -178,11 +187,17 @@ for as long as that token lives.
     not hold (ADR-0065). The MCP server asks `isOpenWhere` before it writes, as
     `remember-position.tsx` does in the browser. With this write `web/mcp` needs `PUT` for
     nothing.
-- A correction to the doc comment on `ReaderIdentity.HeaderName`, which says the header is
-  "never trusted from anywhere else" than the BFF. What protects an id is that nobody can
-  guess it, not where it came from: the API cannot tell a BFF from any other caller. What the
-  BFF enforces is that a browser never picks the value (FRONTEND-BFF.md §1). An MCP process
-  is not a browser, and it holds its own reader's id just as the BFF holds a cookie's.
+- Corrections to three doc comments in `src/AbOvo.Api/Extensions/ReaderIdentity.cs`, each of
+  which becomes false once an MCP process mints ids:
+  - `HeaderName` says the header is "never trusted from anywhere else" than the BFF;
+  - `Resolve` says "minting happens once, in the web app's middleware";
+  - `TryParseAnonymousId` says the id is always minted by `web/app/src/middleware.ts`, and
+    "anything else did not come from there".
+
+  What protects an id is that nobody can guess it, not where it came from: the API cannot
+  tell a BFF from any other caller. What the BFF enforces is that a browser never picks the
+  value (FRONTEND-BFF.md §1). An MCP process is not a browser, and it holds its own reader's
+  id just as the BFF holds a cookie's.
 
 ### 3. A package first; a hosted server after the first deploy, and only if `authservice` can do OAuth
 
@@ -192,9 +207,11 @@ Both routes, in this order:
 2. **#172 (order 720): the one-command package.**
    - It is published to npm, so a host starts it with one `npx` command.
    - `AB_OVO_API_URL` configures it, and a token can be added.
-   - Publishing is the owner's manual step. This repository holds no npm credential and gets
-     none (AGENTS.md, "That there is a credential to use"). CI builds and packs. The owner
-     publishes the first version, and the package name is his.
+   - Publishing is the owner's manual step. CI builds and packs, and the owner publishes from
+     his own npm account, under a name that is his to choose. A version number once
+     published to npm cannot be used again, so the step that makes a version public stays
+     with a person. Publishing from CI later is not ruled out: npm's trusted publishing over
+     GitHub OIDC stores no token. Whether to move to it is #172's to decide.
    - Until #70 deploys `AbOvo.Api` the package reaches only an API somebody runs themselves.
 3. **#173 (order 730): Streamable HTTP with OAuth.** It waits for the first deploy (#70,
    #71), and for a probe that answers whether `authservice` can be the authorization server
@@ -223,7 +240,10 @@ not signed its reader in can still read. The hosted server mints that reader an 
 ADR-0061's pattern for the MCP session, and the place lasts as long as the session does. The
 results say so. OAuth is what keeps the place and shares it with the browser. The id is never
 derived from, or equal to, the `Mcp-Session-Id`: the MCP specification forbids a server to
-use sessions for authentication. #173 settles how the server binds the two.
+use sessions for authentication. That alone does not satisfy the rule. Any server-side map
+from a session to a reader id makes whoever holds the session id the holder of that place.
+#173 either binds the reader id to something other than the session, or accepts that
+explicitly for a place that has little at stake, and says which.
 
 ### 4. What the licence allows on each route
 
@@ -237,7 +257,10 @@ NonCommercial binds the deployment as well as copying.
 | The hosted server (Streamable HTTP) | Yes: it puts the prose into a third-party host's conversation. | The same as above. The host is a medium the reader chose. | Any paid access. #173 is not a paid-access path, whatever `TWO-SURFACES-COMPARISON.md` row 22 recorded of the proposal it evaluated. |
 
 **Every route that puts the prose in front of a reader credits it there.** The credit gives
-the title, the author, and CC BY-NC-SA 4.0 with its link. On an MCP server it goes in the
+the title, the author, the copyright notice as `LICENSE-CONTENT` states it ("Copyright (c)
+2026 Konrad Cinkusz"), and CC BY-NC-SA 4.0 with its link. Where it is reasonably practicable
+it also refers to the licence's disclaimer of warranties, which the licence's §3(a)(1)(A)
+asks for. On an MCP server it goes in the
 instructions and in `list_programs`. It is owed before #172 points a package at a deployed
 instance, and before #173 ships. Compiling the book's LaTeX into the bundle changes the
 format, and this repository reads the licence's §2(a)(4) as allowing that without making an
@@ -250,12 +273,26 @@ with one more row for the MCP credit.
 
 ## Consequences
 
-**The register's .NET exit is replaced.** The row's exit now names #171 and this decision,
-and #171 is what discharges it.
+**The register's .NET exit is replaced, and #171 alone does not discharge the row.** The
+row's Reason and Exit now name both callers that raise `Step` through `PUT`. #171 removes
+`web/mcp`'s dependency on `PUT`, and nothing more.
+
+- **The second caller is `web/app`'s sync** (`web/app/src/lib/progress/sync.ts`, ADR-0019).
+  A reader who read anonymously to frame 40 and then signs in to an account at frame 12
+  reaches 40 on the account only through that push. If `PUT` were narrowed first, the
+  reveal gate would refuse that reader frames 13 to 40 while signed in.
+- **What discharges the row** is the account's place no longer coming from a number the
+  browser sends. One mechanism that fits: at sign-in the API adopts the steps of the
+  reader's `anon:<id>` rows into the account, the furthest frame winning, and sync then sends
+  nothing the API does not already hold. A place that only this browser's `localStorage`
+  holds would then not reach the account. That trade is for the change to decide.
+- **No issue carries that change yet.** It needs one. Until it lands, #171 leaves `PUT` as it
+  is: narrowing it, and discharging the row, wait for `web/app`'s sync to stop needing `PUT`
+  to raise `Step`.
 
 **#171 gets larger than its issue says.** It adds two anonymous endpoints to `AbOvo.Api`: an
 "all my places" read, and a write that records opening a program at step 1 and never raises
-`Step`. It also corrects the `ReaderIdentity` comment and moves the wire shapes into
+`Step`. It also corrects three `ReaderIdentity` comments and moves the wire shapes into
 `@ab-ovo/web-kit`. #164 and #167 need not wait for any of it: they are TypeScript either way.
 
 **Anonymous MCP readers add rows to `ReaderProgress`.** The package adds one reader per user
@@ -272,7 +309,8 @@ at every start, and says so.
 **The published package ships JavaScript.** Node does not strip types from a file under
 `node_modules`, so the launcher that imports `src/server.ts` from a checkout cannot be what
 is published. #172 publishes compiled output, bundled with `@ab-ovo/web-kit`, which is a
-`private` workspace package.
+`private` workspace package. `web/mcp/package.json` has no `license` field today, and it
+needs `MIT` before the package can be published free under MIT as §4 says.
 
 **Hosts that can only connect remotely cannot reach the book until #173 ships.** That
 includes a host in a web page, and #173 may stay blocked on `authservice` for a long time.

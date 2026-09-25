@@ -10,6 +10,9 @@ nothing else. Constrained by
 [ADR-0009](0009-the-instrument-measures-the-book.md),
 [ADR-0017](0017-progress-is-local-first-and-holds-nothing-worth-scoring.md) and
 [ADR-0019](0019-furthest-frame-wins.md), none of which it amends.
+Confirmed on 2026-09-25 by
+[ADR-0065](0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md),
+which keeps the Foundation programs in the order this gates.
 
 ## Context
 
