@@ -57,6 +57,7 @@ was first written with.
 | `about.spec.ts` | the argument renders, and states the anti-goal: the instrument measures the book, never the reader |
 | `accessibility.spec.ts` | every screen holds WCAG 2.2 A and AA as far as axe-core can decide — both schemes, each panel open, 360 px, the forms behind an account, and a legal document |
 | `account-deletion.spec.ts` | closing an account, and everything about it that needs no account |
+| `account-overview.spec.ts` | opening one's own account: whose it is, the place it holds in each program, and the ways out — sign-out and the deletion screen |
 | `app-icon.spec.ts` | the tab shows the mark, served by this origin to a reader with no account, and `theme-color` is the paper in each scheme |
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
 | `consent.spec.ts` | being asked once whether answers may be counted, focus landing on the answer given, and being left alone |
@@ -739,7 +740,11 @@ per run, and that is the price of reading through the real gate.
 
 **Registration writes too, into the identity fixture's memory** (`specs/registration.spec.ts`):
 each test registers a generated address, the fixture forgets it when its process exits, and
-no account is shared between tests.
+no account is shared between tests. `specs/account-overview.spec.ts` registers one the same
+way when it needs the account's places to be its own — they are `AbOvo.Api` rows, which
+`bearer-hop.spec.ts` writes and empties for the shared fixture account — so the rows its walk
+writes are filed under a subject nobody else holds, and need no teardown for the reason the
+anonymous readers' rows need none.
 
 **And the API can be taken away from one reader without taking it from the rest.** The first
 deployment reaches `AbOvo.Api` through `fixtures/api-fault.mts`, a pass-through that drops the
@@ -822,6 +827,7 @@ tests/e2e/
       lab.ts                        the pinned book's exercise file, solutions and splices
       page-errors.ts                uncaught-exception collector
       pane.ts                       a worksheet pane, and the button that opens it
+      register.ts                   registering through `/register`, with a fresh address
       reveal.ts                     the reveal's locator: the pager's `Next`, by its test id
       service-info.ts               the API's payload shape and the route handlers
       sign-in.ts                    signing in against the identity fixture

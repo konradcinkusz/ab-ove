@@ -70,6 +70,46 @@ export interface KeyEntry {
 }
 
 /**
+ * The account's own page, `/account` — the reader's overview (issue #161).
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * WHAT AN ACCOUNT HOLDS, SAID TO THE READER WHOSE IT IS, AND NOTHING ABOUT HOW THEY DID.
+ *
+ * The page answers what a reader asks of an account, in the order they ask it: who is
+ * signed in here; what the account keeps for them, which is where they are in each program
+ * and nothing else (ADR-0004: an account buys synchronisation); and what it does not keep,
+ * which is everything they wrote. A place is a position and never a progress (ADR-0041), so
+ * these strings name a program and a frame and have no count, fraction or date to say.
+ *
+ * `placesUnavailable` is P8's sentence, and it is not `placesNone`. The account's places are
+ * `AbOvo.Api`'s rows, and rows that could not be read are said to be that rather than shown
+ * as an account holding nothing — two facts a reader would act on differently. It names no
+ * cause, for `renderError.failedTitle`'s reason: the page cannot tell an API that did not
+ * answer from one that refused or answered in a shape it does not know, and says only what
+ * holds for all three.
+ *
+ * Polish is impersonal wherever the second person would have to pick a gender (`Zalogowano`,
+ * not *jesteś zalogowany*), for `youWrote`'s reason (ADR-0016).
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+interface AccountOverviewStrings {
+  readonly title: string;
+  /** Who is signed in, by the address the session's token carries. */
+  readonly signedInAs: (address: string) => string;
+  /** The same, for a token that carries no address or could not be verified here. */
+  readonly signedIn: string;
+  readonly placesTitle: string;
+  readonly placesLead: string;
+  readonly placesNone: string;
+  readonly placesUnavailable: string;
+  readonly worksheetsTitle: string;
+  /** Where a reader's worksheets are kept — which is why the export beside it exists. */
+  readonly worksheets: string;
+  /** The page's way back to the programs, at its foot. */
+  readonly keepReading: string;
+}
+
+/**
  * The account-deletion screen.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
@@ -244,6 +284,8 @@ interface Strings {
   readonly signIn: string;
   readonly signOut: string;
   readonly account: string;
+  /** The page `account` links to: the reader's overview (issue #161). */
+  readonly accountOverview: AccountOverviewStrings;
   readonly deleteAccount: DeleteAccountStrings;
   readonly consent: ConsentStrings;
   /** The conflict rule, said where the conflict happened. See `raised-notice.tsx`. */
@@ -630,6 +672,21 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     signIn: 'Sign in',
     signOut: 'Sign out',
     account: 'Account',
+    accountOverview: {
+      title: 'Your account',
+      signedInAs: (address) => `Signed in as ${address}.`,
+      signedIn: 'You are signed in.',
+      placesTitle: 'Your place in the book',
+      placesLead:
+        'The furthest frame your account holds in each program you have opened. Sign in on another device and you carry on from there.',
+      placesNone: 'Your account holds no place in the book yet.',
+      placesUnavailable:
+        'The place your account holds could not be read from the book’s server just now. Nothing is lost — try again in a moment.',
+      worksheetsTitle: 'Your worksheets',
+      worksheets:
+        'What you write on a frame stays in this browser. It is never sent to your account, so no other device has it.',
+      keepReading: 'Carry on reading',
+    },
     consent: {
       invitationTitle: 'Help fix the book?',
       invitationWhat:
@@ -806,6 +863,21 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     signIn: 'Zaloguj się',
     signOut: 'Wyloguj się',
     account: 'Konto',
+    accountOverview: {
+      title: 'Twoje konto',
+      signedInAs: (address) => `Zalogowano jako ${address}.`,
+      signedIn: 'Zalogowano.',
+      placesTitle: 'Twoja pozycja w lekturze',
+      placesLead:
+        'Najdalsza ramka zapisana na twoim koncie w każdym otwartym programie. Po zalogowaniu na innym urządzeniu czytasz dalej od tego miejsca.',
+      placesNone: 'Twoje konto nie przechowuje jeszcze żadnej pozycji w lekturze.',
+      placesUnavailable:
+        'Nie udało się teraz odczytać z serwera książki pozycji zapisanej na twoim koncie. Nic nie przepadło — spróbuj ponownie za chwilę.',
+      worksheetsTitle: 'Twoje notatki',
+      worksheets:
+        'To, co piszesz przy ramkach, zostaje w tej przeglądarce. Nie trafia na twoje konto, więc nie ma tego na żadnym innym urządzeniu.',
+      keepReading: 'Czytaj dalej',
+    },
     consent: {
       invitationTitle: 'Pomo\u017cesz poprawi\u0107 ksi\u0105\u017ck\u0119?',
       invitationWhat:
@@ -1097,6 +1169,7 @@ export interface Chrome {
   readonly signIn: string;
   readonly signOut: string;
   readonly account: string;
+  readonly accountOverview: AccountOverviewStrings;
   readonly deleteAccount: DeleteAccountStrings;
   readonly consent: ConsentStrings;
   readonly raised: (unit: string, step: number) => string;

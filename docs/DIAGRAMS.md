@@ -692,7 +692,7 @@ that implied otherwise would be claiming a capability the schema was designed no
 %% NOT TO HAVE.
 
 flowchart TD
-  ASK["The reader asks<br/>on /account"]
+  ASK["The reader asks<br/>on /account/delete"]
   P1["1. DELETE /api/v1/progress<br/>and /api/v1/preferences/language<br/>the reader's own rows, gone"]
   P2["2. The identity service<br/>marks and schedules"]
   P3["3. Local state cleared<br/>position, worksheet, consent"]

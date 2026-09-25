@@ -1,48 +1,60 @@
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 
+import { allBundles } from '@ab-ovo/web-kit';
+
+import { SignOut } from '@/components/account/sign-out';
+import { ExportWorksheets } from '@/components/read/clear-controls';
 import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
-import { deletionProblem, deletionProblemMessage } from '@/lib/account-deletion-problem';
 import { chromeFor } from '@/lib/i18n/chrome';
-import { backendConfigured } from '@/lib/server/backends';
+import { indexHref } from '@/lib/index-href';
+import { fetchAccountPlaces, placesInBookOrder } from '@/lib/server/account-places';
+import { verifyAccessToken } from '@/lib/server/token';
+import { ACCESS_TOKEN_COOKIE } from '@/lib/session-cookies';
 
 import styles from './account.module.css';
 
 /**
- * The account page, which today is the deletion screen, and only that.
+ * The account's own page: the reader's overview (issue #161).
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * THE WORDING IS THE FEATURE, WHICH IS WHY THIS PAGE IS BILINGUAL AND `/login` IS NOT.
+ * IT WAS THE DELETION SCREEN, AND ONLY THAT.
  *
- * `/login`'s own comment argues, correctly, that it is English-only because there is no
- * language for it to follow: the middleware bounces arbitrary requests there, "what is a
- * reader's interface language" is a different question from "which edition are they
- * reading", and it declines to answer the first by guessing at the second.
+ * The index's *Account* link opened a page headed "Delete your account", which said nothing
+ * else about the account: not whose it was, not what it held, and nothing a reader could do
+ * with it short of ending it. That screen is `/account/delete` now, unchanged in substance,
+ * and this page is what an account link promises — in the order a reader asks:
  *
- * This page differs in both halves of that argument.
- *
- * It HAS a language to follow. It is reached from a link in the reading chrome, which
- * already knows which edition the reader is in and already labels itself in it; the
- * language rides the href, and a reader who arrives without one gets English by
- * `chromeFor`'s ordinary fallback. Nothing is being asserted about interface preference —
- * the same signal that decided the word on the link decides the words on the page it opens.
- *
- * And it NEEDS one. Issue #13's requirement is not that the deletion works; it is that the
- * screen "says plainly that it cannot retract an anonymous outcome already folded into a
- * rate". A reader who cannot read those four paragraphs has not been told, and a deletion
- * screen whose explanation is in a language the reader does not have is the screen the
- * issue is written against. `/login` can afford English because a reader can guess at
- * "email" and "password"; nobody guesses at this.
+ *   who is signed in       the address the session's token carries, verified here;
+ *   where they are         the furthest frame the ACCOUNT holds in each program, which is
+ *                          the one thing an account buys (ADR-0004), read from `AbOvo.Api`;
+ *   what it does not hold  their worksheets, which never leave this browser, and the export
+ *                          the index offers, the same control (ADR-0055);
+ *   and the two ways out   *Sign out*, and a quiet link to the deletion screen.
  * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * ONE READER'S OWN RECORD, SHOWN TO THAT READER, AND NOTHING ABOUT HOW THEY DID.
+ *
+ * The places are the rows `ProgressEndpoints` files under the bearer's own subject — the
+ * query ADR-0020 leaves open, because it names one reader by equality — fetched with the
+ * reader's own token (`lib/server/account-places.ts`). Each is a position and never a
+ * progress (ADR-0041): a program and a frame, with no count, no fraction and no date. This
+ * is not the per-reader view forbidden by the second of UI-UX.md's rules every screen
+ * inherits: that rule is about the instrument, which has no reader in it to show, and this
+ * page shows a reader nothing but where they left off.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * BILINGUAL, on the deletion screen's reasoning (`account/delete/page.tsx`): the index's
+ * account link carries the edition it is labelled in, and the language rides the href.
  *
  * Private by default: it is in neither `PUBLIC_PATHS` nor `PUBLIC_PREFIXES`, so the
- * middleware gates it with no entry needed. `/account/deleted` is public, and has to be —
- * see its own page. It IS named in `PRIVATE_PAGES` (`lib/page-gate.ts`), which the gate never
- * reads: that is how `/login` tells a reader bounced off this page that it is one, rather
- * than an address that does not exist (issue #140).
+ * middleware only lets a verified session through, and `PRIVATE_PAGES` names it for
+ * `/login`'s sake (issue #140). Rendered per request, because every line of it is about the
+ * request's own session.
  *
- * No `'use client'`, for `/login`'s reason: the reading surface works with script
- * disabled, and a reader who has decided to leave is the last person to demand a working
- * browser from.
+ * No `'use client'` at the page. Everything but the two controls renders on the server,
+ * with no script — the address, the places and the ways out are links and text.
  */
 
 export const dynamic = 'force-dynamic';
@@ -55,17 +67,36 @@ export default async function AccountPage({
   const params = await searchParams;
   const requested = params['lang'];
   const chrome = chromeFor(typeof requested === 'string' ? requested : '');
-  const strings = chrome.deleteAccount;
+  const strings = chrome.accountOverview;
 
-  // Validated against a closed set, never rendered from the URL. On this page that matters
-  // more than on `/login`: an arbitrary sentence would arrive beside a button that deletes
-  // an account. See `account-deletion-problem.ts`.
-  const problem = deletionProblem(params['error']);
+  const token = (await cookies()).get(ACCESS_TOKEN_COOKIE)?.value;
 
-  // P8 — a deployment with no identity service is a supported state. There is then no
-  // account to delete, and offering the form would be offering an operation that cannot
-  // run against a service nobody said was there.
-  const identityConfigured = backendConfigured('authservice');
+  /*
+    Both at once: neither needs the other, and the page waits for the slower of the two
+    rather than for their sum. The token is verified again rather than decoded — the
+    middleware verified it for the gate, and an address read off an unverified token would
+    be a claim the cookie makes about itself (FRONTEND-BFF.md §4). The JWKS is cached
+    (`token.ts`), so the second verification costs a signature check and no request.
+  */
+  const [holder, held] = token
+    ? await Promise.all([verifyAccessToken(token), fetchAccountPlaces(token)])
+    : [null, null];
+
+  const address = holder?.status === 'valid' ? holder.claims.email : null;
+
+  /*
+    P8 — places that could not be read are a sentence on the page and a line in the server's
+    log, and the reason goes to the log alone: it names backend addresses (FRONTEND-BFF.md
+    §1). `lib/actions/reveal.ts` logs its own failures the same way, for the same operator.
+  */
+  if (held?.kind === 'unavailable') {
+    console.error(`the account's places could not be read: ${held.reason}`);
+  }
+  const places = held?.kind === 'held' ? placesInBookOrder(held.records, allBundles()) : null;
+
+  // Where the reader goes back to, and where signing out sends them: the programs, in the
+  // edition this page is in, so leaving does not undo the choice that labelled the link here.
+  const programs = indexHref({ edition: chrome.language });
 
   return (
     <main className="shell" lang={chrome.language}>
@@ -74,105 +105,94 @@ export default async function AccountPage({
         <p className="wordmark">
           ab<span>-</span>ovo
         </p>
-        <h1 className="lede" id={SKIP_TARGET_ID}>{strings.title}</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>
+          {strings.title}
+        </h1>
+        {/*
+          Whose account, and the way to stop it being this browser's — together, because the
+          one is the reason for the other. The address is text and never a control: it is not
+          editable here, and a field that looked editable would promise a feature there is not.
+        */}
+        <div className={styles.holder}>
+          <p className={styles.address}>
+            {address ? strings.signedInAs(address) : strings.signedIn}
+          </p>
+          <SignOut label={chrome.signOut} language={chrome.language} then={programs} />
+        </div>
       </header>
 
-      {problem ? (
-        <section className={styles.problem} aria-live="polite">
-          <p className={styles.problemDetail}>{deletionProblemMessage(problem, chrome)}</p>
-        </section>
-      ) : null}
-
-      {identityConfigured ? (
-        <>
-          <section className="section">
-            <p>{strings.lead}</p>
-            <ul className={styles.removes}>
-              <li>{strings.removesProgress}</li>
-              <li>{strings.removesAccount}</li>
-            </ul>
-          </section>
-
-          <section className="section">
-            <h2>{strings.staysTitle}</h2>
-            <p>{strings.stays}</p>
-          </section>
-
-          {/*
-            The two paragraphs issue #13 exists for. They are rendered BEFORE the form and
-            not after it, and not behind a disclosure: a consequence a reader meets after
-            confirming is a consequence they were not told.
-          */}
-          <section className="section">
-            <h2>{strings.cannotReachTitle}</h2>
-            <p>{strings.cannotReach}</p>
-          </section>
-
-          <section className="section">
-            <h2>{strings.notImmediateTitle}</h2>
-            <p>{strings.notImmediate}</p>
-          </section>
-
-          <section className="section">
+      <section className="section">
+        <h2>{strings.placesTitle}</h2>
+        {places === null ? (
+          <p>{strings.placesUnavailable}</p>
+        ) : places.length === 0 ? (
+          <p>{strings.placesNone}</p>
+        ) : (
+          <>
+            <p>{strings.placesLead}</p>
             {/*
-              A real action and method="post", so this works with no JavaScript. The route
-              answers with a 303, which the browser follows as a GET — a reload afterwards
-              re-requests a page rather than re-submitting a password.
+              `role="list"` is not redundant: WebKit and Chromium drop the list role from a
+              `<ul>` styled `list-style: none`, and a screen reader then hears the programs as
+              loose links — the finding `program-map.tsx` and `keys-details.tsx` carry too.
             */}
-            <form className={styles.form} method="post" action="/api/auth/account/delete">
-              <input type="hidden" name="lang" value={chrome.language} />
+            <ul className={styles.places} role="list">
+              {places.map((place) => (
+                <li key={`${place.track}/${place.unit}`}>
+                  {/*
+                    The whole row is the way back in, to the frame the account holds. The
+                    spaces between the parts are text on purpose: a link's accessible name is
+                    its text run together, and without them a screen reader hears the id and
+                    the title as one word.
+                  */}
+                  <Link className={styles.place} href={place.href}>
+                    <span className={styles.placeId}>{place.unit}</span>{' '}
+                    <span className={styles.placeTitle} lang={place.language}>
+                      {place.title}
+                    </span>{' '}
+                    <span className={styles.placeAt}>{chrome.atFrame(place.step)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
 
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="confirm">
-                  {strings.confirmLabel(strings.confirmWord)}
-                </label>
-                <input
-                  className={styles.input}
-                  id="confirm"
-                  name="confirm"
-                  type="text"
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                  spellCheck={false}
-                  required
-                />
-              </div>
+      <section className="section">
+        <h2>{strings.worksheetsTitle}</h2>
+        <p>{strings.worksheets}</p>
+        {/*
+          THE INDEX'S EXPORT, NOT A SECOND ONE. It reads this browser's storage, so it cannot
+          exist in the first paint and renders nothing when nothing is written here — and its
+          line is held open from the first paint (`account.module.css`), so its arrival moves
+          nothing below it: issue #7's constraint on the index's row, kept on this page.
+        */}
+        <p className={styles.export}>
+          <ExportWorksheets label={chrome.exportWorksheets} language={chrome.language} />
+        </p>
+      </section>
 
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="password">
-                  {strings.passwordLabel}
-                </label>
-                <input
-                  className={styles.input}
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                />
-                {/*
-                  NOT `required`. An account created through Google or GitHub has no
-                  password at all — authservice branches on `user.PasswordHash != null` and
-                  never reads the field — so a required attribute would lock exactly those
-                  readers out of deleting their own accounts, with no way to satisfy it.
-                */}
-                <p className={styles.hint}>{strings.passwordHint}</p>
-              </div>
-
-              <button className={styles.submit} type="submit">
-                {strings.submit}
-              </button>
-            </form>
-          </section>
-        </>
-      ) : (
-        <section className="section">
-          <p>{strings.problemUnconfigured}</p>
-        </section>
-      )}
+      {/*
+        THE WAY TO DELETION: A LINK TO A PAGE, NOT AN ACT. The page it opens says what a
+        deletion removes, what it leaves and what it cannot reach before it offers the button
+        (ADR-0021), and asks for the confirmation word there — so nothing needs guarding here.
+        It is named by that page's own heading, so the link and the page cannot disagree about
+        where it leads, and it carries the edition, which that page follows too.
+      */}
+      <section className="section">
+        <p>
+          <Link
+            className={styles.delete}
+            href={`/account/delete?lang=${encodeURIComponent(chrome.language)}`}
+          >
+            {chrome.deleteAccount.title}
+          </Link>
+        </p>
+      </section>
 
       <footer className="colophon">
         <p>
-          <Link href="/">{strings.cancel}</Link>
+          <Link href={programs}>{strings.keepReading}</Link>
         </p>
       </footer>
     </main>

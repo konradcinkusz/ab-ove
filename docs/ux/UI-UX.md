@@ -37,7 +37,8 @@ any account.
 | `/login` | a form that posts credentials to this app's own BFF | an identity service |
 | `/register` | the same form one step earlier: an address, a password, and the consent the identity service records | an identity service, and the two documents the consent names |
 | `/legal/<document>/<version>` | the Terms of Use or the Privacy Policy at one version, as this deployment publishes it: what the consent links to | a document host (`AB_OVO_LEGAL_URL`) |
-| `/account` | deleting the account, and nothing else | an account |
+| `/account` | the reader's overview: who is signed in, the place the account holds in each program, the export of their worksheets, sign-out, and the way to deletion | an account, and the API for the places |
+| `/account/delete` | deleting the account, and nothing else | an account |
 | `/instrument` | the author's view: frames ranked by how badly the book is doing | an account |
 | `/healthz` | the app's own liveness | nothing |
 | `/api/*` | the BFF: config, auth, session, and the one proxy to any backend | — |
@@ -639,15 +640,50 @@ check offer that ADR-0040 removed.
 
 ### `/account` — the reader's own record
 
-Today it is deletion that deletes, and nothing else. The reader's place, the export of their
-worksheets and *Sign out* are on the index's top row (the account control), not here; 610 in
-[the order](#the-order) makes this page the reader's overview, sign-out included, and gives
-deletion its own page. The deletion screen says
-what goes, what stays, what no deletion can reach — an anonymous outcome already folded into
-a rate cannot be retracted, because nothing can find the rows that were yours — and that the
-account is marked and scheduled rather than erased. That fourth sentence was off the page for a
-while, swallowed by a comment nobody closed, and the acceptance suite now signs in against
-the identity fixture to read all four (ADR-0021, Consequences).
+`web/app/src/app/account/page.tsx`, the page the index's *Account* link opens, in the edition
+that link is labelled in. **It is the reader's overview** (#161); until then it was the
+deletion screen and nothing else, so a reader who opened their account found only the way to
+end it. It answers what a reader asks of an account, in the order they ask it:
+
+1. **Whose it is.** *Signed in as* the address the session's token carries — verified on the
+   server rather than decoded — with *Sign out* beside it. Signing out is the index's own
+   sign-out, which drops the cookies and nothing else; then the reader is taken to the
+   programs, in the same edition, and this page is replaced in the history, because every
+   line on it was about the session that has just ended.
+2. **Where the account has them.** The furthest frame the account holds in each program, in
+   the book's order, each line the way back into that frame. These are the rows `AbOvo.Api`
+   files under the reader's own subject, fetched on the server with the reader's own token —
+   the one question [ADR-0020](../adr/0020-no-aggregate-touches-the-progress-store.md) leaves
+   open, because it names one reader by equality. A position and never a progress
+   ([ADR-0041](../adr/0041-the-reading-surface-shows-position-and-never-progress.md)): a
+   program, its title and *at frame 12*, and no count, fraction or date. It is not the
+   per-reader view the second of the [rules every screen inherits](#rules-every-screen-inherits)
+   forbids — that rule is about the instrument, which has no reader in it to show — and it
+   shows a reader nothing but where they left off. A program this deployment no longer
+   carries is left out, as the index's resume control leaves it out; an API that does not
+   answer is a sentence saying so, never an account shown as holding nothing
+   (`lib/server/account-places.ts`).
+3. **What it does not hold.** The worksheets stay in this browser and never reach the
+   account, which the page says, and *Export my worksheets* beside that sentence is the
+   index's own control
+   ([ADR-0055](../adr/0055-the-notebook-exports-what-stands-today-never-a-history.md)). It
+   reads the browser, so it arrives after the first paint, into a line held open for it.
+4. **The way to deletion**, a quiet link named by the deletion screen's own heading.
+
+**The deletion screen is `/account/delete`, unchanged in substance.** It says what goes, what
+stays, what no deletion can reach — an anonymous outcome already folded into a rate cannot be
+retracted, because nothing can find the rows that were yours — and that the account is marked
+and scheduled rather than erased, all before the button. That fourth sentence was off the page
+for a while, swallowed by a comment nobody closed, and the acceptance suite now signs in
+against the identity fixture to read all four (ADR-0021, Consequences). A refusal — a wrong
+confirmation word, a password not accepted — comes back to this screen with its reason, in the
+reader's edition, and *Keep my account* returns to the overview. `/account/deleted`, where a
+deletion ends, is the one page under `/account` that needs no session, because the deletion
+has just ended the one that reached it.
+
+`specs/account-overview.spec.ts` holds the overview — the address, where *Sign out* leads, the
+edition carried to the deletion screen and back, and a frame read on a new account listed and
+opening — and `specs/account-deletion.spec.ts` the deletion screen at its own address.
 
 ### `/instrument` — the author's view
 

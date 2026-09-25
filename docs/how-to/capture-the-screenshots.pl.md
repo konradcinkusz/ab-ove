@@ -73,9 +73,10 @@ szumem w historii.
 
 ## Czego nie ma na zrzutach i dlaczego
 
-`/account` i `/instrument/<track>/<unit>` potrzebują konta, a konto potrzebuje serwisu
-tożsamości. Pakiet taki ma — atrapę, którą sam uruchamia — ale sfotografowanie ekranu, którego
-każda liczba pochodzi z fikstury, ilustrowałoby fiksturę, a nie produkt.
+`/account`, `/account/delete` i `/instrument/<track>/<unit>` potrzebują konta, a konto
+potrzebuje serwisu tożsamości. Pakiet taki ma — atrapę, którą sam uruchamia — ale
+sfotografowanie ekranu, którego każda liczba pochodzi z fikstury, ilustrowałoby fiksturę, a nie
+produkt.
 
 ## Zobacz też
 

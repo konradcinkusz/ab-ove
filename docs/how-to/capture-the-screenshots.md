@@ -71,9 +71,9 @@ matters; a commit that rewrites every image because the capture ran is noise in 
 
 ## What is not captured, and why
 
-`/account` and `/instrument/<track>/<unit>` need an account, which needs an identity service.
-The suite has one — a stub it starts itself — but photographing a screen whose every number
-came from a fixture would illustrate the fixture rather than the product.
+`/account`, `/account/delete` and `/instrument/<track>/<unit>` need an account, which needs an
+identity service. The suite has one — a stub it starts itself — but photographing a screen
+whose every number came from a fixture would illustrate the fixture rather than the product.
 
 ## See also
 

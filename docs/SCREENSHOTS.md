@@ -217,10 +217,10 @@ summary and from nowhere else.
 
 ## What is not pictured here, and why
 
-- **`/account` and `/instrument/<track>/<unit>`** need an account, which needs an identity
-  service. The acceptance suite has one — a stub it starts itself — but photographing a screen
-  whose every number came from a fixture would illustrate the fixture rather than the product.
-  What those screens do is described in [`ux/UI-UX.md`](ux/UI-UX.md) and drawn in
-  [`DIAGRAMS.md`](DIAGRAMS.md) §B6 and §C3.
+- **`/account`, `/account/delete` and `/instrument/<track>/<unit>`** need an account, which
+  needs an identity service. The acceptance suite has one — a stub it starts itself — but
+  photographing a screen whose every number came from a fixture would illustrate the fixture
+  rather than the product. What those screens do is described in [`ux/UI-UX.md`](ux/UI-UX.md)
+  and drawn in [`DIAGRAMS.md`](DIAGRAMS.md) §B6 and §C3.
 - **A deployed instance.** There is none, at any address, for anybody. Every screen above was
   served by a local production build.

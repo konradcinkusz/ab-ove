@@ -1,0 +1,38 @@
+/*
+ * *Sign out* on the account's own page.
+ *
+ * OUTLINED, NOT FILLED AND NOT A DOTTED LINK. A fill is the product's "yes, go on", and this
+ * page has none to offer — it is a page to read, and leaving it is one choice among several.
+ * The index's dotted link is the right weight in a row of furniture; here the control stands
+ * alone beside the reader's address, so it takes the consent's *No thanks* shape: an edge in
+ * `--control-edge`, which clears 3:1 against the page (WCAG 1.4.11, held for every stylesheet
+ * by `lib/theme/tokens.test.ts`), and `--control-min` tall, a finger's target (issue #147).
+ */
+.signOut {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--control-edge);
+  border-radius: 3px;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  min-height: var(--control-min);
+  padding: 0 1.125rem;
+}
+
+.signOut:hover {
+  border-color: var(--ink-soft);
+}
+
+/*
+ * The shared ring (`components/read/controls.module.css`, issue #148): a box-shadow, and a
+ * transparent outline that forced colours paint where they drop the shadow.
+ */
+.signOut:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--accent);
+  outline: 2px solid transparent;
+}

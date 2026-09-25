@@ -1,121 +1,131 @@
 /*
- * The account page.
+ * The account's overview (issue #161).
  *
- * A plain HTML form with no client component behind it, so everything here is ordinary CSS
- * against the same tokens the rest of the product uses. Most of it is `credentials-form.module.css`
- * with different class names, and that duplication is deliberate: a shared form stylesheet
- * would couple two pages that have no reason to change together, and CSS Modules give each
- * page its own scope precisely so a rule on one cannot reach the other.
+ * Its own stylesheet, and not the deletion screen's one directory down, for that sheet's own
+ * reason: CSS Modules give each page its own scope so a rule on one cannot reach the other,
+ * and the two pages have no reason to change together. What they share is the shell —
+ * `globals.css`'s masthead, sections and colophon — and the tokens.
  */
-.form {
-  display: grid;
-  gap: 1rem;
-  margin: 1.5rem 0 0;
-  max-width: 24rem;
+
+/* Whose account, and *Sign out* beside it, under the heading. */
+.holder {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin: 1.1rem 0 0;
 }
 
-.field {
-  display: grid;
-  gap: 0.375rem;
-}
-
-.label {
+/*
+ * `anywhere`, because an address is one unbroken word and a long one would otherwise push
+ * the page sideways at 360 px — the one thing `narrow-screen.spec.ts` says no page may do.
+ */
+.address {
   color: var(--ink-soft);
-  font-family: var(--font-ui);
-  font-size: 0.8125rem;
-  letter-spacing: 0.02em;
-}
-
-/* `--control-edge`, for `credentials-form.module.css`'s reason: WCAG 1.4.11, ADR-0063. */
-.input {
-  background: var(--paper-raised);
-  border: 1px solid var(--control-edge);
-  border-radius: 3px;
-  color: var(--ink);
-  font: inherit;
-  font-family: var(--font-ui);
-  font-size: 1rem;
-  padding: 0.5rem 0.625rem;
-}
-
-.input:focus-visible {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.hint {
-  color: var(--ink-soft);
-  font-family: var(--font-ui);
-  font-size: 0.8125rem;
   margin: 0;
   max-width: var(--measure);
+  overflow-wrap: anywhere;
 }
 
 /*
- * The button is `--degraded` rather than `--accent`.
- *
- * Every other primary button in the product is the accent colour and means "yes, go on".
- * This one ends an account, and it should not be the same shape and colour as the button a
- * reader presses to continue reading — a destructive action that looks exactly like every
- * constructive one is a destructive action somebody presses out of habit.
- *
- * It is not made SMALL or hidden either. A control that is hard to find is not a safeguard,
- * it is an obstacle to the reader who has decided; the confirmation word is the safeguard,
- * and it is the thing that cannot be done by accident.
+ * The account's places: one row per program, separated by a rule on the `<li>` rather than
+ * drawn round the link. UI-UX.md's design language: the edge of anything pressable is
+ * `--control-edge`, and a rule that is only a rule is `--rule` — which this one is.
  */
-.submit {
-  background: var(--degraded);
-  border: 0;
-  border-radius: 3px;
-  color: var(--paper-raised);
-  cursor: pointer;
-  font-family: var(--font-ui);
-  font-size: 0.9375rem;
-  justify-self: start;
-  padding: 0.5rem 1.125rem;
+.places {
+  list-style: none;
+  margin: 1rem 0 0;
+  max-width: var(--measure);
+  padding: 0;
 }
 
-.submit:hover {
-  filter: brightness(1.1);
+.places li + li {
+  border-top: 1px solid var(--rule);
 }
 
 /*
- * A visible ring on focus, in the button's own colour — see frame-view.module.css — and a
- * transparent outline, which forced colours paint in its place (issue #148).
+ * THE WHOLE ROW IS THE WAY IN, AND A FINGER TALL (issue #147). A position and never a
+ * progress (ADR-0041): the id, the title and `at frame 12`, and nothing that says how far.
  */
-.submit:focus-visible {
+.place {
+  align-items: baseline;
+  color: var(--ink);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem 0.75rem;
+  min-height: var(--control-min);
+  padding: 0.5rem 0;
+  text-decoration: none;
+}
+
+/*
+ * The shared ring (`components/read/controls.module.css`, issue #148): a box-shadow, and a
+ * transparent outline that forced colours paint where they drop the shadow.
+ */
+.place:focus-visible {
   box-shadow:
     0 0 0 2px var(--paper),
-    0 0 0 4px var(--degraded);
+    0 0 0 4px var(--accent);
   outline: 2px solid transparent;
 }
 
-.removes {
-  color: var(--ink);
-  margin: 0.75rem 0 0;
-  max-width: var(--measure);
-  padding-left: 1.25rem;
+/* The id in the index tile's register, so a reader finds the same thing in both places. */
+.placeId {
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
 }
 
-.removes li + li {
-  margin-top: 0.375rem;
+/* The title is what says "link": underlined, in the link colour, on every row. */
+.placeTitle {
+  color: var(--accent);
+  flex: 1 1 12rem;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.place:hover .placeTitle {
+  text-decoration-thickness: 2px;
+}
+
+.placeAt {
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
 }
 
 /*
- * The problem panel. `--degraded` rather than an alarm colour, for `login-form`'s reason:
- * most of what lands here is this deployment saying it could not do something.
+ * THE EXPORT'S LINE, HELD OPEN FROM THE FIRST PAINT. `ExportWorksheets` reads this browser's
+ * storage, so it arrives after hydration, and it renders nothing when nothing is written
+ * here. One line of the control's own size is reserved for it — its `font: inherit` takes
+ * this line's font, so the reservation and the control are the same height by construction —
+ * and so its arrival moves nothing below it. With nothing to export, it is one line of space
+ * at the foot of a section.
  */
-.problem {
-  background: var(--degraded-soft);
-  border-left: 3px solid var(--degraded);
-  margin: 1.5rem 0 0;
-  padding: 0.875rem 1.125rem;
+.export {
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  margin: 0.75rem 0 0;
+  min-height: 1.5em;
 }
 
-.problemDetail {
+/*
+ * The way to deletion: a link, and a quiet one, since it leads to a page that explains
+ * before it acts (ADR-0021) rather than to the act. Padded to a finger's height and the
+ * padding given back, the index's pattern (issue #147), so the line is as tall as it was.
+ */
+.delete {
   color: var(--ink-soft);
+  display: inline-block;
+  font-family: var(--font-ui);
   font-size: 0.9375rem;
-  margin: 0;
-  max-width: var(--measure);
+  margin: -0.75rem 0;
+  padding: 0.75rem 0;
+}
+
+.delete:hover {
+  color: var(--degraded);
 }

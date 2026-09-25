@@ -209,9 +209,18 @@ test.describe('accessibility behind an account', () => {
     expect(await violations(page)).toEqual([]);
   });
 
-  test('the account deletion screen has no WCAG A or AA violation @identity', async ({ page }) => {
+  // The account's two pages since issue #161: the overview the account link opens, and the
+  // deletion screen one link beyond it, which is where the form is.
+  test('the account’s overview has no WCAG A or AA violation @identity', async ({ page }) => {
     await page.goto('/login?redirect=%2Faccount');
     await signIn(page, READER, /\/account(\?|$)/);
+    await settle(page);
+    expect(await violations(page)).toEqual([]);
+  });
+
+  test('the account deletion screen has no WCAG A or AA violation @identity', async ({ page }) => {
+    await page.goto('/login?redirect=%2Faccount%2Fdelete');
+    await signIn(page, READER, /\/account\/delete(\?|$)/);
     await settle(page);
     expect(await violations(page)).toEqual([]);
   });
