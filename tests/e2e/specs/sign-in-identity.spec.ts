@@ -237,7 +237,7 @@ test.describe('a reader with an account reaches the page the gate was keeping', 
     await expect(page.locator('form[action="/api/auth/login"]')).toHaveCount(1);
 
     await page.goto('/login?error=token-rejected');
-    await expect(page.getByRole('main')).toContainText('configuration fault');
+    await expect(page.getByRole('main')).toContainText('how this site is set up');
     await expect(
       page.locator('form[action="/api/auth/login"]'),
       'a retry that cannot work was offered anyway',

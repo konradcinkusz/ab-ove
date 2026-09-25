@@ -90,6 +90,15 @@ export interface KeyEntry {
  *
  * The last two are the ones a reader would otherwise have to discover afterwards, which
  * is the worst moment to discover either.
+ *
+ * IN THE READER'S WORDS SINCE ISSUE #162, with the reasoning kept here and in ADR-0021.
+ * `cannotReach` said "no row of it knows it was yours" and "folded into a rate", which is
+ * the schema describing itself; it now says what the consent says (#153) — what is counted,
+ * and that nothing can tell which counts came from you. `notImmediate` ended on why the
+ * retention period is not named, that a number copied out of authservice "would be a figure
+ * nothing here could check". That is ADR-0021's reason for not naming it, and the screen
+ * says what it means for the reader: the period exists, the identity service sets it, and
+ * ab-ovo is not told how long it is.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 interface DeleteAccountStrings {
@@ -306,7 +315,12 @@ interface Strings {
    * ────────────────────────────────────────────────────────────────────────────────────
    */
   readonly courses: string;
-  /** One sentence on what a course is here, under the courses page's heading. */
+  /**
+   * One sentence on what a course is here, under the courses page's heading, and on what
+   * opening one does in the reader's terms: the programs page then shows that course's
+   * programs alone. It said opening one "narrows the index", which is this file's word for
+   * the mechanism and not a reader's (issue #162).
+   */
   readonly coursesLead: string;
   /**
    * The way back from a narrowed index to the one that shows every course, because a
@@ -395,7 +409,12 @@ interface Strings {
   readonly matchesBook: string;
   /** Under a locked line, saying why it cannot be edited. */
   readonly writtenBefore: string;
-  /** Beside a sheet written against an earlier edition of the book. */
+  /**
+   * Beside a sheet written for an earlier version of the book, where a frame's number may
+   * now name a different question (`lib/sheet/store.ts`). It says *version*: on a screen,
+   * *edition* is the language and nothing else (issue #162), and `chrome.test.ts` holds it
+   * to that. The key keeps the name it had before the rule.
+   */
   readonly earlierEdition: string;
   /** The foot control, first press. */
   readonly clearAnswer: string;
@@ -511,7 +530,11 @@ interface Strings {
   readonly frameRange: (last: number) => string;
   readonly summaryHeading: string;
   readonly canYouHeading: string;
-  /** Honest, for now: schema v1 carries no Test exercises or Further problems to show. */
+  /**
+   * Honest, for now: schema v1 carries no Test exercises or Further problems to show. It
+   * says they are not available here yet, and no longer that they are "not in this edition
+   * of the app": an edition is a language (issue #162).
+   */
   readonly exercisesNotYet: string;
   readonly nextProgramLabel: string;
   /** Its mirror, on the contents page's foot: the program before this one. */
@@ -658,10 +681,10 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         'This browser keeps its own copy of where you are in the book, and you can carry on reading with no account at all. If you want that cleared too, use \u2018Forget where I am\u2019 on the programs page \u2014 a separate control, because it is a separate thing.',
       cannotReachTitle: 'What this cannot reach',
       cannotReach:
-        'The instrument measures how a frame does, never how a reader does: an outcome carries no reader on it, so no row of it knows it was yours and no deletion can find one. That is deliberate \u2014 it is what makes a rate safe to publish \u2014 and the price is that a contribution already folded into a rate cannot be taken back out.',
+        'ab-ovo measures the book, never the reader: nothing it counts has your name on it, or your account, or even a code standing in for you, so nothing can tell which counts came from you, and no deletion can find them. That is deliberate \u2014 it is what makes the counts safe to publish \u2014 and it means that what was already counted cannot be taken back out.',
       notImmediateTitle: 'The account is not erased on the spot',
       notImmediate:
-        'The identity service marks it deleted, revokes the tokens that would refresh your session, and schedules the permanent erasure for the end of its retention period. You will not be able to sign in during that time. ab-ovo is not told how long the period is \u2014 that is the identity service\u2019s to state, and copying a number out of it would be a figure nothing here could check.',
+        'The identity service marks it deleted at once, keeps it for a period it sets itself, and then erases it for good. You will not be able to sign in during that time. ab-ovo is not told how long the period is, so this page cannot say.',
       confirmWord: 'DELETE',
       confirmLabel: (word) => `Type ${word} to confirm`,
       passwordLabel: 'Your password',
@@ -696,7 +719,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     about: 'About ab-ovo',
     courses: 'Courses',
     coursesLead:
-      'Every course ab-ovo carries, each one a sequence of programs worked a frame at a time. Opening one narrows the index to it; the index shows them all until you do.',
+      'Every course ab-ovo offers, each a sequence of programs worked through a frame at a time. Open one to see only its programs; until you do, the Programs page lists the programs of every course.',
     allCourses: 'All courses',
     onlyThisCourse: 'Only this course',
     themeLabel: 'Theme',
@@ -716,7 +739,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     youWrote: 'You wrote',
     matchesBook: 'Matches the book',
     writtenBefore: 'written before the reveal',
-    earlierEdition: 'written against an earlier edition',
+    earlierEdition: 'written for an earlier version of this frame',
     clearAnswer: 'Clear my answer',
     clearAnswerConfirm: 'Clear it',
     working: 'Work it out',
@@ -766,7 +789,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     summaryHeading: 'Summary',
     canYouHeading: 'Can you?',
     exercisesNotYet:
-      'The Test exercises and Further problems for this program are not in this edition of the app yet.',
+      'The Test exercises and Further problems for this program are not available here yet.',
     nextProgramLabel: 'Next program',
     previousProgramLabel: 'Previous program',
     groupLabels: { F: 'Foundation', P: 'Main sequence' },
@@ -834,10 +857,10 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         'Ta przegl\u0105darka zachowuje w\u0142asn\u0105 kopi\u0119 tego, gdzie jeste\u015b w ksi\u0105\u017cce, i mo\u017cesz czyta\u0107 dalej bez konta. Je\u015bli chcesz wyczy\u015bci\u0107 tak\u017ce j\u0105, u\u017cyj \u201eZapomnij, gdzie jestem\u201d na stronie program\u00f3w \u2014 to osobny przycisk, bo to osobna rzecz.',
       cannotReachTitle: 'Czego to nie dosi\u0119gnie',
       cannotReach:
-        'Instrument mierzy, jak radzi sobie ramka, nigdy jak radzi sobie czytelnik: wynik nie niesie ze sob\u0105 \u017cadnego czytelnika, wi\u0119c \u017caden jego wiersz nie wie, \u017ce by\u0142 tw\u00f3j, i \u017cadne usuni\u0119cie go nie znajdzie. Tak to zaprojektowano \u2014 dzi\u0119ki temu wska\u017anik mo\u017cna bezpiecznie publikowa\u0107 \u2014 a cen\u0105 jest to, \u017ce wk\u0142adu wliczonego ju\u017c do wska\u017anika nie da si\u0119 z niego wycofa\u0107.',
+        'ab-ovo mierzy ksi\u0105\u017ck\u0119, nigdy czytelnika: w tym, co liczy, nie ma twojego imienia, konta ani nawet kodu, kt\u00f3ry by ci\u0119 zast\u0119powa\u0142, wi\u0119c nic nie wie, kt\u00f3re liczby pochodz\u0105 od ciebie, i \u017cadne usuni\u0119cie ich nie znajdzie. Tak to zaprojektowano \u2014 dzi\u0119ki temu te liczby mo\u017cna bezpiecznie publikowa\u0107 \u2014 a skutek jest taki, \u017ce tego, co ju\u017c policzono, nie da si\u0119 z nich wycofa\u0107.',
       notImmediateTitle: 'Konto nie znika od razu',
       notImmediate:
-        'Serwis to\u017csamo\u015bci oznacza je jako usuni\u0119te, uniewa\u017cnia tokeny, kt\u00f3re odnawia\u0142yby sesj\u0119, i planuje trwa\u0142e usuni\u0119cie na koniec swojego okresu przechowywania. Przez ten czas si\u0119 nie zalogujesz. ab-ovo nie wie, jak d\u0142ugo trwa ten okres \u2014 to informacja po stronie serwisu to\u017csamo\u015bci, a przepisanie st\u0105d liczby by\u0142oby podaniem warto\u015bci, kt\u00f3rej nic tutaj nie mo\u017ce sprawdzi\u0107.',
+        'Serwis to\u017csamo\u015bci od razu oznacza je jako usuni\u0119te, przechowuje je przez okres, kt\u00f3ry sam ustala, a potem trwale je wymazuje. Przez ten czas si\u0119 nie zalogujesz. ab-ovo nie wie, jak d\u0142ugo trwa ten okres, wi\u0119c ta strona nie mo\u017ce tego poda\u0107.',
       confirmWord: 'USU\u0143',
       confirmLabel: (word) => `Wpisz ${word}, aby potwierdzi\u0107`,
       passwordLabel: 'Twoje has\u0142o',
@@ -876,7 +899,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     about: 'O ab-ovo',
     courses: 'Kursy',
     coursesLead:
-      'Wszystkie kursy, kt\u00f3re niesie ab-ovo \u2014 ka\u017cdy to ci\u0105g program\u00f3w przerabianych ramka po ramce. Otwarcie jednego zaw\u0119\u017ca do niego spis; dop\u00f3ki tego nie zrobisz, spis pokazuje wszystkie.',
+      'Wszystkie kursy dost\u0119pne w ab-ovo \u2014 ka\u017cdy to ci\u0105g program\u00f3w przerabianych ramka po ramce. Otw\u00f3rz kurs, a zobaczysz tylko jego programy; dop\u00f3ki tego nie zrobisz, strona z programami pokazuje programy wszystkich kurs\u00f3w.',
     allCourses: 'Wszystkie kursy',
     onlyThisCourse: 'Tylko ten kurs',
     // `Tryb` rather than `Motyw`: docs/SCREENSHOTS.pl.md already calls this
@@ -915,7 +938,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     youWrote: 'Twoja odpowiedź',
     matchesBook: 'Tak jak w książce',
     writtenBefore: 'zapisane przed odsłonięciem',
-    earlierEdition: 'zapisane przy wcześniejszym wydaniu',
+    earlierEdition: 'zapisane przy wcześniejszej wersji tej ramki',
     clearAnswer: 'Wyczyść moją odpowiedź',
     clearAnswerConfirm: 'Wyczyść',
     working: 'Policz to',
@@ -979,7 +1002,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     summaryHeading: 'Podsumowanie',
     canYouHeading: 'Czy potrafisz?',
     exercisesNotYet:
-      'Zadania testowe i Dalsze zadania tego programu nie są jeszcze w tej wersji aplikacji.',
+      'Zadania testowe i Dalsze zadania tego programu nie są tu jeszcze dostępne.',
     nextProgramLabel: 'Następny program',
     previousProgramLabel: 'Poprzedni program',
     groupLabels: { F: 'Podstawy', P: 'Część główna' },

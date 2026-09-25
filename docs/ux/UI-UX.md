@@ -58,9 +58,11 @@ the index. The content layer calls a course a *track*, which is the word in the 
 **An address that is not a page gets a page of this product's.** `app/not-found.tsx` and
 `app/error.tsx` stand behind the two statuses the routes already answer: a frame number
 past the end of a program, a program the book does not have or an edition it is not
-published in is a 404 with the wordmark, one sentence about the shape of a right address
-and the filled way back to the programs. A frame whose content API did not answer — the
-usual 500 since [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+published in is a 404 with the wordmark, one sentence on reaching a program's contents from
+a frame's address — in words, since it printed the placeholder `<track>` no screen says
+(issue #162) — and the filled way back to the programs. A frame whose content API did not
+answer — the usual 500 since
+[ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
 — says exactly that: the book's server did not answer, nothing written is lost and neither
 is the place in the book, try again in a moment. Its *Try again* asks the server again and
 brings the frame back into the same page once it answers, and its way back is the program's
@@ -238,11 +240,15 @@ the order IS the argument:
    promise here, and `specs/landing.spec.ts` keeps the two negative assertions on `/`,
    which is the page a leaderboard would actually appear on.
 3. **The loop** — the four steps, numbered.
-4. **What it needs from you** — that reading needs no account, and what an account does buy.
-   What it says about a server is 420's to correct in [the order](#the-order): the page was
-   written when frames needed no backend, and ADR-0060 made every frame need the API.
+4. **What it needs from you** — that reading needs no account but does need this site's book
+   server, the two halves of ADR-0060 said as two (#142), and what an account does buy.
 5. **Which edition you read** — that the choice is the reader's and that nothing is guessed.
-6. **Where the work is** — the four phases, named.
+6. **The computer exercises** — that the book's Python exercises run in the browser and are
+   offered after a program that has them, never beside a frame (ADR-0040). This was *Where
+   the work is*, a roadmap of the four phases this document still ranks its backlog by: the
+   order the product was built in, which a reader can do nothing with. Issue #162 kept the
+   one fact in it a reader can use, and took the ADR numbers out of the page's sentences —
+   the records are cited in its comments, where the reasoning lives.
 7. **The integration report** — the one live thing on the page, deliberately last. It is the
    only component in this app that reads `/api/config`, which is why the runtime-config
    acceptance spec drives this page rather than `/`.
@@ -268,6 +274,17 @@ It still branches on whether an identity service is configured at all, and says 
 rather than offering a button that cannot work (P8) — a deployment with no identity service is
 a supported configuration, not a broken one.
 
+**It speaks to the reader, not to whoever runs it** (issue #162). Its heading said *Signing in
+is optional*, its form asked for the password registered "with the identity service this
+deployment is configured against", a "What happened" section told a reader who had simply
+pressed *Sign in* that "no destination was carried into this page", and a refused token was
+explained by "the issuer or audience this app expects". The heading now says what signing in
+is for, a site with no identity service says it has no accounts, and a fault in the setup is
+called that, with the mechanism kept in `lib/sign-in-problem.ts`. `/login/2fa` and
+`/register` had the same sentences and were rewritten with it, and so were
+`lib/registration-problem.ts`'s. They are still English only; 660 in
+[the order](#the-order) moves them into `chrome.ts`.
+
 **It says what stands at the address it was handed**, because the gate cannot. The middleware
 is private by default, so a mistyped `/nope` is redirected here exactly as `/account` is, and
 until issue #140 the page told that reader they had asked for "one of the few pages that needs
@@ -280,7 +297,10 @@ question to one answer — and one more, `PRIVATE_PAGES`, the pages the gate clo
   address's shape, not to the content: `/instrument/wrong-track/P99` has the shape of a page
   the gate closes, and is told so;
 - **an address the gate opens** is one the reader chose to sign in from — every *Sign in* link
-  carries where the reader was — and is carried as before;
+  carries where the reader was — and is carried as before. The page says it will take them
+  *back to where they were* and offers that as its way out, rather than printing the path; it
+  used to call the index "one of the few pages that needs to know who you are", on the most
+  travelled way onto this page (issue #162);
 - **an address the gate closes with no page behind it** gets *There is no page at this
   address*, the address itself, the filled way to the programs and — where an identity
   service is configured — a fresh sign-in with no destination attached. No form: signing in

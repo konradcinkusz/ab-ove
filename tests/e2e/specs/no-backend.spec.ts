@@ -118,9 +118,10 @@ test.describe('no backend', () => {
     await expect(
       page.getByRole('heading', { name: 'What it needs from you', level: 2 }),
     ).toBeVisible();
+    // Where the four phases were until issue #162 took the roadmap off a reader's screen.
     await expect(
-      page.getByRole('list').filter({ hasText: 'Phase 1' }).getByRole('listitem'),
-    ).toHaveCount(4);
+      page.getByRole('heading', { name: 'The computer exercises', level: 2 }),
+    ).toBeVisible();
 
     // 2. The panel is legible about it rather than silent or stuck. A spinner that never
     //    resolves is the common failure here and it reads as a slow page, not a broken one.

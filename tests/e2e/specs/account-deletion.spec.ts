@@ -69,8 +69,11 @@ test.describe('what a deletion cannot reach is on the page, in the reader’s la
   test('in English @core', async ({ page }) => {
     await page.goto('/account/deleted');
 
+    // The same property in the reader's words since issue #162, which are the consent's
+    // (#153): what is counted, and that nothing can tell which counts came from them. It
+    // said "no row of it" and "folded into a rate", which is the schema describing itself.
     const main = page.locator('main');
-    await expect(main).toContainText('no row of it knows it was yours');
+    await expect(main).toContainText('nothing can tell which counts came from you');
     await expect(main).toContainText('cannot be taken back out');
     // What survives, which a reader is as entitled to know as what does not.
     await expect(main).toContainText('This browser keeps its own copy');
@@ -81,7 +84,7 @@ test.describe('what a deletion cannot reach is on the page, in the reader’s la
 
     const main = page.locator('main');
     await expect(main).toHaveAttribute('lang', 'pl');
-    await expect(main).toContainText('żaden jego wiersz nie wie');
+    await expect(main).toContainText('nic nie wie, które liczby pochodzą od ciebie');
   });
 
   test('an unknown language falls back rather than failing @core', async ({ page }) => {
@@ -89,7 +92,7 @@ test.describe('what a deletion cannot reach is on the page, in the reader’s la
     // has no words for gets English chrome, never `undefined` rendered into a paragraph.
     await page.goto('/account/deleted?lang=xx-nonsense');
     await expect(page.locator('main')).toHaveAttribute('lang', 'en');
-    await expect(page.locator('main')).toContainText('no row of it knows it was yours');
+    await expect(page.locator('main')).toContainText('nothing can tell which counts came from you');
   });
 });
 

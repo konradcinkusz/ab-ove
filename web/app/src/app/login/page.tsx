@@ -47,6 +47,29 @@ import styles from '../credentials-form.module.css';
  * The gate itself is untouched by this: the typo still meets the sign-in redirect. What
  * changed is only what the sign-in page says when it gets there.
  * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * IT SAYS WHAT A READER NEEDS TO KNOW, AND THE REASONING STAYS HERE (issue #162).
+ *
+ * The heading read "Signing in is optional", which answers a question nobody on this page
+ * asked; it says what signing in is for now. The form asked for the password registered
+ * "with the identity service this deployment is configured against", and a site with no
+ * identity service described itself as a deployment "configured" without one — the
+ * operator's sentences, both. And a "What happened" section spoke to every visitor: "no
+ * destination was carried into this page" to a reader who had simply pressed *Sign in*, and
+ * "something asked for an account before showing you" a page that never asks.
+ *
+ * So the destination is named once, by what `destinationAt` says stands there:
+ *
+ *   'private-page'  the sentence it always had, now in every state of the page: it is the
+ *                   one destination that is a reason to sign in rather than a choice to;
+ *   'open'          the page the reader pressed *Sign in* on — the index's link carries
+ *                   `/?lang=…`, a frame's carries the frame — which signing in returns them
+ *                   to, and which is the way back if they change their mind. It is called
+ *                   "where you were" rather than printed: a path is the URL's spelling of a
+ *                   place, and the reader already knows the place;
+ *   none            nothing to say, so nothing is said.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  */
 
 export const dynamic = 'force-dynamic';
@@ -69,10 +92,14 @@ export default async function LoginPage({
    */
   const identityConfigured = backendConfigured('authservice');
 
+  // What stands at the address, asked once, of the gate's own lists (`lib/page-gate.ts`).
+  const destination =
+    intended === null ? null : { address: intended, kind: destinationAt(intended) };
+
   // Issue #140 — see the header. The address is never carried any further when no page
   // answers it: not into the form, not onward to `/register`.
-  if (intended !== null && destinationAt(intended) === 'no-page') {
-    return <NoPageAt address={intended} identityConfigured={identityConfigured} />;
+  if (destination?.kind === 'no-page') {
+    return <NoPageAt address={destination.address} identityConfigured={identityConfigured} />;
   }
 
   // Validated against a closed set, never rendered from the URL. See sign-in-problem.ts:
@@ -104,11 +131,21 @@ export default async function LoginPage({
         <p className="wordmark">
           ab<span>-</span>ovo
         </p>
-        <h1 className="lede" id={SKIP_TARGET_ID}>Signing in is optional.</h1>
+        {/*
+          What signing in is for, and then that reading does not need it (issue #162). The
+          heading was "Signing in is optional", which is the second half on its own. It
+          states rather than invites, so it stays true on a site with no identity service,
+          where the section below says there is nothing to sign in to. "This browser
+          remembers" is the reader's view of ADR-0061's cookie: the place is on the server,
+          and this browser is what it is kept under.
+        */}
+        <h1 className="lede" id={SKIP_TARGET_ID}>
+          Signing in keeps your place across devices.
+        </h1>
         <p className="standfirst">
-          Almost nothing in ab-ovo needs an account: the frames and the lab run without one,
-          and your place in a program is already kept on this device. An account exists to
-          carry that between machines, and for nothing else.
+          You do not need an account to read: every frame and the lab work without one, and
+          this browser already remembers where you are. An account carries your place to your
+          other devices, and that is what it is for.
         </p>
       </header>
 
@@ -121,6 +158,19 @@ export default async function LoginPage({
 
       <section className="section">
         <h2>Sign in</h2>
+        {/*
+          A private page is named whatever else the page says, because it is the one reason
+          for being here that the reader did not choose — the true half of what "What
+          happened" used to say about every destination (issue #162). Where signing in would
+          take them there, the sentence says so.
+        */}
+        {destination?.kind === 'private-page' ? (
+          <p>
+            You asked for <code>{destination.address}</code>, which is one of the few pages
+            that needs to know who you are.
+            {offersForm ? ' Sign in and you will be taken straight there.' : null}
+          </p>
+        ) : null}
         {identityConfigured && !offersForm ? (
           /*
             The form is withdrawn, and the sentence says why in general terms because the
@@ -136,19 +186,11 @@ export default async function LoginPage({
           </p>
         ) : identityConfigured ? (
           <>
-            <p>
-              {intended ? (
-                <>
-                  You asked for <code>{intended}</code>, which is one of the few pages that
-                  needs to know who you are. Sign in and you will be taken straight there.
-                </>
-              ) : (
-                <>
-                  Use the email address and password you registered with the identity service
-                  this deployment is configured against.
-                </>
-              )}
-            </p>
+            {destination === null ? (
+              <p>Use the email address and password you created your account with.</p>
+            ) : destination.kind === 'open' ? (
+              <p>Sign in and you will be taken back to where you were.</p>
+            ) : null}
             {/*
               method="post" and a real action, so this works with no JavaScript. The route
               answers a form post with a 303, which the browser follows as a GET — a reload
@@ -212,39 +254,33 @@ export default async function LoginPage({
             <p>
               No account yet? <Link href={registerHref}>Create one</Link> — it takes an email
               address and a password, and it is only needed to carry your place between
-              machines.
+              devices.
             </p>
           </>
         ) : (
-          <p>
-            This deployment has no identity service configured, which is a normal way to run
-            ab-ovo. Everything except progress that follows you between machines works
-            without one, and there is nothing here to sign in to.
-          </p>
+          /*
+            P8 — a deployment with no identity service is a supported state, and what that
+            means to a reader is that there are no accounts here. It said "this deployment
+            has no identity service configured, which is a normal way to run ab-ovo", which
+            is true and is said to the operator (issue #162). That reading is unaffected is
+            the standfirst's to say, and it already has.
+          */
+          <p>This site has no accounts, so there is nothing to sign in to.</p>
         )}
       </section>
 
-      <section className="section">
-        <h2>What happened</h2>
-        <p>
-          {intended ? (
-            <>
-              Something asked for an account before showing you <code>{intended}</code>. That
-              is unusual — the frames, the contents and the lab are all reachable without
-              one.
-            </>
-          ) : (
-            <>
-              No destination was carried into this page, so nothing is waiting on the other
-              side of a sign-in. Go back and carry on reading.
-            </>
-          )}
-        </p>
-      </section>
-
+      {/*
+        The way out. For a reader who pressed *Sign in* on a page, it is that page — the
+        address the gate would have opened anyway, and already validated as same-origin by
+        `safeRedirectTarget` — so changing their mind costs one press (issue #162).
+      */}
       <footer className="colophon">
         <p>
-          <Link href="/">Back to the reader</Link>
+          {destination?.kind === 'open' ? (
+            <Link href={destination.address}>Back to where you were</Link>
+          ) : (
+            <Link href="/">Back to the reader</Link>
+          )}
         </p>
       </footer>
     </main>
@@ -300,7 +336,7 @@ function NoPageAt({
           missing. The programs, the frames and the lab need no account at all.
           {identityConfigured
             ? null
-            : ' This deployment has no identity service configured, so there is nothing to sign in to either.'}
+            : ' And this site has no accounts, so there is nothing here to sign in to.'}
         </p>
       </section>
     </main>

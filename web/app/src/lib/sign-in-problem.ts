@@ -125,22 +125,39 @@ export const SIGN_IN_PROBLEMS = {
       'This is our side, not yours. Reading and the lab do not need an account and are unaffected; try signing in again in a few minutes.',
     retryable: false,
   },
+  /**
+   * THE MECHANISM IS HERE, AND THE SCREEN SAYS WHAT IT MEANS (issue #162).
+   *
+   * The identity service accepted the password and issued a token this deployment then
+   * refused: the issuer or audience this app expects does not match the one signing the
+   * token. That is a configuration fault, no password gets past it, and it needs an operator
+   * — all of which the detail used to say, in those words. What a reader can use of it is
+   * whose fault it is and that trying again will not help, so that is what it says now.
+   */
   'token-rejected': {
-    title: 'Sign-in succeeded and the session could not be established.',
+    title: 'Your password was accepted, but this site could not sign you in.',
     detail:
-      'The identity service accepted the password and issued a token this deployment then refused. That is a configuration fault — the issuer or audience this app expects does not match the one signing the token — and no password will get past it. It needs an operator.',
+      'The fault is in how this site is set up, not in anything you typed, and trying again will not get past it until it is fixed. Reading needs no account and is unaffected.',
     retryable: false,
   },
+  /**
+   * A token was issued and the key set that would verify it could not be reached — the
+   * sign-in is not refused, it is unconfirmed. Said without the token since issue #162.
+   */
   unverifiable: {
-    title: 'The session could not be verified.',
+    title: 'Your sign-in could not be confirmed.',
     detail:
-      'The identity service issued a token and then could not be reached to confirm it. The password was almost certainly right; try again shortly.',
+      'Your password was accepted, and then the identity service could not be reached to confirm the sign-in. The password was almost certainly right; try again shortly.',
     retryable: false,
   },
+  /**
+   * P8 — a deployment with no identity service is a supported state, and "this deployment"
+   * is the operator's name for it. To a reader it is a site with no accounts (issue #162).
+   */
   'not-configured': {
-    title: 'This deployment has no identity service.',
+    title: 'This site has no accounts.',
     detail:
-      'Running ab-ovo without one is normal: the frames and the lab need no account, and only progress that follows you between machines does.',
+      'There is nothing to sign in to, and nothing else needs an account: the frames and the lab work without one.',
     retryable: false,
   },
 } as const satisfies Record<string, SignInProblem>;

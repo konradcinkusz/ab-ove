@@ -26,14 +26,16 @@
  * THE BUNDLE TAG IS IN THE RECORD AND NOT IN THE KEY, and that is a measured choice.
  *
  * Frame numbers move between book releases: a frame inserted into F01 §3 shifts everything
- * after it, so a worksheet written against frame 12 of one edition is about a different
+ * after it, so a worksheet written against frame 12 of one release is about a different
  * question in the next. The tag has to be stored so a stale sheet can be recognised.
  *
  * Putting it in the KEY would recognise it by orphaning it. The interim pin is
  * `dev-<sha12>` (see `@ab-ovo/web-kit`'s `bundle.ts`), so a typo fix in P30 changes the tag for
  * every program — and every reader's notes in all 47 would silently become unreachable
  * while still occupying storage. In the record, a stale sheet is SHOWN with a quiet line
- * saying which edition it was written against, and the reader decides. `lib/progress`'s
+ * saying it was written for an earlier version — `earlierEdition` in `chrome.ts`, which
+ * says *version* because *edition* on a screen is the language (issue #162) — and the
+ * reader decides. `lib/progress`'s
  * own choice is the precedent: it clamps a position into a shortened program rather than
  * dropping it.
  * ──────────────────────────────────────────────────────────────────────────────────────

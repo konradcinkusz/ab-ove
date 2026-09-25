@@ -81,9 +81,12 @@ test.describe('a page that does need an account', () => {
     await page.goto('/account');
     await expect(page).toHaveURL(/\/login\?redirect=%2Faccount$/);
 
-    // Today's words, in the half of the page both deployments render.
+    // The half of the sentence both deployments render. It used to be a "What happened"
+    // section that called every destination "something" that had "asked for an account";
+    // issue #162 kept the one sentence that was true, and says it wherever the page names
+    // a private page.
     await expect(page.getByRole('main')).toContainText(
-      'Something asked for an account before showing you /account',
+      `You asked for /account, which is ${NEEDS_AN_ACCOUNT}`,
     );
     expect(await page.locator('main').textContent()).not.toContain(NO_PAGE);
   });
@@ -104,10 +107,28 @@ test.describe('a page that does need an account', () => {
 test.describe('an address the reader chose to sign in from', () => {
   test('is carried as it was, and not called missing @smoke', async ({ page }) => {
     // What the index's own Sign in link carries: `/` in the reader's edition. The gate never
-    // sent anybody here with it, so the page must not treat it as a bounce off a typo.
+    // sent anybody here with it, so the page must not treat it as a bounce off a typo — and
+    // since issue #162 it is the page's way back, in words, rather than a path in the text.
     await page.goto('/login?redirect=%2F%3Flang%3Dpl');
 
-    await expect(page.getByRole('main')).toContainText('/?lang=pl');
+    await expect(
+      page.getByRole('main').getByRole('link', { name: 'Back to where you were' }),
+    ).toHaveAttribute('href', '/?lang=pl');
     expect(await page.locator('main').textContent()).not.toContain(NO_PAGE);
+  });
+
+  test('is where signing in returns the reader, and is not called a page that needs an account @identity', async ({
+    page,
+  }) => {
+    // The most travelled way onto this page: the index's own *Sign in*. Until issue #162
+    // the form told this reader that `/?lang=pl` was "one of the few pages that needs to
+    // know who you are" — the sentence issue #140 took off a typo, still said of the index.
+    await page.goto('/login?redirect=%2F%3Flang%3Dpl');
+
+    await expect(page.getByRole('main')).toContainText(
+      'Sign in and you will be taken back to where you were.',
+    );
+    await expect(page.locator('input[name="redirect"]')).toHaveValue('/?lang=pl');
+    expect(await page.locator('main').textContent()).not.toContain(NEEDS_AN_ACCOUNT);
   });
 });
