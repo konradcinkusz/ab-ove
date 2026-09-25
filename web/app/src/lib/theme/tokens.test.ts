@@ -4,6 +4,8 @@ import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
+import { PAPER } from './paper.ts';
+
 /**
  * THE DARK PALETTE IS IN `globals.css` TWICE, SO SOMETHING OTHER THAN ATTENTION HAS TO HOLD
  * THE TWO COPIES TOGETHER.
@@ -133,6 +135,63 @@ test('the system block still stands aside for a reader who asked for light', () 
     stylesheet.includes(SYSTEM_DARK),
     'the dark media query no longer excludes a reader who chose light',
   );
+});
+
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * THE TWO PLACES A TOKEN HAS TO BE WRITTEN OUT AS A LITERAL — issue #150.
+ *
+ * The browser's own furniture (`theme-color`, from `paper.ts`) and the tab's icon
+ * (`app/icon.svg`) are painted by the browser outside this stylesheet, so neither can say
+ * `var(--paper)` or `var(--ink)`. Each is therefore a copy, and a copy drifts silently: warm
+ * the paper by two points and the address bar is a different colour from the page under it,
+ * with nothing red anywhere. These hold the copies to the tokens, in both schemes.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
+const APP = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'app');
+const BRAND = join(APP, '..', '..', '..', '..', 'docs', 'assets', 'brand', 'ab-ovo-logo.svg');
+const icon = readFileSync(join(APP, 'icon.svg'), 'utf8');
+
+/** Every `#rrggbb` in a piece of text, lower-cased, as a set. */
+const coloursIn = (text: string): Set<string> =>
+  new Set([...text.matchAll(/#[0-9a-f]{6}\b/gi)].map((match) => match[0].toLowerCase()));
+
+test('theme-color is the paper, in both schemes', () => {
+  assert.equal(PAPER.light, block(LIGHT)['--paper'], 'theme-color for a light machine is not --paper');
+  assert.equal(PAPER.dark, block(CHOSEN_DARK)['--paper'], 'theme-color for a dark machine is not --paper');
+});
+
+test('the tab’s icon is drawn in the ink and the accent, in both schemes', () => {
+  // The icon's light rules come before its media query and its dark rules inside it — the
+  // file's own shape (`app/icon.svg`), and asserted here rather than assumed.
+  const style = /<style>([\s\S]*?)<\/style>/.exec(icon)?.[1];
+  assert.ok(style, 'app/icon.svg has no style element, so it can no longer follow the scheme');
+  const split = style.indexOf('@media (prefers-color-scheme: dark)');
+  assert.notEqual(split, -1, 'app/icon.svg no longer switches for a dark machine');
+
+  for (const [scheme, text, selector] of [
+    ['light', style.slice(0, split), LIGHT],
+    ['dark', style.slice(split), CHOSEN_DARK],
+  ] as const) {
+    const tokens = { ...block(LIGHT), ...block(selector) };
+    assert.deepEqual(
+      coloursIn(text),
+      new Set([tokens['--ink'], tokens['--accent']]),
+      `the icon's ${scheme} colours are not --ink and --accent`,
+    );
+  }
+});
+
+test('the tab’s icon is the brand’s mark, not a redrawing of it', () => {
+  // Every path the icon draws is a path of the README's lockup, character for character. A
+  // mark redrawn for the tab is a second logo, and nothing would say so.
+  const paths = (svg: string): string[] => [...svg.matchAll(/\sd="([^"]+)"/g)].map((match) => match[1]!);
+  const mark = paths(icon);
+  assert.ok(mark.length > 0, 'app/icon.svg draws no path at all, so this is asserting nothing');
+  const lockup = new Set(paths(readFileSync(BRAND, 'utf8')));
+  for (const path of mark) {
+    assert.ok(lockup.has(path), `app/icon.svg draws a path the brand mark does not have: ${path}`);
+  }
 });
 
 /*

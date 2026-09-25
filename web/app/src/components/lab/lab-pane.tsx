@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Transcript } from '@/components/lab/transcript';
 import styles from '@/components/lab/lab-pane.module.css';
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { exercisePath, type LabDescriptor } from '@/lib/lab/protocol';
 import { useLabRuntime } from '@/lib/lab/use-lab-runtime';
 
@@ -140,10 +141,11 @@ export function LabPane({
 
   return (
     <main className={styles.page}>
+      <SkipLink language="en" />
       <p className={styles.crumb}>
         <Link href="/lab">lab</Link> / {lab.id}
       </p>
-      <h1 className={styles.title}>
+      <h1 className={styles.title} id={SKIP_TARGET_ID}>
         {lab.program} — {lab.title}
       </h1>
       <p className={styles.subtitle}>

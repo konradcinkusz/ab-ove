@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { FALLBACK_LANGUAGE, chromeFor } from '@/lib/i18n/chrome';
 import { failedReading, isContentUnavailable } from '@/lib/read/render-failure';
 
@@ -29,13 +30,17 @@ export function RenderFailure({ error, retry }: RenderFailureProps): React.JSX.E
 
   return (
     <main className="shell" lang={chrome.language}>
+      {/* #149: the skip link every page carries, in the failed address's edition. */}
+      <SkipLink language={chrome.language} />
       <header className="masthead">
         <p className="wordmark">
           <Link href="/">
             ab<span>-</span>ovo
           </Link>
         </p>
-        <h1 className="lede">{unavailable ? words.unavailableTitle : words.failedTitle}</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>
+          {unavailable ? words.unavailableTitle : words.failedTitle}
+        </h1>
         <p className="standfirst">
           {unavailable ? '' : `${words.failedWhere} `}
           {`${words.nothingLost} ${words.tryLater}`}

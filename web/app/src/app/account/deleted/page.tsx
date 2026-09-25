@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { chromeFor } from '@/lib/i18n/chrome';
 
 /**
@@ -42,11 +43,12 @@ export default async function AccountDeletedPage({
 
   return (
     <main className="shell" lang={chrome.language}>
+      <SkipLink language={chrome.language} />
       <header className="masthead">
         <p className="wordmark">
           ab<span>-</span>ovo
         </p>
-        <h1 className="lede">{strings.doneTitle}</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>{strings.doneTitle}</h1>
       </header>
 
       <section className="section">

@@ -1,0 +1,61 @@
+/*
+ * The skip link — `skip-link.tsx` says what it is for and where it lands.
+ *
+ * HIDDEN THE WAY `controls.module.css`'s `.visuallyHidden` hides a label: clipped to nothing
+ * and out of flow, so it is in the tab order and the accessibility tree and takes no room.
+ * Not `display: none` and not `visibility: hidden`, either of which would take it out of the
+ * tab order too — and then it would be a link nobody could reach.
+ */
+.skip {
+  clip-path: inset(50%);
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/*
+ * AND DRAWN OVER THE PAGE ONCE IT HAS FOCUS, NEVER INTO IT.
+ *
+ * `position: fixed`, at the top corner of the screen, rather than back into flow: arriving in
+ * flow would push the masthead down under a reader who has just pressed Tab, which is the
+ * kind of shift `specs/progress.spec.ts` and `specs/reading.spec.ts` bound. Stacked above
+ * the pinned pager and the sync notice (`reading-foot.module.css`,
+ * `progress-sync.module.css`), so neither can cover it.
+ *
+ * `:focus` and not `:focus-visible`: the link has no other state to be seen in, so whenever it
+ * has focus it has to be on screen, however focus got there.
+ *
+ * The shape is `controls.module.css`'s outlined button, a finger tall (`--control-min`), in
+ * the UI face, and it wears the same two-colour ring — UI-UX.md's "focus is a ring, never a
+ * brightness" — with the transparent outline that Windows' forced colours paints instead.
+ */
+.skip:focus {
+  align-items: center;
+  background: var(--paper-raised);
+  border: 1px solid var(--control-edge);
+  border-radius: var(--radius-control);
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--accent);
+  box-sizing: border-box;
+  clip-path: none;
+  color: var(--accent);
+  display: inline-flex;
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  height: auto;
+  left: 0.75rem;
+  line-height: 1.2;
+  min-height: var(--control-min);
+  outline: 2px solid transparent;
+  overflow: visible;
+  padding: 0.25rem 1rem;
+  position: fixed;
+  top: 0.75rem;
+  width: auto;
+  z-index: 20;
+}

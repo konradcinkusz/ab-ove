@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { backendConfigured } from '@/lib/server/backends';
 import { consentVersions } from '@/lib/server/register';
 import { safeRedirectTarget } from '@/lib/redirect-target';
@@ -90,11 +91,14 @@ export default async function RegisterPage({
 
   return (
     <main className="shell">
+      <SkipLink language="en" />
       <header className="masthead">
         <p className="wordmark">
           ab<span>-</span>ovo
         </p>
-        <h1 className="lede">An account is optional, and this is where one is made.</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>
+          An account is optional, and this is where one is made.
+        </h1>
         <p className="standfirst">
           The frames, the worksheet and the programs all work without one, and your place is
           already kept on this device. An account carries that place between machines. That

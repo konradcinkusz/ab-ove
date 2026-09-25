@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { deletionProblem, deletionProblemMessage } from '@/lib/account-deletion-problem';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { backendConfigured } from '@/lib/server/backends';
@@ -68,11 +69,12 @@ export default async function AccountPage({
 
   return (
     <main className="shell" lang={chrome.language}>
+      <SkipLink language={chrome.language} />
       <header className="masthead">
         <p className="wordmark">
           ab<span>-</span>ovo
         </p>
-        <h1 className="lede">{strings.title}</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>{strings.title}</h1>
       </header>
 
       {problem ? (

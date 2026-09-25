@@ -57,6 +57,7 @@ was first written with.
 | `about.spec.ts` | the argument renders, and states the anti-goal: the instrument measures the book, never the reader |
 | `accessibility.spec.ts` | every screen holds WCAG 2.2 A and AA as far as axe-core can decide — both schemes, each panel open, 360 px, and the forms behind an account |
 | `account-deletion.spec.ts` | closing an account, and everything about it that needs no account |
+| `app-icon.spec.ts` | the tab shows the mark, served by this origin to a reader with no account, and `theme-color` is the paper in each scheme |
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
 | `consent.spec.ts` | being asked once whether outcomes may be counted, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
@@ -87,6 +88,7 @@ was first written with.
 | `second-factor.spec.ts` | signing in to an account that has a second factor |
 | `sign-in-identity.spec.ts` | the signed-in path, against an identity service this suite starts itself |
 | `sign-in.spec.ts` | the sign-in screen, and everything about it that needs no account |
+| `skip-link.spec.ts` | a keyboard reader's first Tab offers a way past the masthead, on every page, in their edition |
 | `sync.spec.ts` | the same reader on a second machine |
 | `targets.spec.ts` | the small controls off the reading screens are a finger's target, at a phone's width and a desktop's, and a press on a control's words lands on it |
 | `theme.spec.ts` | a reader turns on light mode, and it stays on |
@@ -405,7 +407,7 @@ checking.
 - **What a machine cannot decide about accessibility.** `specs/accessibility.spec.ts` covers the
   rules axe-core can decide from the DOM. Whether a name is a good one, whether the focus order
   makes sense and how a screen reader reads the maths are asserted only where a spec asserts
-  them (`reading.spec.ts`, `pager.spec.ts`), and otherwise by a person.
+  them (`reading.spec.ts`, `pager.spec.ts`, `skip-link.spec.ts`), and otherwise by a person.
 - **The MCP transport.** `web/mcp` serves the book to an MCP host; its tests are unit tests in
   that package, run by CI's `pnpm test`, and nothing drives it end to end.
 - **The API's own behaviour.** `/api/v1/info`, `/health`, `/alive`, JWT validation, the

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { backendConfigured } from '@/lib/server/backends';
 import { destinationAt } from '@/lib/page-gate';
 import { safeRedirectTarget } from '@/lib/redirect-target';
@@ -98,11 +99,12 @@ export default async function LoginPage({
 
   return (
     <main className="shell">
+      <SkipLink language="en" />
       <header className="masthead">
         <p className="wordmark">
           ab<span>-</span>ovo
         </p>
-        <h1 className="lede">Signing in is optional.</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>Signing in is optional.</h1>
         <p className="standfirst">
           Almost nothing in ab-ovo needs an account: the frames and the lab run without one,
           and your place in a program is already kept on this device. An account exists to

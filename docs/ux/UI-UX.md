@@ -606,7 +606,12 @@ sans, code in mono, all three from the reader's own system — there is no webfo
 - **Measure `34rem`.** A line length chosen for prose, not for a dashboard. A frame is a
   paragraph or two and it has to be comfortable at length.
 - **Paper, not chrome.** `--paper: #fbfaf8` under `--ink: #12151b`; rules and cards rather
-  than shadows and gradients.
+  than shadows and gradients. The browser's own furniture wears the paper too: `theme-color`
+  is `--paper` for each of the machine's schemes (`app/layout.tsx`'s `viewport`), and the tab
+  carries the mark from `docs/assets/brand/` as `app/icon.svg`, drawn in `--ink` and
+  `--accent` and served from this origin outside the page gate. Both are literals the
+  stylesheet cannot reach, so `lib/theme/tokens.test.ts` holds them to the tokens, and the
+  icon's paths to the brand mark's.
 - **Two semantic colours only** — `--live` green and `--degraded` amber — both with a soft
   companion for backgrounds. They mean *this integration is present* and *this one is
   absent*, and they are not decoration to be borrowed for anything else.
@@ -707,6 +712,14 @@ it. They are listed here rather than left to be rediscovered per screen.
    commitment. A component that shows the next frame's opening, a hint that contains the
    answer, or an exercise check that prints the solution has broken the product, not
    improved it.
+9. **The first thing Tab reaches is a way past the masthead** (WCAG 2.4.1). Every page
+   renders `components/skip/skip-link.tsx` first, in the edition its own controls speak, and
+   puts `SKIP_TARGET_ID` where its content begins: the `<main>` of a reading screen, whose
+   bar is outside it, and the `<h1>` of every other page, whose masthead is inside its
+   `<main>`. The link is hidden until it has focus and is then drawn over the page, so it
+   moves nothing. The root layout cannot render it, because it does not know the edition;
+   a new page that forgets it is a page a keyboard reader tabs through the masthead of
+   (`specs/skip-link.spec.ts`).
 
 ---
 

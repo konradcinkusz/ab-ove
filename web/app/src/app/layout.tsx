@@ -4,6 +4,7 @@ import { LanguageSync } from '@/components/language/language-sync';
 import { ProgressSync } from '@/components/sync/progress-sync';
 import { ThemeFlag } from '@/components/theme/theme-flag';
 import { THEME_BOOT } from '@/lib/theme/boot';
+import { PAPER } from '@/lib/theme/paper';
 
 import './globals.css';
 
@@ -37,11 +38,26 @@ export const metadata: Metadata = {
   // here would be an environment-specific address baked into the image at build time —
   // FRONTEND-BFF.md §2's defect wearing a metadata tag — and the same image is meant to
   // serve dev and production unchanged (Checklist item 2).
+  //
+  // No `icons` either, and that is not an absence (issue #150): `app/icon.svg` is Next's file
+  // convention, so the build links it from every page's head itself, with a content hash in
+  // its address, and serves it from this origin (FRONTEND-BFF.md §1). Naming it here as well
+  // would be a second place for one fact.
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  /*
+    THE BROWSER'S OWN FURNITURE WEARS THE PAPER (issue #150) — one value per scheme, each
+    `globals.css`'s `--paper` for that scheme, held to it by `lib/theme/tokens.test.ts`.
+    `lib/theme/paper.ts` says why it is a literal at all, and why it follows the machine's
+    scheme rather than the reader's switch.
+  */
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: PAPER.light },
+    { media: '(prefers-color-scheme: dark)', color: PAPER.dark },
+  ],
 };
 
 export default function RootLayout({
