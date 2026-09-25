@@ -3,6 +3,8 @@
 ## Status
 
 **Accepted.** Date: 2026-09-19.
+[ADR-0066](0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
+§4 applies this rule to each way the MCP server is distributed (2026-09-25).
 
 ## Context
 

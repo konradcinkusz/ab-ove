@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { say, type Bundle } from '@ab-ovo/web-kit';
 
 import { LanguageChoice } from '@/components/language/language-choice';
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { editionsOffered } from '@/lib/content/chosen-edition';
 import { chromeFor, endonym } from '@/lib/i18n/chrome';
 import { coursesHref, indexHref } from '@/lib/index-href';
@@ -33,10 +34,14 @@ export interface CourseListProps {
  * title, a length and a set of editions, which a row of links cannot say and a reader
  * deciding between two courses needs.
  *
- * IT MAKES NO FETCH AND NEEDS NO BACKEND, like the index it leads to (ADR-0004). Everything
- * here is in the bundles compiled into the app. The route that renders it reads one cookie,
- * this origin's own, which is where the reader's remembered edition lives (ADR-0052) — no
- * request, and nothing this component knows about.
+ * IT MAKES NO FETCH AND CALLS NO API, like the index it leads to. Everything here is in the
+ * bundles compiled into the app, so the page renders with no account and with the API down.
+ * That is today's placement since ADR-0060 rather than the requirement it was under
+ * ADR-0004: every frame is now a live call to `AbOvo.Api`, the pages that list the book have
+ * not moved yet, and `app/page.tsx` says why and where the question of moving them is
+ * decided. The
+ * route that renders it reads one cookie, this origin's own, which is where the reader's
+ * remembered edition lives (ADR-0052) — no request, and nothing this component knows about.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ONE LINK PER COURSE, CARRYING ITS TITLE IN THE READER'S EDITION.
@@ -59,6 +64,8 @@ export function CourseList({ bundles, chosen }: CourseListProps): React.JSX.Elem
 
   return (
     <main className={styles.page} lang={chrome.language}>
+      {/* Past the masthead to the heading, as on the index (issue #149, `skip-link.tsx`). */}
+      <SkipLink language={chrome.language} />
       <header className={styles.top}>
         <p className={styles.wordmark}>
           <Link href={indexHref({ edition: chosen })}>
@@ -96,7 +103,9 @@ export function CourseList({ bundles, chosen }: CourseListProps): React.JSX.Elem
         </div>
       </header>
 
-      <h1 className={styles.heading}>{chrome.courses}</h1>
+      <h1 className={styles.heading} id={SKIP_TARGET_ID}>
+        {chrome.courses}
+      </h1>
       <p className={styles.lead}>{chrome.coursesLead}</p>
 
       <ul className={styles.list}>

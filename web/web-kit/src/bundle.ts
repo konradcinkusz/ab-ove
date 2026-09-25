@@ -24,6 +24,8 @@
  * (`\transcript`'s file-is-absent marker, in the book's own build traps). A developer who
  * has not run the fetch script yet gets a clear instruction to run it — the same
  * requirement `scripts/prepare-lab-assets.mjs` already makes of the lab engine files.
+ * "Once per process" is once per FILE: `bundleFor` finds a path first and parses it only if
+ * no earlier call parsed the same file, whichever way that call found it.
  *
  * `fixtures/book-p01.bundle.json` still exists and is still committed. It is the UNIT-TIER
  * control — `bundle.test.ts` and `validate.test.ts` read it directly, by name, rather than
@@ -32,7 +34,7 @@
  * serves it; the two paths are deliberately not the same code.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 
 import lock from '../../content/book.lock.json' with { type: 'json' };
 
@@ -117,9 +119,23 @@ export function tagFor(track: string): string | undefined {
  * first, so a deployment that finds itself in a fifth shape can say so with one environment
  * variable rather than a code change.
  * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * A CALLER THAT KNOWS WHERE `web/` IS SAYS SO, AND THEN NOTHING IS GUESSED.
+ *
+ * The guesses are for the one consumer that cannot know: `@ab-ovo/app`, for the
+ * `import.meta.url` reason above. `@ab-ovo/mcp` CAN — Node runs its source directly, so its
+ * own `import.meta.url` is its real place on disk — and it NEEDS to, because an MCP host
+ * starts the server from a working directory of the host's choosing; from `/`, every guess
+ * below missed and the server said it had no book while the book sat in the checkout (#136).
+ * So `webDir` replaces the guesses rather than joining them: a guess could still find a
+ * DIFFERENT checkout's bundle under whatever directory the host happened to pick, and
+ * serve it under this checkout's pin. The override still comes first either way.
+ * `@ab-ovo/app` passes no `webDir`, so its candidates are exactly what they were.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  */
-function candidateBundlePaths(destination: string): readonly string[] {
-  const override = process.env.AB_OVO_CONTENT_BUNDLE;
+function candidateBundlePaths(destination: string, webDir: string | undefined): readonly string[] {
+  const override = overrideNow();
   const filename = 'bundle.json';
   // `destination` is `content/bundle`, relative to `web/` — the same string
   // `scripts/fetch-book-content.sh` reads out of `contentBundle.destination` and resolves
@@ -127,6 +143,11 @@ function candidateBundlePaths(destination: string): readonly string[] {
   // lock file's sibling `destination` field: this function has three different notions of
   // where `web/` sits relative to `cwd`, and giving `destination` a fixed relationship to
   // `web/` is what keeps that arithmetic to one `join` per candidate instead of three.
+  if (webDir !== undefined) {
+    return [override, `${webDir}/${destination}/${filename}`].filter(
+      (candidate): candidate is string => Boolean(candidate),
+    );
+  }
   return [
     override,
     // `next dev` / `next build` / a package's own `node --test`, run with cwd = one of
@@ -142,12 +163,52 @@ function candidateBundlePaths(destination: string): readonly string[] {
   ].filter((candidate): candidate is string => Boolean(candidate));
 }
 
-function locateCompiledBundle(destination: string): string | undefined {
-  return candidateBundlePaths(destination).find((path) => existsSync(path));
+function locateCompiledBundle(destination: string, webDir: string | undefined): string | undefined {
+  return candidateBundlePaths(destination, webDir).find((path) => existsSync(path));
 }
 
-/** Parsed and validated once per process. */
-const loaded = new Map<string, Bundle>();
+/**
+ * The environment variable that names the compiled bundle outright — a path to the
+ * `bundle.json` file itself, tried before anything else. Exported so a caller that tells a
+ * person about it names the same variable this module reads.
+ */
+export const CONTENT_BUNDLE_VARIABLE = 'AB_OVO_CONTENT_BUNDLE';
+
+/**
+ * The override as it stands, with an EMPTY value read as unset. A host configuration
+ * template often carries the variable with nothing in it; it names no file, so it is not a
+ * candidate, and a refusal that reported it would tell a person the bundle "is at" nothing.
+ */
+function overrideNow(): string | undefined {
+  return process.env[CONTENT_BUNDLE_VARIABLE] || undefined;
+}
+
+/**
+ * No candidate held the compiled bundle.
+ *
+ * A type of its own, with what was checked on it, so a caller can tell this — nothing to
+ * load — from a bundle that was found and refused, and say which paths it looked at without
+ * parsing a sentence. The message is the sentence it always was.
+ */
+export class BundleNotFound extends Error {
+  /** Every path tried, in order, the override first when it was set. */
+  readonly checked: readonly string[];
+  /** `AB_OVO_CONTENT_BUNDLE` as it stood when the paths were tried; `undefined` when unset or empty. */
+  readonly override: string | undefined;
+
+  constructor(message: string, checked: readonly string[], override: string | undefined) {
+    super(message);
+    this.name = 'BundleNotFound';
+    this.checked = checked;
+    this.override = override;
+  }
+}
+
+/** Parsed and validated once per process, per file — keyed by its real path. */
+const parsed = new Map<string, Bundle>();
+
+/** Which bundle a (pin, `webDir`) pair resolved to, so the disk is asked once for each. */
+const found = new Map<string, Bundle>();
 
 const keyOf = (pin: ContentPin): string => `${pin.track}@${pin.tag}`;
 
@@ -168,27 +229,52 @@ const keyOf = (pin: ContentPin): string => `${pin.track}@${pin.tag}`;
  * does can fix it. Returning `undefined` for either would serve a 404 for a program that
  * exists, which is the same lie the validation branch already refuses, one door over.
  * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * `webDir` is the checkout's `web/` directory, for a caller that knows it; see
+ * `candidateBundlePaths` for who can and why the guesses are then skipped.
  */
-export function bundleFor(track: string): Bundle | undefined {
+export function bundleFor(track: string, webDir?: string): Bundle | undefined {
   const pin = PINS.find((candidate) => candidate.track === track);
   if (!pin || !CONTENT_BUNDLE) return undefined;
 
-  const cached = loaded.get(keyOf(pin));
+  const key = webDir === undefined ? keyOf(pin) : `${keyOf(pin)} from ${webDir}`;
+  const cached = found.get(key);
   if (cached) return cached;
 
-  const path = locateCompiledBundle(CONTENT_BUNDLE.destination);
+  const path = locateCompiledBundle(CONTENT_BUNDLE.destination, webDir);
   if (!path) {
-    throw new Error(
+    const checked = candidateBundlePaths(CONTENT_BUNDLE.destination, webDir);
+    throw new BundleNotFound(
       `no compiled content bundle found for ${keyOf(pin)}. Run ` +
         `\`bash scripts/fetch-book-content.sh\` from the repository root first — it ` +
         `compiles ${CONTENT_BUNDLE.repository}@${CONTENT_BUNDLE.revision.slice(0, 12)} into ` +
         `${CONTENT_BUNDLE.destination}/bundle.json, gitignored like web/content/book/. ` +
-        `Checked: ${candidateBundlePaths(CONTENT_BUNDLE.destination).join(', ')}`,
+        `Checked: ${checked.join(', ')}`,
+      checked,
+      overrideNow(),
     );
   }
 
-  const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
-  const result = validateBundle(parsed);
+  const bundle = parsedAt(path, pin);
+  found.set(key, bundle);
+  return bundle;
+}
+
+/**
+ * The bundle in one file, read and validated the first time that file is asked for.
+ *
+ * Keyed by the REAL path, because two callers can reach one file by two spellings — in
+ * `@ab-ovo/mcp`'s unit tier, `have-bundle.ts`'s `HAVE_REAL_BUNDLE` guesses
+ * `web/mcp/../content/…` at import, the live source then names `web/content/…` — and a 3 MB
+ * book parsed twice in one process is a cost with nothing bought by it.
+ */
+function parsedAt(path: string, pin: ContentPin): Bundle {
+  const real = realpathSync(path);
+  const cached = parsed.get(real);
+  if (cached) return cached;
+
+  const raw: unknown = JSON.parse(readFileSync(real, 'utf8'));
+  const result = validateBundle(raw);
   if (!result.ok) {
     throw new Error(
       `the bundle at ${path} (pinned at ${keyOf(pin)}) does not validate against ` +
@@ -197,7 +283,7 @@ export function bundleFor(track: string): Bundle | undefined {
     );
   }
 
-  loaded.set(keyOf(pin), result.bundle);
+  parsed.set(real, result.bundle);
   return result.bundle;
 }
 
@@ -269,10 +355,12 @@ export function say(text: Readonly<Record<string, string>>, language: string): s
  * index would quietly get shorter and the reader would be told a program does not exist
  * when what happened is that a deployment is broken. Same reasoning as the validate branch
  * above: a reader's typo is a 404, a deployment defect is a 500 with a sentence.
+ *
+ * `webDir` is passed through to `bundleFor`, for the caller that knows where it is.
  */
-export function allBundles(): readonly Bundle[] {
+export function allBundles(webDir?: string): readonly Bundle[] {
   return PINS.map((pin) => {
-    const bundle = bundleFor(pin.track);
+    const bundle = bundleFor(pin.track, webDir);
     if (!bundle) {
       throw new Error(`the pin ${keyOf(pin)} names a track bundleFor() does not serve`);
     }

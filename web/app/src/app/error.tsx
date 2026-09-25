@@ -1,70 +1,62 @@
 'use client';
 
-import Link from 'next/link';
+import { RenderFailure } from '@/components/render-failure';
 
 /**
  * The page behind a render failure.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * A 500 IS A DEPLOYMENT DEFECT, AND THE PAGE SHOULD SAY SO RATHER THAN LOOK BROKEN.
+ * A 500 IS A FAULT ON THIS SIDE, AND THE PAGE SAYS WHICH ONE WHEN IT KNOWS.
  *
- * `bundleFor` used to throw when the pinned, build-time bundle was missing or did not
- * validate; ADR-0060 moved content off that path, and this page now also catches the
- * reading surface's own throw when `AbOvo.Api`'s content endpoints cannot be reached at
- * all (`read/[track]/[unit]/[lang]/[step]/page.tsx`'s `unavailable` outcome) — same
- * reasoning either way: "nothing a reader typed can cause either and nothing a reader does
- * can fix it." This page says whose fault it is, what is NOT lost, and offers the two
- * things a reader can do: try the render again, or go to the programs.
+ * Since ADR-0060 the usual cause is the content API not answering: every frame is a live,
+ * server-side call to `AbOvo.Api`, and the reading page throws when every candidate address
+ * fails (`read/[track]/[unit]/[lang]/[step]/page.tsx`'s `unavailable` outcome). That throw
+ * carries a digest of its own (`lib/read/render-failure.ts`), so this page can say "the
+ * book's server did not answer" for that failure and for no other — any other gets a
+ * sentence saying the fault is on this side and not in the address, which is all the page
+ * can know about it. Either way "nothing a reader typed can cause it and nothing a reader
+ * does can fix it", the line `bundleFor`'s doc comment drew first; what a reader CAN do is
+ * wait, and the page says that nothing is lost by waiting (issue #139).
  *
- * A CLIENT COMPONENT BY REQUIREMENT — `error.tsx` must be one, because it renders after
- * the server-side tree failed — and it is the only one in the app that is not on the
- * reading surface. `error.message` is never rendered: in production Next redacts it to a
- * generic sentence and the `digest` is what an operator greps the log for, so the digest
- * is the one thing worth printing.
+ * The same page catches `/legal/<document>/<version>`'s throw when the host that publishes
+ * the Terms and the Privacy Policy does not answer (`lib/server/legal.ts`, ADR-0049's
+ * amendment): a document host is part of the deployment, and that failure gets the
+ * fault-on-this-side sentence, because the page names no cause it cannot know.
  *
- * English only, on `/login`'s reasoning: there is no edition to follow when the page that
- * would have carried one is the page that failed.
+ * The page this replaced blamed "the deployment or the book's compiled bundle" for every
+ * failure and promised a place "kept in this browser" — both from before ADR-0060, when
+ * content was compiled in and the place lived in the browser alone.
+ *
+ * *TRY AGAIN* IS `retry`, NOT `reset`. `reset` clears the boundary and re-renders the payload
+ * that already failed, so it could never recover, however long the reader waited; `retry`
+ * refreshes the route first — the server is asked again — and then resets
+ * (`next/dist/client/components/error-boundary.js`). Once the API answers, the frame comes
+ * back in the page the reader pressed it on. `specs/error-page.spec.ts` holds both halves.
+ *
+ * THE WAY BACK IS THE PROGRAM'S CONTENTS when the address names a program, and the programs
+ * otherwise — a reader two sections into P12 wants P12, not the whole grid of programs.
+ *
+ * IN THE READER'S EDITION, read off the address (`/read/<track>/<unit>/<lang>/…`), with the
+ * words in `lib/i18n/chrome.ts` beside every other string a reader sees. This used to be
+ * English only, on `/login`'s reasoning that "there is no edition to follow when the page that
+ * would have carried one is the page that failed" — but the ADDRESS did not fail, and on the
+ * reading surface it always names one. Elsewhere there is none, and the page is English.
+ *
+ * A CLIENT COMPONENT BY REQUIREMENT — `error.tsx` must be one, because it renders after the
+ * server-side tree failed. `error.message` is never rendered: in production Next redacts it
+ * to a generic sentence, and the `digest` is what an operator greps the log for, so the
+ * digest is the one thing worth printing.
+ *
+ * The page itself is `components/render-failure.tsx`, because `app/global-error.tsx` says
+ * the same thing when the root layout is what failed.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export default function RenderError({
   error,
-  reset,
+  retry,
 }: {
   readonly error: Error & { digest?: string };
-  readonly reset: () => void;
+  readonly retry: () => void;
 }): React.JSX.Element {
-  return (
-    <main className="shell">
-      <header className="masthead">
-        <p className="wordmark">
-          <Link href="/">
-            ab<span>-</span>ovo
-          </Link>
-        </p>
-        <h1 className="lede">This page could not be rendered.</h1>
-        <p className="standfirst">
-          That is a fault on this side &mdash; in the deployment or in the book&rsquo;s compiled
-          bundle &mdash; and not in the address you asked for. Nothing you wrote is lost: your
-          answers, your working and your place in the book are kept in this browser.
-        </p>
-        <p className="enter">
-          <button onClick={() => reset()} type="button">
-            Try again
-          </button>
-          <Link className="quiet" href="/">
-            Open the programs
-          </Link>
-        </p>
-      </header>
-
-      {error.digest ? (
-        <section className="section">
-          <h2>If you report this</h2>
-          <p className="meta">
-            reference <code>{error.digest}</code>
-          </p>
-        </section>
-      ) : null}
-    </main>
-  );
+  return <RenderFailure error={error} retry={retry} />;
 }

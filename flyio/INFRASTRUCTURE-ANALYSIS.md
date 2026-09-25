@@ -99,9 +99,10 @@ a cost trade: a cold start here does not produce a slow page, it produces a **40
 user holding a perfectly valid token**, and it produces it at an unpredictable moment
 hours after the deploy, which is the hardest failure in this estate to diagnose.
 
-**`ab-ovo-api-dev` — call 2.** The web app's server side calls the API while rendering.
-Unlike authservice this one *is* a cost trade, and §3(a) names the condition under
-which it flips.
+**`ab-ovo-api-dev` — call 2.** The web app's server side calls the API while rendering —
+since [ADR-0060](../docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md),
+on every frame and every reveal a reader makes. Unlike authservice this one *was* a cost
+trade, and §3(a) says why it no longer is.
 
 **`ab-ovo-web-dev` — nothing calls it but a browser**, so it scales to zero. Call 1 is
 the departure rule's second branch taken deliberately: a browser's timeout is tens of
@@ -119,13 +120,20 @@ period**, every time. Not a failure: call 2 goes through the public URL, so the 
 starts the stopped machine rather than refusing the connection — which is the entire
 reason §6 forbids `.internal` for service-to-service HTTP.
 
-**Decision: keep it at 1 today, and flip it to 0 the moment Phase 1 ships.** The
-condition is a product fact rather than a budget one. The reader loop is specified to
-work with **no account and no backend** — Phase 1 is a Pyodide lab pane in the browser.
-When that is true and the web app's server side makes no in-request call to the API,
-call 2 disappears from the table above and `min_machines_running = 1` is pinning a
-machine for nothing. `flyio/api.fly.toml` carries a comment pointing here so the
-reviewer who notices has somewhere to check.
+**Decision: keep it at 1, and the condition this section used to name for flipping it no
+longer arrives.** It was a product fact rather than a budget one: the reader loop was
+specified to need no server, so once the web app's server side made no in-request call to
+the API, call 2 would disappear from the table above and `min_machines_running = 1` would be
+pinning a machine for nothing.
+[ADR-0060](../docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+reversed that premise. Every frame and every reveal is a live, gated call to the API, so
+call 2 is on the path of every page a reader reads, and a cold API is a stalled frame rather
+than a slow side panel. `flyio/api.fly.toml` carries a comment pointing here so the reviewer
+who notices has somewhere to check.
+
+**Owed before production, and not in this document yet: capacity reasoning for the content
+endpoints.** A build-time bundle scaled for free with a static site; a live, gated call per
+step does not, and ADR-0060's Consequences name this file as where that reasoning belongs.
 
 ### (b) Let `ab-ovo-authservice-dev` scale to zero — **≈ 1 machine, ≈ $3/month**
 
@@ -135,17 +143,24 @@ and it presents as "auth is flaky" rather than as "a machine was cold".
 
 ### (c) Do not deploy authservice at all until Phase 3 — **1 machine, ≈ $3/month**
 
-Genuinely available: nothing before Phase 3 (progress and accounts) needs an identity
-provider, and the API already degrades correctly without one — with no
-`Jwt__Authority` it reports the degradation on `/health`, serves anonymous endpoints
-and answers 401 on authenticated ones (P8), rather than refusing to start.
+**No longer available, since
+[ADR-0060](../docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md).**
+The API still degrades correctly without an identity provider — with no `Jwt__Authority`
+it reports the degradation on `/health`, serves anonymous endpoints and answers 401 on
+authenticated ones (P8), rather than refusing to start. But ingesting the book is one of
+those authenticated calls: `POST /api/v1/admin/content/bundles` is in the admin group, which
+requires an `Admin` or `SuperAdmin` role, and only authservice can put a role in a token the
+API accepts. An estate without authservice has an API that can never be given a book, so
+every frame answers *not found*. Progress and accounts (Phase 3) used to be the first thing
+to need an identity provider; the first thing now is the content every reader reads.
 
-**Decision: deploy it now.** The cost of not doing so is not measured in months of
-machine time: the `iss`-is-a-bare-string problem, the `Jwt__Algorithm` /empty-JWKS
-problem and the `v0.1.0`-has-no-JWKS problem are all wiring that has to be got right
-once, and discovering all three at Phase 3 under delivery pressure is worth more than
-$3 a month. Reverse it by deleting the app from the deploy chain in `flyio.yml`; the
-`fly.toml` stays in git either way.
+**Decision: deploy it now.** The original reason stands beside the new one: the cost of not
+doing so is not measured in months of machine time. The `iss`-is-a-bare-string problem, the
+`Jwt__Algorithm` /empty-JWKS problem and the `v0.1.0`-has-no-JWKS problem are all wiring
+that has to be got right once, and discovering all three at Phase 3 under delivery pressure
+is worth more than $3 a month. Deleting the app from the deploy chain in `flyio.yml` no
+longer reverses this on its own: ingestion would need another way to authenticate first.
+The `fly.toml` stays in git either way.
 
 ### (d) Drop Postgres to 512 mb — **≈ $2.50/month**
 
@@ -159,19 +174,30 @@ to destroy the volume and start again. That is a bad hour for $2.50.
 ### (e) Start the volume at 1 gb instead of 3 gb — **≈ $0.30/month**
 
 **Decision: no.** Growing a volume is possible; **shrinking is not** (§8). $0.30 a
-month does not buy an irreversible decision, and the databases hold reader progress and
-accounts while the book's 47 programs ship in the repository — so the ceiling is WAL
-and autovacuum bloat, not content.
+month does not buy an irreversible decision. The databases hold reader progress, accounts
+and, since [ADR-0060](../docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md),
+the book itself: one `jsonb` row in `apidb` per ingested track and tag, never overwritten, so
+every new pin adds a row. The `web/content/bundle/bundle.json` such a row is ingested from
+measured 3.4 MB on 2026-09-25 (`ls -l`), which is small beside the volume — so the ceiling is
+still WAL and autovacuum bloat before it is content, but content is no longer nothing, and
+it grows with each tag rather than with readers.
 
 ### (f) Collapse the two databases into one — **$0**
 
 **Off the table.** See §4.
 
-### What the estate costs at rest, after (a)
+### What the estate costs at rest
 
-**Two machines and one volume, ≈ $9–10/month.** That is the target once Phase 1 ships,
-and it is the smallest this topology goes without giving up either P3 or the JWKS
-pinning.
+**§1's figure: three machines and one volume, ≈ $12–13/month** — `ab-ovo-api-dev` and
+`ab-ovo-authservice-dev` always on at 512 mb each, the 1 gb Postgres machine, and the
+volume. Option (a) is not taken, for the reason §3(a) gives
+([ADR-0060](../docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)),
+so this is the resting estate rather than a step on the way to a smaller one. It is the
+smallest this topology goes without giving up P3, the JWKS pinning, or a frame that answers
+without waiting for a cold start.
+
+The ≈ $9–10/month this section used to name — two machines and one volume — is what (a)
+would have saved, back when the reader loop was specified to need no server.
 
 ---
 

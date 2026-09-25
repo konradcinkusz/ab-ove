@@ -2,7 +2,8 @@
 
 ## Status
 
-**Accepted.** Date: 2026-09-21.
+**Accepted.** Date: 2026-09-21. Amended 2026-09-25 — `:3100` also carries
+`AB_OVO_LEGAL_URL` (#141); see the end.
 
 Partially supersedes [ADR-0035](0035-the-acceptance-job-runs-a-real-backend-and-only-a-configured-deployment-sees-it.md):
 that ADR's Context and Decision describe a `:3000` deployment deliberately kept with no
@@ -78,3 +79,16 @@ files, which is what PR #129 first showed.
 
 This is not a deviation from the reference architecture and adds no row to the deviation
 register in [`docs/architecture/00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md).
+
+## Amendment 2026-09-25
+
+The Decision's sentence that `AB_OVO_AUTH_URL` is "the one thing still true of only `:3100`"
+is no longer literal. `:3100` now also gets `AB_OVO_LEGAL_URL`, the host that publishes the
+Terms of Use and the Privacy Policy its registration form links to
+([ADR-0049](0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)'s
+amendment). Without it `/register` withdraws its form. `:3000` does not get it.
+
+That variable belongs to the identity axis rather than opening a second one: registration
+only exists where there is an identity service, so on `:3000` the page stops at "no identity
+service" before it would ask for a document. The decision stands. The axis the two
+deployments differ on is an identity service and what registering against one needs.

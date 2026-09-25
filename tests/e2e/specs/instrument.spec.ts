@@ -46,11 +46,12 @@ import { CONSENT_VERSION } from '../../../web/app/src/lib/consent/store.ts';
  * BUILD rather than a broken product and would have proved nothing about this suite.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * The endpoint is INTERCEPTED rather than served. The acceptance suite runs the frontend
- * with no backend behind it (no-backend.spec.ts), so a real POST would 502 through the
- * proxy — which is a perfectly good test of the failure path and a useless one of the body.
- * Fulfilling 204 here is the API behaving, so the assertions are about what this product
- * SENT rather than about what something else answered.
+ * The endpoint is INTERCEPTED rather than served. A real POST would reach whatever API the
+ * job wired in (ADR-0062), or 502 through the proxy on a machine with none — either way the
+ * assertions would be about what something else answered, and the failure path would be a
+ * test of the network rather than of the body. Fulfilling 204 here is the API behaving, so
+ * the assertions are about what this product SENT rather than about what something else
+ * answered.
  */
 
 /** Pyodide's budget, as lab-p01.spec.ts measures it: a 9 MB wasm, not a render. */
@@ -303,8 +304,9 @@ test.describe('the reader never learns the instrument exists', () => {
   });
 
   test('an unreachable API leaves the pane exactly as it was @core', async ({ page }) => {
-    // The state a fresh clone is actually in: no backend at all (P8). The lab works, which
-    // is ADR-0004's requirement that the reader loop needs nothing behind it.
+    // An API that does not answer this one call. The lab needs no server of its own (it
+    // runs in the browser, ADR-0007, and has left the reader loop, ADR-0040), and the
+    // instrument is an optional integration (P8), so a lost tally must leave the pane alone.
     await seedConsent(page, 'granted');
     await page.route(OUTCOMES, (route) => route.abort('connectionrefused'));
 

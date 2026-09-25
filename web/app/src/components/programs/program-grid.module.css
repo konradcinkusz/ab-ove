@@ -55,9 +55,18 @@
   gap: 0.5rem 1.25rem;
 }
 
-
+/*
+ * A FINGER'S TARGET ON A LINE OF SMALL TYPE (issue #147, UI-UX.md "every control is a finger
+ * tall"). The words are 13px and were a 21px box to press. The padding grows the box to 44px
+ * and the matching negative margin gives the space back, so the row lays out exactly as it did
+ * — the language and theme controls' own pattern. Half a rem across rather than their
+ * three-eighths, because `Kursy` is a short word and the target has to be a finger WIDE as
+ * well; the row's 1.25rem gap still keeps two neighbours' boxes apart.
+ */
 .chromeLink {
   color: inherit;
+  margin: -0.75rem -0.5rem;
+  padding: 0.75rem 0.5rem;
 }
 
 /*
@@ -124,6 +133,16 @@
   letter-spacing: 0.1em;
   margin: 0;
   text-transform: uppercase;
+}
+
+/*
+ * FOCUSED FROM SCRIPT, once either destructive control in the top row has acted and taken
+ * itself away with it (`program-grid.tsx`, `use-two-step.ts`, #151). The same ring as
+ * `.shutNotice` above, for the same kind of focus, rather than the browser's default blue.
+ */
+.heading:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
 }
 
 /*

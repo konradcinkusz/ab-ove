@@ -14,7 +14,9 @@
   one because GitHub's Markdown sanitiser strips a style element out of an inline SVG, so a
   single file cannot switch itself between themes; <picture> is the mechanism GitHub does
   honour. Colours are the app's own tokens from web/app/src/app/globals.css, and the
-  wordmark is a system serif because globals.css ships no webfont to anybody.
+  wordmark is a system serif because globals.css ships no webfont to anybody. The app's tab
+  icon, web/app/src/app/icon.svg, is the mark alone, drawn with these files' own paths, and
+  web/app/src/lib/theme/tokens.test.ts fails if it ever draws one ab-ovo-logo.svg does not.
 
   BADGE ROW — README-BADGES.md §The two zones (item 1). Metadata and status only, in one
   row immediately after the H1 and before the first paragraph. There is no second zone in
@@ -107,15 +109,18 @@ integration panel, a Playwright acceptance suite, four `fly.toml` files describi
 topology that has never been applied, and the CI gates that would catch a regression in any
 of it.
 
-The domain model is **three entities**: `ReaderProgress`, which arrived with synchronisation
-(#11); `FrameOutcome`, the instrument's tally, which carries no reader at all (#15); and
+The domain model is **four entities**: `ReaderProgress`, which arrived with synchronisation
+(#11) and since ADR-0060 holds every reader's place, an anonymous one's included;
+`FrameOutcome`, the instrument's tally, which carries no reader at all (#15);
 `ReaderPreference`, which edition a reader chose
-([ADR-0052](docs/adr/0052-one-language-control-remembered-and-english-by-default.md)). Two of
-the three are all this estate stores about anybody. There are no frames and no exercises in
-any database, because the frames are a content bundle the reader fetches; and nothing a
-reader writes on a frame is stored anywhere but their own browser
-([ADR-0039](docs/adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)). Entities
-invented ahead of the ticket that needs them are code the first real ticket deletes
+([ADR-0052](docs/adr/0052-one-language-control-remembered-and-english-by-default.md)); and
+`ContentBundle`, the book itself, ingested whole and served from there
+([ADR-0060](docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)).
+Two of the four are all this estate stores about anybody. The frames are in the database only
+as the book's own compiled bundle, one immutable row per tag and named by no reader; there are
+no exercises in it, and nothing a reader writes on a frame is stored anywhere but their own
+browser ([ADR-0039](docs/adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
+Entities invented ahead of the ticket that needs them are code the first real ticket deletes
 (INIT-GENERIC-TEMPLATE.md §12).
 
 That sentence used to read "there is deliberately no domain model yet — no frames, no
@@ -133,15 +138,17 @@ fetched so the build can prove the exercises solvable and are never served to th
 acceptance test asserts in both directions.
 
 **The frame view reads one frame at a time, and the answer is absent rather than hidden.**
-`/read/<track>/<program>/<language>/<frame>` renders one step; the reveal is a navigation,
-so the answer to the frame you are on is rendered by the request for the *next* one and by
-nothing before it. That is the book's own mechanic — a frame opens with the previous
-frame's answer — and modelling it that way
-([ADR-0014](docs/adr/0014-the-content-schema-is-json-schema-and-knows-nothing-about-frames.md))
-is what makes the property structural instead of a discipline somebody has to keep. A
-reader who opens the inspector finds the answer nowhere, and prefetching is off so it is not
-on the wire either. Both halves are asserted, and both were watched failing before they were
-believed.
+`/read/<track>/<program>/<language>/<frame>` renders one step, served by `AbOvo.Api`; the reveal is
+a form that asks the API to raise the reader's place and then opens the next frame, so the answer to
+the frame you are on is rendered by the request for the *next* one and by nothing before it — and
+the API refuses that request until the reveal has run
+([ADR-0060](docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)).
+That is the book's own mechanic — a frame opens with the previous frame's answer — and modelling it
+that way
+([ADR-0014](docs/adr/0014-the-content-schema-is-json-schema-and-knows-nothing-about-frames.md)) is
+what makes the property structural instead of a discipline somebody has to keep. A reader who opens
+the inspector finds the answer nowhere, and prefetching is off so it is not on the wire either. Both
+halves are asserted, and both were watched failing before they were believed.
 
 **The lab left the reader loop.** `/read/<track>/<program>/<language>/lab/<lab>/<frame>`
 rendered the frame and the lab pane side by side, and it is deleted along with the check
@@ -349,10 +356,13 @@ confidence means here, and what the unit of evaluation is — is
 
 ---
 
-## The reader loop needs no account and no backend
+## Reading needs no account, and it does need the API
 
-This is a product requirement, not an optimisation, and it is the reason several things in
-this repository look the way they do.
+These are product requirements, not optimisations, and they are two requirements rather than
+one. This section's heading used to join them into one;
+[ADR-0060](docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+separated them and reversed the half about a server: a reader whose frames come from a server
+they cannot reach has not degraded gracefully, they have stopped reading.
 
 1. **Read a frame.** Short by construction — one idea, sometimes one line.
 2. **Commit an answer before you turn over.** The commitment is the mechanism.
@@ -364,11 +374,23 @@ this repository look the way they do.
    Neither is a programming language, and nothing you write on a frame leaves your browser
    ([ADR-0039](docs/adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
 
-None of those four steps talks to a server. Frames are served with the site as a versioned
-content bundle ([ADR-0008](docs/adr/0008-content-is-a-versioned-bundle.md)), compiled from
-the book at a pinned revision
-([ADR-0038](docs/adr/0038-the-bundle-is-compiled-at-a-pinned-revision.md)), and everything
-the reader writes is local.
+**Every frame and every reveal is a live call to `AbOvo.Api`.** The book is compiled at a
+pinned revision ([ADR-0038](docs/adr/0038-the-bundle-is-compiled-at-a-pinned-revision.md)),
+ingested into the API whole, and served from there one step at a time. The reveal (step 3) is
+a form that asks the API to raise the reader's place, and the next frame is served only once
+it has — the gate is the server's rather than a convention in the browser. So reading is
+exactly as available as the API. With the API down the index and `/courses` still render,
+because they read the compiled bundle built into the web app and call no API while rendering
+(580 in [the order](docs/ux/UI-UX.md#the-order) decides whether they stay that way); a frame
+answers with the error page instead. That is the honest state rather than a fault to paper
+over: content is the one integration this product does not treat as optional, so P8's
+degrade-rather-than-fail rule does not reach it
+([`docs/architecture/00-ARCHITECTURE.md`](docs/architecture/00-ARCHITECTURE.md), P8).
+
+**No step asks who you are.** An anonymous reader's place is held by the API under an opaque
+cookie this origin sets — not a token, and nothing the API minted
+([ADR-0061](docs/adr/0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)).
+The worksheet in step 4 needs nothing behind it at all.
 
 The book's **Python exercises** are still here, at `/lab/p01`, reached from that program's
 summary screen. They are one program of forty-seven and they are on their way out —
@@ -383,6 +405,9 @@ supported configuration that the API reports as *degraded* rather than failing t
 button that cannot work. Where there IS one, `/register` is where an account comes from —
 a plain form on this origin, with the tokens minted into the server and never into the
 document ([ADR-0049](docs/adr/0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)).
+The form links the Terms of Use and the Privacy Policy it asks the reader to accept, at the
+version accepted, and is withdrawn while this deployment publishes no text for them —
+`AB_OVO_LEGAL_URL` in `secrets.env.example` says where that text goes.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -455,9 +480,16 @@ console.
 
 ### The example accounts, and how to get one
 
-`/register` makes an account the way a reader does, and a reader's account holds no role —
-`POST /api/v1/auth/register` grants none, so the author's view at `/instrument` is behind a
-gate nothing on screen can open. That gap is what the **`seed` resource** is for.
+**Under the AppHost `/register` withdraws its form.** Nothing in `AppHost.cs` sets
+`AB_OVO_LEGAL_URL`, so this deployment publishes no Terms of Use or Privacy Policy, and a
+consent to a document nobody can read is not one
+([ADR-0049](docs/adr/0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)'s
+amendment). The page says so and makes no account. The registration journey runs where a
+document host exists: the acceptance suite's identity deployment, which
+`tests/e2e/playwright.config.ts` points at the fixture texts. And even where the form is
+offered, a reader's account holds no role — `POST /api/v1/auth/register` grants none, so the
+author's view at `/instrument` is behind a gate nothing on screen can open. The way to an
+account locally is the **`seed` resource**.
 
 It is in the dashboard, stopped, with a Start button: `WithExplicitStart()`, so it never runs
 because the system came up. Press Start and it registers two accounts against the local
@@ -522,7 +554,7 @@ degradation rather than failing to start (P8).
 bash scripts/fetch-book-content.sh # once per clone — pinned and digest-verified
 pnpm --dir web install             # once per clone
 dotnet test AbOvo.sln              # unit, in-memory integration, and the architecture rules
-pnpm --dir web dev                 # the web app alone, no API, no container
+pnpm --dir web dev                 # the web app alone: the index, but no frame without an API
 ```
 
 **The fetch is first because `dotnet test` and `pnpm dev` both need it**, and this block
@@ -531,8 +563,11 @@ because `pnpm dev` wants it. Run the block top to bottom on a fresh clone and ev
 succeeds; run the old order and `dotnet test` stops on the missing figures file before the
 reader reaches the command that would have supplied it.
 
-The last line is worth knowing: the reader loop is required to work with no backend, so the
-web app runs on its own and the integration panel simply reports that no API answered.
+The last line is worth knowing for what it does not give you. The web app runs on its own and
+serves the index, `/courses` and `/about`, and the integration panel reports that no API
+answered — but it serves no frame: every frame is a call to `AbOvo.Api`
+([ADR-0060](docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)),
+so with nothing behind it a frame answers with the error page.
 
 The fetch is a **separate line rather than a step in `scripts/setup.sh`**, and that is a
 decision with a cost. `web/content/book/` is not committed — it is the book's lab engine at

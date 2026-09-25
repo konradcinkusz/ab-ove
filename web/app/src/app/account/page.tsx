@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { deletionProblem, deletionProblemMessage } from '@/lib/account-deletion-problem';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { backendConfigured } from '@/lib/server/backends';
@@ -7,7 +8,7 @@ import { backendConfigured } from '@/lib/server/backends';
 import styles from './account.module.css';
 
 /**
- * The account page, which today is the deletion screen and a sign-out.
+ * The account page, which today is the deletion screen, and only that.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * THE WORDING IS THE FEATURE, WHICH IS WHY THIS PAGE IS BILINGUAL AND `/login` IS NOT.
@@ -35,7 +36,9 @@ import styles from './account.module.css';
  *
  * Private by default: it is in neither `PUBLIC_PATHS` nor `PUBLIC_PREFIXES`, so the
  * middleware gates it with no entry needed. `/account/deleted` is public, and has to be —
- * see its own page.
+ * see its own page. It IS named in `PRIVATE_PAGES` (`lib/page-gate.ts`), which the gate never
+ * reads: that is how `/login` tells a reader bounced off this page that it is one, rather
+ * than an address that does not exist (issue #140).
  *
  * No `'use client'`, for `/login`'s reason: the reading surface works with script
  * disabled, and a reader who has decided to leave is the last person to demand a working
@@ -66,11 +69,12 @@ export default async function AccountPage({
 
   return (
     <main className="shell" lang={chrome.language}>
+      <SkipLink language={chrome.language} />
       <header className="masthead">
         <p className="wordmark">
           ab<span>-</span>ovo
         </p>
-        <h1 className="lede">{strings.title}</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>{strings.title}</h1>
       </header>
 
       {problem ? (

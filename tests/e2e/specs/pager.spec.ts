@@ -246,16 +246,20 @@ test.describe('the program map', () => {
     const jumper = page.locator('#frame-jumper');
     await expect(jumper).toHaveValue(String(n));
 
+    // The MAP's own status line: a frame also has the pager's, which speaks only when a
+    // reveal did not happen (`reveal-form.tsx`, #138), so the page has two.
+    const answer = page.getByTestId('program-map').getByRole('status');
+
     await jumper.fill(String(furthest + 1));
     await page.getByRole('button', { name: 'Go', exact: true }).click();
-    await expect(page.getByRole('status')).toContainText(String(furthest));
+    await expect(answer).toContainText(String(furthest));
     await page.waitForTimeout(300);
     expect(page.url(), 'a number past the furthest frame navigated anyway').toContain(at('en', n));
 
     // A number the program does not have is answered the same way.
     await jumper.fill(String(steps.length + 1));
     await jumper.press('Enter');
-    await expect(page.getByRole('status')).toContainText(String(steps.length));
+    await expect(answer).toContainText(String(steps.length));
     expect(page.url()).toContain(at('en', n));
 
     // And a number the reader has reached goes there, and the map closes behind it.

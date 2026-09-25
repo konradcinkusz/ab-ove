@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+
 /**
  * The page behind a 404.
  *
@@ -23,7 +25,9 @@ import Link from 'next/link';
  * answered with the sign-in redirect before any 404 renders; this page is what a reader
  * reaches under the public prefixes — `/read/…`, `/lab/…` — and anywhere at all once
  * signed in. That is a property of the gate rather than of this file, and UI-UX.md says
- * so beside the routes table.
+ * so beside the routes table. The sign-in page that redirect lands on says what this page
+ * says, under this page's headline, and names the address this page cannot
+ * (`login/page.tsx`'s `NoPageAt`, issue #140) — so a typo is not a page wherever it is met.
  *
  * NOTHING HERE IS FETCHED, and it takes no props: `not-found.tsx` receives none, which is
  * why it cannot say which segment was wrong. It says what the shape of a right address
@@ -33,13 +37,16 @@ import Link from 'next/link';
 export default function NotFound(): React.JSX.Element {
   return (
     <main className="shell">
+      <SkipLink language="en" />
       <header className="masthead">
         <p className="wordmark">
           <Link href="/">
             ab<span>-</span>ovo
           </Link>
         </p>
-        <h1 className="lede">There is no page at this address.</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>
+          There is no page at this address.
+        </h1>
         <p className="standfirst">
           A frame number past the end of a program, a program the book does not have, or an
           edition it is not published in all answer this way. The book itself is fine, and

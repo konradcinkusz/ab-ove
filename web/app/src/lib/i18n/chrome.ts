@@ -153,6 +153,20 @@ interface DeleteAccountStrings {
  * "Declining changes nothing a reader can perceive except the contribution itself. No
  * degraded feature, no nag, no second ask on the next page, no 'are you sure'." A reader
  * who is not told that will hesitate, and a hesitant yes is not consent.
+ *
+ * IN THE READER'S WORDS, NOT THE SCHEMA'S — issue #153. The first wording opened by saying
+ * the book had never been read by anybody and its author could not know which frames were
+ * wrong, which is a reason to distrust the book, given in the sentence asking for help. It
+ * explained privacy as "not a column, not a hash, not a join away", which is true and is a
+ * database talking. Its accept read "use my outcomes", and the Polish `wyniki` reads as
+ * *scores* — the one thing ADR-0009 promises nothing here becomes. So the invitation now
+ * says that the book is new and its author wants the frames that confuse people; what is
+ * counted (whether an answer matched, per frame, version and try); and what never is (the
+ * answer, and who gave it). `grant` names the act: counting answers, anonymously.
+ *
+ * THE VERSION DID NOT MOVE FOR THIS, AND MUST NOT. ADR-0022 bumps `CONSENT_VERSION` when
+ * WHAT IS RECORDED changes, "and never for wording, layout or storage shape". The rows are
+ * the rows version 2 describes; a reader who answered the old words answered this question.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 interface ConsentStrings {
@@ -175,6 +189,43 @@ interface ConsentStrings {
   readonly withdrawCannotRetract: string;
 }
 
+/**
+ * The page behind a render failure — `app/error.tsx`, and `app/global-error.tsx` when the
+ * root layout itself failed (issue #139).
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * TWO HEADINGS, BECAUSE THE PAGE KNOWS THE CAUSE OF ONE FAILURE AND OF NO OTHER.
+ *
+ * Since ADR-0060 the usual one is the content API not answering, and the reading page marks
+ * it where it throws (`lib/read/render-failure.ts`), so `unavailableTitle` says exactly that.
+ * Anything else gets `failedTitle` and `failedWhere`, which say whose fault it is without
+ * naming a cause the page cannot know. The page this replaced named the compiled bundle for
+ * every failure, and once content left the bundle it was wrong about all of them.
+ *
+ * `nothingLost` is the sentence that makes waiting safe, and it promises only what holds for
+ * every failure: what a reader wrote is in this browser, their place is on the server under
+ * their cookie or their account (ADR-0060, ADR-0061), and a page that failed to render
+ * touched neither. It used to say the place was "kept in this browser", which ADR-0060 made
+ * untrue.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+interface RenderErrorStrings {
+  readonly unavailableTitle: string;
+  readonly failedTitle: string;
+  readonly failedWhere: string;
+  readonly nothingLost: string;
+  readonly tryLater: string;
+  /** The button. It asks the server again — Next's `retry` — which is what can recover. */
+  readonly retry: string;
+  /** The way back when the failed address names a program. */
+  readonly toContents: string;
+  /** And when it does not. */
+  readonly toPrograms: string;
+  readonly reportTitle: string;
+  /** Before the digest, the one thing a reader can quote and an operator can find in the log. */
+  readonly reference: string;
+}
+
 interface Strings {
   readonly forget: string;
   /**
@@ -183,6 +234,13 @@ interface Strings {
    * account copy (ADR-0047); a bare "are you sure" says nothing a reader can weigh.
    */
   readonly forgetConfirm: string;
+  /**
+   * What a screen reader hears when ANY two-press control is armed — its second label, then
+   * how to go on or back. Said through a live region (`two-step-status.tsx`), because a
+   * button renaming itself under focus is silent in most of them (#151). The way back names
+   * another control as well as `Esc`, because a touch screen reader has no `Esc` key.
+   */
+  readonly pressAgain: (action: string) => string;
   readonly signIn: string;
   readonly signOut: string;
   readonly account: string;
@@ -207,6 +265,15 @@ interface Strings {
    */
   readonly next: string;
   readonly previous: string;
+  /**
+   * What `Next` says when the reveal did not happen (#138) — one sentence on the pager's edge
+   * above it, gone with the next press (`reveal-form.tsx`). `revealUnreachable` when the API
+   * did not answer or refused the call, so pressing again is what there is to do;
+   * `revealBusy` when its rate limiter answered, so waiting is. Neither says anything about
+   * the frame: the next one stays shut until it is served (ADR-0060).
+   */
+  readonly revealUnreachable: string;
+  readonly revealBusy: string;
   readonly languageLabel: string;
   readonly programs: string;
   /**
@@ -361,6 +428,11 @@ interface Strings {
   readonly sketchNone: string;
   readonly sketchUndo: string;
   readonly sketchClear: string;
+  /**
+   * The sketch's `Clear`, armed — two presses since #151, because `Undo` takes back one
+   * stroke and cannot take this back. It names the reach, `whole`, which is the difference.
+   */
+  readonly sketchClearConfirm: string;
   readonly sketchFull: string;
   /** Downloads every worksheet in this browser as one file. Not destructive, so no confirm. */
   readonly exportWorksheets: string;
@@ -408,6 +480,13 @@ interface Strings {
    * OUT of the program, to the next one.
    */
   readonly footNav: string;
+  /**
+   * The skip link, the first thing Tab reaches on every page (WCAG 2.4.1, issue #149). It
+   * says *main content* and not *content*, because `contents` is this table's word for a
+   * program's list of headings, and a link reading *Skip to content* on a page with a
+   * *Contents* button would read as a second way to the same page.
+   */
+  readonly skipToContent: string;
   /** Frame 1's own back button, replacing `previous` where there is nowhere to go back to. */
   readonly backToContents: string;
   /** The last frame's forward button, in `next`'s place: it opens `/summary`, not a frame. */
@@ -422,6 +501,12 @@ interface Strings {
    * make a reader wonder which one they are looking at.
    */
   readonly goToFrameNumber: (n: number) => string;
+  /**
+   * A frame named by its number and nothing else — `Frame 12` — in a frame's tab title, and
+   * before `ofTotal` in its description. `generateMetadata` wrote both in English for every
+   * edition until issue #139.
+   */
+  readonly frameNumbered: (n: number) => string;
   /** The program map's answer to a frame number the program does not have. */
   readonly frameRange: (last: number) => string;
   readonly summaryHeading: string;
@@ -507,6 +592,12 @@ interface Strings {
    */
   readonly shutNextProgram: (unit: string) => string;
   /**
+   * The page behind a render failure. A block of its own, like `deleteAccount`, because it is
+   * a page's worth of words — see `RenderErrorStrings`. Beside the frame-level refusal below,
+   * which is the other way a frame can be absent without a reader's typo being the reason.
+   */
+  readonly renderError: RenderErrorStrings;
+  /**
    * ADR-0060 — the FRAME-level refusal, answered by the same live call that serves the
    * frame rather than by a client-side redirect. `shutNotice` above is the PROGRAM-level
    * gate's sentence and a different mechanism (`ProgramGate`, localStorage, a client
@@ -535,25 +626,26 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   en: {
     forget: 'Forget where I am',
     forgetConfirm: 'Forget it \u2014 on every device',
+    pressAgain: (action) => `${action}. Press again to confirm, or Esc or another control to cancel.`,
     signIn: 'Sign in',
     signOut: 'Sign out',
     account: 'Account',
     consent: {
       invitationTitle: 'Help fix the book?',
       invitationWhat:
-        'The book has never been read by anybody, and its author cannot know which frames are wrong. ab-ovo can find out \u2014 by recording, for each frame you answer, which version of the book it was in, which attempt this was, and whether your answer matched the book\u2019s own. Never the answer itself: your words stay in this browser.',
+        'The book is new, and its author wants to find the frames that confuse people. If you say yes, ab-ovo counts one thing about each frame you answer: whether your answer matched the book\u2019s \u2014 separately for each version of the book, and for each try. Never the answer itself: your words stay in this browser.',
       invitationNoReader:
-        'No identifier for you goes on any of it: not a column, not a hash, not a join away. That is what makes the result safe to publish, and it is why nothing recorded here can be turned into a score about you.',
+        'Nothing counted says who you are: there is no name on it, no account, not even a code standing in for you. Each answer only adds one to its frame\u2019s count, shared by everybody who has answered that frame \u2014 which is why the counts are safe to publish, and why none of it can become a score about you.',
       invitationEitherWay:
-        'Either answer leaves the book, the lab and your place in it exactly as they are. You will not be asked again.',
-      grant: 'Yes, use my outcomes',
+        'Whichever you choose, the book and your place in it stay exactly as they are. You will not be asked again.',
+      grant: 'Yes, count my answers anonymously',
       decline: 'No thanks',
       statusGranted: 'You are helping measure the book.',
       statusDeclined: 'You are not contributing to the book\u2019s measurements.',
       withdraw: 'Stop contributing',
       join: 'Start contributing',
       withdrawCannotRetract:
-        'Stopping stops the next one. It cannot take back an outcome already counted, because nothing knows which of them were yours.',
+        'If you stop, your answers from then on are not counted. What was already counted cannot be taken back, because nothing knows which counts came from you.',
     },
     deleteAccount: {
       title: 'Delete your account',
@@ -597,6 +689,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     cue: 'The next frame answers this.',
     next: 'Next',
     previous: 'Previous',
+    revealUnreachable: 'Could not reach the book. Try again.',
+    revealBusy: 'Too many requests at once. Wait a moment, then try again.',
     languageLabel: 'Language',
     programs: 'Programs',
     about: 'About ab-ovo',
@@ -637,6 +731,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     sketchNone: 'Plain',
     sketchUndo: 'Undo',
     sketchClear: 'Clear',
+    sketchClearConfirm: 'Clear the whole sketch',
     sketchFull: 'This sketch is now too large to keep. What is on screen stays until you leave the frame.',
     exportWorksheets: 'Export my worksheets',
     clearWorksheets: 'Clear my worksheets',
@@ -661,10 +756,12 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       { key: 'Esc', does: 'back to reading', where: 'in a field or a panel' },
     ],
     footNav: 'Where to next',
+    skipToContent: 'Skip to main content',
     backToContents: 'Contents',
     toSummary: 'Summary',
     answerTo: (n) => `Answer to frame ${n}`,
     goToFrameNumber: (n) => `Go to frame ${n}`,
+    frameNumbered: (n) => `Frame ${n}`,
     frameRange: (last) => `Enter a frame from 1 to ${last}.`,
     summaryHeading: 'Summary',
     canYouHeading: 'Can you?',
@@ -684,6 +781,18 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       `order: ${unit} opens as soon as you have a place in ${previous}, and one frame of ` +
       `${previous} is enough. ${unit} is marked in the list below.`,
     shutNextProgram: (unit) => `${unit} opens once you have read any frame of this program.`,
+    renderError: {
+      unavailableTitle: 'The book\u2019s server did not answer.',
+      failedTitle: 'This page could not be shown.',
+      failedWhere: 'The fault is on this side, not in the address you asked for.',
+      nothingLost: 'Nothing you have written is lost, and neither is your place in the book.',
+      tryLater: 'Try again in a moment.',
+      retry: 'Try again',
+      toContents: 'Back to the program\u2019s contents',
+      toPrograms: 'Open the programs',
+      reportTitle: 'If you report this',
+      reference: 'reference',
+    },
     notReachedHeading: 'Not there yet',
     notReachedBody: (furthest) =>
       `This frame has not been reached yet. The furthest read frame in this program is ${furthest}.`,
@@ -693,25 +802,26 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   pl: {
     forget: 'Zapomnij, gdzie jestem',
     forgetConfirm: 'Zapomnij \u2014 na ka\u017cdym urz\u0105dzeniu',
+    pressAgain: (action) => `${action}. Naciśnij ponownie, aby potwierdzić, albo Esc lub inną kontrolkę, aby anulować.`,
     signIn: 'Zaloguj się',
     signOut: 'Wyloguj się',
     account: 'Konto',
     consent: {
       invitationTitle: 'Pomo\u017cesz poprawi\u0107 ksi\u0105\u017ck\u0119?',
       invitationWhat:
-        'Tej ksi\u0105\u017cki nikt jeszcze nie przeczyta\u0142, a jej autor nie wie, kt\u00f3re ramki s\u0105 z\u0142e. ab-ovo mo\u017ce si\u0119 tego dowiedzie\u0107 \u2014 zapisuj\u0105c dla ka\u017cdej ramki, na kt\u00f3r\u0105 odpowiesz, w kt\u00f3rej wersji ksi\u0105\u017cki si\u0119 znajdowa\u0142a, kt\u00f3re to by\u0142o podej\u015bcie i czy twoja odpowied\u017a zgadza si\u0119 z t\u0105 z ksi\u0105\u017cki. Nigdy samej odpowiedzi: twoje s\u0142owa zostaj\u0105 w tej przegl\u0105darce.',
+        'Ta ksi\u0105\u017cka jest nowa, a jej autor chce znale\u017a\u0107 ramki, na kt\u00f3rych czytelnicy si\u0119 gubi\u0105. Je\u015bli si\u0119 zgodzisz, ab-ovo przy ka\u017cdej ramce, na kt\u00f3r\u0105 odpowiesz, policzy tylko jedno: czy twoja odpowied\u017a zgadza si\u0119 z t\u0105 z ksi\u0105\u017cki \u2014 osobno dla ka\u017cdej wersji ksi\u0105\u017cki i ka\u017cdej pr\u00f3by. Nigdy samej odpowiedzi: twoje s\u0142owa zostaj\u0105 w tej przegl\u0105darce.',
       invitationNoReader:
-        '\u017baden identyfikator ciebie tam nie trafia: ani kolumna, ani skr\u00f3t, ani z\u0142\u0105czenie. W\u0142a\u015bnie dlatego wynik mo\u017cna bezpiecznie publikowa\u0107 i dlatego nic z tego, co si\u0119 tu zapisuje, nie zamieni si\u0119 w ocen\u0119 ciebie.',
+        'Nic z tego, co jest liczone, nie m\u00f3wi, kim jeste\u015b: nie ma tam imienia, konta ani nawet kodu, kt\u00f3ry by ci\u0119 zast\u0119powa\u0142. Ka\u017cda odpowied\u017a tylko zwi\u0119ksza o jeden licznik swojej ramki, wsp\u00f3lny dla wszystkich, kt\u00f3rzy na ni\u0105 odpowiedzieli \u2014 dlatego te liczby mo\u017cna bezpiecznie publikowa\u0107 i dlatego nic z tego nie zamieni si\u0119 w ocen\u0119 ciebie.',
       invitationEitherWay:
-        'Ka\u017cda z odpowiedzi zostawia ksi\u0105\u017ck\u0119, laboratorium i twoje miejsce w nich dok\u0142adnie takimi, jakie s\u0105. Nie zapytamy ponownie.',
-      grant: 'Tak, korzystajcie z moich wynik\u00f3w',
+        'Cokolwiek wybierzesz, ksi\u0105\u017cka i twoje miejsce w niej zostan\u0105 dok\u0142adnie takie, jakie s\u0105. Nie zapytamy ponownie.',
+      grant: 'Tak, licz moje odpowiedzi anonimowo',
       decline: 'Nie, dzi\u0119kuj\u0119',
       statusGranted: 'Pomagasz mierzy\u0107 ksi\u0105\u017ck\u0119.',
       statusDeclined: 'Nie uczestniczysz w pomiarach ksi\u0105\u017cki.',
       withdraw: 'Przesta\u0144 uczestniczy\u0107',
       join: 'Zacznij uczestniczy\u0107',
       withdrawCannotRetract:
-        'Rezygnacja zatrzymuje kolejny wynik. Nie cofnie tych ju\u017c policzonych, bo nic nie wie, kt\u00f3re by\u0142y twoje.',
+        'Je\u015bli przestaniesz, kolejne odpowiedzi nie b\u0119d\u0105 liczone. Tego, co ju\u017c policzono, nie da si\u0119 cofn\u0105\u0107, bo nic nie wie, co z tego pochodzi\u0142o od ciebie.',
     },
     deleteAccount: {
       title: 'Usu\u0144 konto',
@@ -759,6 +869,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     // third of the pager (ADR-0063), where `Poprzednia` / `Następna` did not quite.
     next: 'Dalej',
     previous: 'Wstecz',
+    revealUnreachable: 'Nie udało się dotrzeć do książki. Spróbuj ponownie.',
+    revealBusy: 'Zbyt wiele żądań naraz. Odczekaj chwilę i spróbuj ponownie.',
     languageLabel: 'Język',
     programs: 'Programy',
     about: 'O ab-ovo',
@@ -778,17 +890,29 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     opening: 'Wstęp',
     position: (n, total) => `${n} z ${total}`,
     startAtFrame: (n) => `Zacznij od ramki ${n}`,
-    continueAtFrame: (n) => `Wróć do ramki ${n}`,
+    // `Kontynuuj`, the verb the English says (issue #152). `Wróć do ramki` read as *go back
+    // to frame n* — a step backwards, on the one control whose job is to carry the reader
+    // forwards — and it was `backToLastFrame`'s wording too, so two controls with opposite
+    // jobs spoke alike. `od`, as in `startAtFrame` one line up, so the pair reads as a pair.
+    continueAtFrame: (n) => `Kontynuuj od ramki ${n}`,
     frame: { one: 'ramka', few: 'ramki', many: 'ramek', other: 'ramki' },
     section: { one: 'sekcja', few: 'sekcje', many: 'sekcji', other: 'sekcji' },
     // `other` is the genitive singular, as it is for the two nouns above: it is the form a
     // fraction takes ('0,5 programu'), which is the only band `other` selects in Polish.
     program: { one: 'program', few: 'programy', many: 'program\u00f3w', other: 'programu' },
     yourAnswer: 'Twoja odpowiedź',
-    writeItDown: 'Zapisz, zanim pójdziesz dalej',
-    // Impersonal on purpose: a second-person past tense in Polish has to pick a gender,
-    // and "Zapisałeś" picked one for every reader. "Zapisano" — recorded — picks none.
-    youWrote: 'Zapisano',
+    // `Napisz`, not `Zapisz` (issue #152): in an interface `zapisz` is the word on every Save
+    // button, so the placeholder read as *save before you go on* — an instruction about
+    // storage, where the book's is about writing the answer down. It names the answer, as the
+    // English `it` need not, because a Polish imperative with no object reads as unfinished.
+    writeItDown: 'Napisz odpowiedź, zanim przejdziesz dalej',
+    // A noun phrase, so it chooses no gender for the reader — ADR-0016's rule, which a
+    // second-person past tense ("Zapisałeś") cannot keep. The impersonal `Zapisano` kept it
+    // too, and read as a save confirmation ("Saved: 42") in front of what the reader wrote
+    // (issue #152). It is `yourAnswer`'s wording on purpose: this one stands inside the box
+    // `answerTo` names, in front of what was written for THAT frame, and `you-wrote.tsx`
+    // supplies the colon.
+    youWrote: 'Twoja odpowiedź',
     matchesBook: 'Tak jak w książce',
     writtenBefore: 'zapisane przed odsłonięciem',
     earlierEdition: 'zapisane przy wcześniejszym wydaniu',
@@ -816,6 +940,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     sketchNone: 'Bez tła',
     sketchUndo: 'Cofnij',
     sketchClear: 'Wyczyść',
+    sketchClearConfirm: 'Wyczyść cały szkic',
     sketchFull: 'Ten szkic jest już za duży, żeby go zapisać. To, co widać, zostaje do wyjścia z ramki.',
     exportWorksheets: 'Pobierz moje notatki',
     clearWorksheets: 'Wyczyść moje notatki',
@@ -826,8 +951,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     go: 'Przejdź',
     close: 'Zamknij',
     programMap: 'Sekcje i ramki',
-    // Impersonal, like `youWrote`: a second-person "you have not reached" would have to pick
-    // a gender in Polish.
+    // Impersonal, and for `youWrote`'s reason: a second-person "you have not reached" would
+    // have to pick a gender in Polish (ADR-0016).
     lockedSection: 'jeszcze niedostępna',
     readingSettings: 'Ustawienia czytania',
     keysHeading: 'Klawisze',
@@ -842,10 +967,14 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       { key: 'Esc', does: 'wróć do czytania', where: 'w polu lub panelu' },
     ],
     footNav: 'Dokąd dalej',
+    // `Przejdź` is this table's word for *go to* (`goToFrame`, `go`), and `głównej` keeps it
+    // apart from `Spis treści`, the contents page, for the reason the English says *main*.
+    skipToContent: 'Przejdź do głównej treści',
     backToContents: 'Spis treści',
     toSummary: 'Podsumowanie',
     answerTo: (n) => `Odpowiedź do ramki ${n}`,
     goToFrameNumber: (n) => `Przejdź do ramki ${n}`,
+    frameNumbered: (n) => `Ramka ${n}`,
     frameRange: (last) => `Wpisz numer ramki od 1 do ${last}.`,
     summaryHeading: 'Podsumowanie',
     canYouHeading: 'Czy potrafisz?',
@@ -855,8 +984,14 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     previousProgramLabel: 'Poprzedni program',
     groupLabels: { F: 'Podstawy', P: 'Część główna' },
     sectionsLabel: 'Sekcje',
-    atFrame: (n) => `na ramce ${n}`,
-    opensAfter: (unit) => `dostępne po ${unit}`,
+    // `przy ramce` rather than `na ramce`, which is spoken Polish rather than written (issue
+    // #152). Still a position and nothing more (ADR-0041).
+    atFrame: (n) => `przy ramce ${n}`,
+    // A verb, not an adjective (issue #152): `dostępne` is neuter, and the thing that opens
+    // is a program, which is masculine. `otworzy się` agrees with any subject, and it is
+    // `shutExplain`'s and `shutNextProgram`'s own verb, so the tile and its explanation
+    // say the same thing.
+    opensAfter: (unit) => `otworzy się po ${unit}`,
     shutExplain: (previous) =>
       `Jeszcze nieotwarty. Otworzy się, gdy przeczytasz dowolną ramkę ${previous} — wystarczy ` +
       `jedna, nic tu nie jest płatne ani ukryte.`,
@@ -866,6 +1001,21 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       `${previous} — wystarczy jedna ramka ${previous}. ${unit} jest zaznaczony na liście niżej.`,
     shutNextProgram: (unit) =>
       `${unit} otworzy się, gdy przeczytasz dowolną ramkę tego programu.`,
+    renderError: {
+      unavailableTitle: 'Serwer książki nie odpowiedział.',
+      failedTitle: 'Nie udało się pokazać tej strony.',
+      // `po naszej stronie` and not `po tej stronie`: `strona` is also the page, and "on this
+      // page" is the one thing the sentence must not be read as saying.
+      failedWhere: 'Błąd jest po naszej stronie, a nie w adresie, o który prosisz.',
+      // Impersonal, like `youWrote`: "nic, co zapisałeś" would pick a gender for every reader.
+      nothingLost: 'Nic, co zapisano, nie przepadło, twoje miejsce w książce też nie.',
+      tryLater: 'Spróbuj ponownie za chwilę.',
+      retry: 'Spróbuj ponownie',
+      toContents: 'Wróć do spisu treści programu',
+      toPrograms: 'Przejdź do programów',
+      reportTitle: 'Jeśli zgłaszasz ten błąd',
+      reference: 'identyfikator',
+    },
     notReachedHeading: 'Jeszcze nie tutaj',
     notReachedBody: (furthest) =>
       `Ta ramka nie jest jeszcze dostępna. Najdalsza przeczytana ramka w tym programie: ${furthest}.`,
@@ -937,6 +1087,13 @@ export interface Chrome {
    * account copy (ADR-0047); a bare "are you sure" says nothing a reader can weigh.
    */
   readonly forgetConfirm: string;
+  /**
+   * What a screen reader hears when ANY two-press control is armed — its second label, then
+   * how to go on or back. Said through a live region (`two-step-status.tsx`), because a
+   * button renaming itself under focus is silent in most of them (#151). The way back names
+   * another control as well as `Esc`, because a touch screen reader has no `Esc` key.
+   */
+  readonly pressAgain: (action: string) => string;
   readonly signIn: string;
   readonly signOut: string;
   readonly account: string;
@@ -947,6 +1104,8 @@ export interface Chrome {
   readonly cue: string;
   readonly next: string;
   readonly previous: string;
+  readonly revealUnreachable: string;
+  readonly revealBusy: string;
   readonly languageLabel: string;
   readonly programs: string;
   readonly about: string;
@@ -992,6 +1151,7 @@ export interface Chrome {
   readonly sketchNone: string;
   readonly sketchUndo: string;
   readonly sketchClear: string;
+  readonly sketchClearConfirm: string;
   readonly sketchFull: string;
   readonly exportWorksheets: string;
   readonly clearWorksheets: string;
@@ -1007,10 +1167,12 @@ export interface Chrome {
   readonly keysHeading: string;
   readonly keysMap: readonly KeyEntry[];
   readonly footNav: string;
+  readonly skipToContent: string;
   readonly backToContents: string;
   readonly toSummary: string;
   readonly answerTo: (n: number) => string;
   readonly goToFrameNumber: (n: number) => string;
+  readonly frameNumbered: (n: number) => string;
   readonly frameRange: (last: number) => string;
   readonly summaryHeading: string;
   readonly canYouHeading: string;
@@ -1026,6 +1188,7 @@ export interface Chrome {
   readonly shutExplain: (previous: string) => string;
   readonly shutNotice: (unit: string, previous: string) => string;
   readonly shutNextProgram: (unit: string) => string;
+  readonly renderError: RenderErrorStrings;
   readonly notReachedHeading: string;
   readonly notReachedBody: (furthest: number) => string;
 }

@@ -20,36 +20,59 @@
  * THE INDEX'S ONE FILLED CONTROL — the returning reader's primary action, which used to be
  * the faintest thing on the page: a 0.8125rem link in a row of faint links, beside the
  * destructive one. It still arrives after hydration in a row of small type, so the fill is
- * padded outwards and the padding given back as negative block margin: the box a finger
- * meets is a button's, the box the row lays out is a link's, and the row does not grow when
- * it appears (`progress.spec.ts` holds the index's shift bound). The ring on focus is the
- * reveal's, from frame-view.module.css.
+ * padded outwards and the padding given back as negative block margin: the box the row lays
+ * out is a link's, and the row does not grow when it appears (`progress.spec.ts` holds the
+ * index's shift bound). The ring on focus is the reveal's, from frame-view.module.css.
+ *
+ * TWO BOXES, BECAUSE A FILL IS PAINTED OVER ITS PADDING (issue #147). The fill was the whole
+ * target, and it is 34px: growing it to a finger's 44 would redraw the page's one filled
+ * button a third taller. So the LINK is the target — padded the rest of the way to 44px and
+ * given back as margin, the text controls' pattern — and the fill is a span inside it
+ * (`.resumeFill`) that keeps the size it always had. The box a finger meets grew; the button a
+ * reader sees did not.
  */
 .resumeFilled {
+  color: var(--paper-raised);
+  margin: -0.75rem 0;
+  padding: 0.375rem 0;
+  text-decoration: none;
+}
+
+.resumeFill {
   background: var(--accent);
   border-radius: 3px;
-  color: var(--paper-raised);
-  margin: -0.375rem 0;
+  display: block;
   padding: 0.375rem 0.75rem;
-  text-decoration: none;
   white-space: nowrap;
 }
 
-.resumeFilled:hover {
+.resumeFilled:hover .resumeFill {
   filter: brightness(1.1);
 }
 
+/*
+ * The outline is transparent rather than `none` (issue #148): forced colours paint no
+ * box-shadow and do paint an outline, in the system's colour, so this is the ring a reader in
+ * high contrast gets — round the target, where the fill it would surround is not painted.
+ */
 .resumeFilled:focus-visible {
+  outline: 2px solid transparent;
+}
+
+/* The ring is drawn round the fill, where the reader sees the button, not round the target. */
+.resumeFilled:focus-visible .resumeFill {
   box-shadow:
     0 0 0 2px var(--paper),
     0 0 0 4px var(--accent);
-  outline: none;
 }
 
 /*
  * A button that reads as prose, because it is destructive and should not invite the eye.
  * It is still a <button>: it performs an action rather than going somewhere, and a link
  * that deleted something would be wrong for a keyboard and wrong for a crawler.
+ *
+ * Quiet is not small (issue #147): padded to a finger's 44px and given the space back as
+ * negative margin, the language and theme controls' pattern, so the row does not move.
  */
 .forget {
   background: none;
@@ -57,7 +80,8 @@
   color: var(--ink-faint);
   cursor: pointer;
   font: inherit;
-  padding: 0;
+  margin: -0.75rem -0.375rem;
+  padding: 0.75rem 0.375rem;
   text-decoration: underline;
   text-decoration-style: dotted;
 }

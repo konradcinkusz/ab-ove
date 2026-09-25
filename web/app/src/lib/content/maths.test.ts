@@ -15,7 +15,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { PINS, bundleFor, say, skipWithoutBundle, type Bundle } from '@ab-ovo/web-kit';
+import { PINS, bundleFor, say, type Bundle } from '@ab-ovo/web-kit';
+import { skipWithoutBundle } from '@ab-ovo/web-kit/have-bundle';
 
 import { KNOWN_BLOCK_KINDS, KNOWN_INLINE_KINDS, collectTokenKinds, parseBody, parseInline } from './markdown.ts';
 import { liftMaths, renderMathSpan, restoreRaw, splitPlaceholders } from './maths.ts';

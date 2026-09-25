@@ -1,8 +1,10 @@
 import { strict as assert } from 'node:assert';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
+
+import { PAPER } from './paper.ts';
 
 /**
  * THE DARK PALETTE IS IN `globals.css` TWICE, SO SOMETHING OTHER THAN ATTENTION HAS TO HOLD
@@ -137,6 +139,63 @@ test('the system block still stands aside for a reader who asked for light', () 
 
 /*
  * ────────────────────────────────────────────────────────────────────────────────────────
+ * THE TWO PLACES A TOKEN HAS TO BE WRITTEN OUT AS A LITERAL — issue #150.
+ *
+ * The browser's own furniture (`theme-color`, from `paper.ts`) and the tab's icon
+ * (`app/icon.svg`) are painted by the browser outside this stylesheet, so neither can say
+ * `var(--paper)` or `var(--ink)`. Each is therefore a copy, and a copy drifts silently: warm
+ * the paper by two points and the address bar is a different colour from the page under it,
+ * with nothing red anywhere. These hold the copies to the tokens, in both schemes.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
+const APP = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'app');
+const BRAND = join(APP, '..', '..', '..', '..', 'docs', 'assets', 'brand', 'ab-ovo-logo.svg');
+const icon = readFileSync(join(APP, 'icon.svg'), 'utf8');
+
+/** Every `#rrggbb` in a piece of text, lower-cased, as a set. */
+const coloursIn = (text: string): Set<string> =>
+  new Set([...text.matchAll(/#[0-9a-f]{6}\b/gi)].map((match) => match[0].toLowerCase()));
+
+test('theme-color is the paper, in both schemes', () => {
+  assert.equal(PAPER.light, block(LIGHT)['--paper'], 'theme-color for a light machine is not --paper');
+  assert.equal(PAPER.dark, block(CHOSEN_DARK)['--paper'], 'theme-color for a dark machine is not --paper');
+});
+
+test('the tab’s icon is drawn in the ink and the accent, in both schemes', () => {
+  // The icon's light rules come before its media query and its dark rules inside it — the
+  // file's own shape (`app/icon.svg`), and asserted here rather than assumed.
+  const style = /<style>([\s\S]*?)<\/style>/.exec(icon)?.[1];
+  assert.ok(style, 'app/icon.svg has no style element, so it can no longer follow the scheme');
+  const split = style.indexOf('@media (prefers-color-scheme: dark)');
+  assert.notEqual(split, -1, 'app/icon.svg no longer switches for a dark machine');
+
+  for (const [scheme, text, selector] of [
+    ['light', style.slice(0, split), LIGHT],
+    ['dark', style.slice(split), CHOSEN_DARK],
+  ] as const) {
+    const tokens = { ...block(LIGHT), ...block(selector) };
+    assert.deepEqual(
+      coloursIn(text),
+      new Set([tokens['--ink'], tokens['--accent']]),
+      `the icon's ${scheme} colours are not --ink and --accent`,
+    );
+  }
+});
+
+test('the tab’s icon is the brand’s mark, not a redrawing of it', () => {
+  // Every path the icon draws is a path of the README's lockup, character for character. A
+  // mark redrawn for the tab is a second logo, and nothing would say so.
+  const paths = (svg: string): string[] => [...svg.matchAll(/\sd="([^"]+)"/g)].map((match) => match[1]!);
+  const mark = paths(icon);
+  assert.ok(mark.length > 0, 'app/icon.svg draws no path at all, so this is asserting nothing');
+  const lockup = new Set(paths(readFileSync(BRAND, 'utf8')));
+  for (const path of mark) {
+    assert.ok(lockup.has(path), `app/icon.svg draws a path the brand mark does not have: ${path}`);
+  }
+});
+
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────
  * THE CONTRAST FLOORS, COMPUTED RATHER THAN CLAIMED — ADR-0063.
  *
  * `--ink-faint` was 4.48:1 on the paper and 4.07:1 on the answer box, under WCAG 1.4.3's
@@ -189,3 +248,301 @@ for (const [scheme, selector] of [
     assert.ok(ratio >= 4.5, `the filled button's label is ${ratio.toFixed(2)}:1 in ${scheme}, under 4.5:1`);
   });
 }
+
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * AND NO CONTROL'S EDGE IS DRAWN IN `--rule` — issue #146, WCAG 1.4.11.
+ *
+ * The floor above holds `--control-edge` at 3:1, and a floor proves nothing about a control
+ * that never uses the token. The audit of 2026-09-24 found controls that did not: the sign-in
+ * and account fields, the consent's Decline and the sketch canvas, each drawn in `--rule` at
+ * about 1.3:1 while the reading screens beside them had moved on. axe has no rule for 1.4.11,
+ * so ADR-0064's scan was green over all of them, and nothing else would have turned red.
+ *
+ * So this reads every stylesheet in the app and refuses a border in `--rule` on a CONTROL,
+ * which it recognises by what the stylesheet itself says about the element rather than by a
+ * list of class names that would go stale with the first new form:
+ *
+ *   - a class the same stylesheet gives a `:focus-visible` rule — it takes keyboard focus;
+ *   - a class the same stylesheet gives `cursor: pointer` — it is pressed;
+ *   - a form element, a button, a link or a `<summary>` named by its element.
+ *
+ * `--rule` stays right for everything else: a panel, a card, a divider, a `<kbd>`. Those are
+ * lines that separate, and a separator at 3:1 would be a page drawn in boxes. And a
+ * `@media print` rule is not a control's edge at all — on paper nothing is pressed.
+ *
+ * Per stylesheet, because that is how CSS Modules scope a class: `.title` in one module and
+ * `.title` in another are two different elements, and one being a control says nothing about
+ * the other.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
+
+interface CssRule {
+  readonly selectors: readonly string[];
+  readonly declarations: Readonly<Record<string, string>>;
+  /** The preludes of the at-rules around it, outermost first: `@media print`, and so on. */
+  readonly within: readonly string[];
+}
+
+/** Split on `separator` wherever it is not inside brackets, parentheses or quotes. */
+function splitTopLevel(text: string, separator: RegExp): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let quote: string | undefined;
+  let start = 0;
+  for (let at = 0; at < text.length; at += 1) {
+    const char = text[at]!;
+    if (quote) {
+      if (char === quote) quote = undefined;
+    } else if (char === '"' || char === "'") quote = char;
+    else if (char === '(' || char === '[') depth += 1;
+    else if (char === ')' || char === ']') depth -= 1;
+    else if (depth === 0 && separator.test(char)) {
+      parts.push(text.slice(start, at));
+      start = at + 1;
+    }
+  }
+  parts.push(text.slice(start));
+  return parts.map((part) => part.trim()).filter((part) => part.length > 0);
+}
+
+/**
+ * Every style rule in a stylesheet, with the at-rules it sits inside.
+ *
+ * By matching braces rather than by regex, for `block()`'s reason: a media query holds rules,
+ * and the first `}` a regex meets closes the inner one. `@keyframes` is skipped whole — its
+ * `from` and `50%` are not selectors.
+ */
+function rulesOf(css: string): CssRule[] {
+  const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules: CssRule[] = [];
+
+  const walk = (from: number, to: number, within: readonly string[]): void => {
+    let at = from;
+    while (at < to) {
+      const open = text.indexOf('{', at);
+      if (open === -1 || open >= to) return;
+      let depth = 0;
+      let close = open;
+      for (; close < to; close += 1) {
+        if (text[close] === '{') depth += 1;
+        if (text[close] === '}') {
+          depth -= 1;
+          if (depth === 0) break;
+        }
+      }
+      // A statement at-rule before the block (`@import …;`) is not part of its prelude.
+      const prelude = (text.slice(at, open).split(';').at(-1) ?? '').trim();
+      if (prelude.startsWith('@')) {
+        if (!/^@(-webkit-)?keyframes/.test(prelude)) walk(open + 1, close, [...within, prelude]);
+      } else {
+        const declarations: Record<string, string> = {};
+        for (const line of text.slice(open + 1, close).split(';')) {
+          const [property, ...rest] = line.split(':');
+          const name = property?.trim();
+          if (!name || rest.length === 0) continue;
+          declarations[name] = rest.join(':').trim().replace(/\s+/g, ' ');
+        }
+        rules.push({ selectors: splitTopLevel(prelude, /,/), declarations, within });
+      }
+      at = close + 1;
+    }
+  };
+
+  walk(0, text.length, []);
+  return rules;
+}
+
+/** The compounds of a selector, left to right: `.pane[open] > .summary` is two. */
+const compoundsOf = (selector: string): string[] => splitTopLevel(selector, /[\s>+~]/);
+
+/** A compound's class — the first one outside a `:global()`, `:has()` or `:not()`. */
+function classOf(compound: string): string | undefined {
+  let depth = 0;
+  for (let at = 0; at < compound.length; at += 1) {
+    const char = compound[at]!;
+    if (char === '(' || char === '[') depth += 1;
+    else if (char === ')' || char === ']') depth -= 1;
+    else if (depth === 0 && char === '.') return /^\.[\w-]+/.exec(compound.slice(at))?.[0];
+  }
+  return undefined;
+}
+
+/** The element a compound names by tag, if it names one: `a.title` is `a`, `.x` is none. */
+const elementOf = (compound: string): string | undefined => /^[a-z][\w-]*/i.exec(compound)?.[0];
+
+const CONTROL_ELEMENTS = new Set(['a', 'button', 'input', 'select', 'summary', 'textarea']);
+
+/** `border`, a side of it, or its colour — the declarations that draw an edge. */
+const EDGE = /^border(-(top|right|bottom|left|block|inline)(-(start|end))?)?(-color)?$/;
+
+/** Every border in `--rule` on a control, as `selector { property: value }`. */
+function ruleEdgesOnControls(css: string): string[] {
+  const rules = rulesOf(css);
+
+  const controls = new Set<string>();
+  for (const rule of rules) {
+    for (const selector of rule.selectors) {
+      const compounds = compoundsOf(selector);
+      for (const compound of compounds) {
+        const name = classOf(compound);
+        if (name && compound.includes(':focus-visible')) controls.add(name);
+      }
+      const subject = classOf(compounds.at(-1) ?? '');
+      if (subject && rule.declarations['cursor'] === 'pointer') controls.add(subject);
+    }
+  }
+
+  const found: string[] = [];
+  for (const rule of rules) {
+    if (rule.within.some((prelude) => /\bprint\b/.test(prelude))) continue;
+    for (const selector of rule.selectors) {
+      const subject = compoundsOf(selector).at(-1) ?? '';
+      const name = classOf(subject);
+      const element = elementOf(subject);
+      const isControl =
+        (name !== undefined && controls.has(name)) ||
+        (name === undefined && element !== undefined && CONTROL_ELEMENTS.has(element));
+      if (!isControl) continue;
+      for (const [property, value] of Object.entries(rule.declarations)) {
+        if (EDGE.test(property) && value.includes('var(--rule)')) {
+          found.push(`${selector} { ${property}: ${value} }`);
+        }
+      }
+    }
+  }
+  return found;
+}
+
+/** Every stylesheet under `src/` — the modules beside their components, and globals.css. */
+function stylesheetsUnder(root: string): string[] {
+  const found: string[] = [];
+  for (const entry of readdirSync(root)) {
+    const path = join(root, entry);
+    if (statSync(path).isDirectory()) found.push(...stylesheetsUnder(path));
+    else if (entry.endsWith('.css')) found.push(path);
+  }
+  return found;
+}
+
+const SOURCE = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+/*
+ * The instrument first, against a stylesheet whose answer is known — the estate's standing
+ * rule (`imports-carry-extensions.test.ts`). A reader that silently parsed nothing would
+ * report every file clean, which is the same answer a correct one gives on a correct tree.
+ */
+test('the edge scan tells a control drawn in --rule from a separator drawn in it', () => {
+  const edge = 'var(--rule)';
+  const sheet = `
+    .field { border: 1px solid ${edge}; }
+    .field:focus-visible { outline: 2px solid var(--accent); }
+    .go { border-color: ${edge}; cursor: pointer; }
+    .pane[open] > .go { border-bottom: 1px solid ${edge}; }
+    .card:focus-within, .panel { border: 1px solid ${edge}; }
+    .into:focus-visible .title { text-decoration: underline; }
+    .title { border-top: 1px solid ${edge}; }
+    .list kbd { border: 1px solid ${edge}; }
+    .row input { border: 1px solid ${edge}; }
+    .ok { border: 1px solid var(--control-edge); cursor: pointer; }
+    @media print { .field { border-bottom: 1px solid ${edge}; } }
+    @media (max-width: 30rem) { .field { border-width: 2px; border-color: ${edge}; } }
+  `;
+
+  assert.deepEqual(ruleEdgesOnControls(sheet), [
+    `.field { border: 1px solid ${edge} }`,
+    `.go { border-color: ${edge} }`,
+    `.pane[open] > .go { border-bottom: 1px solid ${edge} }`,
+    `.row input { border: 1px solid ${edge} }`,
+    `.field { border-color: ${edge} }`,
+  ]);
+});
+
+test('no control in the app draws its edge in --rule', () => {
+  const sheets = stylesheetsUnder(SOURCE);
+  assert.ok(sheets.length > 1, 'no stylesheet was found at all, so this gate is asserting nothing');
+
+  const offenders = sheets.flatMap((file) =>
+    ruleEdgesOnControls(readFileSync(file, 'utf8')).map((found) => `${relative(SOURCE, file)}: ${found}`),
+  );
+
+  assert.deepEqual(
+    offenders,
+    [],
+    'a control drawn in --rule is about 1.3:1 against the page, under WCAG 1.4.11’s 3:1 — ' +
+      'use --control-edge, which the floors above hold in both schemes',
+  );
+});
+
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * AND FOCUS IS NEVER TAKEN AWAY, OR SHOWN AS A BRIGHTNESS — issue #148, WCAG 2.4.7.
+ *
+ * UI-UX.md: "focus is a ring, never a brightness". The audit found the rule broken in two
+ * ways, neither of which axe can see:
+ *
+ *   - `outline: none` on a focused control. The answer line and the pad said focus with a
+ *     border turning blue, and nothing else; the filled buttons that drew a box-shadow ring had
+ *     removed the outline too. Windows' forced colours paint no box-shadow and repaint every
+ *     border in one system colour, so for a reader in high contrast each of these showed no
+ *     focus at all. `controls.module.css` has the answer: hide the browser's ring with a
+ *     TRANSPARENT outline, which forced colours paint in the system's colour, never with `none`.
+ *   - a `filter` on focus. The consent's two buttons brightened by eight percent, which is a
+ *     change nobody tabbing to them could see.
+ *
+ * Both are one declaration in a `:focus` or `:focus-visible` rule, so both are refused
+ * wherever they are written. A control that needs the browser's ring gone draws the shared
+ * ring instead.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
+
+/** Every focus rule that removes the outline or shows focus as a filter. */
+function focusShownWrongly(css: string): string[] {
+  const found: string[] = [];
+  for (const rule of rulesOf(css)) {
+    const focused = rule.selectors.filter((selector) => /:focus(-visible)?(?![\w-])/.test(selector));
+    if (focused.length === 0) continue;
+    for (const [property, value] of Object.entries(rule.declarations)) {
+      const removes =
+        (property === 'outline' && /^(none|0(px)?)(\s|$)/.test(value)) ||
+        (property === 'outline-style' && value === 'none') ||
+        (property === 'outline-width' && /^0(px)?$/.test(value));
+      if (removes || property === 'filter') {
+        found.push(`${focused.join(', ')} { ${property}: ${value} }`);
+      }
+    }
+  }
+  return found;
+}
+
+test('the focus scan tells a removed outline from a transparent one', () => {
+  const sheet = `
+    .line:focus-visible { border-bottom-color: var(--accent); outline: none; }
+    .pad:focus { outline: 0; }
+    .go:hover, .go:focus-visible { filter: brightness(1.08); }
+    .ring:focus-visible { box-shadow: 0 0 0 4px var(--accent); outline: 2px solid transparent; }
+    .row:focus-within { outline: none; }
+    .quiet:focus-visible { color: var(--ink); }
+    @media (forced-colors: active) { .x:focus-visible { outline-style: none; } }
+  `;
+
+  assert.deepEqual(focusShownWrongly(sheet), [
+    '.line:focus-visible { outline: none }',
+    '.pad:focus { outline: 0 }',
+    '.go:focus-visible { filter: brightness(1.08) }',
+    '.x:focus-visible { outline-style: none }',
+  ]);
+});
+
+test('no control in the app takes its focus outline away or shows focus as a brightness', () => {
+  const offenders = stylesheetsUnder(SOURCE).flatMap((file) =>
+    focusShownWrongly(readFileSync(file, 'utf8')).map((found) => `${relative(SOURCE, file)}: ${found}`),
+  );
+
+  assert.deepEqual(
+    offenders,
+    [],
+    'draw the shared ring instead (components/read/controls.module.css): a box-shadow, and ' +
+      '`outline: 2px solid transparent` for forced colours, which paint no box-shadow',
+  );
+});

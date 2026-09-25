@@ -35,10 +35,11 @@
 # ═════════════════════════════════════════════════════════════════════════════════════
 
 # ── 1. Auth ──────────────────────────────────────────────────────────────────────────
-# Token validation, the client-identity resolver the rate limiter keys on, CORS, and the
-# BFF's server-side token and session handling. A change here can turn signature
-# verification into decoding, put every user in one rate-limit bucket, or move a token
-# into browser storage — none of which fails a build.
+# Token validation, the client-identity resolver the rate limiter keys on, CORS, the
+# BFF's server-side token and session handling, and the page gate with the lists that open
+# pages without a session. A change here can turn signature verification into decoding,
+# put every user in one rate-limit bucket, move a token into browser storage, or open an
+# account's page to anybody — none of which fails a build.
 /src/AbOvo.ServiceDefaults/AuthenticationExtensions.cs   @konradcinkusz
 /src/AbOvo.ServiceDefaults/CorsExtensions.cs             @konradcinkusz
 /src/AbOvo.ServiceDefaults/ClientIdentity.cs             @konradcinkusz
@@ -47,6 +48,9 @@
 /web/app/src/lib/server/                                 @konradcinkusz
 /web/app/src/lib/session-cookies.ts                      @konradcinkusz
 /web/app/src/middleware.ts                               @konradcinkusz
+# The page gate's public-route and carve-out lists, moved out of middleware.ts (issue #140).
+# One entry added to them removes authentication from a page, and nothing fails a build.
+/web/app/src/lib/page-gate.ts                            @konradcinkusz
 /web/app/src/app/api/auth/                               @konradcinkusz
 /web/app/src/app/api/proxy/                              @konradcinkusz
 

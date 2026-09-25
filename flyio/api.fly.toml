@@ -75,8 +75,8 @@ primary_region = "waw"                       # ADR-0002
   # rendering a page, in-request. The rule is "either B keeps a machine running, or
   # A's timeout comfortably exceeds B's cold start", and the first is the one that
   # is actually configured rather than merely written down.
-  # The condition under which this becomes 0 is recorded in INFRASTRUCTURE-ANALYSIS.md
-  # §3(a): it is a product fact, not a budget decision.
+  # Why it stays 1 is recorded in INFRASTRUCTURE-ANALYSIS.md §3(a): it is a product fact,
+  # not a budget decision, and since ADR-0060 every frame a reader reads is this call.
   min_machines_running = 1
 
   [http_service.concurrency]

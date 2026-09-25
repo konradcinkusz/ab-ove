@@ -6,6 +6,9 @@
 [ADR-0056](0056-the-reading-order-is-gated-on-every-surface-and-every-refusal-says-what-opens-it.md),
 which gates the MCP server on this same rule and gives every refusal a sentence. Two
 paragraphs below are struck where it overtook them; the rule itself is unchanged.
+Confirmed on 2026-09-25 by
+[ADR-0065](0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md),
+which keeps the Foundation programs in the order and records what would reopen it.
 
 Date: 2026-09-20. Narrows
 [ADR-0041](0041-the-reading-surface-shows-position-and-never-progress.md); constrained by

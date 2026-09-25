@@ -1,14 +1,15 @@
 # Tutorial 1 — your first run
 
-**What you will have at the end:** ab-ovo running on your own machine, serving the whole
-book, with a frame open in front of you that has asked you a question and is refusing to
-answer it.
+**What you will have at the end:** ab-ovo running on your own machine, with the index of the
+whole book in front of you. Steps 4 and 5 go on to a frame that asks you a question and
+refuses to answer it, and that frame needs the book inside the API — which, on a fresh
+AppHost, nothing puts there yet. Step 3 says why.
 
 **How long:** about twenty minutes, most of it waiting for a build.
 
 **What you need:** a clone of this repository, and nothing else. No account, no credential,
-no service, no key. That is not a convenience — it is a property of the product, and by the
-end of this tutorial you will have seen it.
+no key. Reading needs no account — that is not a convenience, it is a property of the
+product — and steps 4 and 5 show it, along with the one thing reading does need.
 
 > **Wersja polska:** [`01-first-run.pl.md`](01-first-run.pl.md)
 
@@ -70,18 +71,35 @@ deployed topology and it never will be — see [tutorial 3](03-contribute-a-chan
 
 Open <http://localhost:3000>.
 
-If you would rather not run .NET at all, the reader surface needs none of it:
+**The web app on its own is not enough to read.** `pnpm --dir web build` and
+`pnpm --dir web start` serve the index, `/courses` and `/about` with nothing behind them, but
+not a frame: every frame is a live call to `AbOvo.Api`
+([ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)),
+which is why this step runs the AppHost.
 
-```bash
-pnpm --dir web install
-pnpm --dir web build
-pnpm --dir web start
-```
+**And the API has to hold the book.** It serves the compiled bundle it was given through an
+admin-only endpoint, `POST /api/v1/admin/content/bundles`, and a fresh database holds none.
+Nothing in the AppHost ingests it today. The acceptance suite does, in
+`tests/e2e/fixtures/ingest-content.mts`, but it signs in against the suite's own identity stub
+rather than the AppHost's identity service. Until the book is in, the index lists every
+program and a frame answers *not found*.
 
-That serves the same site with no API, no database and no identity service behind it — which
-is the point of the next step.
+**Nor can you post it by hand yet.** The obvious route is to sign in as `admin@ab-ovo.test`,
+the SuperAdmin the AppHost's `authservice` seeds itself, and post
+`web/content/bundle/bundle.json` with that bearer. `AbOvo.Api` refuses it with `401`.
+`authservice` builds the `jwks_uri` in its discovery document from `Jwt:PublicBaseUrl`, which
+defaults to an empty string and which `AppHost.cs` does not set, so the address it publishes
+is a bare path and the API finds no key to check the token with. That was measured on
+2026-09-25 against `authservice` v0.3.1 configured as `AppHost.cs` configures it; with the
+base URL set, the same two requests ingest the book. Both gaps are the AppHost's, and closing
+them is a change to it rather than to this tutorial.
 
 ## Step 4 — watch the product refuse to tell you something
+
+> **On a fresh AppHost you cannot follow this step or the next one yet.** Both need a frame,
+> and a frame needs the book inside the API, which step 3 explains the AppHost cannot put
+> there today. Read them as what the AppHost shows once it can; the index and `/about` are
+> what a fresh clone shows now.
 
 You are looking at the index of programs. Pick **F01 — Numbers, powers and roots**, and read
 to frame 3.
@@ -97,8 +115,10 @@ search the document for the answer.
 
 **It is not there.** Not in an element, not in an attribute, not in a script tag, not in a
 prefetch. There is nothing to find, because the answer to the frame you are on is rendered by
-the request for the *next* frame and by nothing before it. The reveal is a navigation, not a
-toggle ([ADR-0014](../adr/0014-the-content-schema-is-json-schema-and-knows-nothing-about-frames.md)).
+the request for the *next* frame and by nothing before it. The reveal is a form, not a toggle:
+it asks `AbOvo.Api` to move your place on, and the API serves the next frame only after that
+([ADR-0014](../adr/0014-the-content-schema-is-json-schema-and-knows-nothing-about-frames.md),
+[ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)).
 
 Click **Next** at the bottom of the screen, or press <kbd>→</kbd>.
 
@@ -108,24 +128,34 @@ Frame 4 opens with the answer you were supposed to have written. That is the boo
 mechanism, and making it structural rather than a hidden element is the reason this product
 exists at all.
 
-## Step 5 — turn everything off and keep reading
+## Step 5 — stop the API, and see what reading needs
 
-Stop the AppHost. Stop the API. Stop the database.
+Stop the `api` resource from the Aspire dashboard, and reload the frame.
 
-Reload the frame.
+**The frame is gone, and the page says whose fault that is.** Every frame and every reveal is a
+live, gated call to `AbOvo.Api`; with it down, the frame answers with the error page, which says
+the fault is on this side rather than in the address you asked for. That is deliberate: content
+is the one integration this product does not treat as optional, and a frame rendered from
+anywhere else would be a defect rather than a fallback.
 
-**Nothing changes.** The frames are served with the site as a versioned bundle, and everything
-you write on a frame stays in your browser
-([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)). The reader
-loop is required to work with no account and no backend, and a screen in it that could not
-render without a fetch would be a defect rather than a loading state.
+Open the index at <http://localhost:3000>. **It is still there** — it reads the compiled bundle
+built into the web app and calls no API while rendering — and so is `/about`, whose integration
+panel now reports that no API answered.
 
-Try the rest of it while the backend is off:
+Start the `api` resource again and reload the frame. You are back on it, and you never signed
+in: your place is held by the API under an opaque cookie this origin set on your first visit —
+not an account, and not a token
+([ADR-0061](../adr/0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)). Stop
+`authservice` instead, and nothing about reading changes at all.
 
-- Open `Working` under the answer line — a pad that evaluates arithmetic. A calculator,
+Try the rest of the frame while you are here. The pad and the canvas need nothing behind them,
+and everything you write on a frame stays in your browser
+([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)):
+
+- Open `Work it out` under the answer line — a pad that evaluates arithmetic. A calculator,
   deliberately not a computer algebra system
   ([ADR-0042](../adr/0042-the-evaluator-is-a-calculator-not-a-cas.md)).
-- Open `Sketch` — a canvas that takes strokes and never opens itself
+- Open `Draw it` — a canvas that takes strokes and never opens itself
   ([ADR-0043](../adr/0043-a-sketch-is-strokes-and-the-pane-never-opens-itself.md)).
 - Switch the edition in the bar at the top. The same frame, in Polish, keeping your frame
   number.
@@ -134,10 +164,12 @@ Try the rest of it while the backend is off:
 
 ## What you have seen
 
+The rows that point at steps 4 and 5 wait on the same thing those steps do.
+
 | Claim | Where you saw it |
 | --- | --- |
 | The answer is absent rather than hidden | Step 4, in the inspector |
-| The reader loop needs no account and no backend | Step 5, with everything stopped |
+| Reading needs no account, and every frame needs the API | Step 5, with the API stopped and started again |
 | The book is content, not source, and is pinned | Step 2, one digest per file |
 | The edition is the reader's choice, never guessed | Step 5, the top bar |
 

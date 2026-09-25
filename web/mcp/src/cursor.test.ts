@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { ApiCursorStore, MemoryCursorStore, furthest, isIdentifier } from './cursor.ts';
+import { ApiCursorStore, MemoryCursorStore, PlaceUnavailable, furthest, isIdentifier } from './cursor.ts';
 import type { Cursor } from './reveal.ts';
 
 const at = (step: number, language = 'en'): Cursor => ({ track: 't', unit: 'P01', language, step });
@@ -47,6 +47,20 @@ test('readAll is every place the reader has, in one call', async () => {
     all.map((cursor) => `${cursor.unit}@${cursor.step}/${cursor.language}`).sort(),
     ['P01@2/en', 'P02@7/pl'],
   );
+});
+
+test("the memory store's edition is the edition of the place written last", async () => {
+  // #144: one edition per reader. With no account there is no preference, so the most
+  // recent place is what says it — and a switch is a write, so it moves this too.
+  const store = new MemoryCursorStore();
+  assert.equal(await store.edition(), undefined, 'a reader with no place has no edition');
+
+  await store.save(at(2, 'pl'));
+  assert.equal(await store.edition(), 'pl');
+  await store.save({ track: 't', unit: 'P02', language: 'en', step: 1 });
+  assert.equal(await store.edition(), 'en');
+  await store.save(at(2, 'pl'));
+  assert.equal(await store.edition(), 'pl', 'switching P01 back is the latest word');
 });
 
 test('identifiers are the shape AbOvo.Api enforces on the route', () => {
@@ -150,6 +164,83 @@ test('another machine reading past the switched step takes its own edition with 
   rows[0] = row(9, 'en'); // the phone read on, in English
 
   assert.deepEqual(await store.read('t', 'P01'), at(9, 'en'));
+});
+
+test("the API store's edition is the reader's chosen one, else their most recent place's", async () => {
+  const asked: string[] = [];
+  const answering = (preference: string | null, rows: readonly Row[]) =>
+    new ApiCursorStore('https://api.example', () => 'the-token', (async (input: string | URL | Request) => {
+      asked.push(new URL(String(input)).pathname);
+      return String(input).endsWith('/preferences/language')
+        ? Response.json({ language: preference, updatedAt: preference ? 'then' : null })
+        : Response.json({ records: rows });
+    }) as typeof fetch);
+
+  assert.equal(await answering('pl', [row(4, 'en')]).edition(), 'pl', 'the choice made on the website wins');
+  assert.deepEqual(asked, ['/api/v1/preferences/language'], 'and a chosen edition needs no second request');
+
+  const older = { ...row(9, 'en'), unit: 'P01', updatedAt: '2026-09-01T10:00:00Z' };
+  const newer = { ...row(2, 'pl'), unit: 'P02', updatedAt: '2026-09-02T10:00:00Z' };
+  assert.equal(await answering(null, [newer, older]).edition(), 'pl', 'never chosen: the latest place, by time');
+  assert.equal(await answering(null, []).edition(), undefined, 'nothing anywhere: nothing known');
+});
+
+test('every way the API store can fail is PlaceUnavailable, with the reason that says what fixes it', async () => {
+  // #137: a bare Error and a rejected fetch used to escape as themselves, and tools.ts had
+  // nothing to name them by. Each case here is one `PlaceProblem`, read and write alike.
+  const cases: readonly { answer: () => Promise<Response>; reason: string; status: number | undefined }[] = [
+    { answer: async () => new Response('', { status: 401 }), reason: 'unauthorised', status: 401 },
+    { answer: async () => new Response('', { status: 403 }), reason: 'unauthorised', status: 403 },
+    { answer: async () => new Response('', { status: 500 }), reason: 'unreachable', status: 500 },
+    { answer: async () => new Response('', { status: 429 }), reason: 'unreachable', status: 429 },
+    { answer: async () => Promise.reject(new TypeError('fetch failed')), reason: 'unreachable', status: undefined },
+    { answer: async () => new Response('', { status: 404 }), reason: 'refused', status: 404 },
+    { answer: async () => new Response('not json', { status: 200 }), reason: 'refused', status: 200 },
+    // JSON, and not an object: reading a field of `null` used to escape as a TypeError.
+    { answer: async () => new Response('null', { status: 200 }), reason: 'refused', status: 200 },
+    { answer: async () => new Response('[]', { status: 200 }), reason: 'refused', status: 200 },
+  ];
+
+  for (const { answer, reason, status } of cases) {
+    const store = new ApiCursorStore('https://api.example', () => 'the-token', (async () => answer()) as typeof fetch);
+    const attempts = [
+      { writing: false, attempt: () => store.readAll() },
+      { writing: true, attempt: () => store.save(at(1)) },
+    ];
+    for (const { writing, attempt } of attempts) {
+      await assert.rejects(attempt(), (error: unknown) => {
+        assert.ok(error instanceof PlaceUnavailable, `${reason}: ${String(error)}`);
+        assert.equal(error.reason, reason);
+        assert.equal(error.status, status);
+        assert.equal(error.writing, writing);
+        return true;
+      });
+    }
+  }
+});
+
+test('an AB_OVO_API_URL that is not an http address is refused before anything is sent', async () => {
+  // `fetch` rejects these with the TypeError a dropped connection gives, so they used to be
+  // `unreachable` — "try again shortly", which never helps. `localhost:8180` is the shape
+  // a person types: it parses, with `localhost:` as its scheme.
+  for (const base of ['not-a-url', 'localhost:8180', 'ftp://api.example']) {
+    const { calls, fetchImpl } = service([]);
+    const store = new ApiCursorStore(base, () => 'the-token', fetchImpl);
+    for (const [writing, attempt] of [
+      [false, () => store.readAll()],
+      [false, () => store.edition()],
+      [true, () => store.save(at(1))],
+    ] as const) {
+      await assert.rejects(attempt(), (error: unknown) => {
+        assert.ok(error instanceof PlaceUnavailable, `${base}: ${String(error)}`);
+        assert.equal(error.reason, 'refused', base);
+        assert.equal(error.status, undefined, `${base}: nothing answered, so there is no status`);
+        assert.equal(error.writing, writing);
+        return true;
+      });
+    }
+    assert.equal(calls.length, 0, `${base}: a request was sent`);
+  }
 });
 
 test('the API store refuses to build a route from a bad identifier', async () => {

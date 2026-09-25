@@ -66,9 +66,10 @@ primary_region = "waw"                       # ADR-0002
   destination = "/var/lib/postgresql/data"
   # Declared deliberately, because growing a volume later is possible and shrinking is
   # not (§8). 3gb is sized for what these two databases actually hold — reader progress
-  # rows and accounts; the book's 47 programs ship in the repository, not in the
-  # database — plus headroom for WAL and autovacuum bloat, which is the cheapest
-  # failure to avoid and the most expensive to hit.
+  # rows, accounts and, since ADR-0060, the book itself, one jsonb row in apidb per
+  # ingested tag (INFRASTRUCTURE-ANALYSIS.md §3(e) measures one) — plus headroom for WAL
+  # and autovacuum bloat, which is the cheapest failure to avoid and the most expensive
+  # to hit.
   initial_size = "3gb"
 
 [[vm]]

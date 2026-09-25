@@ -22,12 +22,14 @@ import {
  * optional integration and prints the same list as a startup banner; this panel is the
  * third rendering, and the only one a reader or an operator will actually look at.
  *
- * WHY THE PAYLOAD IS SERVED BY THE TEST. The suite's own CI context runs the web app with no
- * API behind it — deliberately, because the Phase 1 reader loop has nothing to say to a
- * backend yet. A test that needed a live API would therefore have to be skipped in the only
- * context that runs it, which is how a suite ends up asserting nothing. Fulfilling the route
- * puts a known answer in front of the browser and tests the half that is actually this
- * frontend's: that every state the API can report arrives on the page as itself.
+ * WHY THE PAYLOAD IS SERVED BY THE TEST. Since ADR-0062 the web app these tests run against
+ * (`:3000`) has the job's API behind it, like `:3100` — so a real answer would be that one
+ * API's integrations, in whatever states the runner left them, and never the empty list or
+ * the unrecognised shape this file needs. A test that needed a particular live API would be
+ * skipped or flaky in the only context that runs it, which is how a suite ends up asserting
+ * nothing. Fulfilling the route puts a known answer in front of the browser and tests the
+ * half that is actually this frontend's: that every state the API can report arrives on the
+ * page as itself.
  *
  * The live half is not abandoned — it is the last test in this file, declared as a skip with
  * a reason and an environment variable that turns it on, so the runner reports it as skipped

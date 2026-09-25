@@ -13,6 +13,7 @@ import { test } from 'node:test';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { ElicitRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 import { MemoryCursorStore } from './cursor.ts';
 import { fixtureBundles } from './content.ts';
@@ -60,6 +61,38 @@ test('a tool call answers through the same wiring', async () => {
   await client.close();
 });
 
+test('a host that can elicit is asked for the edition with the track\'s editions as the choices', async () => {
+  // #144, through the real protocol: the SDK validates the reader's answer against the
+  // schema this server sends, so a schema a host could not render would fail here first.
+  const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+  const server = createServer(new MemoryCursorStore(), { bundles: fixtureBundles() });
+  await server.connect(serverSide);
+  const client = new Client({ name: 'server.test', version: '0.0.0' }, { capabilities: { elicitation: { form: {} } } });
+
+  const asked: unknown[] = [];
+  client.setRequestHandler(ElicitRequestSchema, async (request) => {
+    asked.push(request.params);
+    return { action: 'accept', content: { edition: 'pl' } };
+  });
+  await client.connect(clientSide);
+
+  const opened = await client.callTool({ name: 'open_program', arguments: { unit: 'P01' } });
+  assert.equal((opened as { isError?: boolean }).isError, undefined, text(opened));
+  assert.match(text(opened), /Starting "P01" in the "pl" edition, chosen directly by the reader/);
+
+  assert.equal(asked.length, 1);
+  const schema = (asked[0] as { requestedSchema: { properties: { edition: { enum: string[] } }; required: string[] } })
+    .requestedSchema;
+  assert.deepEqual(schema.properties.edition.enum, ['en', 'pl']);
+  assert.deepEqual(schema.required, ['edition']);
+
+  // Asked once: reopening resumes in the edition chosen. (The fixture carries one program;
+  // a second program starting in it is tools.test.ts's, over a longer track.)
+  await client.callTool({ name: 'open_program', arguments: { unit: 'P01' } });
+  assert.equal(asked.length, 1, 'the reader was asked again');
+  await client.close();
+});
+
 test('the prompt is listed, and renders the method before it asks for a step', async () => {
   const client = await connected();
   const { prompts } = await client.listPrompts();
@@ -75,7 +108,12 @@ test('the prompt is listed, and renders the method before it asks for a step', a
 
   const unnamed = await client.getPrompt({ name: 'read', arguments: {} });
   const open = unnamed.messages[0]!.content;
-  assert.match(open.type === 'text' ? open.text : '', /Call list_programs/);
+  assert.match(open.type === 'text' ? open.text : '', /Call list_programs and show me/);
+
+  // An edition with no program: the list is asked for in it, so the titles chosen from are.
+  const inPolish = await client.getPrompt({ name: 'read', arguments: { language: 'pl' } });
+  const listed = inPolish.messages[0]!.content;
+  assert.match(listed.type === 'text' ? listed.text : '', /Call list_programs with "language": "pl"/);
   await client.close();
 });
 

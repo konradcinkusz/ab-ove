@@ -55,11 +55,14 @@ was first written with.
 | File | The journey |
 |---|---|
 | `about.spec.ts` | the argument renders, and states the anti-goal: the instrument measures the book, never the reader |
-| `accessibility.spec.ts` | every screen holds WCAG 2.2 A and AA as far as axe-core can decide — both schemes, each panel open, 360 px, and the forms behind an account |
+| `accessibility.spec.ts` | every screen holds WCAG 2.2 A and AA as far as axe-core can decide — both schemes, each panel open, 360 px, the forms behind an account, and a legal document |
 | `account-deletion.spec.ts` | closing an account, and everything about it that needs no account |
+| `app-icon.spec.ts` | the tab shows the mark, served by this origin to a reader with no account, and `theme-color` is the paper in each scheme |
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
-| `consent.spec.ts` | being asked once whether outcomes may be counted, and being left alone |
+| `consent.spec.ts` | being asked once whether answers may be counted, focus landing on the answer given, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
+| `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload |
+| `focus-ring.spec.ts` | the controls that showed focus by a colour or a brightness wear the shared ring, in light, dark and forced colours |
 | `frame-view.spec.ts` | the answer is absent before the reveal, asserted in both directions and both editions |
 | `gate.spec.ts` | the book is entered at the beginning: a program opens when the one before it has |
 | `hydration.spec.ts` | every page hydrates — the one defect that leaves no trace on screen |
@@ -77,15 +80,19 @@ was first written with.
 | `progress.spec.ts` | coming back to where one was, with no account |
 | `reader-identity.spec.ts` | an anonymous reader's place is held in a cookie the page cannot read, and no header can claim it (ADR-0061) |
 | `reading.spec.ts` | reading a program end to end from the keyboard, the frame's ergonomics, and the frame on paper |
-| `registration.spec.ts` | a reader with no account gets one |
+| `registration.spec.ts` | a reader with no account gets one, and can read the two documents it accepts first |
+| `reveal-failure.spec.ts` | a reveal the API does not take says so beside `Next` and keeps the frame — with the mouse, `→`, `Ctrl+Enter` and no JavaScript (#138) |
 | `runtime-config.spec.ts` | `/api/config` resolved at request time, and the `/healthz` check the platform polls |
 | `runtime-cost.spec.ts` | what the Python runtime costs in this browser, cold and warm |
 | `screenshots.spec.ts` | the pictures `docs/SCREENSHOTS.md` shows, captured from the real application — not a gate |
 | `second-factor.spec.ts` | signing in to an account that has a second factor |
 | `sign-in-identity.spec.ts` | the signed-in path, against an identity service this suite starts itself |
 | `sign-in.spec.ts` | the sign-in screen, and everything about it that needs no account |
+| `skip-link.spec.ts` | a keyboard reader's first Tab offers a way past the masthead, on every page, in their edition |
 | `sync.spec.ts` | the same reader on a second machine |
+| `targets.spec.ts` | the small controls off the reading screens are a finger's target, at a phone's width and a desktop's, and a press on a control's words lands on it |
 | `theme.spec.ts` | a reader turns on light mode, and it stays on |
+| `unknown-address.spec.ts` | a mistyped address still meets the sign-in redirect, and the page it lands on says there is no page there |
 | `worksheet.spec.ts` | committing an answer before turning over, which is the method the book is |
 
 ### 1. The product's argument, and its anti-goal — `specs/about.spec.ts`
@@ -179,11 +186,12 @@ read the report from; and the three defensive branches — an empty integration 
 in an unrecognised shape, and the fact that none of these may render as "no API".
 
 **The payload is served by the test, and that is deliberate.** These tests run against the
-web app on `:3000`, which has no API behind it — by design, and still, since the backend the
-e2e job now starts is given to the signed-in deployment alone (ADR-0035). A test that needed
-a live API would be skipped in the only context that runs it, which is how a suite ends up
-asserting nothing. Route-fulfilment tests the half that is this frontend's: that every state
-the API can report arrives on the page as itself.
+web app on `:3000`, which since ADR-0062 has the job's API behind it like `:3100` — so a real
+answer would be that one API's integrations, in whatever states the runner left them, and
+never the empty list or the unrecognised shape this section needs. A test that needed a
+particular live API would be skipped or flaky in the only context that runs it, which is how a
+suite ends up asserting nothing. Route-fulfilment tests the half that is this frontend's: that
+every state the API can report arrives on the page as itself.
 
 The live half is not abandoned. The last test in that file reads a **real** deployment and
 asserts at least one integration with a state of `live` or `degraded`. It is declared as a
@@ -192,9 +200,16 @@ deployment* below.
 
 ### 4. The app with no backend — `specs/no-backend.spec.ts`
 
-Not an error-handling nicety: ab-ovo's first product requirement is that the reader loop
-works with **no account and no backend**. "No API answered" is a supported configuration of
-this product, not an outage.
+Not an error-handling nicety, and no longer the requirement it used to be. The reader loop was
+specified to need no account and no server, and
+[ADR-0060](../../docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+kept the first half and reversed the second: every frame is now a live call to `AbOvo.Api`, so an
+API that does not answer stops reading. What this journey still holds is the part that stays true
+with the browser cut off from the API — the index reaches a program, and `/about` renders whole and
+says legibly which fault it was — because neither page needs the API to render: the index reads the
+compiled bundle built into the web app, and `/about`'s one live part is the panel, which crashing or
+spinning forever would be the product failing twice. It says nothing about a frame; ADR-0062 records
+why the suite no longer runs a whole deployment with no API.
 
 The failure is injected in the browser with route interception, which is both deterministic
 (no waiting for a real backend to be down, no 45-second ladder walk) and faithful to what a
@@ -272,10 +287,11 @@ The others:
   than interrupting it.
 - **the whole journey fetches from this origin and from nowhere else** (`FRONTEND-BFF.md §1`,
   `notes/10 §6.1`). Pyodide's own documentation leads with a jsDelivr `indexURL`, and taking that
-  advice would put a third-party host in the critical path of a reader loop whose first
-  requirement is that it needs no backend. Asserted over the boot *and* the run, with the
-  positive half too — the runtime arrived from `/pyodide/` and the book from `/book/` — without
-  which "nothing off-origin" would be satisfied by a page that fetched nothing.
+  advice would put a third-party host in the critical path of a pane that needs no server of its
+  own — it runs in the reader's browser, from this origin (ADR-0007), and has left the reader
+  loop (ADR-0040). Asserted over the boot *and* the run, with the positive half too — the runtime
+  arrived from `/pyodide/` and the book from `/book/` — without which "nothing off-origin" would
+  be satisfied by a page that fetched nothing.
 - **the reference solutions are not served to the browser.** `lab/solutions/` exists so the
   build can prove the exercises solvable; copying it into `public/book/` would put every answer
   one devtools tab away. Asserted in both directions, because a 404 for the solutions proves
@@ -391,16 +407,16 @@ checking.
   `storageState` here, and every signed-in spec signs in through the form
   (`specs/support/sign-in.ts`). It costs a sign-in per test in the `identity` project, and it
   is what that section's rule exists to prevent.
-- **The API failing underneath a page that is being rendered.** A reading page whose
-  `AbOvo.Api` call fails on the server throws to `app/error.tsx`; every spec shares one live
-  API, so no test can take it away from one page. `specs/no-backend.spec.ts` covers the
-  browser-side failure — the API out of the browser's reach — and not this one.
+- **The root layout failing.** `app/global-error.tsx` stands behind it, and nothing a test can
+  do from outside makes `app/layout.tsx` throw, so that page is held by the build and by the
+  component it shares with `app/error.tsx` — which *is* driven, by `specs/error-page.spec.ts`,
+  through the fault fixture below.
 - **A browser without the Popover API.** The reading screens' two panels fall back to blocks in
   the page's flow (`components/read/sheet.module.css`), and the one browser here has the API.
 - **What a machine cannot decide about accessibility.** `specs/accessibility.spec.ts` covers the
   rules axe-core can decide from the DOM. Whether a name is a good one, whether the focus order
   makes sense and how a screen reader reads the maths are asserted only where a spec asserts
-  them (`reading.spec.ts`, `pager.spec.ts`), and otherwise by a person.
+  them (`reading.spec.ts`, `pager.spec.ts`, `skip-link.spec.ts`), and otherwise by a person.
 - **The MCP transport.** `web/mcp` serves the book to an MCP host; its tests are unit tests in
   that package, run by CI's `pnpm test`, and nothing drives it end to end.
 - **The API's own behaviour.** `/api/v1/info`, `/health`, `/alive`, JWT validation, the
@@ -517,7 +533,8 @@ deployments (ADR-0060) did not change that.** That test reads the API through th
 proxy's own `/api/proxy/` route, against a target the operator names explicitly — issue
 #270's ground, a deployed environment, not this runner-local one. `:3000` and `:3100` both
 get `AB_OVO_API_URL` now (reading needs no account, so a live API is no longer the axis they
-differ on — see `playwright.config.ts`'s `apiBaseUrl`), but that is a Server Component's own
+differ on — see `playwright.config.ts`'s `apiBaseUrl`; `:3000`'s is the fault fixture's
+address, which forwards to it — see `faultBaseUrl`), but that is a Server Component's own
 direct, server-side call, a different mechanism from the browser's proxied one this test
 exercises. The genuinely backend-less run this suite still needs is `no-backend.spec.ts`'s —
 a real absence injected in the browser with route interception, deterministic on every run,
@@ -724,6 +741,14 @@ per run, and that is the price of reading through the real gate.
 each test registers a generated address, the fixture forgets it when its process exits, and
 no account is shared between tests.
 
+**And the API can be taken away from one reader without taking it from the rest.** The first
+deployment reaches `AbOvo.Api` through `fixtures/api-fault.mts`, a pass-through that drops the
+requests of a reader a spec has cut and forwards everybody else's untouched. It keys the cut
+on the reader id the middleware minted for that one context (ADR-0061), so
+`specs/error-page.spec.ts` can stop the API under its own frame while every other spec reads
+on through the same process. The set of cut readers lives in the fixture's memory and goes
+with it; a cut a failed test leaves behind names a reader nobody else holds.
+
 **And one file now does create server-side state, so the paragraph above has an exception
 rather than a slow drift into being false.** `specs/bearer-hop.spec.ts` writes progress rows
 to a real `AbOvo.Api`, because a hop that carries nothing proves nothing. Two consequences,
@@ -785,7 +810,9 @@ tests/e2e/
   package.json                      scripts; every one is run by a CI context
   playwright.config.ts              base URL, layers, harness defaults, webServer
   tsconfig.json                     strict; `pnpm run typecheck` is a real gate
-  fixtures/                         the identity service stub, its accounts, the content ingest
+  fixtures/                         the identity service stub (and the legal-document host it also
+                                    plays), its accounts, the content ingest, and the API
+                                    pass-through that can cut one reader off
   specs/
     *.spec.ts                       one journey each — the table under *What this suite covers*
     support/

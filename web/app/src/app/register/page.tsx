@@ -1,6 +1,8 @@
 import Link from 'next/link';
 
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { backendConfigured } from '@/lib/server/backends';
+import { legalDocument, legalPath, offersRegistrationForm } from '@/lib/server/legal';
 import { consentVersions } from '@/lib/server/register';
 import { safeRedirectTarget } from '@/lib/redirect-target';
 import { registrationNotice, registrationProblem } from '@/lib/registration-problem';
@@ -13,7 +15,7 @@ import styles from '../credentials-form.module.css';
  * ──────────────────────────────────────────────────────────────────────────────────────
  * THE PAGE THAT WAS MISSING, AND THE MIDDLEWARE ALREADY KNEW IT.
  *
- * `middleware.ts` has carried `/register` in `PUBLIC_PATHS` since the gate was written —
+ * The page gate has carried `/register` in `PUBLIC_PATHS` since it was written —
  * "a reader deciding whether to trust what this system measures must not have to register
  * first" — and there was no page behind it. So `/login` invited a reader to use "the email
  * address and password you registered with", the only way to get one was to POST to
@@ -80,21 +82,51 @@ export default async function RegisterPage({
     waiting on a verification email; a form under that sentence invites a second attempt
     whose only possible answer is that the address is taken.
   */
-  const offersForm =
-    identityConfigured &&
-    consent !== null &&
-    notice === null &&
-    (problem === null || problem.retryable);
+  const answered = notice !== null || (problem !== null && !problem.retryable);
+
+  /*
+    THE DOCUMENTS HAVE TO EXIST FOR THE CONSENT TO MEAN ANYTHING (#141).
+
+    authservice publishes the versions and no text — docs/architecture/
+    AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md §8 — so a version is only a name, and the text it
+    names is this deployment's to publish (`lib/server/legal.ts`, ADR-0049). Both names in
+    the consent sentence link to the exact version being accepted, on this origin; and when
+    either text cannot be shown the form is withdrawn, as it is when the versions cannot be
+    fetched. A checkbox offering a document nobody can read would be the form asserting a
+    consent the reader had no way to give.
+
+    Asked for only when the form is otherwise going to be offered: a page that has already
+    answered the reader has no checkbox to back. The decision itself is
+    `offersRegistrationForm`, pure and tested in `legal.test.ts`, because the state that
+    withdraws the form is the one no acceptance deployment is in.
+  */
+  const documents =
+    consent !== null && !answered
+      ? await Promise.all([
+          legalDocument('terms', consent.terms),
+          legalDocument('privacy', consent.privacy),
+        ])
+      : null;
+
+  const offersForm = offersRegistrationForm({
+    identityConfigured,
+    versionsKnown: consent !== null,
+    answered,
+    documents,
+  });
 
   const signInHref = intended ? `/login?redirect=${encodeURIComponent(intended)}` : '/login';
 
   return (
     <main className="shell">
+      <SkipLink language="en" />
       <header className="masthead">
         <p className="wordmark">
           ab<span>-</span>ovo
         </p>
-        <h1 className="lede">An account is optional, and this is where one is made.</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>
+          An account is optional, and this is where one is made.
+        </h1>
         <p className="standfirst">
           The frames, the worksheet and the programs all work without one, and your place is
           already kept on this device. An account carries that place between machines. That
@@ -138,7 +170,7 @@ export default async function RegisterPage({
             be one it refuses. This is our side rather than yours; reading needs no account
             and is unaffected. Try again in a few minutes.
           </p>
-        ) : !offersForm ? (
+        ) : answered ? (
           <p>
             {notice ? (
               <>
@@ -157,6 +189,19 @@ export default async function RegisterPage({
                 making, <Link href="/register">start again</Link> from a fresh page.
               </>
             )}
+          </p>
+        ) : !offersForm ? (
+          /*
+            The versions are known and a text for one of them is not — no host is
+            configured, the host has no such file, or it did not answer. As with the
+            versions above, which of those it was matters to the operator and not to the
+            reader, and none of it is something the reader can fix.
+          */
+          <p>
+            The Terms of Use and the Privacy Policy an account here is created under cannot
+            be shown right now, so the form is not offered — accepting them unread would not
+            be a consent. This is our side rather than yours; reading needs no account and is
+            unaffected.
           </p>
         ) : (
           <>
@@ -247,13 +292,30 @@ export default async function RegisterPage({
                   value="yes"
                   required
                 />
+                {/*
+                  EACH NAME LINKS TO THE VERSION BEING ACCEPTED, never to "the current" text:
+                  the address carries the same string the hidden field above does. A new tab,
+                  because the reader is part-way through this form, and a navigation away
+                  and back is not guaranteed to bring back what they typed (#141). A link
+                  inside a <label> does not tick the box it labels — activating it follows the
+                  link and nothing else.
+
+                  "The" Terms, not "the identity service's": authservice records which version
+                  was accepted and publishes no text, so the documents are this deployment's
+                  (ADR-0049's amendment), and the sentence does not name an owner they lack.
+                */}
                 <label className={styles.consentLabel} htmlFor="accept">
-                  I accept the identity service&rsquo;s Terms of Use{' '}
-                  <span className={styles.version}>{consent.terms}</span> and Privacy Policy{' '}
-                  <span className={styles.version}>{consent.privacy}</span>. Those versions
-                  are recorded against the account, with the time and this device&rsquo;s
-                  address, because that is what makes the acceptance evidence rather than a
-                  claim.
+                  I accept the{' '}
+                  <a href={legalPath('terms', consent.terms)} target="_blank" rel="noopener">
+                    Terms of Use <span className={styles.version}>{consent.terms}</span>
+                  </a>{' '}
+                  and{' '}
+                  <a href={legalPath('privacy', consent.privacy)} target="_blank" rel="noopener">
+                    Privacy Policy <span className={styles.version}>{consent.privacy}</span>
+                  </a>
+                  . Each opens in a new tab, so nothing typed here is lost. Those versions are
+                  recorded against the account, with the time and this device&rsquo;s address,
+                  because that is what makes the acceptance evidence rather than a claim.
                 </label>
               </div>
 

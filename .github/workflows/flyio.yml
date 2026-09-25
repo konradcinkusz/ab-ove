@@ -734,10 +734,12 @@ jobs:
             flyctl apps create "$APP_WEB" --org "$FLY_ORG"
           fi
 
-      # No secrets are staged here, and that is a property worth keeping. The Phase 1
-      # reader loop works with no account and no backend, so the browser needs no
-      # credential and the server side has nothing to keep. The day this app holds a
-      # session cookie key, that key goes in Fly secrets and a step appears here.
+      # No secrets are staged here, and that is a property worth keeping. Reading needs
+      # no account, so the browser needs no credential; and the frames this app fetches
+      # from the API (ADR-0060) go with the reader's own bearer or opaque reader cookie
+      # (ADR-0061), not a credential of this app's, so the server side has nothing to
+      # keep. The day this app holds a session cookie key, that key goes in Fly secrets
+      # and a step appears here.
       - name: Deploy
         shell: bash
         run: |

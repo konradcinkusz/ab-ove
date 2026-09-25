@@ -51,9 +51,10 @@ export interface RuntimeConfig {
   /**
    * Whether this deployment has an identity service wired at all.
    *
-   * P8 — degradation must be legible. The reader loop is required to work with no account
-   * and no backend, so "accounts are not available here" is a normal state of this
-   * product and not an error; the UI says so rather than offering a sign-in that 503s.
+   * P8 — degradation must be legible. Reading needs no account (ADR-0004; ADR-0060 kept that
+   * half and reversed only the half about a server), so "accounts are not available here" is
+   * a normal state of this product and not an error; the UI says so rather than offering a
+   * sign-in that 503s.
    */
   accountsAvailable: boolean;
 }
@@ -65,8 +66,10 @@ export interface RuntimeConfig {
  * The fallback is not a guess about the environment: it is the subset that is TRUE in every
  * environment by construction. `apiBaseUrl` is a fixed path on this origin, so it is right
  * everywhere; the two genuinely environment-specific fields degrade closed. A server render
- * that used this fallback shows the reader the same page it would show with no backend
- * reachable — which is a state this product must handle anyway.
+ * that used this fallback shows the reader the same page it would show with no identity
+ * service configured — which is a state this product must handle anyway (P8). It says
+ * nothing about content: a frame is fetched from `AbOvo.Api` server-side and never through
+ * this config (ADR-0060, `lib/server/content.ts`).
  */
 export const SSR_FALLBACK_CONFIG: RuntimeConfig = {
   apiBaseUrl: '/api/proxy',

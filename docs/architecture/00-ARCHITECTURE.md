@@ -176,8 +176,27 @@ The literal zero-credential test is a test:
 credentials at all comes up, serves `/api/v1/info`, and names what it does not have.
 
 `web/app/src/components/integration-report.tsx` puts the same report in the product, and
-treats "no API answered" as a supported configuration rather than an error state — which it
-is, because the reader loop is required to work with no backend.
+renders "no API answered" as a sentence rather than an error state: the page it sits on is
+whole without the API.
+
+**Content is the one integration this product does not treat as optional, and P8 does not reach
+it.** [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+made every frame and every reveal a live, gated call to `AbOvo.Api`
+(`web/app/src/lib/server/content.ts`), so the reading surface is exactly as available as the API:
+with the API unreachable a frame renders the error page (`web/app/src/app/error.tsx`), never a frame
+from anywhere else, and a web app with no API configured serves the index and no frame. That is an
+asymmetry, not an inconsistency with P8: P8 is for *optional* integrations — the ones
+`IntegrationStatus.cs` records above degrade and are reported — and content was never optional, so
+treating "no API answered" as a configuration a reader could read in was the category error ADR-0060
+corrects. Reading still needs no account: `auth` stays optional at read time, and an anonymous
+reader is identified by an opaque cookie rather than anything `authservice` issues
+([ADR-0061](../adr/0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)). It is
+not optional for the estate as a whole: ingesting the book takes an `Admin` bearer only an issuer
+can mint, so an estate that has never had one has nothing to read
+([INFRASTRUCTURE-ANALYSIS §3(c)](../../flyio/INFRASTRUCTURE-ANALYSIS.md#c-do-not-deploy-authservice-at-all-until-phase-3--1-machine--3month)). The pages
+that read the compiled bundle built into the web app — the index, `/courses`, a program's contents
+and its summary — still render without the API; that is today's placement rather than a requirement,
+and 580 in [the order](../ux/UI-UX.md#the-order) moves the contents and the summary onto it.
 
 ### P9 — `Program.cs` is a manifest
 
@@ -411,9 +430,11 @@ Pyodide. Python appears nowhere in the standards.
 
 **Reason.** The exercises are the book's, and the book's are Python; rewriting forty-seven
 programs' worth of exercises into a language the standards already evidence would be
-changing the product to fit the scaffold. Running them in the browser is what makes the
-reader loop work with no account and no backend — the product's first requirement — and it
-means the reader's code never leaves their machine, which removes a class of privacy
+changing the product to fit the scaffold. Running them in the browser is what lets the lab
+need no account and no server of its own — a property the lab keeps now that it has left the
+reader loop ([ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md)) and the loop
+itself needs the API ([ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md))
+— and it means the reader's code never leaves their machine, which removes a class of privacy
 question rather than answering it.
 
 **Blast radius.** Bounded by construction: Pyodide runs inside the browser's sandbox, is
@@ -534,12 +555,22 @@ cross-device sync endpoint — still accepts and stores whatever `step` a caller
 only to "does not lower it". A caller could name step 48 directly and then `GET` it, having
 answered nothing.
 
-**Reason.** Closing it now would break the one caller that still legitimately needs it:
-`web/mcp` (TypeScript) computes its own advance client-side against its own copy of the gate
-(`reveal.ts`) and PUTs the resulting step to persist it, because it predates
-`POST .../advance` and has no other way to write `ReaderProgress`. Retiring `PUT`'s ability to
-raise `Step` today would silently stop the current MCP server from remembering a reader's
-place — a regression in exchange for closing a hole in a mechanism that is not a
+**Reason.** Closing it now would break the two callers that still legitimately raise `Step`
+through it:
+
+- `web/mcp` (TypeScript) computes its own advance client-side against its own copy of the
+  gate (`reveal.ts`) and PUTs the resulting step to persist it, because it predates
+  `POST .../advance` and has no other way to write `ReaderProgress`. Retiring `PUT`'s ability
+  to raise `Step` today would silently stop the current MCP server from remembering a
+  reader's place.
+- `web/app`'s sync (`web/app/src/lib/progress/sync.ts`) pushes `reconcile.ts`'s `toPush`
+  rows through it, under [ADR-0019](../adr/0019-furthest-frame-wins.md): frame 40 in the
+  browser and frame 12 on the account pushes 40. That push is how an account learns a place
+  read anonymously, and while the reader is signed in the reveal gate reads the account's
+  row. Narrowing `PUT` today would refuse that reader frames 13 to 40 until they read them
+  again.
+
+Either would be a regression in exchange for closing a hole in a mechanism that is not a
 confidentiality boundary in the first place. `web/web-kit/src/gate.ts`'s own docstring says
 the same of the neighbouring program-level gate, and it holds here too: "nothing behind it is
 paid for, secret, or unsafe to see." A reader who wants to read ahead by hand-crafting one PUT
@@ -551,13 +582,31 @@ caller do is see a later frame's text and the answer it opens with, without havi
 the one before it. No credential, no other reader's data, and no write outside the caller's
 own `ReaderProgress` rows are reachable through it.
 
-**Exit.** Phase 5 replaces `web/mcp` with a .NET client that calls `POST .../advance`
-directly, the way `web/app`'s reading surface will from phase 3. Once no caller depends on
-`PUT` to raise `Step`, its handler is narrowed to reject `update.Step > existing.Step`
-outright (or the field is dropped from `ProgressUpdate` entirely) and this row is discharged.
+**Exit.** Two changes, one for each caller, and the row is discharged only after both:
+
+1. #171 (order 710) makes `web/mcp` a client of the content API that calls
+   `POST .../advance` directly, as `web/app`'s reading surface already does
+   (`web/app/src/lib/server/content.ts`). It records opening a program through a new write
+   that creates a place at step 1 and never raises `Step`, so `web/mcp` stops calling `PUT`
+   at all. It stays in TypeScript: that is
+   [ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
+   §1 and §2, which replaced the .NET client this line used to name. #171 removes
+   `web/mcp`'s dependency on `PUT` and nothing more.
+2. `web/app`'s sync stops needing `PUT` to raise `Step`, because the account's place comes
+   from steps the API has already seen earned. One mechanism that fits: at sign-in the API
+   adopts the steps of the reader's `anon:<id>` rows into the account, the furthest frame
+   winning, and sync sends nothing the API does not already hold. #176 (order 685) carries
+   it (ADR-0066, Consequences), and `PUT` is narrowed in whichever of #171 and #176 lands
+   second.
+
+Then `PUT`'s handler is narrowed so that it cannot raise `Step`: not above an existing row's,
+and not above `Reveal.FirstStep` when it creates a row (or the field is dropped from
+`ProgressUpdate` entirely). This row is discharged then.
 
 **Recorded in.** [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md);
-`src/AbOvo.Api/Endpoints/ProgressEndpoints.cs`, at the `MapPut` handler.
+`src/AbOvo.Api/Endpoints/ProgressEndpoints.cs`, at the `MapPut` handler. Reason and Exit
+amended on 2026-09-25 by
+[ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md).
 
 ---
 

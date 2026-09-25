@@ -34,8 +34,12 @@ assignees: ''
   necessarily wrong, but it has to say so out loud.
 -->
 
-- [ ] **The reader loop works with no account and no backend.** Read a frame, commit an
-      answer, reveal the next. That is Phase 1 and it is the product's floor.
+- [ ] **Reading needs no account.** Read a frame, commit an answer, reveal the next — none of
+      it asks who the reader is; an anonymous reader's place is an opaque cookie, never a
+      token (ADR-0061). That is the product's floor.
+- [ ] **Every frame and every reveal is a live, gated call to `AbOvo.Api`.** Nothing renders a
+      frame from anywhere else, and an API that does not answer is said to the reader rather
+      than papered over (ADR-0060).
 - [ ] **A fresh clone with every optional integration skipped still runs.**
 - [ ] **The image stays promotable across environments** — no address baked in at build
       time.

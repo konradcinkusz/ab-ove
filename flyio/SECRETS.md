@@ -84,10 +84,14 @@ secret shared between two services means verify = mint.
 
 ### `ab-ovo-web-dev`
 
-None today, and that is a property worth keeping. The Phase 1 reader loop works with
-no account and no backend, so the browser needs no credential and the server side has
-nothing to keep. The day this app becomes a BFF holding a session cookie key, that key
-goes in Fly secrets and not in `[env]`.
+None today, and that is a property worth keeping. Reading needs no account, so the
+browser needs no credential; and although every frame is now a server-side call to the API
+([ADR-0060](../docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)),
+that call carries the reader's own bearer or their opaque reader cookie
+([ADR-0061](../docs/adr/0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)),
+not a credential of this app's — so the server side still has nothing to keep. The day this
+app becomes a BFF holding a session cookie key, that key goes in Fly secrets and not in
+`[env]`.
 
 ---
 

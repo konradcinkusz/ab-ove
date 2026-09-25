@@ -22,11 +22,28 @@
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 
+import lock from '../../content/book.lock.json' with { type: 'json' };
 import fixture from './fixtures/book-p01.bundle.json' with { type: 'json' };
 
-import { PINS, allBundles, bundleFor, groupsOf, languageIn, say, sectionSpans, stepIn, unitBefore, unitIn } from './bundle.ts';
+import {
+  BundleNotFound,
+  CONTENT_BUNDLE_VARIABLE,
+  PINS,
+  allBundles,
+  bundleFor,
+  groupsOf,
+  languageIn,
+  say,
+  sectionSpans,
+  stepIn,
+  unitBefore,
+  unitIn,
+} from './bundle.ts';
 import type { Bundle, Unit } from './schema.ts';
 import { validateBundle } from './validate.ts';
 import { skipWithoutBundle } from './have-bundle.ts';
@@ -81,6 +98,118 @@ test(
     assert.strictEqual(bundleFor(track), bundleFor(track));
   },
 );
+
+/*
+ * WHERE THE BUNDLE IS LOOKED FOR, FROM A WORKING DIRECTORY OUTSIDE THE REPOSITORY (#136).
+ *
+ * An MCP host starts the server from a directory of its own choosing, and from `/` every
+ * cwd-relative guess missed while the book sat in the checkout. These build a checkout-shaped
+ * directory in a scratch folder, put the committed fixture where the fetch script would put
+ * the real bundle, and move this process somewhere that is neither — so the only way to
+ * find it is the `web/` directory a caller names. The fixture's single program is what
+ * tells it apart from the real forty-seven-program book a guess could have found instead.
+ */
+const DESTINATION = (lock as { contentBundle: { destination: string } }).contentBundle.destination;
+
+function checkoutWithFixture(): { readonly web: string; readonly elsewhere: string; readonly scratch: string } {
+  const scratch = mkdtempSync(join(tmpdir(), 'ab-ovo-bundle-'));
+  const web = join(scratch, 'checkout', 'web');
+  mkdirSync(join(web, DESTINATION), { recursive: true });
+  writeFileSync(join(web, DESTINATION, 'bundle.json'), JSON.stringify(fixture));
+  const elsewhere = join(scratch, 'somewhere', 'else');
+  mkdirSync(elsewhere, { recursive: true });
+  return { web, elsewhere, scratch };
+}
+
+/** Run with this process in `cwd` and `AB_OVO_CONTENT_BUNDLE` as given, and put both back. */
+function from<T>(cwd: string, override: string | undefined, run: () => T): T {
+  const before = { cwd: process.cwd(), override: process.env[CONTENT_BUNDLE_VARIABLE] };
+  process.chdir(cwd);
+  if (override === undefined) delete process.env[CONTENT_BUNDLE_VARIABLE];
+  else process.env[CONTENT_BUNDLE_VARIABLE] = override;
+  try {
+    return run();
+  } finally {
+    process.chdir(before.cwd);
+    if (before.override === undefined) delete process.env[CONTENT_BUNDLE_VARIABLE];
+    else process.env[CONTENT_BUNDLE_VARIABLE] = before.override;
+  }
+}
+
+test('a caller that names its web/ directory finds the bundle from a working directory outside the repository', () => {
+  const { web, elsewhere } = checkoutWithFixture();
+
+  const bundle = from(elsewhere, undefined, () => bundleFor(PINS[0]!.track, web));
+  assert.ok(bundle, 'the named web/ directory was not where the bundle was looked for');
+  assert.deepEqual(
+    bundle.units.map((unit) => unit.id),
+    FIXTURE.units.map((unit) => unit.id),
+    'the bundle came from somewhere other than the named web/ directory',
+  );
+  assert.strictEqual(from(elsewhere, undefined, () => allBundles(web))[0], bundle, 'allBundles takes the same root');
+});
+
+test('a named web/ directory replaces the working-directory guesses, and the refusal says where it looked', () => {
+  // Run from THIS package's own directory, where the `cwd/..` guess finds the real book
+  // whenever it has been fetched. With a root named, that guess must not be taken: it
+  // could be another checkout's bundle, served under this one's pin.
+  const { scratch } = checkoutWithFixture();
+  const empty = join(scratch, 'empty', 'web');
+  mkdirSync(empty, { recursive: true });
+
+  const refused = from(process.cwd(), undefined, () => {
+    try {
+      bundleFor(PINS[0]!.track, empty);
+      return undefined;
+    } catch (error) {
+      return error;
+    }
+  });
+  assert.ok(refused instanceof BundleNotFound, `expected BundleNotFound, got ${String(refused)}`);
+  assert.deepEqual(refused.checked, [`${empty}/${DESTINATION}/bundle.json`]);
+  assert.equal(refused.override, undefined);
+  assert.match(refused.message, /fetch-book-content\.sh/, 'the message is the sentence it always was');
+});
+
+test('AB_OVO_CONTENT_BUNDLE is tried before the named web/ directory, and named when it misses', () => {
+  const { web, elsewhere, scratch } = checkoutWithFixture();
+  const empty = join(scratch, 'empty', 'web');
+  mkdirSync(empty, { recursive: true });
+
+  // Pointing at the fixture: found, although the named root holds nothing.
+  const pointed = from(elsewhere, join(web, DESTINATION, 'bundle.json'), () => bundleFor(PINS[0]!.track, empty));
+  assert.deepEqual(pointed?.units.map((unit) => unit.id), FIXTURE.units.map((unit) => unit.id));
+
+  // Pointing at nothing: refused, with the override first in what was checked.
+  const nowhere = join(scratch, 'nowhere', 'bundle.json');
+  const other = join(scratch, 'other', 'web');
+  mkdirSync(other, { recursive: true });
+  assert.throws(
+    () => from(elsewhere, nowhere, () => bundleFor(PINS[0]!.track, other)),
+    (error: unknown) =>
+      error instanceof BundleNotFound &&
+      error.override === nowhere &&
+      error.checked[0] === nowhere &&
+      error.checked[1] === `${other}/${DESTINATION}/bundle.json`,
+  );
+});
+
+test('an empty AB_OVO_CONTENT_BUNDLE names nothing, and the refusal does not report it', () => {
+  // A host's configuration template often carries the variable with no value. It is not a
+  // path, so it is not checked, and the refusal says the override was not set rather than
+  // that the bundle "is at" an empty string.
+  const { scratch } = checkoutWithFixture();
+  const empty = join(scratch, 'empty', 'web');
+  mkdirSync(empty, { recursive: true });
+  assert.throws(
+    () => from(process.cwd(), '', () => bundleFor(PINS[0]!.track, empty)),
+    (error: unknown) =>
+      error instanceof BundleNotFound &&
+      error.override === undefined &&
+      error.checked.length === 1 &&
+      error.checked[0] === `${empty}/${DESTINATION}/bundle.json`,
+  );
+});
 
 test('a unit is found by id, and an unknown one is undefined', () => {
   assert.equal(unitIn(FIXTURE, 'P01')?.id, 'P01');

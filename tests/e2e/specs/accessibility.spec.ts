@@ -118,6 +118,7 @@ const SCREENS: readonly Screen[] = [
   { what: 'a program’s summary', path: `${contentsAt('en')}/summary` },
   { what: 'a frame the reader has not reached', path: frameAt('en', program.steps.length) },
   { what: 'a page that does not exist', path: `/read/${track}/NOPE/en` },
+  { what: 'an address no page answers, on the sign-in page', path: '/nope' },
   { what: 'sign-in, with no identity service', path: '/login' },
   { what: 'registration, with no identity service', path: '/register' },
   { what: 'the page a deleted account ends on', path: '/account/deleted' },
@@ -163,8 +164,9 @@ test.describe('accessibility at 360 px', () => {
 
 /*
   THE SCREENS BEHIND AN ACCOUNT, in the `identity` project — the only deployment with an
-  identity service, and so the only one where sign-in and registration carry their forms and
-  where `/account` and `/instrument` render for a session rather than redirecting. A form is
+  identity service, and so the only one where sign-in and registration carry their forms,
+  where the documents registration links to are published, and where `/account` and
+  `/instrument` render for a session rather than redirecting. A form is
   where a missing label hides, which is why the unconfigured pages above do not stand in for
   these.
 */
@@ -176,9 +178,33 @@ test.describe('accessibility behind an account', () => {
     expect(await violations(page)).toEqual([]);
   });
 
+  // Not a form, but the variant of the no-page view (issue #140) that only this deployment
+  // renders: the quiet *Sign in* link beside the programs is here and not above.
+  test('an address no page answers, with its way to sign in, has no WCAG A or AA violation @identity', async ({
+    page,
+  }) => {
+    await page.goto('/nope');
+    await expect(
+      page.getByRole('main').getByRole('link', { name: 'Sign in', exact: true }),
+    ).toBeVisible();
+    await settle(page);
+    expect(await violations(page)).toEqual([]);
+  });
+
   test('the registration form has no WCAG A or AA violation @identity', async ({ page }) => {
     await page.goto('/register');
     await expect(page.locator('input[name="email"]')).toBeVisible();
+    await settle(page);
+    expect(await violations(page)).toEqual([]);
+  });
+
+  // The page the consent links to (#141). Only this deployment publishes one, and a
+  // document's text is the one screen here whose words arrive from another host.
+  test('a legal document has no WCAG A or AA violation @identity', async ({ page }) => {
+    await page.goto('/register');
+    const version = await page.locator('input[name="terms"]').inputValue();
+    await page.goto(`/legal/terms/${version}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Terms of Use' })).toBeVisible();
     await settle(page);
     expect(await violations(page)).toEqual([]);
   });

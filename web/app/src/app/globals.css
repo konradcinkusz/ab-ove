@@ -254,13 +254,17 @@ kbd {
   filter: brightness(1.1);
 }
 
-/* A visible ring on focus — frame-view.module.css records why a brightness was not one. */
+/*
+ * A visible ring on focus — frame-view.module.css records why a brightness was not one. The
+ * outline is transparent, not `none`: forced colours paint it where they drop the box-shadow
+ * (`components/read/controls.module.css`, issue #148).
+ */
 .enter a:focus-visible,
 .enter button:focus-visible {
   box-shadow:
     0 0 0 2px var(--paper),
     0 0 0 4px var(--accent);
-  outline: none;
+  outline: 2px solid transparent;
 }
 
 /* The second control beside a filled one reads as a link, so the page has one primary. */

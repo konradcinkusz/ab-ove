@@ -12,13 +12,19 @@ import { LANGUAGE_COOKIE, isLanguageTag } from '@/lib/language/store';
  * The landing page, which is the index (ADR-0036).
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * IT STILL MAKES NO FETCH AND NEEDS NO BACKEND.
+ * IT STILL CALLS NO API WHILE RENDERING, AS TODAY'S PLACEMENT RATHER THAN A REQUIREMENT.
  *
- * That was the old landing page's first property and it is this one's, for the same reason:
- * the reader loop is required to work with no account and no backend (ADR-0004), and a first
- * screen that could not render without an API would break the requirement before the reader
- * reached anything. `allBundles()` reads content compiled into the app. It does now read a
- * COOKIE, which is this origin's own and costs no request — see below.
+ * It was the old landing page's first property, and the reason was a requirement that joined
+ * two halves: the reader loop would need no account and no server (ADR-0004). ADR-0060 kept
+ * the first half and reversed the second — every frame and every reveal is a live, gated
+ * call to `AbOvo.Api` (`lib/server/content.ts`) — so the frame a tile leads to needs the API
+ * and this page does not. `allBundles()` reads the bundle compiled into the app, which means
+ * a reader who arrives while the API is down still sees the programs, and the frame they open
+ * is the page that says the fault is on this side. ADR-0060's Decision counts every read of
+ * a program as a live call, which this page is not, so the placement is pending rather than
+ * settled: whether the index stays off the API is issue #158's (580 in `docs/ux/UI-UX.md`'s
+ * order) to decide. It does read a COOKIE, which is this origin's own and costs no request —
+ * see below.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * IT IS RENDERED PER REQUEST RATHER THAN PRERENDERED, AND THAT COST IS NAMED HERE.

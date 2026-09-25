@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { IntegrationReport } from '@/components/integration-report';
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 
 /**
  * What ab-ovo is, and what its instrument is for.
@@ -17,11 +18,31 @@ import { IntegrationReport } from '@/components/integration-report';
  * reason it used to assert it on `/`.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * ADR-0060 — THIS PAGE NEEDS NO API. READING DOES, AND THE PAGE NOW SAYS SO.
+ *
+ * "What it needs from you" used to answer "nothing": the reader loop worked with no account
+ * and no backend, because frames were served with the site. ADR-0060 reversed the second
+ * half — every frame and every reveal is a live call to `AbOvo.Api` — and left the first
+ * standing, so the section now says the two separately, the way that ADR splits them: no
+ * account (ADR-0004, ADR-0061), but this site's book server. The old sentence was false
+ * exactly when a reader was most likely to be reading it — with the API stopped, the index
+ * renders and every frame fails (measured 2026-09-24, #142). `specs/about.spec.ts` asserts
+ * the new sentence.
+ *
+ * ADR-0040 — THE LAB IS NOT A STEP OF THE LOOP. The loop's fourth step was the program's own
+ * exercises, with Python as its detour. The lab left the reader loop and the worksheet took
+ * its place, so the worksheet is now the step, put where a reader uses it — between reading
+ * the frame and committing an answer — and the lab is named where the work is listed, as
+ * what it is: offered after a program, never beside a frame.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
  * A Server Component that renders from content compiled into the app and nothing else: no
- * fetch, no cookie, no backend. The one live thing is <IntegrationReport />, a Client
- * Component that asks this app's own origin what the API has, and it is below the whole of
- * the argument on purpose — everything above it is true whether or not that panel finds
- * anything.
+ * fetch, no cookie, no backend. That is a fact about this page, not about reading, and it is
+ * why the page can still tell a reader what is wrong when the API is not there. The one live
+ * thing is <IntegrationReport />, a Client Component that asks this app's own origin what
+ * the API has, and it is below the whole of the argument on purpose — everything above it is
+ * true whether or not that panel finds anything.
  */
 export const metadata: Metadata = {
   title: 'About — ab-ovo',
@@ -32,6 +53,7 @@ export const metadata: Metadata = {
 export default function AboutPage(): React.JSX.Element {
   return (
     <main className="shell">
+      <SkipLink language="en" />
       <header className="masthead">
         {/*
           The way back to the programs, first in the document, because this page is a
@@ -42,7 +64,9 @@ export default function AboutPage(): React.JSX.Element {
             ab<span>-</span>ovo
           </Link>
         </p>
-        <h1 className="lede">A book you work, not a book you read.</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>
+          A book you work, not a book you read.
+        </h1>
         <p className="standfirst">
           ab-ovo encapsulates <em>Mathematics from Zero for the AI Engineer</em> — 47 programs
           of programmed-learning frames, in English and Polish, together with the book&rsquo;s
@@ -51,9 +75,9 @@ export default function AboutPage(): React.JSX.Element {
           written.
         </p>
         {/*
-          The entry point, and on this page it is the way back to the first screen. It needs
-          no account and no backend, which is the claim the section two below it makes
-          (ADR-0004).
+          The entry point, and on this page it is the way back to the first screen. Nothing
+          past it needs an account (ADR-0004); the frames past it do need this site's book
+          server, which is the claim the section two below it makes (ADR-0060).
         */}
         <p className="enter">
           <Link href="/">Open the programs</Link>
@@ -86,6 +110,18 @@ export default function AboutPage(): React.JSX.Element {
         <h2>The loop</h2>
         <ol className="loop">
           <li>Read a frame. It is short by construction — one idea, sometimes one line.</li>
+          {/*
+            ADR-0040 — the worksheet, in the place the lab used to hold as step four, and
+            moved up to where it is used: a reader works a frame out before committing to an
+            answer, not after seeing the book's. What a frame asks for is not a program, so
+            this is the step that says no step asks for one.
+          */}
+          <li>
+            Work it out, on paper or on the worksheet under a frame that asks for something:
+            a line to answer on, a pad that does the arithmetic and a canvas to draw on. What a
+            frame asks for is a number, a word or a line of working &mdash; not a program
+            &mdash; so nothing in the loop asks you to write code.
+          </li>
           <li>
             Commit an answer before you turn over. The commitment is the mechanism; a frame
             you skimmed teaches nothing, and the book is built on that assumption.
@@ -94,22 +130,20 @@ export default function AboutPage(): React.JSX.Element {
             Reveal the next frame, which opens with the answer. Compare, and carry on or go
             back one.
           </li>
-          <li>
-            Work the program&rsquo;s own exercises where it has them. What a frame asks for is
-            a number, a word or a line of working &mdash; not a program &mdash; so nothing in
-            the loop asks you to write code. Python is a detour for the one program that has
-            computer exercises, never a step.
-          </li>
         </ol>
       </section>
 
       <section className="section">
         <h2>What it needs from you</h2>
+        {/*
+          ADR-0060 — two requirements, stated as two, because they are independent and only
+          one of them was reversed. The first sentence is what `specs/about.spec.ts` asserts.
+        */}
         <p>
-          Nothing. The reader loop works with no account and no backend: frames are served
-          with the site and the lab runs client-side. An account buys exactly one thing —
-          progress that follows you between machines — and it is the last phase of the work
-          rather than the gate on the first.
+          Reading needs no account, but it does need this site&rsquo;s book server: every frame
+          and every reveal is fetched from it as you read, so while it is down, no frame will
+          open. An account buys exactly one thing — progress that follows you between
+          machines — and it is the last phase of the work rather than the gate on the first.
         </p>
       </section>
 
@@ -131,7 +165,10 @@ export default function AboutPage(): React.JSX.Element {
         <ul className="phases">
           <li>
             <dfn>Phase 1</dfn>
-            <span>The lab pane: the book&rsquo;s computer exercises, running in the browser.</span>
+            <span>
+              The lab pane: the book&rsquo;s computer exercises, running in the browser &mdash;
+              offered after a program that has them, never beside a frame.
+            </span>
           </li>
           <li>
             <dfn>Phase 2</dfn>

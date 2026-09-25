@@ -20,6 +20,9 @@ import {
 } from '@/lib/sheet/strokes';
 
 import { Pencil } from './icons.tsx';
+import { TwoStepLabel } from './two-step-label.tsx';
+import { TwoStepStatus } from './two-step-status.tsx';
+import { useTwoStep } from './use-two-step.ts';
 import styles from './worksheet.module.css';
 
 export interface SketchProps {
@@ -36,7 +39,11 @@ export interface SketchProps {
   readonly none: string;
   readonly undo: string;
   readonly clear: string;
+  /** `Clear`'s second label — the press that empties the pad (`useTwoStep`). */
+  readonly clearConfirm: string;
   readonly full: string;
+  /** The chrome's language, for the live region that says `Clear` is armed. */
+  readonly language: string;
 }
 
 /**
@@ -116,7 +123,9 @@ export function Sketch({
   none,
   undo,
   clear,
+  clearConfirm,
   full,
+  language,
 }: SketchProps): React.JSX.Element {
   // Memoised, so the two callbacks below can depend on it honestly. Rebuilt every render
   // it is a new object each time, which makes `exhaustive-deps` correct to complain and
@@ -298,6 +307,35 @@ export function Sketch({
     });
   }, [frame, tag, background]);
 
+  /*
+    ────────────────────────────────────────────────────────────────────────────────────
+    `Clear` IS TWO PRESSES, BECAUSE `Undo` CANNOT TAKE IT BACK (#151).
+
+    It empties the strokes AND the stored copy in one act, and `Undo` walks back through
+    `strokes.current`, which that act has just emptied — so one press used to throw away a
+    drawing with no way back, one button along from the control that takes back a stroke.
+    The other way the audit offered, keeping the cleared strokes until the next stroke so
+    `Undo` could restore them, would make `Undo` mean two different things depending on
+    what was pressed last. So it is the shape every other control that destroys a reader's
+    own work already has (`use-two-step.ts`): the first press renames it to say how much
+    goes, the second does it, and going elsewhere in between — another control pressed,
+    focus moved, `Esc` — stands it down, a stroke on the canvas included.
+
+    Focus goes back to the canvas afterwards, as it always did: the reader who cleared is
+    about to draw again, and the control is still there but is not where they are working.
+    ────────────────────────────────────────────────────────────────────────────────────
+  */
+  const wipe = useCallback(() => {
+    strokes.current = [];
+    drawing.current = undefined;
+    paint();
+    setRefusedWrite(false);
+    upsertHere(frame, tag, { hasSketch: false });
+    void clearStrokes(frame);
+  }, [frame, tag, paint]);
+  const toCanvas = useCallback(() => canvas.current, []);
+  const { armed: clearArmed, control: clearControl } = useTwoStep(wipe, toCanvas);
+
   const at = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
     const box = event.currentTarget.getBoundingClientRect();
     // Scaled from the element's rendered size into the canvas's own logical units, so a
@@ -431,22 +469,24 @@ export function Sketch({
           >
             {undo}
           </button>
-          <button
-            className={styles.sketchButton}
-            onClick={(event) => {
-              strokes.current = [];
-              drawing.current = undefined;
-              paint();
-              setRefusedWrite(false);
-              upsertHere(frame, tag, { hasSketch: false });
-              void clearStrokes(frame);
-              canvas.current?.focus();
-              event.currentTarget.blur();
-            }}
-            type="button"
-          >
-            {clear}
+          {/*
+            BOTH LABELS, ONE CELL, SO ARMING MOVES NOTHING (`two-step-label.tsx`). The second
+            press has to land on the control the first one armed. A button that swapped its
+            text grew to the second label's width, and wherever the foot had room for `Clear`
+            and not for `Clear the whole sketch` (391–510 px in English, 442–511 px in Polish,
+            measured 2026-09-25 against a production build) the row wrapped and the button
+            jumped to the next line — so the reader's second press, in the same place, landed
+            on the empty foot. The price is paid before anything is pressed: the button is as
+            wide as `Clear the whole sketch` from the first paint, so across that same range —
+            which in English takes in the 393 and 414 px of common phones — it starts on the
+            foot's second line where `Clear` alone would have fit on the first
+            (`docs/ux/UI-UX.md` has the measurement). `specs/worksheet.spec.ts` presses it
+            twice at one point on a phone's width.
+          */}
+          <button className={styles.sketchButton} type="button" {...clearControl}>
+            <TwoStepLabel armed={clearArmed} confirm={clearConfirm} idle={clear} />
           </button>
+          <TwoStepStatus armed={clearArmed} confirm={clearConfirm} language={language} />
         </p>
 
         {/*

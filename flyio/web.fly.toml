@@ -104,6 +104,14 @@ primary_region = "waw"                       # ADR-0002
   # they are unset rather than restated. They are set EXPLICITLY on authservice
   # instead — flyio/authservice.fly.toml — because there the default is "AuthService"
   # and two products left on it would accept each other's tokens.
+  #
+  # AB_OVO_LEGAL_URL is absent BECAUSE NOTHING IS PUBLISHED YET, and so this app's
+  # /register withdraws its form. authservice asks every account to accept a Terms of
+  # Use and a Privacy Policy by version and publishes no text for either; the text is
+  # this deployment's to publish, and until it is, a checkbox for it would be a consent
+  # nobody could read (#141, ADR-0049's amendment). Set it to the address the two
+  # plain-text files are served from — secrets.env.example says the layout — and
+  # registration comes back with both documents linked.
 
 [http_service]
   internal_port       = 3000                 # equals the port the Node process binds (§2)
@@ -113,9 +121,9 @@ primary_region = "waw"                       # ADR-0002
 
   # 0. This app is entered only from a browser: there is no in-request call from
   # another service to it, so nothing depends on it being warm. A cold start behind a
-  # browser is a slow first page, not a failed call (§7) — and the Phase 1 reader loop
-  # is deliberately backend-free, so the page the cold start delays is the whole
-  # product rather than a degraded part of it.
+  # browser is a slow first page, not a failed call (§7). What a reader reads behind it
+  # is served by ab-ovo-api-dev on every frame (ADR-0060), which is why that app is
+  # pinned at 1 and this one is not.
   min_machines_running = 0
 
   [http_service.concurrency]

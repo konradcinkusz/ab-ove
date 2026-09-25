@@ -19,9 +19,15 @@ import { getRuntimeConfig } from '@/lib/runtime-config.client';
  * optional integration as live or degraded on /api/v1/info and prints the same list as a
  * startup banner; a reader or an operator looking at the running site can now see it too.
  *
- * The unreachable case is not an error state. ab-ovo's reader loop is required to work with
- * no account and no backend, so "no API answered" is a supported configuration of this
- * product and this panel says so plainly instead of throwing.
+ * The unreachable case is not thrown, and since ADR-0060 it is not a supported
+ * configuration either. Content is the one integration this product does not treat as
+ * optional: every frame and every reveal is a live call to `AbOvo.Api`, so with no API
+ * answering there is nothing to read, and this panel says THAT plainly — P8's degrade
+ * visibly, applied to the one thing that cannot degrade. It used to say the opposite, that
+ * frames rendered from content shipped with the site, and it said it precisely when no API
+ * answered, which is when a reader was most likely to believe it (#142). What stays true, and
+ * the panel still says, is ADR-0060's other half: reading needs no account (ADR-0004).
+ * `specs/no-backend.spec.ts` asserts the sentence.
  */
 
 interface Integration {
@@ -127,8 +133,9 @@ export function IntegrationReport(): React.JSX.Element {
         );
       } catch {
         // A network fault, a parse fault, an aborted navigation. None of them is worth an
-        // error boundary: the page below this panel is the product, and it does not need
-        // an API to work.
+        // error boundary: the page around this panel renders with no API, and what the
+        // panel owes the reader is the sentence below saying reading does need one
+        // (ADR-0060), not a crash.
         if (!cancelled) {
           setState({
             kind: 'unreachable',
@@ -172,10 +179,9 @@ export function IntegrationReport(): React.JSX.Element {
                 <span className="badge badge-degraded">no API</span>
               </p>
               <p className="panel-note" style={{ marginTop: '0.75rem', marginBottom: 0 }}>
-                {state.detail} Nothing on this page depends on it, and neither does the reader
-                loop: frames render from content shipped with the site and the lab pane runs
-                Python in your browser. An account and a backend buy you progress that follows
-                you between machines, and nothing else.
+                {state.detail} Reading is unavailable while the API is down: every frame and
+                every reveal is fetched from it as you read. Nothing else on this page depends
+                on it, and reading needs no account &mdash; only the API.
               </p>
             </>
           )}

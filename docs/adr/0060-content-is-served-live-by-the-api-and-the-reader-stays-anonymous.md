@@ -7,6 +7,9 @@
 [ADR-0008](0008-content-is-a-versioned-bundle.md), the whole of
 [ADR-0013](0013-the-book-lives-inside-the-web-build-context.md), and the Decision of
 [ADR-0017](0017-progress-is-local-first-and-holds-nothing-worth-scoring.md).
+The "future MCP client" below is settled on 2026-09-25 by
+[ADR-0066](0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
+§1: `web/mcp` stays in TypeScript and becomes a client of these endpoints.
 
 ## Context
 

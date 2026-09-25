@@ -130,10 +130,12 @@ test.describe('hydration', () => {
         WAITING FOR THE ISLAND, NOT FOR THE NETWORK — and the first draft did the latter.
 
         `networkidle` looked like the right wait and it hangs on `/about`: the integration
-        panel keeps a request in flight with no backend behind it, which is a SUPPORTED
-        state of this product rather than a fault (see `no-backend.spec.ts`). So the suite
-        reported a hydration failure on a page that hydrates perfectly well, which is a
-        false alarm in the one file whose whole job is to be believed about this.
+        panel's request stays in flight for as long as the proxy is still walking its
+        candidate ladder, which with no API behind it can be many seconds, and an unanswered
+        panel is a state that page is built to show rather than a fault of its hydration
+        (see `no-backend.spec.ts`). So the suite reported a hydration failure on a page that
+        hydrates perfectly well, which is a false alarm in the one file whose whole job is to
+        be believed about this.
 
         A frame page has a real signal: `FrameKeys` sets `data-frame-keys` when its effect
         runs, which is AFTER hydration by construction. Where there is no such island the

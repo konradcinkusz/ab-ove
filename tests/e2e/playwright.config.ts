@@ -81,8 +81,9 @@ const stubBaseUrl = `http://127.0.0.1:${stubPort}`;
  * each `webServer` entry states its own env explicitly instead.
  *
  * ADR-0060 is why it goes to BOTH entries now: reading needs no account, so an identity
- * service is the only thing left for the two deployments to differ on (see the big comment
- * over `identityBaseUrl` above). Before that ADR the first deployment was deliberately kept
+ * service, and what registering against one needs, is what the two deployments differ on
+ * (see the big comment over `identityBaseUrl` above, and the second entry's env below).
+ * Before that ADR the first deployment was deliberately kept
  * "backend-less" to exercise the product's old "no backend at all" requirement (ADR-0004,
  * ADR-0035) — that state is still exercised, by `no-backend.spec.ts`, but as a BROWSER-side
  * failure injected with route interception rather than as a real absence of `AB_OVO_API_URL`
@@ -94,6 +95,30 @@ const stubBaseUrl = `http://127.0.0.1:${stubPort}`;
  * reading page throws to `app/error.tsx`'s boundary rather than failing to render at all.
  */
 const apiBaseUrl = process.env.E2E_API_BASE_URL?.trim();
+
+/**
+ * THE FIRST DEPLOYMENT REACHES THE API THROUGH A FIXTURE THAT CAN CUT ONE READER OFF IT
+ * (issue #139) — `fixtures/api-fault.mts`, whose header carries the reasoning.
+ *
+ * A frame whose server-side call to `AbOvo.Api` fails lands on `app/error.tsx`, and nothing
+ * a browser can intercept reaches that call. The fixture forwards every request unchanged,
+ * except for a reader a spec has cut, whose requests it drops — so `error-page.spec.ts` can
+ * take the API away from its own reader, and give it back, while every other spec reads
+ * through the same process as if it were not there.
+ *
+ * ONLY THE FIRST DEPLOYMENT, because the reader it cuts is the anonymous one (ADR-0061's
+ * cookie, sent as a header only when there is no bearer) and that is who reads on `:3000`.
+ * `:3100` keeps its direct address: nothing there needs a cut, and a hop nothing needs is a
+ * hop that can only add a way to fail.
+ *
+ * Its port is derived from the web app's like the other two, and it runs only when there is
+ * an API to stand in front of. Without one, `error-page.spec.ts` is skipped with the reason
+ * rather than made conditional.
+ */
+const faultPort = webPort + 300;
+const faultBaseUrl = `http://127.0.0.1:${faultPort}`;
+const faultUpstream = targetIsLocal ? apiBaseUrl : undefined;
+if (faultUpstream) process.env.AB_OVO_FAULT_BASE_URL = faultBaseUrl;
 
 /**
  * The fixture's address, published to the specs through the environment.
@@ -293,11 +318,33 @@ export default defineConfig({
             timeout: 120_000,
             stdout: 'pipe' as const,
             stderr: 'pipe' as const,
-            // AB_OVO_API_URL, when the job gave one — see `apiBaseUrl` above. This
-            // deployment still gets no AB_OVO_AUTH_URL, which is the property
+            // AB_OVO_API_URL, when the job gave one — see `apiBaseUrl` above — and it is
+            // the fault fixture's address, which forwards to that API (see `faultBaseUrl`).
+            // This deployment still gets no AB_OVO_AUTH_URL, which is the property
             // no-backend.spec.ts's identity-gate tests actually rest on.
-            env: { PORT: target.port || '3000', ...(apiBaseUrl ? { AB_OVO_API_URL: apiBaseUrl } : {}) },
+            env: { PORT: target.port || '3000', ...(faultUpstream ? { AB_OVO_API_URL: faultBaseUrl } : {}) },
           },
+          /**
+           * The fault fixture in front of the API (issue #139 — see `faultBaseUrl`).
+           *
+           * `reuseExistingServer` as the web app has it, and for the web app's reason: it holds
+           * no key, and the only state it keeps is keyed by reader ids nobody else holds, so a
+           * fixture an earlier local run left forwarding to the same API is indistinguishable
+           * from a new one.
+           */
+          ...(faultUpstream
+            ? [
+                {
+                  command: 'node --experimental-strip-types fixtures/api-fault.mts',
+                  url: `${faultBaseUrl}/__fault/health`,
+                  reuseExistingServer: !CI,
+                  timeout: 30_000,
+                  stdout: 'pipe' as const,
+                  stderr: 'pipe' as const,
+                  env: { AB_OVO_FAULT_PORT: String(faultPort), AB_OVO_FAULT_UPSTREAM: faultUpstream },
+                },
+              ]
+            : []),
           /**
            * The identity fixture, and the second web app pointed at it (issue #29).
            *
@@ -343,11 +390,20 @@ export default defineConfig({
              *
              * `AB_OVO_API_URL` is the same rung for the other backend. Both deployments
              * get it now (ADR-0060 — see `apiBaseUrl` above); this one also gets
-             * `AB_OVO_AUTH_URL`, which is the one thing left that only it has.
+             * `AB_OVO_AUTH_URL` and, because registration only exists where there is an
+             * identity service, `AB_OVO_LEGAL_URL`. Neither is given to the deployment
+             * above (ADR-0062, as amended).
+             *
+             * `AB_OVO_LEGAL_URL` is where the deployment publishes the Terms and the
+             * Privacy Policy its registration asks a reader to accept — the same fixture
+             * process, under a path that is labelled there as not authservice's (#141,
+             * ADR-0049). Without it `/register` withdraws its form, correctly, and
+             * `registration.spec.ts` would be testing that instead.
              */
             env: {
               PORT: String(identityPort),
               AB_OVO_AUTH_URL: stubBaseUrl,
+              AB_OVO_LEGAL_URL: `${stubBaseUrl}/legal`,
               ...(apiBaseUrl ? { AB_OVO_API_URL: apiBaseUrl } : {}),
             },
           },

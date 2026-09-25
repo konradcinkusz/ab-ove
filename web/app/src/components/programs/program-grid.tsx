@@ -5,6 +5,7 @@ import { groupsOf, say, sectionSpans, unitBefore, type Bundle } from '@ab-ovo/we
 import { AccountControl } from '@/components/account/account-control';
 import { ConsentControl } from '@/components/consent/consent-control';
 import { LanguageChoice } from '@/components/language/language-choice';
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { editionsOffered } from '@/lib/content/chosen-edition';
 import { shownBundles } from '@/lib/content/chosen-track';
@@ -19,6 +20,16 @@ import styles from './program-grid.module.css';
 import { ShutNotice } from './shut-notice.tsx';
 import { TileEntry } from './tile-entry.tsx';
 import { TilePosition } from './tile-position.tsx';
+
+/**
+ * The index heading's id — where focus lands after either destructive control in the top row
+ * has acted. Both render nothing once there is nothing left to clear, so the element that
+ * held focus is gone by the press it received; the heading is the page's one element that is
+ * certainly there, and landing on it says where the reader is (`use-two-step.ts`, #151).
+ *
+ * It is also the skip link's target (#149), so the heading carries one id rather than two.
+ */
+const HEADING_ID = SKIP_TARGET_ID;
 
 export interface ProgramGridProps {
   readonly bundles: readonly Bundle[];
@@ -132,6 +143,13 @@ export function ProgramGrid({
 
   return (
     <main className={styles.page} lang={chrome.language}>
+      {/*
+        THE WAY PAST THE ROW BELOW (issue #149), which a keyboard reader otherwise tabs
+        through control by control — the destinations, the theme, and everything a returning
+        reader's place, worksheets and account add to it — before the first program. It lands
+        on the heading rather than on `<main>`, because the row is inside `<main>`.
+      */}
+      <SkipLink language={chrome.language} />
       <header className={styles.top}>
         <p className={styles.wordmark}>
           ab<span>-</span>ovo
@@ -195,14 +213,16 @@ export function ProgramGrid({
             forgetting it is no longer undone by reading one frame (ADR-0047). *Forget where
             I am* is last of the two — furthest from the filled link a returning reader is
             reaching for, which is ADR-0017's own placement rule. Both render nothing when
-            there is nothing to clear, so the row grows no dead control.
+            there is nothing to clear, so the row grows no dead control — and both therefore
+            send focus to the heading below once they have acted, rather than to nothing.
           */}
           <ClearWorksheets
             confirmLabel={chrome.clearWorksheetsConfirm}
             label={chrome.clearWorksheets}
             language={chrome.language}
+            settleOn={HEADING_ID}
           />
-          <ForgetProgress language={chrome.language} />
+          <ForgetProgress language={chrome.language} settleOn={HEADING_ID} />
           <AccountControl language={chrome.language} returnTo={returnTo} />
         </nav>
       </header>
@@ -225,7 +245,10 @@ export function ProgramGrid({
         names.
       */}
       <div className={styles.headingRow}>
-        <h1 className={styles.heading}>{chrome.programs}</h1>
+        {/* `tabIndex={-1}`: reachable by script and not by Tab — see `HEADING_ID`. */}
+        <h1 className={styles.heading} id={HEADING_ID} tabIndex={-1}>
+          {chrome.programs}
+        </h1>
         {/*
           The editions of the courses ON SCREEN, not of every course pinned: a deployment
           whose second course is English-only must not offer a Polish position on a page
