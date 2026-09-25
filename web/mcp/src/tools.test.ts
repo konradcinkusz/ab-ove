@@ -550,7 +550,9 @@ test('a place that cannot be reached is a result the reader can act on, never a 
   }
 });
 
-test('a write that fails records nothing, and says the same call is safe to make again', async () => {
+test('a write that fails does not claim it recorded nothing, and says the same call is safe to make again', async () => {
+  // A 502 can follow a commit, so "nothing was recorded" could be false; "may not have
+  // been" is what is known.
   const placed = { track: TRACK, unit: UNIT, step: 1, language: LANG, updatedAt: '2026-09-24T00:00:00Z' };
   const cursors = apiAnswering(async (method) =>
     method === 'GET' ? Response.json({ records: [placed] }) : new Response('', { status: 502 }),
@@ -558,7 +560,8 @@ test('a write that fails records nothing, and says the same call is safe to make
 
   const result = await handle('submit_answer', { unit: UNIT, step: 1 }, { cursors, bundles: BUNDLES });
   assert.ok(result.isError);
-  assert.match(result.text, /Nothing from this call was recorded/);
+  assert.match(result.text, /This call may not have been recorded; either way, the same call is safe/);
+  assert.doesNotMatch(result.text, /Nothing from this call was recorded/);
   assert.match(result.text, /will not move you twice/);
   assert.match(result.text, /Try again shortly/);
   assert.doesNotMatch(result.text, /Recorded as the reader's answer/, 'a write that failed claimed to have recorded');
@@ -575,6 +578,24 @@ test('an address that is not the API is named as the thing to check, not as some
     assert.match(result.text, /check that AB_OVO_API_URL names the ab-ovo API/);
     assert.match(result.text, /trying again will not change the answer/);
   }
+});
+
+test('an AB_OVO_API_URL that is not an address says so, and not to try again shortly', async () => {
+  const cursors = new ApiCursorStore('not-a-url', () => 'the-token', (async () => {
+    throw new Error('nothing may be sent to an address that is not one');
+  }) as typeof fetch);
+  const result = await handle('list_programs', {}, { cursors, bundles: BUNDLES });
+  assert.ok(result.isError);
+  assert.match(result.text, /AB_OVO_API_URL is not an http or https address/);
+  assert.match(result.text, /trying again will not change the answer/);
+  assert.doesNotMatch(result.text, /Try again shortly/);
+});
+
+test('a JSON answer that is not an object is a result, never a protocol error', async () => {
+  // `null` parses; `body.records` then threw a TypeError out of `handle()`.
+  const result = await handle('list_programs', {}, { cursors: apiAnswering(async () => new Response('null')), bundles: BUNDLES });
+  assert.ok(result.isError);
+  assert.match(result.text, /check that AB_OVO_API_URL names the ab-ovo API/);
 });
 
 test("the gate's refusals are untouched: a shut program is still an ordinary result over the API store", async () => {

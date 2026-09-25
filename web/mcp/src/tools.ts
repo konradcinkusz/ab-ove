@@ -385,9 +385,11 @@ export function noContentNote(missing: ContentUnavailable): string {
  * where there used to be a JSON-RPC error they could not (#137).
  *
  * Two things, in the order a reader needs them. First that NOTHING IS LOST: the place is
- * the account's, and a call that failed did not move it — a failed write recorded nothing,
- * and making the same call again is safe, because `open_program` writes the same place
- * twice and `submit_answer` names its step. Then what fixes it, which is different for each
+ * the account's, and a failed read did not move it. A failed WRITE may or may not have been
+ * committed — a 5xx or a dropped connection can follow the commit — so the note does not
+ * claim either; what it can say is that making the same call again is safe, because
+ * `open_program` writes the same place twice and `submit_answer` names its step. Then what
+ * fixes it, which is different for each
  * `PlaceProblem`: a fresh token, a moment's wait, or a look at the address. The model gets
  * the same sentence and so has something true to relay instead of `fetch failed`.
  *
@@ -400,8 +402,8 @@ export function placeUnavailableNote(failure: PlaceUnavailable): string {
     'Your place in the book could not be reached just now, and nothing is lost: it is kept ' +
     'on your account, exactly where you left it.' +
     (failure.writing
-      ? ' Nothing from this call was recorded, so the same call is safe to make again once ' +
-        'the place can be reached — it will not move you twice.'
+      ? ' This call may not have been recorded; either way, the same call is safe to make ' +
+        'again once the place can be reached — it will not move you twice.'
       : '');
 
   switch (failure.reason) {
@@ -415,11 +417,14 @@ export function placeUnavailableNote(failure: PlaceUnavailable): string {
     case 'unreachable':
       return `${kept}\n\nThe service that keeps it is out of reach or not answering right now${status}. Try again shortly.`;
     case 'refused':
-      return (
-        `${kept}\n\nWhat answered at AB_OVO_API_URL refused the request${status}, or answered ` +
-        'with something that is not a place. Whoever runs the server should check that ' +
-        'AB_OVO_API_URL names the ab-ovo API; trying again will not change the answer.'
-      );
+      // No status is the one `refused` where nothing was asked: the address itself is not one.
+      return failure.status === undefined
+        ? `${kept}\n\nAB_OVO_API_URL is not an http or https address, so nothing was asked of ` +
+            'the service that keeps it. Whoever runs the server should set AB_OVO_API_URL to the ab-ovo API\'s ' +
+            'address and start it again; trying again will not change the answer.'
+        : `${kept}\n\nWhat answered at AB_OVO_API_URL refused the request${status}, or answered ` +
+            'with something that is not a place. Whoever runs the server should check that ' +
+            'AB_OVO_API_URL names the ab-ovo API; trying again will not change the answer.';
   }
 }
 

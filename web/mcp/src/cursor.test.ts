@@ -196,6 +196,9 @@ test('every way the API store can fail is PlaceUnavailable, with the reason that
     { answer: async () => Promise.reject(new TypeError('fetch failed')), reason: 'unreachable', status: undefined },
     { answer: async () => new Response('', { status: 404 }), reason: 'refused', status: 404 },
     { answer: async () => new Response('not json', { status: 200 }), reason: 'refused', status: 200 },
+    // JSON, and not an object: reading a field of `null` used to escape as a TypeError.
+    { answer: async () => new Response('null', { status: 200 }), reason: 'refused', status: 200 },
+    { answer: async () => new Response('[]', { status: 200 }), reason: 'refused', status: 200 },
   ];
 
   for (const { answer, reason, status } of cases) {
@@ -213,6 +216,30 @@ test('every way the API store can fail is PlaceUnavailable, with the reason that
         return true;
       });
     }
+  }
+});
+
+test('an AB_OVO_API_URL that is not an http address is refused before anything is sent', async () => {
+  // `fetch` rejects these with the TypeError a dropped connection gives, so they used to be
+  // `unreachable` — "try again shortly", which never helps. `localhost:8180` is the shape
+  // a person types: it parses, with `localhost:` as its scheme.
+  for (const base of ['not-a-url', 'localhost:8180', 'ftp://api.example']) {
+    const { calls, fetchImpl } = service([]);
+    const store = new ApiCursorStore(base, () => 'the-token', fetchImpl);
+    for (const [writing, attempt] of [
+      [false, () => store.readAll()],
+      [false, () => store.edition()],
+      [true, () => store.save(at(1))],
+    ] as const) {
+      await assert.rejects(attempt(), (error: unknown) => {
+        assert.ok(error instanceof PlaceUnavailable, `${base}: ${String(error)}`);
+        assert.equal(error.reason, 'refused', base);
+        assert.equal(error.status, undefined, `${base}: nothing answered, so there is no status`);
+        assert.equal(error.writing, writing);
+        return true;
+      });
+    }
+    assert.equal(calls.length, 0, `${base}: a request was sent`);
   }
 });
 

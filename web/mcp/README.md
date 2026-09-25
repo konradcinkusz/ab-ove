@@ -92,14 +92,17 @@ memory and forgotten at restart. The process says so on stderr, and **every resu
 shows a place says so too**, because a reader of an MCP host sees results and never the log.
 
 When the place cannot be reached, the call answers with a result, not a protocol error. It
-says that nothing is lost, because the place is on the account and a failed call did not
-move it. A write that failed recorded nothing, and the same call is safe to make again. It
-also says what fixes it:
+says that nothing is lost, because the place is on the account. A write that failed may
+still have been recorded, since a 5xx or a dropped connection can come after the service
+committed it, so the result says only that it may not have been — and that the same call is
+safe to make again, because it will not move the reader twice. It also says what fixes it:
 
 - a 401 or 403 needs a fresh `AB_OVO_READER_TOKEN`;
 - no answer, a 5xx, a 408 or a 429 needs a moment: *try again shortly*;
-- any other answer, such as a 404 or a body that is not JSON, means `AB_OVO_API_URL` is not
-  the API.
+- any other answer, such as a 404 or a body that is not a JSON object, means
+  `AB_OVO_API_URL` is not the API;
+- an `AB_OVO_API_URL` that is not an http or https address, such as `localhost:8180`, is
+  said to be one, and nothing is sent.
 
 The result carries `isError`, because the call did not do what it was asked. The gate's own
 refusals do not, and nothing about them changes.

@@ -84,7 +84,9 @@ export function furthest(existing: Cursor | undefined, incoming: Cursor): Cursor
  * - `unreachable` — no answer at all (the fetch itself rejected), or one that says "later"
  *   (5xx, 408, 429). Trying again shortly is the fix.
  * - `refused` — any other answer that is not the record: a 404 from an address that is not
- *   this API, a body that is not JSON. Trying again will not change it.
+ *   this API, a body that is not a JSON object. Or no answer because nothing could be asked:
+ *   an `AB_OVO_API_URL` that is not an http or https address, which is the one `refused`
+ *   with no status. Trying again will not change it.
  */
 export type PlaceProblem = 'unauthorised' | 'unreachable' | 'refused';
 
@@ -106,7 +108,10 @@ export class PlaceUnavailable extends Error {
   readonly reason: PlaceProblem;
   /** The HTTP status, when the service answered at all. */
   readonly status: number | undefined;
-  /** True when a WRITE failed — the call that made it recorded nothing and can be made again. */
+  /**
+   * True when a WRITE failed. The call that made it can be made again; whether it was
+   * recorded is not known, because a 5xx or a dropped connection can follow a commit.
+   */
   readonly writing: boolean;
 
   constructor(
@@ -250,10 +255,23 @@ export class ApiCursorStore implements CursorStore {
    * answer, a status is an answer, and a body that is not JSON came from something that is
    * not this API.
    */
-  async #json(url: string, init: RequestInit, writing: boolean): Promise<unknown> {
-    // The URL as given, never parsed here: an AB_OVO_API_URL with no scheme would throw out
-    // of `new URL()` before the `try` below could name it, and reach the host bare again.
+  async #json(url: string, init: RequestInit, writing: boolean): Promise<object> {
+    // The URL as given, for the message: parsing it is the next step, and may be what fails.
     const doing = `${init.method ?? 'GET'} ${url}`;
+
+    /*
+      AN ADDRESS THAT IS NOT ONE IS NOT A NETWORK FAULT. `fetch` rejects `not-a-url` with the
+      same TypeError as a dropped connection, and `localhost:8180` parses with `localhost:`
+      as its scheme and is rejected the same way, so both used to read as `unreachable` —
+      "try again shortly", which never helps. Asked here, where `URL.parse` answers `null`
+      rather than throwing, it is `refused`, whose fix is AB_OVO_API_URL itself.
+    */
+    const scheme = URL.parse(url)?.protocol;
+    if (scheme !== 'http:' && scheme !== 'https:') {
+      throw new PlaceUnavailable('refused', `${doing} was not sent: AB_OVO_API_URL is not an http or https address`, {
+        writing,
+      });
+    }
 
     let response: Response;
     try {
@@ -268,8 +286,9 @@ export class ApiCursorStore implements CursorStore {
       });
     }
 
+    let body: unknown;
     try {
-      return await response.json();
+      body = await response.json();
     } catch (error) {
       // A body that does not parse is an answer from the wrong thing; one cut off half-way
       // is the network, and the network is worth trying again.
@@ -280,6 +299,17 @@ export class ApiCursorStore implements CursorStore {
         cause: error,
       });
     }
+
+    // Every answer this store reads is an object — `{ records }`, `{ language }`, a record.
+    // `null`, a number or a list parses and is none of them, and reading a field of `null`
+    // would escape `handle()` as a TypeError: the protocol error #137 exists to end.
+    if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+      throw new PlaceUnavailable('refused', `${doing} answered ${response.status} with no record: ${JSON.stringify(body)}`, {
+        status: response.status,
+        writing,
+      });
+    }
+    return body;
   }
 
   /** The account's rows as the service answers them, `updatedAt` and all. */

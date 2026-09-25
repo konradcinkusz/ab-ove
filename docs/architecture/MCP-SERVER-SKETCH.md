@@ -218,9 +218,12 @@ non-2xx answer used to throw a bare `Error` and a rejected `fetch` passed straig
 both reached the host as `MCP error -32603` carrying `progress read failed: 401` or
 `fetch failed`. `ApiCursorStore` now throws `PlaceUnavailable` with a reason —
 `unauthorised`, `unreachable` or `refused` — and `handle()` answers it beside
-`ContentUnavailable`, as a result with `isError`: nothing is lost, a failed write recorded
-nothing and is safe to repeat, and the fix for that reason (a fresh token, a moment, or the
-address). The gate's refusals are untouched. Anything else `handle()` cannot name still
+`ContentUnavailable`, as a result with `isError`: nothing is lost, a failed write may not
+have been recorded and is safe to repeat either way, and the fix for that reason (a fresh
+token, a moment, or the address). An `AB_OVO_API_URL` that is not an http or https address
+is `refused` before anything is sent, rather than `unreachable` and retried for nothing, and
+a JSON answer that is not an object is `refused` rather than a `TypeError` out of
+`handle()`. The gate's refusals are untouched. Anything else `handle()` cannot name still
 throws, because a sentence would dress a defect in this package up as the deployment's.
 
 **A place kept in memory is said in the results.** `server.ts` warned on stderr, which no
