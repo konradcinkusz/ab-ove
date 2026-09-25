@@ -31,11 +31,18 @@ import { unitBefore, type Bundle } from '@ab-ovo/web-kit';
  * refuses (`@ab-ovo/web-kit`'s `gate.ts`) — so the notice has nothing to explain and
  * renders nothing. It is carried rather than asserted away, because the alternative is a
  * `!` on a value read out of a URL.
+ *
+ * `before` is every program the book puts ahead of `unit`, in the manifest's order, and
+ * `previous` is its last entry. The notice needs the whole run because its way on is the
+ * nearest of them the READER can open (`wayOn`, `lib/progress/gate.ts`, issue #163), and
+ * which one that is depends on a record only the browser holds. Ids only, on
+ * `tile-position.tsx`'s rule for what crosses to the client.
  */
 export interface RefusedProgram {
   readonly track: string;
   readonly unit: string;
   readonly previous: string | undefined;
+  readonly before: readonly string[];
 }
 
 export function refusedProgram(
@@ -45,12 +52,14 @@ export function refusedProgram(
   if (typeof raw !== 'string' || raw === '') return undefined;
 
   for (const bundle of bundles) {
-    const found = bundle.units.find((unit) => unit.id === raw);
+    const at = bundle.units.findIndex((unit) => unit.id === raw);
+    const found = bundle.units[at];
     if (!found) continue;
     return {
       track: bundle.track.id,
       unit: found.id,
       previous: unitBefore(bundle, found.id)?.id,
+      before: bundle.units.slice(0, at).map((unit) => unit.id),
     };
   }
 

@@ -128,7 +128,7 @@ is the one that needs no JavaScript
 
 ### The landing page is the index
 
-![The landing page. A wordmark; links to Courses and About, a three-position theme switch reading System, Light and Dark, and a link to Sign in; then the Programs heading with the language control offering English and polski at the end of its line, and a grid of tiles — one per program, each with its id, the program that opens it, its title, and how many frames and sections it has. At the foot of the page, a card headed "Help fix the book?" with two buttons.](assets/screenshots/landing-english.png)
+![The landing page. A wordmark; links to Courses and About, a three-position theme switch reading System, Light and Dark, and a link to Sign in; then the Programs heading, with the language control at the end of its line — English and polski as two outlined boxes, English filled. Under the heading, a paragraph saying what a program and a frame are; then the course's title, and under it a line saying that programs open in order, that the Main sequence is built on the Foundation programs, and that one frame of a program opens the next. Then a grid of tiles — one per program, each with its id, the program that opens it, its title, and how many frames and sections it has. At the foot of the page, a card headed "Help fix the book?" with two buttons.](assets/screenshots/landing-english.png)
 
 The first screen is the thing a reader came for, one navigation from a frame instead of two
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). It is a
@@ -139,6 +139,12 @@ the frames onto the API, and 580 in [the order](ux/UI-UX.md#the-order) decides w
 so. It reads one cookie, this origin's own, which is where the reader's chosen edition is kept
 so that the first paint is already in it
 ([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)).
+
+Above the grid it says what a program and a frame are, and why most of the tiles are shut:
+the programs open in order, the Main sequence is built on the Foundation programs, and one
+frame of a program opens the next (#163,
+[ADR-0065](adr/0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md)).
+It says so in text on the first screen, not in a tooltip a finger never reaches.
 
 The card at the foot is the **consent invitation**, and it is last on purpose: a reader who
 came to read reaches the programs first and the question afterwards. It is an invitation

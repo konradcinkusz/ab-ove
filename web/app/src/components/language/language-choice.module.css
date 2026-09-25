@@ -44,3 +44,74 @@
 .other:focus-visible {
   text-decoration: underline;
 }
+
+/*
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ * THE INDEX'S SHAPE — `offered`, issue #163.
+ *
+ * The same links, drawn as outlined boxes that share their edges, a finger tall
+ * (`--control-min`) and in the UI face a size up from the quiet shape. The quiet shape's
+ * padding-and-negative-margin trick is dropped here rather than kept: that grows a target
+ * without moving the line, and here the point is that the target SHOWS.
+ *
+ * The edge is `--control-edge`, the boundary of something to press (WCAG 1.4.11's 3:1, held by
+ * `lib/theme/tokens.test.ts`). The current edition keeps the underline every other current
+ * position in the product wears, and is filled as well, so the row reads as a choice with
+ * one answer rather than as a label beside a button. Neither mark is colour alone.
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ */
+.offered {
+  font-size: 0.9375rem;
+  gap: 0;
+}
+
+.offered .current,
+.offered .other {
+  align-items: center;
+  border: 1px solid var(--control-edge);
+  box-sizing: border-box;
+  display: inline-flex;
+  margin: 0;
+  min-height: var(--control-min);
+  padding: 0 1rem;
+}
+
+.offered .current {
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.offered .other {
+  background: var(--paper-raised);
+}
+
+/* Neighbours share an edge: each is pulled over the right-hand border of the one before it. */
+.offered > * + * {
+  margin-left: -1px;
+}
+
+.offered > :first-child {
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+}
+
+.offered > :last-child {
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+}
+
+.offered .other:hover {
+  border-color: var(--accent);
+  position: relative;
+}
+
+/*
+ * The shared ring (`components/read/controls.module.css`), raised over the neighbour whose
+ * edge it would otherwise be drawn under. The outline is transparent rather than removed:
+ * forced colours paint it where they drop the box-shadow (issue #148).
+ */
+.offered .other:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--accent);
+  outline: 2px solid transparent;
+  position: relative;
+}

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { chromeFor } from '../../../web/app/src/lib/i18n/chrome.ts';
+
 import { served, track } from './support/bundle.ts';
 import { openThrough } from './support/gate.ts';
 
@@ -18,7 +20,10 @@ import { openThrough } from './support/gate.ts';
  * a program is inserted, the names would still exist, the assertion would still pass, and
  * it would have stopped being about the first two programs.
  */
-const [first, second, third] = served.units;
+const [first, second, third, fourth, fifth] = served.units;
+
+/** The shut notice's words, read from `chrome.ts` itself (`skip-link.spec.ts` says why). */
+const en = chromeFor('en');
 
 const contentsOf = (unitId: string, language = 'en'): string =>
   `/read/${track}/${unitId}/${language}`;
@@ -38,8 +43,9 @@ const tileFor = (page: import('@playwright/test').Page, unitId: string) =>
 
 test.beforeAll(() => {
   // Three programs, because the claim needs one that is open, one that opens next, and one
-  // that is still shut when the second one has been entered.
-  expect(served.units.length, 'the served bundle has fewer than three programs').toBeGreaterThan(2);
+  // that is still shut when the second one has been entered. Five for the notice's way on,
+  // which has to be walked back past a shut program to be worth asserting.
+  expect(served.units.length, 'the served bundle has fewer than five programs').toBeGreaterThan(4);
 
   /*
     A GUARD FOR THE OTHER SPECS, stated here because this is the file that knows the rule.
@@ -128,12 +134,63 @@ test.describe('a program opens when the one before it has been opened', () => {
     await expect(notice).toBeFocused();
   });
 
+  test('the notice links the program that opens it, and the link is a way in @smoke', async ({
+    page,
+  }) => {
+    /*
+      ISSUE #163: the notice explained and offered nothing to press, so a reader who had
+      just been told which program opens this one had to go and find its tile. The way on is
+      that program's contents — the same door its tile is — and following it has to land
+      there rather than bounce: it is open to this reader, which is the point of naming it.
+    */
+    await page.goto(contentsOf(second!.id));
+    await page.waitForURL((url) => url.searchParams.get('shut') === second!.id);
+
+    const wayOn = page.getByRole('status').getByRole('link', { name: en.shutNoticeWayOn(first!.id) });
+    await expect(wayOn).toHaveAttribute('href', contentsOf(first!.id));
+
+    await wayOn.click();
+    await expect(page).toHaveURL(new RegExp(`${contentsOf(first!.id)}$`));
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(first!.titles['en']!);
+  });
+
+  test('when the program that opens it is shut too, the way on is the nearest one the reader can open @core', async ({
+    page,
+  }) => {
+    /*
+      A LINK INTO THE MIDDLE OF THE BOOK. The program before the one asked for is shut as
+      well, so a way on to it would only bounce the reader again, one program back each time.
+      The notice says so and points at the nearest program behind it that this reader CAN
+      open — the first, for a reader with no record at all.
+    */
+    await page.goto(contentsOf(fourth!.id));
+    await page.waitForURL((url) => url.searchParams.get('shut') === fourth!.id);
+
+    const notice = page.getByRole('status');
+    await expect(notice).toContainText(en.shutNoticeFurther(fourth!.id, third!.id, first!.id));
+    await expect(notice.getByRole('link')).toHaveAttribute('href', contentsOf(first!.id));
+
+    /*
+      And for a reader part of the way in, it is the nearest door, not the first one: a place
+      in the second program opens the third, and nothing opens the fourth — so a link to the
+      fifth is answered with the third.
+    */
+    await openThrough(page, third!.id);
+    await page.goto(contentsOf(fifth!.id));
+    await page.waitForURL((url) => url.searchParams.get('shut') === fifth!.id);
+
+    await expect(page.getByRole('status')).toContainText(
+      en.shutNoticeFurther(fifth!.id, fourth!.id, third!.id),
+    );
+    await expect(page.getByRole('status').getByRole('link')).toHaveAttribute('href', contentsOf(third!.id));
+  });
+
   test('an ordinary visit to the index says nothing about shut programs @core', async ({
     page,
   }) => {
-    // The notice is for the reader who was moved. A reader who came here on purpose is
-    // scanning a table of contents, and a standing explanation of a rule they have not hit
-    // is the prose ADR-0036 took off this page.
+    // The notice is for the reader who was moved: it is a status, and it takes focus. A
+    // reader who came here on purpose gets the rule as a standing line above the grid instead
+    // — the legend (issue #163, ADR-0065), which is neither, and says it once for every tile.
     await page.goto('/');
     await expect(page.getByRole('status')).toHaveCount(0);
   });

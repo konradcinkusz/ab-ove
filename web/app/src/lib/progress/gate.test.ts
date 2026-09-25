@@ -11,7 +11,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { isOpen } from './gate.ts';
+import { isOpen, wayOn } from './gate.ts';
 import type { Progress } from './store.ts';
 
 const TRACK = 'math-for-ai-engineers';
@@ -74,4 +74,50 @@ test('a record with a last program but no positions opens nothing beyond the fir
   const odd: Progress = { last: { track: TRACK, unit: 'P20', language: 'en', step: 3 }, positions: {} };
   assert.equal(isOpen(odd, at('P20', 'P19')), false);
   assert.equal(isOpen(odd, at('F01', undefined)), true);
+});
+
+/*
+ * THE SHUT NOTICE'S WAY ON (issue #163) — which program the notice's link should open.
+ *
+ * The journey is `specs/gate.spec.ts`; these are the walks a browser would need a seeded
+ * record apiece to reach, and one of them — a record that jumped — comes only from a record
+ * written before the gate existed or merged from another machine.
+ */
+const BEFORE_F06 = ['F01', 'F02', 'F03', 'F04', 'F05'];
+
+test('the way on is the program that opens the refused one, when the reader can open it', () => {
+  assert.equal(wayOn(placesIn({ F01: 3, F02: 1, F03: 1, F04: 2 }), TRACK, BEFORE_F06), 'F05');
+});
+
+test('for a reader with no record it is the first program, however far in the link pointed', () => {
+  // A link into the middle of the book, followed in a fresh browser: every program before the
+  // refused one is shut but the first, and a way on to F05 would only bounce them to F04.
+  assert.equal(wayOn({ positions: {} }, TRACK, BEFORE_F06), 'F01');
+});
+
+test('otherwise it is the nearest program behind the refused one that the reader can open', () => {
+  // A place in F02 opens F03, and nothing opens F04 or F05 — so F03 is the next move.
+  assert.equal(wayOn(placesIn({ F01: 1, F02: 1 }), TRACK, BEFORE_F06), 'F03');
+});
+
+test('a record that jumped ahead is walked from where it is, not from the beginning', () => {
+  // The safety valve's record (`isOpen`'s second clause): a place in F03 alone keeps F03 open
+  // and opens F04. F05 is still shut, and the nearest open door behind it is F04.
+  assert.equal(wayOn(placesIn({ F03: 12 }), TRACK, BEFORE_F06), 'F04');
+});
+
+test('the walk follows the order it is given and never an id with one taken off it', () => {
+  // The order is the list the caller read off the manifest: P07 was inserted into the main
+  // sequence once, so the program before P08 is whatever the book says it is.
+  assert.equal(wayOn(placesIn({ P05: 1 }), TRACK, ['P05', 'P06', 'P07']), 'P06');
+  assert.equal(wayOn(placesIn({ P05: 1 }), TRACK, ['P05', 'P07']), 'P07');
+});
+
+test('a place in another track opens nothing on the way', () => {
+  const elsewhere: Progress = { positions: { 'other-track/F04': { language: 'en', step: 2 } } };
+  assert.equal(wayOn(elsewhere, TRACK, BEFORE_F06), 'F01');
+});
+
+test('nothing before the refused program is no way on, because the first is never shut', () => {
+  assert.equal(wayOn({ positions: {} }, TRACK, []), undefined);
 });
