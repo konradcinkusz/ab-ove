@@ -363,30 +363,43 @@ flowchart TD
 
 ### B1. The reader loop
 
-Every box in this diagram runs with no account and no backend. That is the product's first
-requirement, not an optimisation. The two dotted edges leaving the loop are the only places a
-server appears, and neither is on the path.
+Every box in this diagram runs with no account, and every frame comes from `AbOvo.Api` —
+two requirements this diagram used to draw as one, until
+[ADR-0060](adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+reversed the half about a server. The API is drawn solid because content is not optional: with
+it down no frame is served, and a frame that cannot load says so. A reveal that cannot reach it
+does not yet — it leaves the reader on the same frame, saying nothing, which 380 in
+[the order](ux/UI-UX.md#the-order) fixes. The two dotted edges leaving the loop are optional,
+and neither is on the path.
 
 ```mermaid
 %% The ab-ovo reader loop.
 %% ONE DIAGRAM PER FILE. ASCII ONLY. See ab-ovo-system.mmd for why no comment line here is
 %% a bare %% marker.
 
-%% EVERY BOX IN THIS DIAGRAM RUNS WITH NO ACCOUNT AND NO BACKEND. That is the product's
-%% first requirement, not an optimisation: frames are served with the site as a versioned
-%% bundle (ADR-0008, ADR-0038) and everything the reader writes stays in their browser
+%% EVERY BOX IN THIS DIAGRAM RUNS WITH NO ACCOUNT, AND EVERY FRAME COMES FROM THE API. Those
+%% are two requirements, and this file used to draw them as one. ADR-0060 kept the first and
+%% reversed the second: every frame and every reveal is a live, gated call to AbOvo.Api,
+%% which serves the book's compiled bundle (ADR-0038) one step at a time and raises the
+%% reader's place whenever they move forward: the reveal on a frame that asks and Next on
+%% one that does not are the same POST (web/app/src/lib/actions/reveal.ts), so both edges
+%% into the API are drawn. An anonymous reader's place is held under an opaque cookie, not
+%% a token (ADR-0061), and what the reader writes on a frame still stays in their browser
 %% (ADR-0039).
+
+%% THE API IS DRAWN SOLID BECAUSE IT IS NOT OPTIONAL. Content is the one integration this
+%% product does not degrade around (P8 does not reach it): with the API down no frame is
+%% served, and the reader is told so rather than shown a frame from anywhere else.
 
 %% THE WORK BRANCH USED TO BE PYTHON AND IS NOT ANY MORE (ADR-0040). It asked a reader of a
 %% mathematics book to write code, reached one program of forty-seven, and cost 6.4 MB and
 %% two seconds of boot on every visit. What replaced it is a worksheet: a line to answer on,
 %% a pad that evaluates arithmetic (ADR-0042) and a canvas (ADR-0043). None of them is a
-%% language and all three are optional.
+%% language, all three are optional, and none of them needs the API.
 
-%% The two dotted edges leaving the loop are the only places a server appears, and neither
-%% is on the path: an account synchronises progress between machines and buys nothing else,
-%% and an outcome is contributed only if the reader opted in. Both can be absent and the
-%% loop is unchanged.
+%% The two dotted edges leaving the loop are optional, and neither is on the path: an
+%% account synchronises progress between machines and buys nothing else, and an outcome is
+%% contributed only if the reader opted in. Both can be absent and the loop is unchanged.
 
 %% WHAT IS NOT DRAWN, deliberately: no grading step. The next frame opens with the answer
 %% and the reader compares. The machine may say "matches the book" where the book's whole
@@ -405,6 +418,7 @@ flowchart TD
   BACK["Go back one frame"]
   NEXT["Carry on"]
   SUMMARY["Summary and Can you?<br/>at the end of the program"]
+  API["AbOvo.Api<br/>serves every frame,<br/>gated on the reader's place;<br/>no account needed"]
   SYNC["Account<br/>synchronises progress<br/>between machines"]
   INST["Instrument<br/>outcome against frame,<br/>attempt, check run<br/>never against the reader"]
 
@@ -423,14 +437,20 @@ flowchart TD
   NEXT -->|"last frame"| SUMMARY
   SUMMARY --> START
 
+  API -->|"every frame, live"| READ
+  REVEAL & NEXT -->|"raises the reader's place"| API
+
   NEXT -.->|"optional, phase 3"| SYNC
   COMPARE -.->|"opt-in consent, phase 4"| INST
 ```
 
 ### B2. One frame, and why the answer is absent
 
-The product's whole mechanism, as a sequence. The reveal is a **navigation**, so the answer to
-the frame you are on is rendered by the request for the *next* one and by nothing before it. A
+The product's whole mechanism, as a sequence. The reveal is a **form** that raises the
+reader's place on `AbOvo.Api` and then asks for the next frame, so the answer to the frame you
+are on is rendered by the request for the *next* one and by nothing before it — and the API
+refuses that request until the reveal has run
+([ADR-0060](adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)). A
 reader who opens the inspector finds it nowhere, and prefetching is off so it is not on the
 wire either.
 
@@ -442,34 +462,45 @@ wire either.
 %% you anything, and the next frame opens with the answer you were supposed to have written.
 %% A reader who skims gets nothing, and paper has no way to notice.
 
-%% THE REVEAL IS A NAVIGATION, NOT A TOGGLE. The frame is a Server Component with no client
+%% THE REVEAL IS A FORM, NOT A TOGGLE. The frame is a Server Component with no client
 %% boundary around it, so the answer to frame N is rendered by the REQUEST for frame N+1 and
 %% by nothing before it. A reader who opens the inspector finds it nowhere; prefetching is
 %% off, so it is not on the wire either. Both halves are asserted, and both were watched
 %% failing before they were believed.
 
+%% AND THE SERVER HOLDS THE LINE, SINCE ADR-0060. Each step comes from AbOvo.Api, which
+%% serves step N only when N is at or below the reader's place, and what raises the place
+%% is the reveal's POST to .../advance. A bare GET for N+1 before that is refused, so a
+%% prefetch, a crawler or a shared link cannot pull an answer early. The reader is named by
+%% their bearer or, with no account, by an opaque cookie (ADR-0061).
+
 %% WHY NOT A DISCLOSURE WIDGET. Anything that renders the answer into the document and hides
 %% it with CSS or JavaScript is a hint the browser already has. The structural version costs
-%% a navigation and cannot be defeated.
+%% a round trip and cannot be defeated.
 
 sequenceDiagram
   autonumber
   participant R as Reader
   participant B as Browser
   participant S as Next.js server
-  participant C as Compiled bundle
+  participant A as AbOvo.Api
 
   R->>B: open /read/track/unit/lang/N
   B->>S: GET frame N
-  S->>C: step N
-  C-->>S: prompt for N, answer for N-1
+  S->>A: GET /api/v1/content/track/unit/N
+  Note over A: served only if N is at<br/>or below the reader's place
+  A-->>S: prompt for N, answer for N-1
   S-->>B: HTML carrying N's prompt<br/>and N-1's answer
   Note over B: N's answer is in no<br/>element, no attribute,<br/>no script, no prefetch
   R->>B: write the answer down
-  R->>B: turn the frame
+  R->>B: press Next
+  B->>S: POST the reveal form
+  S->>A: POST /api/v1/content/track/unit/advance
+  A-->>S: the reader's place is now N+1
+  S-->>B: redirect to frame N+1
   B->>S: GET frame N+1
-  S->>C: step N+1
-  C-->>S: prompt for N+1, answer for N
+  S->>A: GET /api/v1/content/track/unit/N+1
+  A-->>S: prompt for N+1, answer for N
   S-->>B: now, and only now, N's answer
   R->>R: compare what you wrote<br/>with what the book says
 ```

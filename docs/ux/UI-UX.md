@@ -18,30 +18,35 @@ each item is rather than when it happens.
 
 ## What exists today
 
-The route directories under `web/app/src/app/`, and the reader loop runs through the first
-three rows below. This list is the surface; each entry says what it is and what it needs,
-because *needs an account* and *needs a backend* are the two properties that decide whether
-something is in the reader loop at all.
+The route directories under `web/app/src/app/`. This list is the surface; each entry says
+what it is and what it needs, because *needs an account* and *needs the API* are the two
+properties that decide what a reader can do, and they are separate:
+[ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+made every frame and every reveal a live, gated call to `AbOvo.Api`, and left reading free of
+any account.
 
 | Route | What it is | Needs |
 | --- | --- | --- |
-| `/` | the landing page: every program as a tile, in the book's own runs, in the reader's edition, and the narrowing to one course | nothing |
-| `/courses` | the courses this deployment carries, each with its length and its editions, and the way into one ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) | nothing |
+| `/` | the landing page: every program as a tile, in the book's own runs, in the reader's edition, and the narrowing to one course | nothing — it reads the compiled bundle |
+| `/courses` | the courses this deployment carries, each with its length and its editions, and the way into one ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) | nothing — it reads the compiled bundle |
 | `/about` | what the product is, the anti-goal, the loop, the integration panel | nothing |
-| `/read/<track>/<unit>/<lang>` | a program's contents: its headings, and the filled way in — frame 1, or the reader's own place | nothing |
-| `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a navigation | nothing |
-| `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, the consent invitation, and the way into the next one | nothing |
+| `/read/<track>/<unit>/<lang>` | a program's contents: its headings, and the filled way in — frame 1, or the reader's own place | nothing — it reads the compiled bundle |
+| `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a form that raises the reader's place on the API | the API, and no account |
+| `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, the consent invitation, and the way into the next one | nothing — it reads the compiled bundle |
 | `/lab/<id>` | the book's exercises under Pyodide — reached from P01's summary only, and on its way out ([ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md)) | nothing |
 | `/login` | a form that posts credentials to this app's own BFF | an identity service |
 | `/register` | the same form one step earlier: an address, a password, and the consent the identity service records | an identity service, and the two documents the consent names |
 | `/legal/<document>/<version>` | the Terms of Use or the Privacy Policy at one version, as this deployment publishes it: what the consent links to | a document host (`AB_OVO_LEGAL_URL`) |
-| `/account` | the reader's own progress, export and deletion | an account |
+| `/account` | deleting the account, and nothing else | an account |
 | `/instrument` | the author's view: frames ranked by how badly the book is doing | an account |
 | `/healthz` | the app's own liveness | nothing |
 | `/api/*` | the BFF: config, auth, session, and the one proxy to any backend | — |
 
 **The first six are the whole product for a reader who never signs in**, and that is a
-requirement rather than an accident.
+requirement rather than an accident. They are not the whole product for a deployment with no
+API: the rows that read the compiled bundle still render from the bundle built into the web
+app and call no API while rendering, but no frame does. That split is today's rather than
+a rule — 580 in [the order](#the-order) moves the contents and the summary onto the API.
 
 **A *course* is a whole work and a *program* is one of its forty-seven units.** The two
 words are minutes apart in the same chrome row, so they are worth separating once here: a
@@ -75,10 +80,17 @@ that needs an account.
 ### `/` — the landing page, which is the index
 
 `web/app/src/app/page.tsx` over `components/programs/program-grid.tsx`. A Server Component
-that renders from content compiled into the app: it makes no fetch, reads no cookie and
-needs no backend. That is not an optimisation — the reader loop is required to work with no
-account and no backend, and a first screen that could not render without an API would have
-broken the requirement before the reader reached anything.
+that renders from the bundle compiled into the app: it calls no API while rendering, and the
+one cookie it reads is this origin's own, the reader's chosen edition
+([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md)). **That is
+still true after ADR-0060, as today's placement rather than a requirement.** The requirement
+it used to follow from joined two halves — no account, and no server behind the loop — and
+[ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+kept the first and reversed the second: a frame needs the API and the index does not. So a
+reader who arrives while the API is down still sees the programs, and the frame they open is
+the one that says the fault is on this side. ADR-0060's Decision counts every read of a
+program as a live call, which this page is not, so the placement is pending rather than
+settled: 580 in [the order](#the-order) decides whether the index stays off the API.
 
 **It used to be the product's argument and is now the programs**
 ([ADR-0036](../adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). The
@@ -87,19 +99,25 @@ navigation from a frame instead of two.
 
 Its parts, in order:
 
-1. **The top row** — the wordmark, a link to `/courses`, a link to `/about`, the resume
-   control, the two destructive controls, and the account control, in that order. The two
-   links that lead somewhere else come first and the controls that are about this reader
-   follow them; *Courses* is offered whatever the deployment pins, because a page listing
-   one course states what ab-ovo carries where a switch with one position would be a
-   control that cannot move (ADR-0048). Everything but the first
-   two is read from the browser and arrives after the first paint, so the row extends
-   rather than the page moving (the constraint issue #7 put on the resume controls). The
+1. **The top row** — the wordmark, a link to `/courses`, a link to `/about`, the theme
+   switch, the resume control, *Export my worksheets*, the two destructive controls, and the
+   account control, in that order. The two links that lead somewhere else come first and the
+   controls that are about this reader follow them; *Courses* is offered whatever the
+   deployment pins, because a page listing one course states what ab-ovo carries where a
+   switch with one position would be a control that cannot move (ADR-0048). The theme switch
+   is the one control in the row rendered on the server
+   ([ADR-0048](../adr/0048-the-theme-is-a-choice-and-the-system-is-a-position.md)), so it
+   comes before everything that is not: all that follows it is read from the browser and
+   arrives after the first paint, so the row extends rather than the page moving (the
+   constraint issue #7 put on the resume controls). The
    resume control — `F01 · Continue at frame 12` — is the index's one filled control: for
    a reader who has been here before it is the page's primary action, and it used to be
    the faintest thing on it. It is padded outwards and the padding given back as margin,
-   so the row it arrives in does not grow. *Clear my worksheets* and *Forget where I am*
-   are both two presses — the control renames itself to say what the second press does,
+   so the row it arrives in does not grow. *Export my worksheets* is one press and sits
+   before the two ways to lose something, because nothing it does is destructive
+   ([ADR-0055](../adr/0055-the-notebook-exports-what-stands-today-never-a-history.md)); it
+   renders nothing when there is nothing to export. *Clear my worksheets* and *Forget where
+   I am* are both two presses — the control renames itself to say what the second press does,
    and reverts in five seconds — and *Forget* is the last of them, furthest from the link
    a returning reader is reaching for
    ([ADR-0047](../adr/0047-forgetting-is-two-presses-because-it-reaches-the-account.md)).
@@ -175,8 +193,11 @@ Its parts, in order:
 ### `/courses` — the courses this deployment carries
 
 `web/app/src/app/courses/page.tsx` over `components/programs/course-list.tsx`. A Server
-Component on the index's own terms: no fetch, no cookie, no backend, everything read from
-the bundles compiled into the app ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)).
+Component on the index's own terms: it calls no API while rendering, reads one cookie of this
+origin's own for the edition, and takes everything else from the bundles compiled into the app
+([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)). That still
+holds after ADR-0060, as today's placement rather than a requirement, and is pending 580 for
+the index's reason above.
 
 One entry per pinned course, carrying its title in each edition it is published in, and a
 line of measured facts under it — how many programs, how many frames across them, and the
@@ -207,7 +228,9 @@ the order IS the argument:
    promise here, and `specs/landing.spec.ts` keeps the two negative assertions on `/`,
    which is the page a leaderboard would actually appear on.
 3. **The loop** — the four steps, numbered.
-4. **What it needs from you** — *nothing*, and what an account does buy.
+4. **What it needs from you** — that reading needs no account, and what an account does buy.
+   What it says about a server is 420's to correct in [the order](#the-order): the page was
+   written when frames needed no backend, and ADR-0060 made every frame need the API.
 5. **Which edition you read** — that the choice is the reader's and that nothing is guessed.
 6. **Where the work is** — the four phases, named.
 7. **The integration report** — the one live thing on the page, deliberately last. It is the
@@ -325,9 +348,12 @@ bearer server-side.
 
 It has three states and the third is the interesting one: **loading**, **live** (one row per
 integration, each with a `live`/`degraded` badge and the detail string the API supplied), and
-**unreachable** — which is *not an error state*. "No API answered" is a supported
-configuration of this product, so the panel says so plainly and repeats that nothing on the
-page depends on it.
+**unreachable** — which is *not an error of the page's*: `/about` renders whole without the
+API, and the panel says plainly that nothing answered. What it no longer is, since
+[ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md),
+is a configuration a reader can read in — no frame renders without the API — so *unreachable*
+means reading is unavailable here, and 420 in [the order](#the-order) is the change that makes
+the panel say so.
 
 ### `/read/<track>/<unit>/<lang>` — a program's contents
 
@@ -339,8 +365,10 @@ they were actually in. Server-rendered as the start and swapped after hydration 
 same element, same class — so the page moves by nothing when the record is read
 (`progress.spec.ts` holds it to the index's shift bound). The crumb row's quiet *Start at
 frame 1* appears only beside a *Continue*, so the page has exactly one link to the reader's
-frame and always one to the first. The foot carries the two neighbouring programs and the
-key map — and **the next one only once this program has been opened**
+frame and always one to the first. The foot carries the two neighbouring programs — the key
+map is in *Reading settings*, opened from the top bar
+([ADR-0063](../adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)) — and **the next
+one only once this program has been opened**
 ([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)): a
 `F03 →` that led somewhere the reader would be sent back from is a control that is reliably
 refused. **In its place the foot states the fact**
@@ -350,9 +378,10 @@ owed, and this was the one screen where the next program's existence was withhel
 page itself is gated on the same rule.** A reader who has not reached this program is
 returned to the index, at the tile that says which program opens it, with the sentence that
 says why they were moved. It happens
-after hydration, because the record is in the browser and the server has no reader — a
-first paint of a shut program is the honest cost of the loop working with no backend at
-all (ADR-0004).
+after hydration, because this rule is asked of the browser's own record: the page reads the
+compiled bundle and calls no API, and `AbOvo.Api`'s gate refuses a frame past the reader's
+furthest one without carrying the program-level rule (`src/AbOvo.Api/Content/Reveal.cs` says
+why). A first paint of a shut program is the honest cost of that.
 
 ### `/read/<track>/<unit>/<lang>/<step>` — one frame
 
@@ -366,7 +395,19 @@ The reveal is therefore a form — a Server Action that raises the reader's curs
 to `n + 1` — and a form cannot be prefetched; `prefetch={false}` on every link that leads to a
 frame mid-program is the half of the same property that is easy to lose.
 
-The URL is the position, so it survives a reload with no session. `/read/` is in the
+**The frame comes from `AbOvo.Api` on every request, and from nowhere else.** The frame
+route reads no copy of a frame's text: the server asks the API for the step, as the reader —
+their bearer when they are signed in, and otherwise the opaque cookie
+[ADR-0061](../adr/0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)
+defines, so reading still needs no account. An API that does not answer is the 500 described
+above, never a frame rendered from something else (`lib/server/content.ts`). The web app's
+image still carries the compiled bundle, every answer in it (`web/app/Dockerfile`), because
+the index, `/courses`, a program's contents and its summary read it, and `/instrument` takes
+its list of programs from it; 580 in [the order](#the-order) moves the contents and the
+summary onto the API. Nothing on the frame route reads it.
+
+The URL is the position, so it survives a reload with no account: the furthest frame the gate
+allows is held by the API under that cookie, not by a session. `/read/` is in the
 middleware's public-prefix list, and so is `/katex/`, without which every font request from a
 reader with no session redirects to `/login` and the system-font fallback hides the break.
 
@@ -572,10 +613,13 @@ check offer that ADR-0040 removed.
 
 ### `/account` — the reader's own record
 
-Progress, export, and deletion that deletes. The deletion screen says what goes, what stays,
-what no deletion can reach — an anonymous outcome already folded into a rate cannot be
-retracted, because nothing can find the rows that were yours — and that the account is
-marked and scheduled rather than erased. That fourth sentence was off the page for a
+Today it is deletion that deletes, and nothing else. The reader's place, the export of their
+worksheets and *Sign out* are on the index's top row (the account control), not here; 610 in
+[the order](#the-order) makes this page the reader's overview, sign-out included, and gives
+deletion its own page. The deletion screen says
+what goes, what stays, what no deletion can reach — an anonymous outcome already folded into
+a rate cannot be retracted, because nothing can find the rows that were yours — and that the
+account is marked and scheduled rather than erased. That fourth sentence was off the page for a
 while, swallowed by a comment nobody closed, and the acceptance suite now signs in against
 the identity fixture to read all four (ADR-0021, Consequences).
 
@@ -706,8 +750,15 @@ sans, code in mono, all three from the reader's own system — there is no webfo
 Each of these is already true of the scaffold and has to stay true of everything added to
 it. They are listed here rather than left to be rediscovered per screen.
 
-1. **The reader loop renders with no account and no backend.** A screen in the loop that
-   cannot render without a fetch is a defect, not a loading state.
+1. **Reading needs no account, and a frame needs the API.** Two rules, not one: this rule
+   used to join them, and
+   [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+   reversed the half about a server. A screen in the loop that asks the reader to sign in is
+   a defect. So is a frame, a reveal or an answer that renders without a live, gated call to
+   `AbOvo.Api` — content is the one integration this product does not treat as optional, and
+   an API that does not answer is said to the reader rather than hidden behind content served
+   from somewhere else. A frame that cannot load says so today; a reveal that cannot reach the
+   API does not, and 380 is the change that makes it.
 2. **No per-reader view, ever.** No leaderboard, no ranking, no score, no per-reader sort
    control on any table. It is a claim about the code in `README.md` and it is false the
    moment somebody ships the view ([ADR-0009](../adr/0009-the-instrument-measures-the-book.md)).
@@ -726,7 +777,7 @@ it. They are listed here rather than left to be rediscovered per screen.
    into the image by the compiler and costs one image per environment (P12) — the ESLint
    configuration makes reading one an error.
 7. **A missing optional integration is a sentence, not an error.** The product is meant to
-   degrade legibly (P8).
+   degrade legibly (P8). Content is not one of them; rule 1 says what a missing API costs.
 8. **An answer is never revealed before it is asked for.** The book's entire mechanism is the
    commitment. A component that shows the next frame's opening, a hint that contains the
    answer, or an exercise check that prints the solution has broken the product, not

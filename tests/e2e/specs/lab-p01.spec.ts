@@ -552,9 +552,10 @@ test.describe('lab P1', () => {
      * notes/10 §6.1, which says nothing is fetched from a CDN at run time.
      *
      * Pyodide's own documentation leads with a jsDelivr indexURL, and taking that advice
-     * would put a third-party host in the critical path of a reader loop whose first
-     * requirement is that it needs no backend. This is the assertion that keeps the package
-     * in package.json and the copy in public/ rather than a script tag somebody found.
+     * would put a third-party host in the critical path of a pane that needs no server of its
+     * own — it runs in the reader's browser, from this origin (ADR-0007), and has left the
+     * reader loop (ADR-0040). This is the assertion that keeps the package in package.json
+     * and the copy in public/ rather than a script tag somebody found.
      *
      * Armed BEFORE the navigation. Arming it after is a race the fast case loses, and the fix
      * for that race is never a sleep.

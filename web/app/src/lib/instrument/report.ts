@@ -146,8 +146,9 @@ export async function reportRun(run: RunReport): Promise<void> {
         body: JSON.stringify(report),
       });
     } catch {
-      // The network, or an API that is not there. A fresh clone runs with no backend at all
-      // (P8) and the lab works perfectly well without one; losing a tally is the whole cost.
+      // The network, or an API that is not there. The lab needs no server of its own — it is
+      // served from this origin and runs in the browser (ADR-0007) — and the instrument is an
+      // optional integration (P8), so losing a tally is the whole cost.
     }
   }
 }
@@ -280,7 +281,9 @@ export async function reportAnswer(
       body: JSON.stringify(report),
     });
   } catch {
-    // No backend is a supported configuration of this product (ADR-0004). Losing a tally
-    // is the whole cost and it is the book's, not the reader's.
+    // The instrument is optional even though content is not: ADR-0060 made every frame a
+    // live call to `AbOvo.Api`, but a tally that does not arrive — the API gone since this
+    // frame rendered, or refusing this one call — is P8's to swallow. Losing a tally is the
+    // whole cost and it is the book's, not the reader's.
   }
 }

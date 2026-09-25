@@ -1,13 +1,16 @@
 # Samouczek 1 — pierwsze uruchomienie
 
-**Co będziesz mieć na końcu:** ab-ovo działające na twojej własnej maszynie, serwujące całą
-książkę, z otwartą przed tobą ramką, która zadała ci pytanie i odmawia na nie odpowiedzi.
+**Co będziesz mieć na końcu:** ab-ovo działające na twojej własnej maszynie, z indeksem całej
+książki przed tobą. Kroki 4 i 5 prowadzą dalej, do ramki, która zadaje ci pytanie i odmawia na
+nie odpowiedzi, a ta ramka potrzebuje książki wewnątrz API — a na świeżym AppHoście nic jej
+tam jeszcze nie umieszcza. Krok 3 mówi dlaczego.
 
 **Ile to potrwa:** około dwudziestu minut, w większości czekania na build.
 
 **Czego potrzebujesz:** klonu tego repozytorium i niczego więcej. Żadnego konta, żadnego
-poświadczenia, żadnej usługi, żadnego klucza. To nie jest wygoda — to własność produktu i pod
-koniec tego samouczka zobaczysz ją na własne oczy.
+poświadczenia, żadnego klucza. Lektura nie potrzebuje konta — to nie jest wygoda, to własność
+produktu — i kroki 4 i 5 ją pokazują, razem z jedyną rzeczą, której lektura jednak
+potrzebuje.
 
 > **English version:** [`01-first-run.md`](01-first-run.md)
 
@@ -69,18 +72,35 @@ topologią i nigdy nią nie będzie — patrz [samouczek 3](03-contribute-a-chan
 
 Otwórz <http://localhost:3000>.
 
-Jeśli wolisz w ogóle nie uruchamiać .NET-a, powierzchnia lektury nie potrzebuje go wcale:
+**Sama aplikacja webowa nie wystarczy do lektury.** `pnpm --dir web build` i
+`pnpm --dir web start` podają indeks, `/courses` i `/about` bez niczego za nimi, ale nie
+ramkę: każda ramka to żywe wywołanie `AbOvo.Api`
+([ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)),
+i dlatego ten krok uruchamia AppHost.
 
-```bash
-pnpm --dir web install
-pnpm --dir web build
-pnpm --dir web start
-```
+**A API musi mieć książkę.** Podaje skompilowaną paczkę treści, którą dostało przez punkt
+końcowy tylko dla administratora, `POST /api/v1/admin/content/bundles`, a świeża baza nie ma
+żadnej. Nic w AppHoście jej dziś nie wczytuje. Robią to testy akceptacyjne, w
+`tests/e2e/fixtures/ingest-content.mts`, ale logują się do własnej zaślepki serwisu tożsamości
+tego zestawu, a nie do serwisu tożsamości AppHosta. Dopóki
+książki tam nie ma, indeks wymienia każdy program, a ramka odpowiada *nie znaleziono*.
 
-To podaje tę samą witrynę bez API, bez bazy i bez serwisu tożsamości za nią — co jest sednem
-kolejnego kroku.
+**Nie wyślesz jej też jeszcze ręcznie.** Oczywista droga to zalogować się jako
+`admin@ab-ovo.test`, SuperAdmin, którego `authservice` AppHosta zakłada sam, i wysłać
+`web/content/bundle/bundle.json` z tym tokenem. `AbOvo.Api` odmawia odpowiedzią `401`.
+`authservice` buduje `jwks_uri` w swoim dokumencie discovery z `Jwt:PublicBaseUrl`, którego
+wartością domyślną jest pusty napis i którego `AppHost.cs` nie ustawia, więc publikowany adres
+jest gołą ścieżką, a API nie znajduje klucza, którym mogłoby sprawdzić token. Zmierzono to
+2026-09-25 na `authservice` v0.3.1 skonfigurowanym tak, jak konfiguruje go `AppHost.cs`; z
+ustawionym adresem bazowym te same dwa żądania wczytują książkę. Obie luki należą do AppHosta i
+ich zamknięcie jest zmianą w nim, a nie w tym samouczku.
 
 ## Krok 4 — zobacz, jak produkt odmawia ci powiedzenia czegoś
+
+> **Na świeżym AppHoście nie przejdziesz jeszcze ani tego kroku, ani następnego.** Oba
+> potrzebują ramki, a ramka potrzebuje książki wewnątrz API, której — jak wyjaśnia krok 3 —
+> AppHost nie umie dziś tam umieścić. Czytaj je jako to, co AppHost pokaże, gdy już
+> będzie umiał; indeks i `/about` to jest to, co świeży klon pokazuje teraz.
 
 Patrzysz na indeks programów. Wybierz **F01 — Numbers, powers and roots** i czytaj do ramki 3.
 
@@ -95,8 +115,10 @@ dokumencie odpowiedzi.
 
 **Nie ma jej tam.** Ani w elemencie, ani w atrybucie, ani w znaczniku skryptu, ani w
 prefetchu. Nie ma czego znaleźć, bo odpowiedź na ramkę, na której stoisz, renderuje żądanie o
-*kolejną* ramkę i nic wcześniej. Odsłonięcie jest nawigacją, a nie przełącznikiem
-([ADR-0014](../adr/0014-the-content-schema-is-json-schema-and-knows-nothing-about-frames.md)).
+*kolejną* ramkę i nic wcześniej. Odsłonięcie jest formularzem, a nie przełącznikiem: prosi
+`AbOvo.Api` o przesunięcie twojej pozycji w lekturze, a API podaje kolejną ramkę dopiero potem
+([ADR-0014](../adr/0014-the-content-schema-is-json-schema-and-knows-nothing-about-frames.md),
+[ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)).
 
 Kliknij **Next** na dole ekranu albo naciśnij <kbd>→</kbd>.
 
@@ -106,24 +128,34 @@ Ramka 4 otwiera się odpowiedzią, którą miałeś już zapisać. To jest włas
 uczynienie go strukturalnym zamiast ukrytym elementem jest powodem, dla którego ten produkt w
 ogóle istnieje.
 
-## Krok 5 — wyłącz wszystko i czytaj dalej
+## Krok 5 — zatrzymaj API i zobacz, czego potrzebuje lektura
 
-Zatrzymaj AppHost. Zatrzymaj API. Zatrzymaj bazę.
+Zatrzymaj zasób `api` w panelu Aspire i przeładuj ramkę.
 
-Przeładuj ramkę.
+**Ramki nie ma, a strona mówi, czyja to wina.** Każda ramka i każde odsłonięcie to żywe,
+bramkowane wywołanie `AbOvo.Api`; gdy API nie działa, ramka odpowiada stroną błędu, która mówi,
+że wina leży po tej stronie, a nie w adresie, o który prosiłeś. To celowe: treść to jedyna
+integracja, której ten produkt nie traktuje jako opcjonalnej, a ramka wyrenderowana skądinąd
+byłaby defektem, a nie wyjściem awaryjnym.
 
-**Nic się nie zmienia.** Ramki są serwowane razem z witryną jako wersjonowana paczka, a
-wszystko, co napiszesz na ramce, zostaje w twojej przeglądarce
-([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)). Pętla
-czytelnika ma działać bez konta i bez backendu, a ekran w niej, który nie potrafiłby się
-wyrenderować bez zapytania, byłby defektem, a nie stanem ładowania.
+Otwórz indeks pod <http://localhost:3000>. **Wciąż tam jest** — czyta skompilowaną paczkę
+treści wbudowaną w aplikację webową i nie woła API podczas renderowania — podobnie `/about`,
+którego panel integracji zgłasza teraz, że żadne API nie odpowiedziało.
 
-Wypróbuj resztę, gdy backend jest wyłączony:
+Uruchom zasób `api` ponownie i przeładuj ramkę. Jesteś z powrotem na niej, choć nigdy się nie
+zalogowałeś: twoją pozycję w lekturze przechowuje API pod nieprzezroczystym ciasteczkiem, które
+ta witryna ustawiła przy pierwszej wizycie — nie konto i nie token
+([ADR-0061](../adr/0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)).
+Zatrzymaj zamiast tego `authservice`, a w lekturze nie zmieni się nic.
 
-- Otwórz `Working` pod linią odpowiedzi — notatnik, który liczy arytmetykę. Kalkulator, celowo
-  nie system algebry komputerowej
+Wypróbuj resztę ramki, skoro już tu jesteś. Notatnik i płótno nie potrzebują niczego za sobą,
+a wszystko, co napiszesz na ramce, zostaje w twojej przeglądarce
+([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)):
+
+- Otwórz `Work it out` pod linią odpowiedzi — notatnik, który liczy arytmetykę. Kalkulator,
+  celowo nie system algebry komputerowej
   ([ADR-0042](../adr/0042-the-evaluator-is-a-calculator-not-a-cas.md)).
-- Otwórz `Sketch` — płótno, które przyjmuje pociągnięcia i nigdy nie otwiera się samo
+- Otwórz `Draw it` — płótno, które przyjmuje pociągnięcia i nigdy nie otwiera się samo
   ([ADR-0043](../adr/0043-a-sketch-is-strokes-and-the-pane-never-opens-itself.md)).
 - Przełącz edycję w pasku u góry. Ta sama ramka, po polsku, z zachowanym numerem ramki.
 - Kliknij pozycję między **Previous** a **Next** — `3 of 45` — i wpisz numer ramki, albo
@@ -131,10 +163,12 @@ Wypróbuj resztę, gdy backend jest wyłączony:
 
 ## Co zobaczyłeś
 
+Wiersze, które wskazują kroki 4 i 5, czekają na to samo, na co czekają te kroki.
+
 | Twierdzenie | Gdzie to zobaczyłeś |
 | --- | --- |
 | Odpowiedzi nie ma, zamiast być ukrytą | Krok 4, w inspektorze |
-| Pętla czytelnika nie potrzebuje konta ani backendu | Krok 5, przy wszystkim wyłączonym |
+| Lektura nie potrzebuje konta, a każda ramka potrzebuje API | Krok 5, przy API zatrzymanym i uruchomionym ponownie |
 | Książka jest treścią, nie źródłem, i jest przypięta | Krok 2, skrót na każdy plik |
 | Edycja jest wyborem czytelnika, nigdy zgadywanym | Krok 5, pasek u góry |
 

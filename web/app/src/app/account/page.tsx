@@ -8,7 +8,7 @@ import { backendConfigured } from '@/lib/server/backends';
 import styles from './account.module.css';
 
 /**
- * The account page, which today is the deletion screen and a sign-out.
+ * The account page, which today is the deletion screen, and only that.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * THE WORDING IS THE FEATURE, WHICH IS WHY THIS PAGE IS BILINGUAL AND `/login` IS NOT.

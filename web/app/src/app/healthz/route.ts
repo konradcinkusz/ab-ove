@@ -16,11 +16,14 @@ import { NextResponse } from 'next/server';
  *    started, the route tree resolved and a response can be produced.
  *  - It reads the environment at request time, which is the same mechanism `/api/config`
  *    depends on (§2). A build-time-frozen bundle would answer from a snapshot.
- *  - It does NOT call the API. The reader loop is specified to work with no backend at all,
- *    so a health check that failed when the API was cold would take the web app out of
- *    rotation for a condition the product is designed to tolerate — and would make the API's
- *    cold start a web outage, which is the coupling `min_machines_running` exists to avoid
- *    (P7, P8). The API's own health is reported at the API's own /health.
+ *  - It does NOT call the API, and ADR-0060 did not change that. Every frame is now a live
+ *    call to `AbOvo.Api`, so a reader cannot read while the API is down — but this check is
+ *    the WEB machine's, and failing it then would take out of rotation the process that
+ *    still serves the index and the page that tells a reader the fault is on this side —
+ *    a legible failure, traded for a proxy error that says nothing — for a condition
+ *    restarting it cannot fix. It would also make the API's cold start a web
+ *    outage, which is the coupling `min_machines_running` exists to avoid (P7). The API's
+ *    own health is reported at the API's own /health.
  */
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';

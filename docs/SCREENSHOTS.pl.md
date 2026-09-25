@@ -134,9 +134,12 @@ wyboru, i jedyna, która nie potrzebuje JavaScriptu
 
 Pierwszy ekran jest tym, po co czytelnik przyszedł, o jedną nawigację od ramki zamiast o dwie
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). To
-komponent serwerowy, który nie robi żadnego zapytania i nie potrzebuje backendu; czyta jedno
-ciasteczko, własne tego origin, w którym trzymana jest wybrana przez czytelnika edycja — dzięki
-temu pierwsze malowanie jest już w niej
+komponent serwerowy, który czyta paczkę treści wkompilowaną w aplikację webową i nie woła API
+podczas renderowania — wciąż, choć
+[ADR-0060](adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+przeniósł ramki do API, a to, czy tak zostanie, rozstrzyga 580 w
+[kolejności](ux/UI-UX.md#the-order). Czyta jedno ciasteczko, własne tego origin, w którym
+trzymana jest wybrana przez czytelnika edycja — dzięki temu pierwsze malowanie jest już w niej
 ([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)).
 
 Karta u dołu to **zaproszenie do zgody** i stoi na końcu celowo: czytelnik, który przyszedł
@@ -180,8 +183,9 @@ nad wszystkim innym na stronie, bo presja, by nadużyć liczby, zawsze przychodz
 nie doczytał do końca.
 
 Panel u dołu to jedyna żywa rzecz na stronie i jedyny komponent w aplikacji, który czyta
-`/api/config`. Ciekawy jest jego trzeci stan: **nieosiągalny** nie jest błędem, bo "żadne API
-nie odpowiedziało" jest wspieraną konfiguracją tego produktu (P8).
+`/api/config`. Ciekawy jest jego trzeci stan: **nieosiągalny** nie jest błędem strony, która
+renderuje się w całości bez API — ale od ADR-0060 oznacza, że nie da się tu przeczytać żadnej
+ramki, bo każda ramka to żywe wywołanie API.
 
 ### Logowanie
 

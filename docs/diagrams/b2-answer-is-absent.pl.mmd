@@ -5,33 +5,44 @@
 %% kolejna ramka otwiera się odpowiedzią, którą miało się już zapisać. Czytelnik, który
 %% przelatuje wzrokiem, nie dostaje nic, a papier nie ma jak tego zauważyć.
 
-%% ODSŁONIĘCIE JEST NAWIGACJĄ, NIE PRZEŁĄCZNIKIEM. Ramka jest komponentem serwerowym bez
+%% ODSŁONIĘCIE JEST FORMULARZEM, NIE PRZEŁĄCZNIKIEM. Ramka jest komponentem serwerowym bez
 %% granicy klienta wokół niej, więc odpowiedź na ramkę N renderuje ŻĄDANIE o ramkę N+1 i nic
 %% wcześniej. Czytelnik, który otworzy inspektor, nie znajdzie jej nigdzie; prefetch jest
 %% wyłączony, więc nie ma jej także na łączu. Obie połowy są sprawdzane testem i obie
 %% widziano, jak czerwienieją, zanim w nie uwierzono.
 
+%% I GRANICY PILNUJE SERWER, OD ADR-0060. Każdy krok przychodzi z AbOvo.Api, które podaje
+%% krok N tylko wtedy, gdy N nie wykracza poza pozycję w lekturze, a pozycję przesuwa POST
+%% odsłonięcia do .../advance. Samo GET o N+1 przed nim zostaje odrzucone, więc ani prefetch,
+%% ani robot, ani udostępniony link nie wyciągnie odpowiedzi za wcześnie. Czytelnika
+%% wskazuje jego token albo, bez konta, nieprzezroczyste ciasteczko (ADR-0061).
+
 %% DLACZEGO NIE WIDŻET ROZWIJANY. Cokolwiek renderuje odpowiedź do dokumentu i chowa ją
 %% CSS-em albo JavaScriptem, jest podpowiedzią, którą przeglądarka już ma. Wersja
-%% strukturalna kosztuje jedną nawigację i nie da się jej obejść.
+%% strukturalna kosztuje jedną podróż do serwera i nie da się jej obejść.
 
 sequenceDiagram
   autonumber
   participant R as Czytelnik
   participant B as Przeglądarka
   participant S as Serwer Next.js
-  participant C as Skompilowana paczka treści
+  participant A as AbOvo.Api
 
   R->>B: otwiera /read/track/unit/lang/N
   B->>S: GET ramka N
-  S->>C: krok N
-  C-->>S: polecenie dla N, odpowiedź dla N-1
+  S->>A: GET /api/v1/content/track/unit/N
+  Note over A: podaje tylko, gdy N nie wykracza<br/>poza pozycję w lekturze
+  A-->>S: polecenie dla N, odpowiedź dla N-1
   S-->>B: HTML z poleceniem N<br/>i odpowiedzią N-1
   Note over B: odpowiedzi na N nie ma<br/>w żadnym elemencie, atrybucie,<br/>skrypcie ani prefetchu
   R->>B: zapisuje odpowiedź
-  R->>B: odwraca ramkę
+  R->>B: naciska Dalej
+  B->>S: POST formularza odsłonięcia
+  S->>A: POST /api/v1/content/track/unit/advance
+  A-->>S: pozycja w lekturze to teraz N+1
+  S-->>B: przekierowanie na ramkę N+1
   B->>S: GET ramka N+1
-  S->>C: krok N+1
-  C-->>S: polecenie dla N+1, odpowiedź dla N
+  S->>A: GET /api/v1/content/track/unit/N+1
+  A-->>S: polecenie dla N+1, odpowiedź dla N
   S-->>B: teraz, i dopiero teraz, odpowiedź na N
   R->>R: porównuje to, co napisał,<br/>z tym, co mówi książka
