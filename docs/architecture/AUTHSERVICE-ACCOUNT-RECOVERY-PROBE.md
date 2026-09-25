@@ -110,6 +110,13 @@ Both links are built from **`FrontendBaseUrl`** and a fixed path, in `AuthContro
   `Referer` and load nothing from another origin (the second is already AGENTS.md #8), and
   should spend the token only on a POST the reader makes: a mail scanner that prefetches the
   link must not verify an address or burn a reset.
+- **The email address is in that query string as well, and that conflicts with 700's
+  Done-when**, "Nothing about the account appears in the URL" (#170). The format is fixed by
+  upstream, so the address bar holds the reader's address when the link arrives, whatever
+  700 builds. 700 has to decide whether its rule covers that arriving URL or only the URLs
+  this app builds. Either way, the receiving page can take both values out of the address
+  bar before the reader does anything, for instance by keeping them server-side and
+  redirecting to the bare path. This probe did not try that.
 
 ## 4. Whether any email is sent at all
 
