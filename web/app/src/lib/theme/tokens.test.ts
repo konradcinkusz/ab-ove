@@ -414,3 +414,76 @@ test('no control in the app draws its edge in --rule', () => {
       'use --control-edge, which the floors above hold in both schemes',
   );
 });
+
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * AND FOCUS IS NEVER TAKEN AWAY, OR SHOWN AS A BRIGHTNESS — issue #148, WCAG 2.4.7.
+ *
+ * UI-UX.md: "focus is a ring, never a brightness". The audit found the rule broken in two
+ * ways, neither of which axe can see:
+ *
+ *   - `outline: none` on a focused control. The answer line and the pad said focus with a
+ *     border turning blue, and nothing else; the filled buttons that drew a box-shadow ring had
+ *     removed the outline too. Windows' forced colours paint no box-shadow and repaint every
+ *     border in one system colour, so for a reader in high contrast each of these showed no
+ *     focus at all. `controls.module.css` has the answer: hide the browser's ring with a
+ *     TRANSPARENT outline, which forced colours paint in the system's colour, never with `none`.
+ *   - a `filter` on focus. The consent's two buttons brightened by eight percent, which is a
+ *     change nobody tabbing to them could see.
+ *
+ * Both are one declaration in a `:focus` or `:focus-visible` rule, so both are refused
+ * wherever they are written. A control that needs the browser's ring gone draws the shared
+ * ring instead.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
+
+/** Every focus rule that removes the outline or shows focus as a filter. */
+function focusShownWrongly(css: string): string[] {
+  const found: string[] = [];
+  for (const rule of rulesOf(css)) {
+    const focused = rule.selectors.filter((selector) => /:focus(-visible)?(?![\w-])/.test(selector));
+    if (focused.length === 0) continue;
+    for (const [property, value] of Object.entries(rule.declarations)) {
+      const removes =
+        (property === 'outline' && /^(none|0(px)?)(\s|$)/.test(value)) ||
+        (property === 'outline-style' && value === 'none') ||
+        (property === 'outline-width' && /^0(px)?$/.test(value));
+      if (removes || property === 'filter') {
+        found.push(`${focused.join(', ')} { ${property}: ${value} }`);
+      }
+    }
+  }
+  return found;
+}
+
+test('the focus scan tells a removed outline from a transparent one', () => {
+  const sheet = `
+    .line:focus-visible { border-bottom-color: var(--accent); outline: none; }
+    .pad:focus { outline: 0; }
+    .go:hover, .go:focus-visible { filter: brightness(1.08); }
+    .ring:focus-visible { box-shadow: 0 0 0 4px var(--accent); outline: 2px solid transparent; }
+    .row:focus-within { outline: none; }
+    .quiet:focus-visible { color: var(--ink); }
+    @media (forced-colors: active) { .x:focus-visible { outline-style: none; } }
+  `;
+
+  assert.deepEqual(focusShownWrongly(sheet), [
+    '.line:focus-visible { outline: none }',
+    '.pad:focus { outline: 0 }',
+    '.go:focus-visible { filter: brightness(1.08) }',
+    '.x:focus-visible { outline-style: none }',
+  ]);
+});
+
+test('no control in the app takes its focus outline away or shows focus as a brightness', () => {
+  const offenders = stylesheetsUnder(SOURCE).flatMap((file) =>
+    focusShownWrongly(readFileSync(file, 'utf8')).map((found) => `${relative(SOURCE, file)}: ${found}`),
+  );
+
+  assert.deepEqual(
+    offenders,
+    [],
+    'draw the shared ring instead (components/read/controls.module.css): a box-shadow, and ' +
+      '`outline: 2px solid transparent` for forced colours, which paint no box-shadow',
+  );
+});

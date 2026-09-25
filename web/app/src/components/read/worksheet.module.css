@@ -77,9 +77,26 @@
   opacity: 1; /* Firefox dims a placeholder by default, and --ink-faint is already dim */
 }
 
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * FOCUS IS THE SHARED RING, NOT THE LINE CHANGING COLOUR — issue #148.
+ *
+ * The line used to be its own focus indicator: `outline: none`, and the dashes turned from
+ * faint to blue. That is a colour change and nothing else, which UI-UX.md's "focus is a ring,
+ * never a brightness" rules out, and in Windows' forced colours — where the system repaints
+ * every border in one colour — it was no change at all. So the line wears the ring every
+ * control on the reading screens wears (`controls.module.css`): a box-shadow in the paper and
+ * the accent, and a transparent outline that forced colours paint in the system's own colour,
+ * since they paint no box-shadow. The dashes still turn blue; they are no longer the only sign.
+ * `tokens.test.ts` fails any `:focus-visible` rule that removes the outline.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
 .field:focus-visible {
   border-bottom-color: var(--accent);
-  outline: none; /* the border IS the focus indicator here, and it moves colour to show it */
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--accent);
+  outline: 2px solid transparent;
 }
 
 /*
@@ -438,9 +455,13 @@
   width: 100%;
 }
 
+/* The shared ring, for `.field:focus-visible`'s reason (issue #148). */
 .workingField:focus-visible {
   border-bottom-color: var(--accent);
-  outline: none;
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--accent);
+  outline: 2px solid transparent;
 }
 
 .workingGutter {
@@ -492,9 +513,20 @@
   padding: 0.25rem 1rem;
 }
 
-.runButton:hover,
+.runButton:hover {
+  border-color: var(--accent);
+}
+
+/*
+ * Focus is the shared ring (`controls.module.css`, issue #148), not the border's colour: a
+ * colour is all a keyboard reader had to find the button by, and forced colours repaint it.
+ */
 .runButton:focus-visible {
   border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--accent);
+  outline: 2px solid transparent;
 }
 
 .paneHint {

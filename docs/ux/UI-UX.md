@@ -579,6 +579,14 @@ sans, code in mono, all three from the reader's own system — there is no webfo
 - **Focus is a ring, never a brightness.** Every control on the reading screens wears a
   two-colour ring on `:focus-visible` (paper, then the accent), because a ten-percent
   brightness on a blue block is invisible to the keyboard reader it was for (WCAG 2.4.7).
+  Since #148 that includes the answer line and the pad, which showed focus only by their
+  dashed rule turning blue, the pad's *Do the sums*, and the consent's two answers, which
+  brightened. The ring's other half is a transparent outline: Windows' forced colours paint no
+  box-shadow, and they do paint an outline, in the system's colour — so a focus rule that sets
+  `outline: none` leaves a reader in high contrast with no focus at all.
+  `lib/theme/tokens.test.ts` fails any stylesheet's focus rule that takes the outline away or
+  uses a filter, and `specs/focus-ring.spec.ts` checks the ring in light, dark and forced
+  colours.
 - **Two colour floors are held by a test, not a sentence** (`lib/theme/tokens.test.ts`, in
   both schemes): `--ink-faint` at 4.5:1 or more on the paper, a raised panel and the answer
   box (WCAG 1.4.3), and `--control-edge` at 3:1 or more for the edge of anything pressable

@@ -77,15 +77,28 @@
 }
 
 .grant:hover,
-.grant:focus-visible,
-.decline:hover,
-.decline:focus-visible {
+.decline:hover {
   filter: brightness(1.08);
 }
 
-.decline:hover,
-.decline:focus-visible {
+.decline:hover {
   border-color: var(--ink-soft);
+}
+
+/*
+ * FOCUS IS A RING, NEVER A BRIGHTNESS — UI-UX.md, and issue #148. Focus used to share the
+ * hover's eight-percent brightness, which a keyboard reader could not see on either button and
+ * which forced colours do not paint at all. Both now wear the shared ring
+ * (`controls.module.css`) — the same ring on both, so focus weighs the two answers equally too
+ * — with its transparent outline for forced colours. The gap is `--paper-raised`, the panel's
+ * own surface, as the program map's rows do on theirs (`program-map.module.css`).
+ */
+.grant:focus-visible,
+.decline:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--paper-raised),
+    0 0 0 4px var(--accent);
+  outline: 2px solid transparent;
 }
 
 /* The answered state: one line, the weight of a footnote. */

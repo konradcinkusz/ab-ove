@@ -50,8 +50,13 @@
   filter: brightness(1.1);
 }
 
+/*
+ * The outline is transparent rather than `none` (issue #148): forced colours paint no
+ * box-shadow and do paint an outline, in the system's colour, so this is the ring a reader in
+ * high contrast gets — round the target, where the fill it would surround is not painted.
+ */
 .resumeFilled:focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
 }
 
 /* The ring is drawn round the fill, where the reader sees the button, not round the target. */

@@ -60,6 +60,7 @@ was first written with.
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
 | `consent.spec.ts` | being asked once whether outcomes may be counted, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
+| `focus-ring.spec.ts` | the controls that showed focus by a colour or a brightness wear the shared ring, in light, dark and forced colours |
 | `frame-view.spec.ts` | the answer is absent before the reveal, asserted in both directions and both editions |
 | `gate.spec.ts` | the book is entered at the beginning: a program opens when the one before it has |
 | `hydration.spec.ts` | every page hydrates — the one defect that leaves no trace on screen |

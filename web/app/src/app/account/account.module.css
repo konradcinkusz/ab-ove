@@ -80,12 +80,15 @@
   filter: brightness(1.1);
 }
 
-/* A visible ring on focus, in the button's own colour — see frame-view.module.css. */
+/*
+ * A visible ring on focus, in the button's own colour — see frame-view.module.css — and a
+ * transparent outline, which forced colours paint in its place (issue #148).
+ */
 .submit:focus-visible {
   box-shadow:
     0 0 0 2px var(--paper),
     0 0 0 4px var(--degraded);
-  outline: none;
+  outline: 2px solid transparent;
 }
 
 .removes {
