@@ -286,14 +286,15 @@ row's Reason and Exit now name both callers that raise `Step` through `PUT`. #17
   reader's `anon:<id>` rows into the account, the furthest frame winning, and sync then sends
   nothing the API does not already hold. A place that only this browser's `localStorage`
   holds would then not reach the account. That trade is for the change to decide.
-- **No issue carries that change yet.** It needs one. Until it lands, #171 leaves `PUT` as it
-  is: narrowing it, and discharging the row, wait for `web/app`'s sync to stop needing `PUT`
-  to raise `Step`.
+- **#176 (order 685) carries that change.** Until it lands, #171 leaves `PUT` as it is:
+  narrowing it, and discharging the row, wait for `web/app`'s sync to stop needing `PUT` to
+  raise `Step`, and land with whichever of #171 and #176 comes second.
 
-**#171 gets larger than its issue says.** It adds two anonymous endpoints to `AbOvo.Api`: an
-"all my places" read, and a write that records opening a program at step 1 and never raises
-`Step`. It also corrects three `ReaderIdentity` comments and moves the wire shapes into
-`@ab-ovo/web-kit`. #164 and #167 need not wait for any of it: they are TypeScript either way.
+**#171 is larger than it was first written**, and its body was amended on 2026-09-25 to say
+so. It adds two anonymous endpoints to `AbOvo.Api`: an "all my places" read, and a write that
+records opening a program at step 1 and never raises `Step`. It also corrects three
+`ReaderIdentity` comments and moves the wire shapes into `@ab-ovo/web-kit`. #164 and #167
+need not wait for any of it: they are TypeScript either way.
 
 **Anonymous MCP readers add rows to `ReaderProgress`.** The package adds one reader per user
 account on each machine, for each instance it is pointed at. A hosted server adds one reader

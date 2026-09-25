@@ -574,8 +574,9 @@ own `ReaderProgress` rows are reachable through it.
 2. `web/app`'s sync stops needing `PUT` to raise `Step`, because the account's place comes
    from steps the API has already seen earned. One mechanism that fits: at sign-in the API
    adopts the steps of the reader's `anon:<id>` rows into the account, the furthest frame
-   winning, and sync sends nothing the API does not already hold. No issue carries this yet
-   (ADR-0066, Consequences).
+   winning, and sync sends nothing the API does not already hold. #176 (order 685) carries
+   it (ADR-0066, Consequences), and `PUT` is narrowed in whichever of #171 and #176 lands
+   second.
 
 Then `PUT`'s handler is narrowed so that it cannot raise `Step`: not above an existing row's,
 and not above `Reveal.FirstStep` when it creates a row (or the field is dropped from

@@ -52,17 +52,16 @@ it. Nothing in the code changes.
 
 **The index says why the Foundation programs come first, and it says so without a hover.**
 The place for it is #163 (order 630). That issue puts a legend line above the grid whenever
-a tile is shut, and links the shut notice to the program that opens it. As its body reads on
-2026-09-25, the legend says only that programs open in order and that one frame of a program
-opens the next. This decision adds two things the legend must also say, as visible text:
+a tile is shut, and links the shut notice to the program that opens it. This decision adds
+two things the legend must also say, as visible text:
 
 - the Main sequence is built on the Foundation programs;
 - nothing is hidden or paid for. Today that clause is only in the shut tile's `title`
   tooltip (`web/app/src/components/programs/tile-entry.tsx`), which touch and keyboard
   readers never see.
 
-#163's body has to be amended to carry both before it is built. The wording and the Polish
-belong to that issue. ADR-0056's refusals already say why a program is shut and how small the
+#163's body was amended on 2026-09-25 to carry both. The wording and the Polish belong to
+that issue. ADR-0056's refusals already say why a program is shut and how small the
 move that opens it is, but only after a door has been tried. The legend says it on the first
 screen.
 
