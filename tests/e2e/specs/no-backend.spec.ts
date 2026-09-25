@@ -6,19 +6,30 @@ import { serveNetworkFailure, serveProxyFailure } from './support/service-info.j
 import { served, track } from './support/bundle.ts';
 
 /**
- * JOURNEY 4 — the app with no backend.
+ * JOURNEY 4 — the app with no backend in reach of the browser.
  *
- * This is not an error-handling nicety. ab-ovo's first product requirement is that the
- * reader loop works with NO account and NO backend: frames are served with the site and the
- * lab pane runs Python in the browser under Pyodide, so "no API answered" is a SUPPORTED
- * CONFIGURATION of this product rather than an outage. `/about` says so in prose, and a
- * claim asserted nowhere lasts until the first component that fetches during render.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THIS FILE USED TO ASSERT THE PRODUCT'S FIRST REQUIREMENT, AND HALF OF THAT REQUIREMENT IS
+ * GONE. The reader loop was specified to need no account and no server — frames served with
+ * the site, the lab running Python in the browser — so "no API answered" was a supported
+ * configuration of the whole product. ADR-0060 kept the first half and reversed the second:
+ * every frame and every reveal is now a live, gated call to `AbOvo.Api`, made server-side,
+ * and with the API down a reader cannot read. ADR-0062 records why the suite no longer runs
+ * a whole deployment with no API.
  *
- * SINCE ADR-0036 THE PREMISE IS ASSERTED WHERE IT IS ACTUALLY SPENT. The landing page is now
- * the index of programs, so the first test below drives the GRID with the API unreachable —
- * a reader with no backend reaching the list of programs and a link into one is the
- * requirement itself, where the old version of this test asserted the page that described
- * it. The prose and the integration panel moved to `/about` and are asserted there.
+ * WHAT IT STILL ASSERTS IS TRUE, AND IS WORTH ASSERTING. The failure here is injected in the
+ * BROWSER, so it cuts off exactly what the browser reaches through the proxy — and the pages
+ * driven below need none of it to render: the index reads the bundle compiled into the app
+ * (`app/page.tsx` says why that is now a choice rather than a requirement), and `/about`'s
+ * one live part is the integration panel, which must say which fault it was rather than
+ * crash or spin. It asserts nothing about a frame, and must not be read as a claim that one
+ * renders without the API.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * SINCE ADR-0036 THE INDEX IS DRIVEN FIRST. The landing page is the index of programs, so the
+ * first test below drives the GRID with the API unreachable from the browser — the list of
+ * programs and a link into one — where the old version of this test asserted the page that
+ * described it. The prose and the integration panel moved to `/about` and are asserted there.
  *
  * The failure is injected in the BROWSER, with route interception, for two reasons. It is
  * deterministic — no waiting on a real backend to be down, and no 45-second ladder walk —
@@ -38,11 +49,11 @@ import { served, track } from './support/bundle.ts';
   see specs/support/bundle.ts.
 
   THE FIRST PROGRAM RATHER THAN P01, since ADR-0051. This file's reader has no account, no
-  backend and — the part that is new — no record either, so the program that is one click
-  from the index is the first one of the track. Asserting P01 would have needed a seeded
-  record, and a seeded record is a thing this suite must never need: what it is about is a
-  browser arriving at a deployment with nothing behind it. Read by POSITION and not by
-  name, because which program is first is the manifest's answer and not this file's.
+  API in reach of the browser and — the part that is new — no record either, so the program
+  that is one click from the index is the first one of the track. Asserting P01 would have
+  needed a seeded record, and a seeded record is a thing this suite must never need: what it
+  is about is a browser that can reach nothing behind this origin. Read by POSITION and not
+  by name, because which program is first is the manifest's answer and not this file's.
 */
 const FIRST = served.units[0]!;
 
@@ -55,9 +66,10 @@ test.describe('no backend', () => {
     expect(response?.status(), 'the page itself must still answer 200').toBe(200);
 
     /*
-      THE REQUIREMENT, NOT A DESCRIPTION OF IT. With no backend at all, the index renders and
-      a program is one click away — asserted as the href into the reading route, because a
-      grid that rendered tiles linking nowhere would pass every weaker form of this test.
+      THE PROPERTY, NOT A DESCRIPTION OF IT. With the API unreachable from the browser, the
+      index renders and a program is one click away — asserted as the href into the reading
+      route, because a grid that rendered tiles linking nowhere would pass every weaker form
+      of this test. The frame behind that link is the API's to serve (ADR-0060).
 
       Both editions, one at a time: the index shows the reader's own (ADR-0052), and neither
       edition may be reachable only when a service this deployment does not have is up. The

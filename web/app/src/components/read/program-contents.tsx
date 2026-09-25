@@ -88,7 +88,7 @@ export function ProgramContents({
           A reader who has not reached this program is returned to the index, where the tile
           says which program opens it (ADR-0051). It renders nothing and cannot run on the
           server, which is why the page below it is written as though every reader belongs
-          here — see `program-gate.tsx` for why that is the product rather than a shortcut.
+          here — see `program-gate.tsx` for why that question is still the browser's to ask.
         */
         <ProgramGate language={language} previous={previousUnit?.id} track={track} unit={unit.id} />
       }

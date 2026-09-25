@@ -112,28 +112,31 @@ Strouda prosi czytelnika o coś \emph{zanim} cokolwiek mu powie, a kolejna ramka
 odpowiedzią, którą miał już zapisać. Czytelnik, który przelatuje wzrokiem, nie dostaje z tej
 struktury nic, a drukowana strona nie ma jak tego zauważyć.
 
-ab-ovo jest oprogramowaniem, które ma jak. Czytelnik czyta ramkę, zobowiązuje się do
-odpowiedzi i odsłania kolejną ramkę, która otwiera się odpowiedzią. Odsłonięcie jest nawigacją,
-a nie przełącznikiem, więc odpowiedź na ramkę widoczną na ekranie renderuje żądanie o kolejną
-i nic wcześniej: nie ma jej w dokumencie, zamiast być w nim ukrytą, a czytelnik, który otworzy
-inspektor, nie znajdzie niczego. Tam, gdzie ramka o coś prosi, pod nią stoi arkusz --- linia
-odpowiedzi, notatnik liczący arytmetykę, płótno do szkicu --- a wszystkie trzy są opcjonalne i
-lokalne dla przeglądarki czytelnika. Ćwiczenia komputerowe książki robi się w osobnym panelu
-laboratorium, w którym Python działa we własnej przeglądarce czytelnika; opuściły one pętlę
-lektury celowo, bo czytelnik książki matematycznej nie powinien musieć pisać kodu, żeby
-odpowiedzieć na ramkę.
+ab-ovo jest oprogramowaniem, które ma jak. Czytelnik czyta ramkę, zobowiązuje się do odpowiedzi
+i odsłania kolejną ramkę, która otwiera się odpowiedzią. Odsłonięcie jest formularzem, a nie
+przełącznikiem: prosi API o przesunięcie pozycji w lekturze, a API podaje kolejną ramkę dopiero
+potem, więc odpowiedź na ramkę widoczną na ekranie renderuje żądanie o kolejną i nic wcześniej:
+nie ma jej w dokumencie, zamiast być w nim ukrytą, a czytelnik, który otworzy inspektor, nie
+znajdzie niczego. Tam, gdzie ramka o coś prosi, pod nią stoi arkusz --- linia odpowiedzi,
+notatnik liczący arytmetykę, płótno do szkicu --- a wszystkie trzy są opcjonalne i lokalne dla
+przeglądarki czytelnika. Ćwiczenia komputerowe książki robi się w osobnym panelu laboratorium,
+w którym Python działa we własnej przeglądarce czytelnika; opuściły one pętlę lektury celowo,
+bo czytelnik książki matematycznej nie powinien musieć pisać kodu, żeby odpowiedzieć na ramkę.
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=0.78\linewidth]{\dgm{b1-reader-loop}}
-\caption{Pętla czytelnika. Każde pole działa bez konta i bez backendu; dwie kropkowane
-krawędzie z niej wychodzące to jedyne miejsca, gdzie pojawia się serwer, i żadna nie leży na
-ścieżce.}
+\caption{Pętla czytelnika. Każde pole działa bez konta, a każda ramka przychodzi z API,
+jedynego serwera na ścieżce; dwie kropkowane krawędzie wychodzące z pętli są opcjonalne.}
 \end{figure}
 
-Pierwszy wymóg produktu ogranicza wszystko inne w tym dokumencie: \textbf{pętla czytelnika
-działa bez konta i bez backendu.} Ramki są serwowane razem z witryną jako wersjonowana paczka
-treści, ćwiczenia działają po stronie klienta, a nic, co czytelnik pisze na ramce, nie jest
+Pierwsze wymogi produktu ograniczają wszystko inne w tym dokumencie i są dwa:
+\textbf{lektura nie potrzebuje konta, a każda ramka przychodzi z API.} Kiedyś były jednym
+wymogiem, że pętla nie potrzebuje też serwera; ADR-0060 odwrócił tę połowę, bo czytelnik,
+którego ramki przychodzą z serwera, do którego nie może dotrzeć, nie degraduje się łagodnie ---
+po prostu przestaje czytać. Ramki podaje \texttt{AbOvo.Api} krok po kroku, bramkowane pozycją
+w lekturze --- pozycję anonimowego czytelnika przechowuje nieprzezroczyste ciasteczko, a nie
+token --- ćwiczenia działają po stronie klienta, a nic, co czytelnik pisze na ramce, nie jest
 przechowywane nigdzie poza jego własną przeglądarką. Konto dokłada synchronizację pozycji w
 lekturze między maszynami i nic więcej.
 

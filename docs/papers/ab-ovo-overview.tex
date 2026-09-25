@@ -107,8 +107,9 @@ with the answer they were supposed to have written. A reader who skims gets noth
 that structure, and a printed page has no way to notice.
 
 ab-ovo is the software that does notice. A reader reads a frame, commits an answer, and
-reveals the next frame, which opens with the answer. The reveal is a navigation rather than
-a toggle, so the answer to the frame on screen is rendered by the request for the next one
+reveals the next frame, which opens with the answer. The reveal is a form rather than a
+toggle: it asks the API to move the reader's place on, and the API serves the next frame only
+after that, so the answer to the frame on screen is rendered by the request for the next one
 and by nothing before it: it is absent from the document rather than hidden in it, and a
 reader who opens the inspector finds nothing. Where a frame asks for something, a worksheet
 sits below it --- a line to answer on, a pad that evaluates arithmetic, a canvas to sketch
@@ -120,15 +121,19 @@ should not have to write code to answer a frame.
 \begin{figure}[ht]
 \centering
 \includegraphics[width=0.78\linewidth]{\dgm{b1-reader-loop}}
-\caption{The reader loop. Every box runs with no account and no backend; the two dotted
-edges leaving it are the only places a server appears, and neither is on the path.}
+\caption{The reader loop. Every box runs with no account, and every frame comes from the
+API, the one server on the path; the two dotted edges leaving the loop are optional.}
 \end{figure}
 
-The product's first requirement constrains everything else in this document: \textbf{the
-reader loop works with no account and no backend.} Frames are served with the site as a
-versioned content bundle, the exercises run client-side, and nothing a reader writes on a
-frame is stored anywhere but their own browser. An account adds synchronisation of the
-reader's place between machines, and nothing else.
+The product's first requirements constrain everything else in this document, and they are
+two: \textbf{reading needs no account, and every frame comes from the API.} They used to be
+stated as one requirement that the loop needed no server either; ADR-0060 reversed that half,
+because a reader whose frames come from a server they cannot reach has not degraded
+gracefully, they have stopped reading. Frames are served by \texttt{AbOvo.Api} one step at a
+time, gated on the reader's place --- an anonymous reader's held under an opaque cookie rather
+than a token --- the exercises run client-side, and nothing a reader writes on a frame is
+stored anywhere but their own browser. An account adds synchronisation of the reader's place
+between machines, and nothing else.
 
 \section{What it deliberately is not}
 

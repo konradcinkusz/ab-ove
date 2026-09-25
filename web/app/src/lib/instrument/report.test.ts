@@ -262,8 +262,9 @@ test('nothing in the body names the reader', async () => {
 });
 
 test('a network that is not there costs a tally and nothing else', async () => {
-  // A fresh clone runs with no backend at all (P8), and the lab works perfectly well
-  // without one. A reader in the middle of an exercise must never be told about this.
+  // The lab needs no server of its own (ADR-0007) and the instrument is optional (P8), so
+  // an API that is not there is a lost tally. A reader in the middle of an exercise must
+  // never be told about this.
   browser({ [CONSENT_KEY]: CONSENTED });
   globalThis.fetch = (async () => {
     throw new TypeError('fetch failed');

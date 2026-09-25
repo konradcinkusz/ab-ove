@@ -417,11 +417,17 @@ Latency is not the problem: under a millisecond per check is well inside a keyst
 
 The payload is. [ADR-0007](../adr/0007-exercise-checks-are-python-in-the-browser.md) records
 the whole Python runtime measured over the wire at 6,443,505 bytes of `public/pyodide/`, and
-that is loaded **only in the lab pane**. This would sit on the reading surface, which is the
-first requirement in AGENTS.md: *the reader loop must work with no account and no backend.*
-Adding most of a megabyte to any frame page that carries an answer field, to check answers
-#57 has not yet counted, is a large bet on an unmeasured number — and code-splitting moves
-when the reader pays it rather than whether.
+that is loaded **only in the lab pane**. This would sit on the reading surface, which when
+this probe ran was held to the first requirement in AGENTS.md — that the reader loop needs no
+account and no server — so a checker had to run in the browser. Adding most of a megabyte to
+any frame page that carries an answer field, to check answers #57 has not yet counted, is a
+large bet on an unmeasured number — and code-splitting moves when the reader pays it rather
+than whether.
+
+> **Since this probe:** [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+> reversed the half of that requirement about a server — every frame is now a live call to
+> `AbOvo.Api` — so a checker no longer has to run in the browser. The payload above stays the
+> measured cost of running it there; it is no longer the only place it could run.
 
 ---
 

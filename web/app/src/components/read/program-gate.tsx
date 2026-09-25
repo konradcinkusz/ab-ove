@@ -29,14 +29,19 @@ export interface ProgramGateProps {
  * reading routes ask the same question the tile asked, and the ones that are shut send the
  * reader to the index.
  *
- * IT CANNOT BE A SERVER REDIRECT, AND THAT IS A PROPERTY OF THE PRODUCT RATHER THAN AN
- * IMPLEMENTATION SHORTCUT. The record lives in the reader's browser (ADR-0017), the pages
- * are rendered with no reader at all, and the requirement that the loop work with no
- * account and no backend (ADR-0004) is what put it there. A server that could gate these
- * routes would be a server that knows who is asking, which is the product this is not. So
- * the frame renders, hydration reads the record, and a shut program is left within a few
- * hundred milliseconds. The honest cost is in ADR-0051's Consequences: the first paint of
- * a shut program is the program, and a reader with script off is not gated at all.
+ * IT IS NOT A SERVER REDIRECT TODAY, AND THE REASON CHANGED UNDER IT. It used to be a
+ * property of the product: the record lived only in the reader's browser (ADR-0017), the
+ * pages were rendered with no reader at all, and the loop was required to need no server
+ * (ADR-0004), so a server that could gate these routes would have been one that knows who
+ * is asking. ADR-0060 and ADR-0061 built exactly that for the FRAME — `AbOvo.Api` now holds
+ * every reader's cursor, an anonymous one's under an opaque cookie, and refuses a step past
+ * it. What they did not build is THIS rule: the API's gate is per step within a program and
+ * deliberately does not carry the program-level one (`src/AbOvo.Api/Content/Reveal.cs` says
+ * why), and the contents and summary pages still read the compiled bundle and ask the API
+ * nothing. So this question is still put to the browser's record: the page renders,
+ * hydration reads the record, and a shut program is left within a few hundred milliseconds.
+ * The honest cost is in ADR-0051's Consequences: the first paint of a shut program is the
+ * program, and a reader with script off is not gated at all.
  *
  * `replace`, NEVER `push`. A pushed redirect puts the shut page in the history behind the
  * index, so *Back* returns to it and is bounced forward again — the reader is in a trap

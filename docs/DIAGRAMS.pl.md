@@ -363,29 +363,39 @@ flowchart TD
 
 ### B1. Pętla czytelnika
 
-Każde pole tego diagramu działa bez konta i bez backendu. To pierwszy wymóg produktu, nie
-optymalizacja. Dwie kropkowane krawędzie wychodzące z pętli to jedyne miejsca, gdzie pojawia
-się serwer, i żadna nie leży na ścieżce.
+Każde pole tego diagramu działa bez konta, a każda ramka przychodzi z `AbOvo.Api` — to dwa
+wymogi, które ten diagram rysował kiedyś jako jeden, dopóki
+[ADR-0060](adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md) nie
+odwrócił połowy dotyczącej serwera. API jest narysowane ciągłą linią, bo treść nie jest
+opcjonalna: gdy API nie działa, nie zostaje podana żadna ramka, a czytelnik słyszy to wprost.
+Dwie kropkowane krawędzie wychodzące z pętli są opcjonalne i żadna nie leży na ścieżce.
 
 ```mermaid
 %% Pętla czytelnika ab-ovo.
 %% JEDEN DIAGRAM NA PLIK. UTF-8. Dlaczego nie ASCII: patrz a1-system-context.pl.mmd.
 
-%% KAŻDE POLE TEGO DIAGRAMU DZIAŁA BEZ KONTA I BEZ BACKENDU. To pierwszy wymóg produktu, nie
-%% optymalizacja: ramki są serwowane razem z witryną jako wersjonowana paczka
-%% (ADR-0008, ADR-0038), a wszystko, co czytelnik napisze, zostaje w jego przeglądarce
-%% (ADR-0039).
+%% KAŻDE POLE TEGO DIAGRAMU DZIAŁA BEZ KONTA, A KAŻDA RAMKA PRZYCHODZI Z API. To dwa wymogi
+%% i ten plik rysował je kiedyś jako jeden. ADR-0060 utrzymał pierwszy i odwrócił drugi:
+%% każda ramka i każde odsłonięcie to żywe, bramkowane wywołanie AbOvo.Api, które podaje
+%% skompilowaną paczkę treści książki (ADR-0038) krok po kroku i przesuwa pozycję w lekturze,
+%% gdy czytelnik odsłania. Pozycję anonimowego czytelnika przechowuje nieprzezroczyste
+%% ciasteczko, nie token (ADR-0061), a to, co czytelnik napisze na ramce, nadal zostaje w jego
+%% przeglądarce (ADR-0039).
+
+%% API JEST NARYSOWANE CIĄGŁĄ LINIĄ, BO NIE JEST OPCJONALNE. Treść to jedyna integracja,
+%% wokół której ten produkt się nie degraduje (P8 jej nie obejmuje): gdy API nie działa, nie
+%% zostaje podana żadna ramka, a czytelnik słyszy to wprost, zamiast dostać ramkę skądinąd.
 
 %% GAŁĄŹ PRACY BYŁA KIEDYŚ PYTHONEM I JUŻ NIE JEST (ADR-0040). Kazała czytelnikowi książki
 %% matematycznej pisać kod, dosięgła jednego programu z czterdziestu siedmiu i kosztowała
 %% 6,4 MB oraz dwie sekundy startu przy każdej wizycie. Zastąpił ją arkusz: linia
 %% odpowiedzi, notatnik liczący arytmetykę (ADR-0042) i płótno (ADR-0043). Żadne z nich nie
-%% jest językiem i wszystkie trzy są opcjonalne.
+%% jest językiem, wszystkie trzy są opcjonalne i żadne nie potrzebuje API.
 
-%% Dwie kropkowane krawędzie wychodzące z pętli to jedyne miejsca, gdzie pojawia się serwer,
-%% i żadna nie leży na ścieżce: konto synchronizuje miejsce w lekturze między maszynami i
-%% nic poza tym, a wynik trafia gdziekolwiek tylko wtedy, gdy czytelnik się zgodził. Obu
-%% może nie być i pętla jest taka sama.
+%% Dwie kropkowane krawędzie wychodzące z pętli są opcjonalne i żadna nie leży na ścieżce:
+%% konto synchronizuje pozycję w lekturze między maszynami i nic poza tym, a wynik trafia
+%% gdziekolwiek tylko wtedy, gdy czytelnik się zgodził. Obu może nie być i pętla jest taka
+%% sama.
 
 %% CZEGO CELOWO NIE NARYSOWANO: kroku oceniania. Kolejna ramka otwiera się odpowiedzią i
 %% czytelnik porównuje. Maszyna może powiedzieć "zgadza się z książką" tam, gdzie cała
@@ -404,6 +414,7 @@ flowchart TD
   BACK["Cofnij się o ramkę"]
   NEXT["Czytaj dalej"]
   SUMMARY["Podsumowanie i Czy potrafisz?<br/>na końcu programu"]
+  API["AbOvo.Api<br/>podaje każdą ramkę,<br/>bramkowaną pozycją w lekturze;<br/>bez konta"]
   SYNC["Konto<br/>synchronizuje miejsce w lekturze<br/>między maszynami"]
   INST["Instrument<br/>wynik przy ramce, podejściu<br/>i sprawdzeniu,<br/>nigdy przy czytelniku"]
 
@@ -422,16 +433,22 @@ flowchart TD
   NEXT -->|"ostatnia ramka"| SUMMARY
   SUMMARY --> START
 
+  API -->|"każda ramka, na żywo"| READ
+  REVEAL -->|"przesuwa pozycję w lekturze"| API
+
   NEXT -.->|"opcjonalnie, faza 3"| SYNC
   COMPARE -.->|"zgoda, faza 4"| INST
 ```
 
 ### B2. Jedna ramka i dlaczego odpowiedzi nie ma
 
-Cały mechanizm produktu jako sekwencja. Odsłonięcie jest **nawigacją**, więc odpowiedź na
-ramkę, na której stoisz, renderuje żądanie o *kolejną* i nic wcześniej. Czytelnik, który
-otworzy inspektor, nie znajdzie jej nigdzie, a prefetch jest wyłączony, więc nie ma jej też na
-łączu.
+Cały mechanizm produktu jako sekwencja. Odsłonięcie jest **formularzem**, który przesuwa
+pozycję w lekturze w `AbOvo.Api`, a potem prosi o kolejną ramkę, więc odpowiedź na ramkę, na
+której stoisz, renderuje żądanie o *kolejną* i nic wcześniej — a API odrzuca to żądanie, dopóki
+odsłonięcie się nie odbyło
+([ADR-0060](adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)).
+Czytelnik, który otworzy inspektor, nie znajdzie jej nigdzie, a prefetch jest wyłączony, więc
+nie ma jej też na łączu.
 
 ```mermaid
 %% Jedna ramka i dlaczego odpowiedzi nie ma na stronie, zamiast być na niej ukrytą.
@@ -441,34 +458,45 @@ otworzy inspektor, nie znajdzie jej nigdzie, a prefetch jest wyłączony, więc 
 %% kolejna ramka otwiera się odpowiedzią, którą miało się już zapisać. Czytelnik, który
 %% przelatuje wzrokiem, nie dostaje nic, a papier nie ma jak tego zauważyć.
 
-%% ODSŁONIĘCIE JEST NAWIGACJĄ, NIE PRZEŁĄCZNIKIEM. Ramka jest komponentem serwerowym bez
+%% ODSŁONIĘCIE JEST FORMULARZEM, NIE PRZEŁĄCZNIKIEM. Ramka jest komponentem serwerowym bez
 %% granicy klienta wokół niej, więc odpowiedź na ramkę N renderuje ŻĄDANIE o ramkę N+1 i nic
 %% wcześniej. Czytelnik, który otworzy inspektor, nie znajdzie jej nigdzie; prefetch jest
 %% wyłączony, więc nie ma jej także na łączu. Obie połowy są sprawdzane testem i obie
 %% widziano, jak czerwienieją, zanim w nie uwierzono.
 
+%% I GRANICY PILNUJE SERWER, OD ADR-0060. Każdy krok przychodzi z AbOvo.Api, które podaje
+%% krok N tylko wtedy, gdy N nie wykracza poza pozycję w lekturze, a pozycję przesuwa POST
+%% odsłonięcia do .../advance. Samo GET o N+1 przed nim zostaje odrzucone, więc ani prefetch,
+%% ani robot, ani udostępniony link nie wyciągnie odpowiedzi za wcześnie. Czytelnika
+%% wskazuje jego token albo, bez konta, nieprzezroczyste ciasteczko (ADR-0061).
+
 %% DLACZEGO NIE WIDŻET ROZWIJANY. Cokolwiek renderuje odpowiedź do dokumentu i chowa ją
 %% CSS-em albo JavaScriptem, jest podpowiedzią, którą przeglądarka już ma. Wersja
-%% strukturalna kosztuje jedną nawigację i nie da się jej obejść.
+%% strukturalna kosztuje jedną podróż do serwera i nie da się jej obejść.
 
 sequenceDiagram
   autonumber
   participant R as Czytelnik
   participant B as Przeglądarka
   participant S as Serwer Next.js
-  participant C as Skompilowana paczka treści
+  participant A as AbOvo.Api
 
   R->>B: otwiera /read/track/unit/lang/N
   B->>S: GET ramka N
-  S->>C: krok N
-  C-->>S: polecenie dla N, odpowiedź dla N-1
+  S->>A: GET /api/v1/content/track/unit/N
+  Note over A: podaje tylko, gdy N nie wykracza<br/>poza pozycję w lekturze
+  A-->>S: polecenie dla N, odpowiedź dla N-1
   S-->>B: HTML z poleceniem N<br/>i odpowiedzią N-1
   Note over B: odpowiedzi na N nie ma<br/>w żadnym elemencie, atrybucie,<br/>skrypcie ani prefetchu
   R->>B: zapisuje odpowiedź
-  R->>B: odwraca ramkę
+  R->>B: naciska Dalej
+  B->>S: POST formularza odsłonięcia
+  S->>A: POST /api/v1/content/track/unit/advance
+  A-->>S: pozycja w lekturze to teraz N+1
+  S-->>B: przekierowanie na ramkę N+1
   B->>S: GET ramka N+1
-  S->>C: krok N+1
-  C-->>S: polecenie dla N+1, odpowiedź dla N
+  S->>A: GET /api/v1/content/track/unit/N+1
+  A-->>S: polecenie dla N+1, odpowiedź dla N
   S-->>B: teraz, i dopiero teraz, odpowiedź na N
   R->>R: porównuje to, co napisał,<br/>z tym, co mówi książka
 ```

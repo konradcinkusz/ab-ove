@@ -6,9 +6,9 @@ What ab-ovo looks like to a reader, screen by screen, captured from a real produ
 
 Every image below was taken by
 [`../tests/e2e/specs/screenshots.spec.ts`](../tests/e2e/specs/screenshots.spec.ts) driving the
-application the same way the acceptance suite drives it — a production build, a real browser,
-the same content bundle the reader would be served. Nothing here is a mock-up and nothing was
-retouched. To take them again, see
+application the same way the acceptance suite drives it — a production build, a real browser, and
+the same content bundle a reader would be served, ingested into a running `AbOvo.Api` that serves
+every frame. Nothing here is a mock-up and nothing was retouched. To take them again, see
 [`how-to/capture-the-screenshots.md`](how-to/capture-the-screenshots.md).
 
 **These are the one generated artefact this repository commits.** Everywhere else the rule is
@@ -132,9 +132,13 @@ is the one that needs no JavaScript
 
 The first screen is the thing a reader came for, one navigation from a frame instead of two
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). It is a
-Server Component that makes no fetch and needs no backend; it reads one cookie, this origin's
-own, which is where the reader's chosen edition is kept so that the first paint is already in
-it ([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)).
+Server Component that reads the bundle compiled into the web app and calls no API while
+rendering — still true since
+[ADR-0060](adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md) moved
+the frames onto the API, and 580 in [the order](ux/UI-UX.md#the-order) decides whether it stays
+so. It reads one cookie, this origin's own, which is where the reader's chosen edition is kept
+so that the first paint is already in it
+([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)).
 
 The card at the foot is the **consent invitation**, and it is last on purpose: a reader who
 came to read reaches the programs first and the question afterwards. It is an invitation
@@ -177,8 +181,9 @@ reader* — is above everything else on the page, because the pressure to misuse
 arrives from somebody who did not read to the end.
 
 The panel at the foot is the one live thing on the page and the only component in the app that
-reads `/api/config`. Its third state is the interesting one: **unreachable** is not an error,
-because "no API answered" is a supported configuration of this product (P8).
+reads `/api/config`. Its third state is the interesting one: **unreachable** is not an error of
+the page's, which renders whole without the API — but since ADR-0060 it does mean no frame can
+be read here, because every frame is a live call to the API.
 
 ### Sign-in
 

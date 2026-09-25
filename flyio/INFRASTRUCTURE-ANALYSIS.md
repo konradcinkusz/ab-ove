@@ -99,9 +99,10 @@ a cost trade: a cold start here does not produce a slow page, it produces a **40
 user holding a perfectly valid token**, and it produces it at an unpredictable moment
 hours after the deploy, which is the hardest failure in this estate to diagnose.
 
-**`ab-ovo-api-dev` — call 2.** The web app's server side calls the API while rendering.
-Unlike authservice this one *is* a cost trade, and §3(a) names the condition under
-which it flips.
+**`ab-ovo-api-dev` — call 2.** The web app's server side calls the API while rendering —
+since [ADR-0060](../docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md),
+on every frame and every reveal a reader makes. Unlike authservice this one *was* a cost
+trade, and §3(a) says why it no longer is.
 
 **`ab-ovo-web-dev` — nothing calls it but a browser**, so it scales to zero. Call 1 is
 the departure rule's second branch taken deliberately: a browser's timeout is tens of
@@ -119,13 +120,20 @@ period**, every time. Not a failure: call 2 goes through the public URL, so the 
 starts the stopped machine rather than refusing the connection — which is the entire
 reason §6 forbids `.internal` for service-to-service HTTP.
 
-**Decision: keep it at 1 today, and flip it to 0 the moment Phase 1 ships.** The
-condition is a product fact rather than a budget one. The reader loop is specified to
-work with **no account and no backend** — Phase 1 is a Pyodide lab pane in the browser.
-When that is true and the web app's server side makes no in-request call to the API,
-call 2 disappears from the table above and `min_machines_running = 1` is pinning a
-machine for nothing. `flyio/api.fly.toml` carries a comment pointing here so the
-reviewer who notices has somewhere to check.
+**Decision: keep it at 1, and the condition this section used to name for flipping it no
+longer arrives.** It was a product fact rather than a budget one: the reader loop was
+specified to need no server, so once the web app's server side made no in-request call to
+the API, call 2 would disappear from the table above and `min_machines_running = 1` would be
+pinning a machine for nothing.
+[ADR-0060](../docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+reversed that premise. Every frame and every reveal is a live, gated call to the API, so
+call 2 is on the path of every page a reader reads, and a cold API is a stalled frame rather
+than a slow side panel. `flyio/api.fly.toml` carries a comment pointing here so the reviewer
+who notices has somewhere to check.
+
+**Owed before production, and not in this document yet: capacity reasoning for the content
+endpoints.** A build-time bundle scaled for free with a static site; a live, gated call per
+step does not, and ADR-0060's Consequences name this file as where that reasoning belongs.
 
 ### (b) Let `ab-ovo-authservice-dev` scale to zero — **≈ 1 machine, ≈ $3/month**
 

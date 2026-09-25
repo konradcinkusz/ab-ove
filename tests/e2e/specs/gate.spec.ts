@@ -7,9 +7,11 @@ import { openThrough } from './support/gate.ts';
  * JOURNEY — the book is entered at the beginning.
  *
  * ADR-0051's requirement in one sentence: *a program opens when the reader has a place in
- * the one before it, and until then the way in is not there.* No account, no backend and
- * nothing sent anywhere — the gate is a question put to the reader's own record, so this
- * suite is the anonymous reader's, like `progress.spec.ts` beside it.
+ * the one before it, and until then the way in is not there.* No account, and nothing sent
+ * anywhere — the gate is a question put to the reader's own record in the browser, so this
+ * suite is the anonymous reader's, like `progress.spec.ts` beside it. The frames it opens
+ * come from `AbOvo.Api` like every frame (ADR-0060), whose own gate is per step within a
+ * program; the program-level rule this file asserts is not the API's (`program-gate.tsx`).
  *
  * THE PROGRAMS ARE READ OFF THE SERVED BUNDLE rather than named. The rule is about the
  * manifest's ORDER, so a spec naming F01 and F02 would be asserting today's book: the day

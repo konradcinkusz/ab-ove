@@ -179,11 +179,12 @@ read the report from; and the three defensive branches — an empty integration 
 in an unrecognised shape, and the fact that none of these may render as "no API".
 
 **The payload is served by the test, and that is deliberate.** These tests run against the
-web app on `:3000`, which has no API behind it — by design, and still, since the backend the
-e2e job now starts is given to the signed-in deployment alone (ADR-0035). A test that needed
-a live API would be skipped in the only context that runs it, which is how a suite ends up
-asserting nothing. Route-fulfilment tests the half that is this frontend's: that every state
-the API can report arrives on the page as itself.
+web app on `:3000`, which since ADR-0062 has the job's API behind it like `:3100` — so a real
+answer would be that one API's integrations, in whatever states the runner left them, and
+never the empty list or the unrecognised shape this section needs. A test that needed a
+particular live API would be skipped or flaky in the only context that runs it, which is how a
+suite ends up asserting nothing. Route-fulfilment tests the half that is this frontend's: that
+every state the API can report arrives on the page as itself.
 
 The live half is not abandoned. The last test in that file reads a **real** deployment and
 asserts at least one integration with a state of `live` or `degraded`. It is declared as a
@@ -192,9 +193,16 @@ deployment* below.
 
 ### 4. The app with no backend — `specs/no-backend.spec.ts`
 
-Not an error-handling nicety: ab-ovo's first product requirement is that the reader loop
-works with **no account and no backend**. "No API answered" is a supported configuration of
-this product, not an outage.
+Not an error-handling nicety, and no longer the requirement it used to be. The reader loop was
+specified to need no account and no server, and
+[ADR-0060](../../docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+kept the first half and reversed the second: every frame is now a live call to `AbOvo.Api`, so an
+API that does not answer stops reading. What this journey still holds is the part that stays true
+with the browser cut off from the API — the index reaches a program, and `/about` renders whole and
+says legibly which fault it was — because neither page needs the API to render: the index reads the
+compiled bundle built into the web app, and `/about`'s one live part is the panel, which crashing or
+spinning forever would be the product failing twice. It says nothing about a frame; ADR-0062 records
+why the suite no longer runs a whole deployment with no API.
 
 The failure is injected in the browser with route interception, which is both deterministic
 (no waiting for a real backend to be down, no 45-second ladder walk) and faithful to what a

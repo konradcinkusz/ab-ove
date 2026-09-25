@@ -2,11 +2,17 @@
  * Local progress to the account and back.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * THE BROWSER'S RECORD IS THE ONE EVERY PAGE RENDERS FROM. THE ACCOUNT IS A COPY.
+ * THE BROWSER'S RECORD IS WHAT EVERYTHING BUT THE FRAME RENDERS FROM. THE ACCOUNT IS A COPY.
  *
- * ADR-0004: the reader loop works with no account and no backend, and #9 built the local
- * record first for exactly that reason. This module does not invert that. Nothing on any
- * page waits for a network round trip, nothing renders differently while a sync is in
+ * ADR-0004: reading needs no account, and #9 built the local record first for that reason
+ * and for a second that no longer holds — that the loop would need no server at all. ADR-0060
+ * reversed the second: every frame is a live call to `AbOvo.Api`, gated on a cursor the API
+ * holds for every reader (ADR-0061's cookie, or the account), and it demotes this record to a
+ * resume hint. Which frame may be served is no longer this record's to say. Everything else
+ * that shows a place still reads it — the index's resume control and tile positions, the
+ * program gate, the contents page's way in — and this module does not change which record
+ * those read. Nothing on any
+ * page waits for this module's round trips, nothing renders differently while a sync is in
  * flight, and every failure below leaves the reader reading — the cost of one is that
  * ANOTHER machine has not seen this one's position yet, which the next cycle repairs.
  *

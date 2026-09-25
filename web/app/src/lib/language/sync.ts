@@ -4,9 +4,11 @@
  * ──────────────────────────────────────────────────────────────────────────────────────
  * THE BROWSER'S RECORD IS THE ONE EVERY PAGE RENDERS FROM. THE ACCOUNT IS A COPY.
  *
- * `progress/sync.ts`'s first paragraph, and it holds here for the same reason: ADR-0004
- * says the reader loop works with no account and no backend, so a language that needed a
- * round trip to be known would make the anonymous path the degraded one. Nothing on any
+ * `progress/sync.ts`'s first paragraph, and it holds here for the half of its reason that
+ * still stands: ADR-0004 says reading needs no account, so a language that needed the
+ * account to be known would make the anonymous path the degraded one. ADR-0060 made every
+ * frame a live call to `AbOvo.Api`, but the edition is not part of that call's gate — it is
+ * in the frame's URL and in this browser — so nothing about it changed here. Nothing on any
  * page waits for this module. It runs after the page is up, it changes what the reader sees
  * only when the account genuinely knows something this browser did not, and every failure
  * below leaves the reader reading in whatever edition they were already in.

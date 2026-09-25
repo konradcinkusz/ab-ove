@@ -176,8 +176,24 @@ The literal zero-credential test is a test:
 credentials at all comes up, serves `/api/v1/info`, and names what it does not have.
 
 `web/app/src/components/integration-report.tsx` puts the same report in the product, and
-treats "no API answered" as a supported configuration rather than an error state — which it
-is, because the reader loop is required to work with no backend.
+renders "no API answered" as a sentence rather than an error state: the page it sits on is
+whole without the API.
+
+**Content is the one integration this product does not treat as optional, and P8 does not reach
+it.** [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+made every frame and every reveal a live, gated call to `AbOvo.Api`
+(`web/app/src/lib/server/content.ts`), so the reading surface is exactly as available as the API:
+with the API unreachable a frame renders the error page (`web/app/src/app/error.tsx`), never a frame
+from anywhere else, and a web app with no API configured serves the index and no frame. That is an
+asymmetry, not an inconsistency with P8: P8 is for *optional* integrations — the ones
+`IntegrationStatus.cs` records above degrade and are reported — and content was never optional, so
+treating "no API answered" as a configuration a reader could read in was the category error ADR-0060
+corrects. Reading still needs no account: `auth` stays optional, and an anonymous reader is
+identified by an opaque cookie rather than anything `authservice` issues
+([ADR-0061](../adr/0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)). The pages
+that read the compiled bundle built into the web app — the index, `/courses`, a program's contents
+and its summary — still render without the API; that is today's placement rather than a requirement,
+and 580 in [the order](../ux/UI-UX.md#the-order) moves the contents and the summary onto it.
 
 ### P9 — `Program.cs` is a manifest
 
@@ -411,9 +427,11 @@ Pyodide. Python appears nowhere in the standards.
 
 **Reason.** The exercises are the book's, and the book's are Python; rewriting forty-seven
 programs' worth of exercises into a language the standards already evidence would be
-changing the product to fit the scaffold. Running them in the browser is what makes the
-reader loop work with no account and no backend — the product's first requirement — and it
-means the reader's code never leaves their machine, which removes a class of privacy
+changing the product to fit the scaffold. Running them in the browser is what lets the lab
+need no account and no server of its own — a property the lab keeps now that it has left the
+reader loop ([ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md)) and the loop
+itself needs the API ([ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md))
+— and it means the reader's code never leaves their machine, which removes a class of privacy
 question rather than answering it.
 
 **Blast radius.** Bounded by construction: Pyodide runs inside the browser's sandbox, is
