@@ -112,9 +112,11 @@ test.describe('no backend', () => {
 
     // 2. The panel is legible about it rather than silent or stuck. A spinner that never
     //    resolves is the common failure here and it reads as a slow page, not a broken one.
+    //    And it says what the fault costs a reader: since ADR-0060, reading (#142).
     const report = page.getByRole('region', { name: 'Integration report' });
     await expect(report).toContainText('no API');
     await expect(report).toContainText('The API could not be reached from the browser.');
+    await expect(report).toContainText('Reading is unavailable while the API is down');
     await expect(report).not.toContainText('Asking the API what it has');
 
     // 3. And it did not throw on the way. A client component that throws during render
@@ -123,7 +125,7 @@ test.describe('no backend', () => {
     expect(pageErrors, describePageErrors(pageErrors)).toEqual([]);
   });
 
-  test('tells the reader the loop does not need the backend that is missing @smoke', async ({
+  test('tells the reader that reading is unavailable while the backend is missing @smoke', async ({
     page,
   }) => {
     // 503 is the proxy's own answer when every rung of its candidate ladder failed — the
@@ -139,17 +141,24 @@ test.describe('no backend', () => {
     );
 
     /**
-     * The sentence that makes this a supported state rather than an apology. If this text
-     * ever goes, the panel becomes an error message on a product whose whole premise is that
-     * this is not an error — and the reader who sees a red badge with no explanation
-     * reasonably concludes the site is broken and leaves.
+     * THE SENTENCE THAT TELLS A READER WHAT THIS COSTS THEM, and it used to say the reverse.
+     *
+     * It asserted that frames rendered from content shipped with the site and that the lab
+     * ran in the browser, so "no API" was a supported state. ADR-0060 made every frame and
+     * every reveal a live call to `AbOvo.Api`, and the panel went on saying it — shown
+     * precisely when no API answered, which is when every frame was failing (#142). A red
+     * badge with no explanation reads as a broken site; a badge with a false explanation
+     * sends the reader to a frame that will not open. So the panel says reading is
+     * unavailable, and keeps ADR-0060's other half: none of it needs an account.
      */
     await expect(report).toContainText(
-      'frames render from content shipped with the site and the lab pane runs Python in your browser',
+      'Reading is unavailable while the API is down: every frame and every reveal is fetched from it as you read.',
     );
-    await expect(report).toContainText(
-      'An account and a backend buy you progress that follows you between machines',
-    );
+    await expect(report).toContainText('reading needs no account');
+
+    // And the old claim is gone, rather than surviving beside the new one — a panel that
+    // said both would pass the two assertions above.
+    await expect(report).not.toContainText('shipped with the site');
 
     // No row is invented to fill the space. An empty list here and a degraded list in
     // journey 3 are different answers and must stay different.
