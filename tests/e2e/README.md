@@ -85,6 +85,7 @@ was first written with.
 | `sign-in-identity.spec.ts` | the signed-in path, against an identity service this suite starts itself |
 | `sign-in.spec.ts` | the sign-in screen, and everything about it that needs no account |
 | `sync.spec.ts` | the same reader on a second machine |
+| `targets.spec.ts` | the small controls off the reading screens are a finger's target, at a phone's width and a desktop's, and a press on a control's words lands on it |
 | `theme.spec.ts` | a reader turns on light mode, and it stays on |
 | `worksheet.spec.ts` | committing an answer before turning over, which is the method the book is |
 

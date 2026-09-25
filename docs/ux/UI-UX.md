@@ -597,8 +597,15 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   other button and the map's rows take 44 px (`--control-min`) directly, and the top bar's
   links are 44 px by their line and padding. The language control, a pair of words on a line,
   is padded to about 44 px and given the space back with a matching negative margin, so its
-  hit area grew and nothing moved.
-  `specs/reading.spec.ts` and `specs/pager.spec.ts` measure the box.
+  hit area grew and nothing moved. Off the reading screens the same pattern holds the index's
+  and the courses page's top-row links, the quiet buttons beside them (*Forget where I am*,
+  *Export my worksheets*, the account's), the consent line's toggle and the sync notice's
+  *Got it* (#147). The index's filled *Continue* is the one exception to the pattern, because a
+  fill is painted over its padding: the link is the padded target and a span inside it is the
+  button a reader sees, at the size it always had.
+  `specs/reading.spec.ts` and `specs/pager.spec.ts` measure the box on the reading screens, and
+  `specs/targets.spec.ts` off them, at 390 px and 1280 px — where it also checks that a press
+  on a control's words lands on that control, since grown boxes overlap wherever a row wraps.
 - **The reveal says when it is under way.** It is the one move that is never prefetched, so
   it always costs a round trip; while the next frame is on its way the button dims, its arrow
   nudges and its cursor says so (`reveal-button-label.tsx`, the form's `useFormStatus`; the

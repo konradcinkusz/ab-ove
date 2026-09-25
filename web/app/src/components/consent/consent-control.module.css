@@ -101,13 +101,18 @@
   color: var(--ink-soft);
 }
 
+/*
+ * A link-weight button in a footnote-weight line, and still a finger's target (issue #147):
+ * padded to 44px and given back as negative margin, so the line is as tall as it was.
+ */
 .toggle {
   background: none;
   border: 0;
   color: var(--accent);
   cursor: pointer;
   font: inherit;
-  padding: 0;
+  margin: -0.75rem -0.375rem;
+  padding: 0.75rem 0.375rem;
   text-decoration: underline;
 }
 

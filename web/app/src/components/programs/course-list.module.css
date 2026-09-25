@@ -65,8 +65,12 @@
   gap: 0.5rem 1.25rem;
 }
 
+/* A finger's target given back as negative margin — `program-grid.module.css`'s `.chromeLink`,
+   the same link in the same row of the sibling page, and the same reason (issue #147). */
 .chromeLink {
   color: inherit;
+  margin: -0.75rem -0.5rem;
+  padding: 0.75rem 0.5rem;
 }
 
 /* The page's one level-one heading, in the register the index gives its own. */
