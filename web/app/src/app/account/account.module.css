@@ -26,9 +26,10 @@
   letter-spacing: 0.02em;
 }
 
+/* `--control-edge`, for `credentials-form.module.css`'s reason: WCAG 1.4.11, ADR-0063. */
 .input {
   background: var(--paper-raised);
-  border: 1px solid var(--rule);
+  border: 1px solid var(--control-edge);
   border-radius: 3px;
   color: var(--ink);
   font: inherit;

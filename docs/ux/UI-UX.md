@@ -583,7 +583,12 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   both schemes): `--ink-faint` at 4.5:1 or more on the paper, a raised panel and the answer
   box (WCAG 1.4.3), and `--control-edge` at 3:1 or more for the edge of anything pressable
   (WCAG 1.4.11). The faint grey used to sit just under both, and outlined buttons wore
-  `--rule`, a hairline the eye reads as decoration.
+  `--rule`, a hairline the eye reads as decoration. A floor says nothing about a control that
+  never uses the token, so the same file also reads every stylesheet in the app and fails when
+  a control draws its edge in `--rule` — a control being anything its own stylesheet gives a
+  `:focus-visible` rule or a pointer cursor. The sign-in and account fields, the consent's
+  *No thanks* and the sketch's canvas were still `--rule` until #146, and axe, which has no
+  rule for 1.4.11, had passed all of them.
 - **A line a reader writes on is `--ink-faint`; a rule that is only a rule is `--rule`.**
   The answer line and the pad's field carry a dashed rule that clears 3:1 against the
   paper (WCAG 1.4.11), and a frame that teaches draws no dashed line at all, so a dashed

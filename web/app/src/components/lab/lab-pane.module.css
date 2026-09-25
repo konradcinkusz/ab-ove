@@ -186,7 +186,9 @@
   line-height: 1.55;
   tab-size: 4;
   padding: 0.85rem 1rem;
-  border: 1px solid var(--rule);
+  /* The edge of somewhere to type: `--control-edge`, WCAG 1.4.11 (ADR-0063). The transcript
+     beside it keeps `--rule` — it is read, not written in. */
+  border: 1px solid var(--control-edge);
   border-radius: 4px;
   background: var(--paper-raised);
   color: var(--ink);

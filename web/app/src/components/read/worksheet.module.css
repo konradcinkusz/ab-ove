@@ -527,11 +527,15 @@
   own height is 150 px tall until the script runs and then jumps, which is the layout shift
   this whole surface is built to avoid. 640/426 is `strokes.ts`'s own logical size, so the
   drawing is never distorted by the element it is drawn in.
+
+  ITS EDGE IS `--control-edge` (WCAG 1.4.11, ADR-0063): the edge is the only thing that says
+  where a stroke can start, and in `--rule` it was about 1.3:1 against the pane — an empty
+  canvas was a white rectangle on an off-white page.
 */
 .canvas {
   aspect-ratio: 640 / 426;
   background: var(--paper-raised);
-  border: 1px solid var(--rule);
+  border: 1px solid var(--control-edge);
   border-radius: 2px;
   color: var(--ink);
   display: block;
