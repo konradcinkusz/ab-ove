@@ -707,7 +707,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   pl: {
     forget: 'Zapomnij, gdzie jestem',
     forgetConfirm: 'Zapomnij \u2014 na ka\u017cdym urz\u0105dzeniu',
-    pressAgain: (action) => `${action}. Naciśnij ponownie, aby potwierdzić, albo Esc lub inny element strony, aby anulować.`,
+    pressAgain: (action) => `${action}. Naciśnij ponownie, aby potwierdzić, albo Esc lub inną kontrolkę, aby anulować.`,
     signIn: 'Zaloguj się',
     signOut: 'Wyloguj się',
     account: 'Konto',
