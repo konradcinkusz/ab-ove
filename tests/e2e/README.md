@@ -280,10 +280,11 @@ The others:
   than interrupting it.
 - **the whole journey fetches from this origin and from nowhere else** (`FRONTEND-BFF.md §1`,
   `notes/10 §6.1`). Pyodide's own documentation leads with a jsDelivr `indexURL`, and taking that
-  advice would put a third-party host in the critical path of a reader loop whose first
-  requirement is that it needs no backend. Asserted over the boot *and* the run, with the
-  positive half too — the runtime arrived from `/pyodide/` and the book from `/book/` — without
-  which "nothing off-origin" would be satisfied by a page that fetched nothing.
+  advice would put a third-party host in the critical path of a pane that needs no server of its
+  own — it runs in the reader's browser, from this origin (ADR-0007), and has left the reader
+  loop (ADR-0040). Asserted over the boot *and* the run, with the positive half too — the runtime
+  arrived from `/pyodide/` and the book from `/book/` — without which "nothing off-origin" would
+  be satisfied by a page that fetched nothing.
 - **the reference solutions are not served to the browser.** `lab/solutions/` exists so the
   build can prove the exercises solvable; copying it into `public/book/` would put every answer
   one devtools tab away. Asserted in both directions, because a 404 for the solutions proves
