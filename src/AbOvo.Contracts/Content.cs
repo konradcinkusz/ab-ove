@@ -73,8 +73,9 @@ public sealed record GateRefusal(string Kind, int Requested, int Furthest, int S
 /// in this unit — on a SUCCESSFUL read as well as on a refusal (ADR-0063). The reading surface
 /// needs it to draw its program map honestly: a section, or a typed frame number, past it is a
 /// place the gate will refuse, and offering it as a link was a control that is reliably refused.
-/// The browser cannot know it by itself — its own record is the frame last viewed, not the
-/// furthest reached. It says nothing a refusal did not already say to the same reader about
+/// The browser cannot know it by itself — its own record keeps a furthest frame (#157), but
+/// its own and the account's, and a signed-out reader's can be past the anonymous cursor the
+/// gate asks (ADR-0061). It says nothing a refusal did not already say to the same reader about
 /// their own place, and nothing about any other reader (ADR-0009).
 /// </para>
 ///

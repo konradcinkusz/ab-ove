@@ -112,8 +112,10 @@ Its parts, in order:
    constraint issue #7 put on the resume controls). The
    resume control — `F01 · Continue at frame 12` — is the index's one filled control: for
    a reader who has been here before it is the page's primary action, and it used to be
-   the faintest thing on it. It is padded outwards and the padding given back as margin,
-   so the row it arrives in does not grow. *Export my worksheets* is one press and sits
+   the faintest thing on it. It names the program last read and that program's furthest
+   frame, not the frame last looked at, so going back to re-read does not move it (#157).
+   It is padded outwards and the padding given back as margin, so the row it arrives in
+   does not grow. *Export my worksheets* is one press and sits
    before the two ways to lose something, because nothing it does is destructive
    ([ADR-0055](../adr/0055-the-notebook-exports-what-stands-today-never-a-history.md)); it
    renders nothing when there is nothing to export. *Clear my worksheets* and *Forget where
@@ -370,8 +372,9 @@ the panel say so.
 `components/read/program-contents.tsx`. The program's headings, each linking at the frame it
 opens on, and nothing from any frame — a heading carries no question and no answer, which is
 the contents page's own rule. **Its one filled control follows the reader**: *Start at
-frame 1* for a reader who has not, *Continue at frame N* for one who has, in the edition
-they were actually in. Server-rendered as the start and swapped after hydration in place —
+frame 1* for a reader who has not, *Continue at frame N* for one who has — the furthest frame
+they reached, in the edition they read it in, as on the index. Server-rendered as the start
+and swapped after hydration in place —
 same element, same class — so the page moves by nothing when the record is read
 (`progress.spec.ts` holds it to the index's shift bound). The crumb row's quiet *Start at
 frame 1* appears only beside a *Continue*, so the page has exactly one link to the reader's
@@ -495,11 +498,14 @@ rule and the reason the list leaks nothing; every link in it is `prefetch={false
 reveal's reasoning. **What the gate would refuse is not offered**: a heading that starts past
 the reader's furthest frame is shown locked, with the reason, instead of linked, and a frame
 number past it is answered in place with a link to the furthest frame, rather than landing on
-*Not there yet*. Only the gate's cursor knows the furthest frame — the browser's record is the
-frame last viewed — so the API sends it with each frame (`StepResponse.Furthest`). Both panels
-are native popovers: they open with no script, close on Esc or a click elsewhere, and a
-browser without the Popover API renders them in flow at the end of the page and hides their
-buttons.
+*Not there yet*. Only the gate's cursor knows the furthest frame the gate will serve — the
+browser's record keeps a furthest of its own, but a signed-out reader's can be past the
+anonymous cursor — so the API sends it with each frame (`StepResponse.Furthest`). That same
+gap is what *Not there yet* explains to a signed-out reader whose record reaches the frame:
+*You read this while signed in.*, with *Sign in to continue* returning them to it (#157).
+Both panels are native popovers: they open with no script, close on Esc or a click
+elsewhere, and a browser without the Popover API renders them in flow at the end of the page
+and hides their buttons.
 
 **The keys stay and are not advertised.** `→` and `←` move; `Enter` with nothing focused puts
 the caret in the answer line; `Ctrl+Enter` — spelt `⌘+Enter` on an Apple keyboard, from a flag
@@ -753,7 +759,8 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   hit area grew and nothing moved. Off the reading screens the same pattern holds the index's
   and the courses page's top-row links, the quiet buttons beside them (*Forget where I am*,
   *Export my worksheets*, the account's), the consent line's toggle and the sync notice's
-  *Got it* (#147). The index's filled *Continue* is the one exception to the pattern, because a
+  *Got it* (#147) and *Go to frame N* (#157). The index's filled *Continue* is the one
+  exception to the pattern, because a
   fill is painted over its padding: the link is the padded target and a span inside it is the
   button a reader sees, at the size it always had.
   `specs/reading.spec.ts` and `specs/pager.spec.ts` measure the box on the reading screens, and

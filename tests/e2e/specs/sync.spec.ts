@@ -236,9 +236,15 @@ const storedStep = (page: Page, unit = UNIT) =>
     [KEY, `${TRACK}/${unit}`] as const,
   );
 
-/** The resume control: the only link on the index back into a frame. */
+/**
+ * The resume control: the index's one link back into a frame of its own — found by its words
+ * as well as its address, because while the sync notice is up its `Go to frame N` goes to the
+ * same frame (issue #157), and that is the notice's link, not a second resume control.
+ */
 const resumeTo = (page: Page, language: string, step: number) =>
-  page.locator(`a[href="/read/${TRACK}/${UNIT}/${language}/${step}"]`);
+  page
+    .locator(`a[href="/read/${TRACK}/${UNIT}/${language}/${step}"]`)
+    .filter({ hasText: 'Continue at frame' });
 
 test.describe('progress follows the reader between machines', () => {
   test('the machine that is behind is brought forward, and told why @smoke', async ({ page }) => {
@@ -264,6 +270,9 @@ test.describe('progress follows the reader between machines', () => {
     await expect(notice, 'the notice reports an event and states no rule').toContainText(
       'The furthest frame wins.',
     );
+    // Issue #157 — and a way to the frame it names, in the edition it was read in.
+    const go = notice.getByRole('link', { name: `Go to frame ${AHEAD}`, exact: true });
+    await expect(go).toHaveAttribute('href', `/read/${TRACK}/${UNIT}/en/${AHEAD}`);
 
     // And it was the record that moved, not the link: a reload is what tells them apart.
     expect(await storedStep(page)).toBe(AHEAD);

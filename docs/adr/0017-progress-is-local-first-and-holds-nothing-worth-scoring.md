@@ -10,6 +10,10 @@ demotes to a resume hint. The record's anti-aggregation shape — one position p
 timestamp, no counter, no streak, nothing worth scoring — is unaffected and stands; it governs
 the server-held record exactly as it governed the local one. Date: 2026-09-14.
 
+Since #157 (2026-09-25) the one position per program is the furthest frame reached in it, and
+`last` is the frame last viewed: the same keys, two positions, still nothing that counts
+([ADR-0019](0019-furthest-frame-wins.md), *Amendment 2026-09-25*).
+
 ## Context
 
 [ADR-0004](0004-identity-authservice-and-anonymous-reader.md) has two halves that collapse

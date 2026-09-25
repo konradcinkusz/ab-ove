@@ -76,6 +76,36 @@ test('the language is part of the place, so a reader returns to the edition they
   assert.equal(read(store).last?.language, 'pl');
 });
 
+test('going back keeps the furthest frame, and `last` follows the reader back', () => {
+  // Issue #157. The record held one number per program, so going back from 20 to 19 wrote
+  // 19 over 20 — and a signed-in reader's next sync "raised" them back to 20 and said it had
+  // been read on another device. The furthest is kept; the frame last shown is `last`.
+  const store = slot();
+  remember(store, P01, { language: 'en', step: 20 });
+  const back = remember(store, P01, { language: 'en', step: 19 });
+
+  assert.deepEqual(back.positions[keyOf(P01)], { language: 'en', step: 20 }, 'going back lowered the furthest');
+  assert.deepEqual(back.last, { ...P01, language: 'en', step: 19 }, '`last` is where the reader is');
+  assert.deepEqual(read(store), back);
+
+  // And every control offers the furthest, which is what `positionIn` hands them.
+  assert.deepEqual(positionIn(read(store), P01, 45), { language: 'en', step: 20 });
+});
+
+test('reading past the furthest moves it; re-reading in another edition does not', () => {
+  const store = slot();
+  remember(store, P01, { language: 'en', step: 20 });
+  remember(store, P01, { language: 'pl', step: 12 });
+  assert.deepEqual(read(store).positions[keyOf(P01)], { language: 'en', step: 20 }, 'a re-read took the edition');
+
+  // At the furthest frame, the edition is the one it was just read in: "frame 20, in Polish".
+  remember(store, P01, { language: 'pl', step: 20 });
+  assert.deepEqual(read(store).positions[keyOf(P01)], { language: 'pl', step: 20 });
+
+  remember(store, P01, { language: 'pl', step: 21 });
+  assert.deepEqual(read(store).positions[keyOf(P01)], { language: 'pl', step: 21 });
+});
+
 test('a second program does not displace the first, and `last` moves', () => {
   const store = slot();
   const P02 = { track: 'math-for-ai-engineers', unit: 'P02' };

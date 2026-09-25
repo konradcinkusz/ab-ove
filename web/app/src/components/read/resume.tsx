@@ -5,6 +5,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 
 import { chromeFor } from '@/lib/i18n/chrome';
 import { serverSnapshot, snapshot, subscribe } from '@/lib/progress/client';
+import { positionIn } from '@/lib/progress/store';
 import { forgetEverywhere } from '@/lib/progress/sync';
 
 import styles from './resume.module.css';
@@ -55,6 +56,11 @@ export interface ResumeLastProps {
  * rendered as the faintest thing on it, a small link in the header's row of faint links.
  * It is filled now, the way the reveal and the contents page's *Start* are, and it still
  * arrives after hydration into a row that does not grow (resume.module.css says how).
+ *
+ * THE PROGRAM IS THE ONE LAST SHOWN; THE FRAME IS THAT PROGRAM'S FURTHEST (issue #157). A
+ * reader who went back from frame 20 to re-read frame 19 is offered 20, which is where they
+ * had got to — the contents page's control and the tile say the same, from the same
+ * `positionIn`, so the index and the program cannot disagree about where *Continue* goes.
  */
 export function ResumeLast({ limits, language }: ResumeLastProps): React.JSX.Element | null {
   const progress = useProgress();
@@ -63,14 +69,18 @@ export function ResumeLast({ limits, language }: ResumeLastProps): React.JSX.Ele
   const last = progress.last;
   if (!last) return null;
 
-  const key = `${last.track}/${last.unit}`;
-  const bound = limits[key];
+  const bound = limits[`${last.track}/${last.unit}`];
   // A program that is no longer listed: a track unpinned, a unit renamed. The reader's
   // record is not wrong, it is about something that is not here, so the control is absent
   // rather than pointing somewhere that 404s.
   if (bound === undefined) return null;
 
-  const step = Math.min(last.step, bound);
+  // Clamped by `positionIn`, as before. A `last` whose program has no furthest is a record
+  // this module did not write; it falls back to the frame `last` names rather than to nothing.
+  const { language: edition, step } = positionIn(progress, last, bound) ?? {
+    language: last.language,
+    step: Math.min(last.step, bound),
+  };
 
   /*
     The link is the target and the span is the button a reader sees: a finger's 44px would
@@ -80,7 +90,7 @@ export function ResumeLast({ limits, language }: ResumeLastProps): React.JSX.Ele
   return (
     <Link
       className={styles.resumeFilled}
-      href={`/read/${last.track}/${last.unit}/${last.language}/${step}`}
+      href={`/read/${last.track}/${last.unit}/${edition}/${step}`}
       lang={chrome.language}
     >
       <span className={styles.resumeFill}>

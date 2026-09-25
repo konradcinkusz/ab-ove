@@ -80,8 +80,10 @@ and its title, which leads to the contents; the language control, unchanged (ADR
 
 **The API sends the reader's furthest step with a successful step**
 (`StepResponse.Furthest`, optional). Only the gate's cursor knows it: the browser's own
-record is the frame last viewed, not the furthest reached. A web app talking to an API that
-omits it links every heading and lets the gate answer.
+record was the frame last viewed, not the furthest reached. Since #157 it keeps a furthest
+frame too, but its own and the account's — a signed-out reader's can be past the anonymous
+cursor the gate asks — so the cursor is still the only source. A web app talking to an API
+that omits it links every heading and lets the gate answer.
 
 **The keys stay and are not advertised.** `→`, `←`, `Enter`, `Esc` and `Ctrl`/`⌘`+`Enter` do
 what they did; `g` opens the map. The frame carries no hint line; the full list is in *Reading

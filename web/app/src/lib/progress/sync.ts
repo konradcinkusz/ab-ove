@@ -24,7 +24,9 @@
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * The rule is in `reconcile.ts` and is asserted there. This module is the plumbing around
- * it: when to run, what to send, and what to do with an answer.
+ * it: when to run, what to send, and what to do with an answer. What it sends is each
+ * program's FURTHEST frame (`store.ts`), so a reader re-reading an earlier frame sends
+ * nothing lower and is told nothing about it (issue #157).
  *
  * It talks to ONE origin — `/api/proxy/...`, this app's own BFF (FRONTEND-BFF.md §1, §5).
  * There is no backend address anywhere below and none may appear: the proxy injects the
@@ -34,8 +36,16 @@
 import { ask } from '@/lib/session/client';
 
 import { adoptRecord, forgetAll, subscribe as subscribeProgress } from './client.ts';
-import { reconcile, type Push, type Raised, type RemoteRecord } from './reconcile.ts';
-import { keyOf, read, type Position, type Progress } from './store.ts';
+import {
+  couldBeOwnReveal,
+  reconcile,
+  settle,
+  stillNews,
+  type Push,
+  type Raised,
+  type RemoteRecord,
+} from './reconcile.ts';
+import { keyOf, read, type Position, type ProgramRef, type Progress } from './store.ts';
 
 /** The BFF path. `/api/proxy` + the service's own route — see the §5 routing table. */
 const PROGRESS = '/api/proxy/api/v1/progress';
@@ -58,6 +68,17 @@ const FORGET_PENDING_KEY = 'ab-ovo:progress:forget-pending';
  * page or two does not lose them.
  */
 const DEBOUNCE_MS = 3_000;
+
+/**
+ * How long a raise that could be this browser's own reveal on its way (`couldBeOwnReveal`)
+ * waits before it is told — issue #157.
+ *
+ * Long enough for the page a reveal leads to to render, hydrate and record itself — one server
+ * action and one page load — with room left for a slow connection. It is the notice that
+ * waits, never the record: the raise is adopted at once, so *Continue* already offers the
+ * frame.
+ */
+const OWN_REVEAL_GRACE_MS = 3_000;
 
 // ── What the reader is told ─────────────────────────────────────────────────────────────
 
@@ -86,16 +107,37 @@ export function raisedServerSnapshot(): readonly Raised[] {
 }
 
 /**
- * The reader has seen it.
+ * The reader has seen it — all of it, or the one program they acted on.
  *
- * There is no automatic expiry and no dismissal on navigation. The notice says a position
+ * There is no expiry by time and no dismissal on navigation. The notice says a position
  * moved under them; a reader who has not acknowledged that has not been told, and a toast
  * that vanished while they were on another tab would be a notice this product can claim to
- * have shown and did not.
+ * have shown and did not. Following a line's own *Go to frame N* is an acknowledgement of
+ * that line (issue #157), so it takes `program` and leaves any other line standing. The one
+ * other way a line goes is by stopping being true or new (`withdrawStale`, below).
  */
-export function dismissRaised(): void {
+export function dismissRaised(program?: ProgramRef): void {
+  const left = program ? raised.filter((entry) => keyOf(entry.program) !== keyOf(program)) : [];
+  if (left.length === raised.length) return;
+  raised = left.length === 0 ? EMPTY_RAISED : left;
+  announceRaised();
+}
+
+/**
+ * Withdraw every line that is no longer news (`stillNews`): its frame has since been shown on
+ * this screen, or its program is no longer where the line says — forgotten, here or in
+ * another tab, or raised again.
+ *
+ * Run on every change to the record, because the change that matters most is a page
+ * recording itself: a reveal whose page took longer than `OWN_REVEAL_GRACE_MS` to arrive is
+ * told as reading done elsewhere, and this is where that is taken back (issue #157).
+ */
+function withdrawStale(): void {
   if (raised.length === 0) return;
-  raised = EMPTY_RAISED;
+  const now = read(window.localStorage);
+  const left = raised.filter((entry) => stillNews(entry, now));
+  if (left.length === raised.length) return;
+  raised = left.length === 0 ? EMPTY_RAISED : left;
   announceRaised();
 }
 
@@ -108,6 +150,38 @@ function publishRaised(more: readonly Raised[]): void {
 
   raised = [...byProgram.values()];
   announceRaised();
+}
+
+/**
+ * Tell the reader what a cycle found: at once, or — for a raise that could be this browser's
+ * own reveal on its way (`couldBeOwnReveal`) — after `OWN_REVEAL_GRACE_MS`, and only if it is
+ * still news then.
+ *
+ * Only a raise this browser did not cause is told (issue #157), and a signed-in reveal moves
+ * the account a page load before this browser records the frame it leads to. So a raise of
+ * that shape is held rather than shown and taken back: a line that appears on the reader's
+ * way to the next frame and goes when it lands has still said something false, and
+ * `aria-live` may already have read it aloud. The one raise of its own this cannot tell
+ * apart is a reveal whose page never arrives — the tab closed between the answer and the
+ * page — which left the account a frame ahead of a browser that never showed it, and is told
+ * once the hold is over as reading done elsewhere.
+ *
+ * The timer is not cleared by a forget or by a later cycle, because it has no need to be:
+ * `stillNews` asks the record as it stands when the timer fires, and a forgotten program, a
+ * program raised again, or a frame since shown here are all no longer news by then.
+ */
+function tell(found: readonly Raised[]): void {
+  if (found.length === 0) return;
+
+  const now = read(window.localStorage);
+  const held = found.filter((entry) => couldBeOwnReveal(entry, now));
+  publishRaised(found.filter((entry) => !held.includes(entry)));
+  if (held.length === 0) return;
+
+  setTimeout(() => {
+    const later = read(window.localStorage);
+    publishRaised(held.filter((entry) => stillNews(entry, later)));
+  }, OWN_REVEAL_GRACE_MS);
 }
 
 // ── The account ─────────────────────────────────────────────────────────────────────────
@@ -269,8 +343,16 @@ async function cycle(): Promise<void> {
     }
   }
 
-  adoptRecord(record);
-  publishRaised([...result.raised, ...late]);
+  /*
+    Against the record as it is NOW, not as it was when the pull left — the reader kept
+    reading through every await above, and a signed-in reveal moves the account as it goes.
+    `settle` keeps what this browser reached meanwhile and drops a raise it reached on its
+    own, and `tell` holds back one it is about to reach — which together are the difference
+    between "read elsewhere" and a false notice (issue #157).
+  */
+  const settled = settle(read(window.localStorage), record, [...result.raised, ...late]);
+  adoptRecord(settled.record);
+  tell(settled.raised);
 }
 
 const landedPosition = (answer: RemoteRecord): Position | null => {
@@ -284,13 +366,10 @@ const landedPosition = (answer: RemoteRecord): Position | null => {
     : null;
 };
 
+/** A push's answer, as the program's furthest. `last` is this browser's and is left alone. */
 function withPosition(record: Progress, entry: Push, position: Position): Progress {
-  const key = keyOf(entry.program);
-  const positions = { ...record.positions, [key]: position };
-  const last =
-    record.last && keyOf(record.last) === key ? { ...entry.program, ...position } : record.last;
-
-  return last ? { last, positions } : { positions };
+  const positions = { ...record.positions, [keyOf(entry.program)]: position };
+  return record.last ? { last: record.last, positions } : { positions };
 }
 
 /** One cycle at a time. Overlapping runs would push the same position twice and race. */
@@ -337,7 +416,10 @@ export function startSync(): () => void {
    * bounds the chain at one extra pass: the second cycle finds the account already
    * agreeing, writes nothing, and the chain stops.
    */
-  const unsubscribe = subscribeProgress(() => schedule(DEBOUNCE_MS));
+  const unsubscribe = subscribeProgress(() => {
+    withdrawStale();
+    schedule(DEBOUNCE_MS);
+  });
   document.addEventListener('visibilitychange', onVisible);
 
   return () => {

@@ -17,9 +17,11 @@
  *
  * It is occasionally wrong in exactly one way, and the way is worth stating because it is
  * the price: a reader who deliberately goes BACK — because they did not follow frame 31 and
- * want to work up to it again — has that undone by the other machine's 40. That is
- * recoverable in one click (the frame is a link away) and it is the direction of failure
- * this book can afford. Last-write-wins fails in the other direction: it silently discards
+ * want to work up to it again — is still offered 40, from either machine. Going back is not
+ * a position this rule sees at all: what is merged is each program's FURTHEST frame, which
+ * re-reading never lowers (`store.ts`, issue #157), so going back is also never "raised"
+ * and never announced. The frame is a link away, and *Start at frame 1* and the program map
+ * are the ways back. Last-write-wins fails in the other direction: it silently discards
  * reading a reader actually did, and gives them no way to tell which of two machines will
  * be believed.
  *
@@ -57,9 +59,9 @@ export interface Push {
 /**
  * A program the account moved forward, and by how much.
  *
- * This is what the reader is told about, so it carries where they were as well as where
- * they now are: "moved to frame 40" is an event, and an event with no before is a number
- * appearing for no reason.
+ * This is what the reader is told about — "You had read F01 to frame 40 elsewhere" — so it
+ * is a raise of this browser's FURTHEST frame and never of the frame it last showed: a
+ * reader who went back one frame has not been moved by anybody (issue #157).
  */
 export interface Raised {
   readonly program: ProgramRef;
@@ -113,7 +115,9 @@ const positionOf = (record: RemoteRecord): Position => ({
  *
  * `last` is a POINTER — which program to offer on the index — not a position. The position
  * it points at is governed by furthest-frame-wins like every other, and is read out of the
- * merged record below rather than out of the row chosen here.
+ * merged record (`positionIn`) rather than out of the row chosen here. When this browser has
+ * a `last` of its own it is the frame this browser last showed, and the sync leaves it
+ * exactly as reading left it (issue #157).
  *
  * It is consulted only when this browser has no `last` of its own, so there is never a
  * local value competing with a remote one: nothing is overwritten and nothing is
@@ -146,7 +150,7 @@ const chooseLast = (remote: readonly RemoteRecord[]): RemoteRecord | undefined =
 /**
  * Merge the account's record into this browser's, and say what has to happen next.
  *
- * Per program, and nothing else is consulted:
+ * Per program, on the FURTHEST frame (`store.ts`), and nothing else is consulted:
  *
  * | here | there | merged | and |
  * |---|---|---|---|
@@ -227,17 +231,11 @@ function mergedLast(
   merged: Readonly<Record<string, Position>>,
   remote: readonly RemoteRecord[],
 ): Progress['last'] {
-  if (local.last) {
-    const program: ProgramRef = { track: local.last.track, unit: local.last.unit };
-    // The position comes out of the MERGED record, so a `last` whose program was raised
-    // points at the raised frame. Reading it off `local.last` instead would leave the
-    // index offering frame 12 while the program's own page offered 40.
-    const position = merged[keyOf(program)] ?? {
-      language: local.last.language,
-      step: local.last.step,
-    };
-    return { ...program, ...position };
-  }
+  // The frame this browser last showed is a fact about this browser, and a raise is not a
+  // frame it showed. It used to be dragged to the raised frame so that the index — which
+  // read its frame off `last` — agreed with the program's own page; since #157 both read the
+  // program's furthest out of `positions`, so they agree without `last` being rewritten.
+  if (local.last) return local.last;
 
   const newest = chooseLast(remote);
   if (!newest) return undefined;
@@ -245,4 +243,125 @@ function mergedLast(
   const program: ProgramRef = { track: newest.track, unit: newest.unit };
   const position = merged[keyOf(program)] ?? positionOf(newest);
   return { ...program, ...position };
+}
+
+/** What a cycle writes back and what it tells the reader, once it has landed. */
+export interface Settled {
+  readonly record: Progress;
+  readonly raised: readonly Raised[];
+}
+
+/**
+ * Put a cycle's result back over the record as it stands NOW, and keep only the raises this
+ * browser did not cause.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * A CYCLE IS SEVERAL ROUND TRIPS LONG, AND THE READER KEEPS READING THROUGH IT — ISSUE #157.
+ *
+ * `reconcile` runs on the record as it was when the pull left. By the time the pushes have
+ * answered, a reader who reveals quickly is a frame or two further on, and a signed-in
+ * reveal has ALREADY moved the account (the reveal gate's cursor is the account's row). Two
+ * things then went wrong, and both ended in the notice saying something false:
+ *
+ *   - writing `merged` back whole put this browser's furthest back to where the cycle
+ *     started, and the next cycle found the account ahead of it — by a frame this browser
+ *     had shown — and announced it as read elsewhere;
+ *   - a raise to a frame this browser had meanwhile shown on its own was announced as well.
+ *
+ * So the write is merged again, by the same rule, against `now` — furthest wins, and a
+ * program first opened during the cycle is kept — and a raise is announced only while
+ * `now` is still behind it. `last` is `now`'s: it is where this browser is, and the cycle
+ * adopts one only for a browser that has none.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * What is NOT reachable from here, and so is not claimed: the moment between the gate's
+ * answer to a reveal and the page it leads to. A cycle that lands in it sees the account one
+ * frame ahead of a browser that has not recorded that frame yet — the shape of a raise from
+ * elsewhere. `furthest-frame.spec.ts` opens that gap on purpose, and with the hold below taken
+ * out it saw "You had read F01 to frame 4 elsewhere." on the reader's own reveal.
+ * `couldBeOwnReveal` is how `sync.ts` holds such a raise back until the page has had time to
+ * land, and `stillNews` is how it drops one that did.
+ */
+export function settle(now: Progress, merged: Progress, raised: readonly Raised[]): Settled {
+  const positions: Record<string, Position> = { ...merged.positions };
+  for (const [key, here] of Object.entries(now.positions)) {
+    const there = positions[key];
+    // A tie keeps `merged`'s, which on a tie with the account is the account's edition —
+    // ADR-0019's tie rule, not re-decided here.
+    if (!there || here.step > there.step) positions[key] = here;
+  }
+
+  const last = now.last ?? merged.last;
+  const record: Progress = last ? { last, positions } : { positions };
+
+  const unreached = raised.filter(
+    (entry) => (now.positions[keyOf(entry.program)]?.step ?? 0) < entry.to.step,
+  );
+
+  return { record, raised: unreached };
+}
+
+/**
+ * Whether this browser has now SHOWN the raised frame, or one past it, itself — at which
+ * point the raise is not news, whoever made it.
+ *
+ * Asked of `last`, the frame this browser last showed, and not of the program's furthest:
+ * adopting a raise puts the furthest at the raised frame by design, and a test on it would
+ * withdraw every notice the moment it was written. `last` is written by reading (`store.ts`),
+ * so it reaches the raised frame when a page of it has been on this screen — the reveal a
+ * sync raced (`settle` above), or a reader following the notice's own link.
+ *
+ * ONE EXCEPTION, NAMED RATHER THAN ENGINEERED AROUND: a browser with no `last` at all is
+ * given one by the sync — the program the account touched last, at its furthest frame
+ * (`mergedLast`, ADR-0019's pointer) — so on a second machine's first visit the frame that
+ * program's line names already counts as shown, and the line goes at the next change to the
+ * record rather than at *Got it*. The next change there is almost always the reader opening a
+ * frame, which moves `last` off it again; what is lost otherwise is an early withdrawal of a
+ * true line, never a false one.
+ */
+export function shownHere(entry: Raised, progress: Progress): boolean {
+  const last = progress.last;
+  return last !== undefined && keyOf(last) === keyOf(entry.program) && last.step >= entry.to.step;
+}
+
+/**
+ * Whether a line on the screen still says something true and new: its frame is still the
+ * program's furthest here, and this browser has not shown it itself (`shownHere`).
+ *
+ * The first half is what a forget and a later raise have in common. After a forget — in this
+ * tab or in another, which reaches this one as a `storage` event — the program has no furthest
+ * and the line is about a place this browser no longer keeps. After a later raise the
+ * program's furthest is past the line's frame, and the line for the later one says it better.
+ */
+export function stillNews(entry: Raised, progress: Progress): boolean {
+  return (
+    progress.positions[keyOf(entry.program)]?.step === entry.to.step && !shownHere(entry, progress)
+  );
+}
+
+/**
+ * Whether a raise has the shape of THIS browser's own reveal on its way: the frame right after
+ * the one it last showed, in the same program.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * A SIGNED-IN REVEAL MOVES THE ACCOUNT BEFORE ITS PAGE ARRIVES — ISSUE #157.
+ *
+ * The reveal is a server action (`lib/actions/reveal.ts`): it advances the account's row, the
+ * gate's cursor (ADR-0060), and then redirects, and the next page records itself only once it
+ * has rendered and hydrated. A sync cycle that pulls in between finds the account one frame
+ * ahead of the frame this browser last showed, which is exactly what a raise from another
+ * machine looks like, and nothing in the pull can tell the two apart. What can is waiting: this
+ * browser's own reveal arrives here within a page load, and another machine's never does. So
+ * `sync.ts` holds a raise of this shape back for a moment and then asks `stillNews`.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Only the next frame. A raise is always past the program's furthest, and `last` is never
+ * past it, so a raise to the frame after `last` means `last` IS the furthest — the one frame
+ * a reveal can move the account from, and a reveal moves it by one. A raise of two or more,
+ * or in another program, is therefore somebody else's and is told at once. Holding a real
+ * one-frame raise from elsewhere costs its line a few seconds, and nothing else.
+ */
+export function couldBeOwnReveal(entry: Raised, progress: Progress): boolean {
+  const last = progress.last;
+  return last !== undefined && keyOf(last) === keyOf(entry.program) && entry.to.step === last.step + 1;
 }

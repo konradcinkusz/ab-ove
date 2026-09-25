@@ -2,7 +2,10 @@
 
 ## Status
 
-**Accepted.** Date: 2026-09-15.
+**Accepted.** Date: 2026-09-15. Amended on 2026-09-25 (#157): the rule is applied to each
+program's furthest frame, which the browser now keeps apart from the frame it last showed, and
+the notice is raised only for reading done elsewhere — see *Amendment 2026-09-25*. The rule, the
+tie, the pointer and the sentence *the furthest frame wins* are unchanged.
 
 ## Context
 
@@ -71,6 +74,8 @@ says both halves: what happened, and the rule that will decide the next one.
 
 > P01 moved to frame 40, read on another device. **The furthest frame wins.**
 
+(Reworded by the amendment below; the rule half is unchanged.)
+
 It is `position: fixed`, because it arrives after a network round trip and anything in the
 flow would push the page down under a reader mid-frame — the shift
 [`reading.spec.ts`](../../tests/e2e/specs/reading.spec.ts) bounds. Each line is in its own
@@ -120,6 +125,60 @@ those three edges cover every moment a reader could notice the difference. The d
 3 s, which collapses a run of frame turns into one exchange without losing a reader who
 closes the tab after a page or two.
 
+## Amendment 2026-09-25
+
+Issue #157, reproduced before anything changed, against the acceptance suite's identity
+deployment and a real `AbOvo.Api`: a freshly registered reader read F01 to frame 3, the
+account held 3, and they went back to frame 2 — on this machine. The next sync rewrote the
+browser's record to 3 and put *"F01 moved to frame 3, read on another device. The furthest
+frame wins."* over frame 2. The browser's record held one frame per program, the one last
+shown, so going back wrote 2 over 3; the account's 3 then won the merge, and a return to where
+the reader had just been was reported as reading done somewhere else. The same run showed the
+two neighbouring faults the issue names: with no account, going back made the index offer
+*Continue at frame 2*; and after signing out, *Continue at frame 3* led to *Not there yet — the
+furthest read frame in this program is 1*, with no reason given.
+
+- **The record keeps the furthest frame beside the frame last shown.** Each program's position
+  in `lib/progress/store.ts` is now the furthest frame reached, here or on the account, in the
+  edition it was reached in, and it only moves forward; `last` is the frame this browser last
+  showed. The stored shape is unchanged. The rule above is applied to the furthest, tie and
+  all — it is what the account copy always was — so re-reading an earlier frame sends nothing
+  lower and raises nothing. The price paragraph above now reads differently: a reader who goes
+  back to work up to frame 31 again is still offered 40, because *Continue* offers the
+  furthest; nothing undoes their going back, because nothing records it as a position.
+- **Every control that offers a place offers the furthest** — the index's *Continue*, the
+  contents page's, and a tile's `at frame N` — each through `positionIn`, so they cannot
+  disagree. `last` still only says which program; the sync no longer rewrites it,
+  except to give a browser with none the program the account touched last, as before.
+- **The notice is for a raise this browser did not cause.** A sync is several round trips, and
+  a signed-in reveal moves the account as it goes. `settle` in `reconcile.ts` merges the
+  cycle's result into the record as it stands when the cycle lands — writing the cycle's
+  record back whole used to put this browser's furthest back where the cycle started — and
+  drops a raise this browser reached on its own meanwhile. A reveal also moves the account a
+  page load before its page records itself, and a cycle that pulls in between sees a raise to
+  the frame right after the one this browser last showed; nothing in the pull tells that from
+  another machine's reading, so a raise of that shape is held for three seconds and told only
+  if this browser has not shown the frame by then (`couldBeOwnReveal`, `stillNews`). A line
+  already on the screen goes when it stops being news — its frame shown here, its program
+  forgotten or raised again. What this costs, and is accepted: a real one-frame raise from
+  elsewhere is told three seconds late, and a reveal whose page never loaded — the tab closed
+  in between — is told as reading done elsewhere, because it left the account a frame ahead of
+  a browser that never showed it.
+- **The notice says it as a fact and goes there**: *You had read F01 to frame 40 elsewhere.
+  The furthest frame wins.*, with *Go to frame 40* under it, which also acknowledges that
+  line. It wears the rule and the raised paper and no longer a drop shadow.
+- **Signing out still leaves the record intact**, and that has a cost this ADR did not name:
+  the record then offers a frame read on the account, and the API gates a signed-out reader on
+  the anonymous cursor ([ADR-0061](0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)),
+  which has not reached it. The refusal now says why — *You read this while signed in.* — with
+  *Sign in to continue* returning the reader to the frame (`components/read/signed-out-hint.tsx`).
+  It can be wrong for a reader who never signed in and whose cookie was cleared while their
+  `localStorage` was not; nothing on this origin can tell that reader apart.
+
+Asserted in `store.test.ts` and `reconcile.test.ts`, and end to end, against the identity
+fixture and a real `AbOvo.Api`, in
+[`furthest-frame.spec.ts`](../../tests/e2e/specs/furthest-frame.spec.ts).
+
 ## Consequences
 
 - **The browser and the service hold the same rule in two languages.** They are asserted
@@ -131,11 +190,14 @@ closes the tab after a page or two.
   [`progress-sync.tsx`](../../web/app/src/components/sync/progress-sync.tsx) rather than
   fixed, because handing the root layout a limits table for every program in the book buys a
   consistency nobody is looking at.
-- **Not covered by any suite: this app's BFF proxy carrying a real bearer to a real
-  service.** The browser tier stubs the account at the network and the service tier runs the
-  real pipeline with a test authentication scheme; joining them needs a token, which needs an
-  issuer. Issue #29 is open for the CI identity fixture. Stated here and in
-  [`sync.spec.ts`](../../tests/e2e/specs/sync.spec.ts) so it is not implied to have passed.
+- **Not covered by any suite when this was decided: this app's BFF proxy carrying a real
+  bearer to a real service.** The browser tier stubs the account at the network and the
+  service tier runs the real pipeline with a test authentication scheme; joining them needs a
+  token, which needs an issuer. Issue #29 is open for the CI identity fixture. Stated here and
+  in [`sync.spec.ts`](../../tests/e2e/specs/sync.spec.ts) so it is not implied to have passed.
+  Covered since: [`bearer-hop.spec.ts`](../../tests/e2e/specs/bearer-hop.spec.ts) drives that
+  hop, and [`furthest-frame.spec.ts`](../../tests/e2e/specs/furthest-frame.spec.ts) drives the
+  sync over it, with a real account on the identity fixture (#157).
 
 ## References
 

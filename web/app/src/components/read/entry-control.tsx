@@ -68,9 +68,11 @@ const useEntry = ({ track, unit, last, language }: EntryControlProps) => {
  * has just finished is actually looking.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * It links to the edition the reader was actually in, which may not be the edition of the
- * contents page they are looking at — that is the record being right rather than the
- * control being inconsistent, and #6 made the edition part of the position for this reason.
+ * It links to the furthest frame the reader reached in this program, not the one they last
+ * looked at (issue #157, `positionIn`), in the edition they read it in — which may not be the
+ * edition of the contents page they are looking at. That is the record being right rather
+ * than the control being inconsistent, and #6 made the edition part of the position for this
+ * reason.
  */
 export function EntryControl(props: EntryControlProps): React.JSX.Element {
   const { chrome, here, startAt } = useEntry(props);
