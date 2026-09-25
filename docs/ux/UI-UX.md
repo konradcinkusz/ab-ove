@@ -241,7 +241,9 @@ the reader was shown is what gets recorded, or nothing is
 the versions and no text for them
 ([the probe](../architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md), §8), so this deployment
 publishes each as plain text at `AB_OVO_LEGAL_URL`. `/legal/terms/<version>` and
-`/legal/privacy/<version>` show it on this origin. Each name in the consent sentence links
+`/legal/privacy/<version>` show it on this origin. A version that is not published, and either
+address with no version, is a 404 titled as one, whose page names the shape of a right
+address rather than the root 404's frames. Each name in the consent sentence links
 there with the same version the hidden field carries, and opens in a new tab, so the form
 keeps what the reader typed. **Where either text cannot be shown, the form is withdrawn**:
 a checkbox for a document nobody can read is not a consent. The page says the fault is

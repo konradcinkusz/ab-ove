@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import { backendConfigured } from '@/lib/server/backends';
-import { legalDocument, legalPath } from '@/lib/server/legal';
+import { legalDocument, legalPath, offersRegistrationForm } from '@/lib/server/legal';
 import { consentVersions } from '@/lib/server/register';
 import { safeRedirectTarget } from '@/lib/redirect-target';
 import { registrationNotice, registrationProblem } from '@/lib/registration-problem';
@@ -95,7 +95,9 @@ export default async function RegisterPage({
     consent the reader had no way to give.
 
     Asked for only when the form is otherwise going to be offered: a page that has already
-    answered the reader has no checkbox to back.
+    answered the reader has no checkbox to back. The decision itself is
+    `offersRegistrationForm`, pure and tested in `legal.test.ts`, because the state that
+    withdraws the form is the one no acceptance deployment is in.
   */
   const documents =
     consent !== null && !answered
@@ -104,10 +106,13 @@ export default async function RegisterPage({
           legalDocument('privacy', consent.privacy),
         ])
       : null;
-  const documentsPublished =
-    documents !== null && documents.every((outcome) => outcome.kind === 'published');
 
-  const offersForm = identityConfigured && consent !== null && !answered && documentsPublished;
+  const offersForm = offersRegistrationForm({
+    identityConfigured,
+    versionsKnown: consent !== null,
+    answered,
+    documents,
+  });
 
   const signInHref = intended ? `/login?redirect=${encodeURIComponent(intended)}` : '/login';
 

@@ -163,8 +163,9 @@ test.describe('accessibility at 360 px', () => {
 
 /*
   THE SCREENS BEHIND AN ACCOUNT, in the `identity` project — the only deployment with an
-  identity service, and so the only one where sign-in and registration carry their forms and
-  where `/account` and `/instrument` render for a session rather than redirecting. A form is
+  identity service, and so the only one where sign-in and registration carry their forms,
+  where the documents registration links to are published, and where `/account` and
+  `/instrument` render for a session rather than redirecting. A form is
   where a missing label hides, which is why the unconfigured pages above do not stand in for
   these.
 */
@@ -179,6 +180,17 @@ test.describe('accessibility behind an account', () => {
   test('the registration form has no WCAG A or AA violation @identity', async ({ page }) => {
     await page.goto('/register');
     await expect(page.locator('input[name="email"]')).toBeVisible();
+    await settle(page);
+    expect(await violations(page)).toEqual([]);
+  });
+
+  // The page the consent links to (#141). Only this deployment publishes one, and a
+  // document's text is the one screen here whose words arrive from another host.
+  test('a legal document has no WCAG A or AA violation @identity', async ({ page }) => {
+    await page.goto('/register');
+    const version = await page.locator('input[name="terms"]').inputValue();
+    await page.goto(`/legal/terms/${version}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Terms of Use' })).toBeVisible();
     await settle(page);
     expect(await violations(page)).toEqual([]);
   });

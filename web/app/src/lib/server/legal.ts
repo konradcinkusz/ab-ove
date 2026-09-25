@@ -153,6 +153,9 @@ export async function legalDocument(
       cache: 'no-store',
       signal: controller.signal,
     });
+    // A body that is not going to be read is cancelled, so the connection is released now
+    // rather than whenever the runtime collects it; a cancel that fails changes no outcome.
+    if (response.status !== 200) await response.body?.cancel().catch(() => undefined);
     const text = response.status === 200 ? await response.text() : '';
     return classifyLegalResponse(response.status, response.headers.get('content-type'), text);
   } catch (error) {
@@ -166,6 +169,42 @@ export async function legalDocument(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Whether `/register` offers its form — the page's whole decision, here so that it is pure
+ * and tested (P13) rather than a line in a Server Component nothing asserts on.
+ *
+ * The state it matters most for is the one every deployment without `AB_OVO_LEGAL_URL` is
+ * in (the AppHost, `flyio/web.fly.toml`): an identity service, versions it requires, and no
+ * text for them. The acceptance suite cannot reach that state — its identity deployment
+ * always has a document host, and its other deployment stops earlier, at "no identity
+ * service" — so a change that offered the checkbox again without the documents behind it
+ * would turn nothing red there. `legal.test.ts` is where it turns red instead.
+ *
+ * Every condition has to hold (ADR-0049 and its amendment):
+ *   - an identity service is configured, and the versions it requires are known;
+ *   - the page has not already answered the reader — a verification notice, or a problem no
+ *     retype fixes — since a form under that answer invites an attempt that cannot succeed;
+ *   - every document the consent names was asked for and is published. `null` means they
+ *     were not asked for, and an empty list names nothing a reader could accept, so neither
+ *     counts as published.
+ */
+export function offersRegistrationForm(state: {
+  readonly identityConfigured: boolean;
+  readonly versionsKnown: boolean;
+  readonly answered: boolean;
+  readonly documents: readonly LegalDocumentOutcome[] | null;
+}): boolean {
+  const { identityConfigured, versionsKnown, answered, documents } = state;
+  return (
+    identityConfigured &&
+    versionsKnown &&
+    !answered &&
+    documents !== null &&
+    documents.length > 0 &&
+    documents.every((outcome) => outcome.kind === 'published')
+  );
 }
 
 /**

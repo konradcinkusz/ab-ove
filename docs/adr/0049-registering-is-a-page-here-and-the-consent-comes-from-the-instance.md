@@ -165,6 +165,12 @@ is an identifier for a text that lives somewhere else, so there was nothing to p
 - **Publish before you require.** A new version's text goes up before authservice's
   `ConsentVersions__*` is raised to it. In the other order registration is withdrawn in the
   gap, which is the safe direction.
+- **A version has to be a file name.** authservice accepts any string as a version, and
+  this app accepts fewer: a letter or a digit first, then letters, digits, `.`, `-` and
+  `_`, 64 characters at most (`isPublishableVersion` in `lib/server/legal.ts`). Any other
+  version is never sent to the document host, so it reads as unpublished, and registration
+  is withdrawn until `ConsentVersions__*` is changed to one that fits. A date such as
+  `2026-01-01` or a tag such as `v1.2` fits.
 - **Two more GETs per render of `/register`**, run in parallel after the versions, each
   bounded at 10 s. They are skipped when the page has already answered the reader and has no
   form to offer.
@@ -173,4 +179,6 @@ is an identifier for a text that lives somewhere else, so there was nothing to p
   checkbox.
 - **The acceptance suite serves the texts from its authservice fixture**, on a path that is
   labelled there as not authservice's, and `specs/registration.spec.ts` follows both links
-  to a 200 on this origin. Nothing in `web/app` reads `AB_OVO_AUTH_URL` to find them.
+  to a 200 on this origin. Nothing in `web/app` reads `AB_OVO_AUTH_URL` to find them. Only
+  the identity deployment, `:3100`, is given `AB_OVO_LEGAL_URL`, so it no longer differs
+  from `:3000` by `AB_OVO_AUTH_URL` alone. ADR-0062's amendment records that.

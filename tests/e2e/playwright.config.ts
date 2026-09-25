@@ -81,8 +81,9 @@ const stubBaseUrl = `http://127.0.0.1:${stubPort}`;
  * each `webServer` entry states its own env explicitly instead.
  *
  * ADR-0060 is why it goes to BOTH entries now: reading needs no account, so an identity
- * service is the only thing left for the two deployments to differ on (see the big comment
- * over `identityBaseUrl` above). Before that ADR the first deployment was deliberately kept
+ * service, and what registering against one needs, is what the two deployments differ on
+ * (see the big comment over `identityBaseUrl` above, and the second entry's env below).
+ * Before that ADR the first deployment was deliberately kept
  * "backend-less" to exercise the product's old "no backend at all" requirement (ADR-0004,
  * ADR-0035) — that state is still exercised, by `no-backend.spec.ts`, but as a BROWSER-side
  * failure injected with route interception rather than as a real absence of `AB_OVO_API_URL`
@@ -343,7 +344,9 @@ export default defineConfig({
              *
              * `AB_OVO_API_URL` is the same rung for the other backend. Both deployments
              * get it now (ADR-0060 — see `apiBaseUrl` above); this one also gets
-             * `AB_OVO_AUTH_URL`, which is the one thing left that only it has.
+             * `AB_OVO_AUTH_URL` and, because registration only exists where there is an
+             * identity service, `AB_OVO_LEGAL_URL`. Neither is given to the deployment
+             * above (ADR-0062, as amended).
              *
              * `AB_OVO_LEGAL_URL` is where the deployment publishes the Terms and the
              * Privacy Policy its registration asks a reader to accept — the same fixture

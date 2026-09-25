@@ -58,14 +58,23 @@ const documentAt = cache(
     legalDocument(document, version),
 );
 
+/**
+ * A 404 is titled as one, as the reading routes' are: a tab carrying the site's own title
+ * over "No document is published at this address" says the opposite of the page. A host
+ * that failed keeps the default, because the page then throws to `app/error.tsx`.
+ */
+const NOT_FOUND: Metadata = { title: 'Not found — ab-ovo' };
+
 export async function generateMetadata({
   params,
 }: {
   readonly params: Params;
 }): Promise<Metadata> {
   const { document, version } = await params;
-  if (!isLegalDocumentId(document)) return {};
-  if ((await documentAt(document, version)).kind !== 'published') return {};
+  if (!isLegalDocumentId(document)) return NOT_FOUND;
+  const outcome = await documentAt(document, version);
+  if (outcome.kind === 'unpublished') return NOT_FOUND;
+  if (outcome.kind === 'unavailable') return {};
   return { title: `${LEGAL_DOCUMENT_TITLES[document]} ${version} — ab-ovo` };
 }
 

@@ -18,8 +18,10 @@ import {
   legalDocument,
   legalPath,
   legalSourceBase,
+  offersRegistrationForm,
   paragraphs,
   type FetchLike,
+  type LegalDocumentOutcome,
 } from './legal.ts';
 
 const ORIGINAL = process.env.AB_OVO_LEGAL_URL;
@@ -157,6 +159,16 @@ test('the document is read from <host>/<document>/<version>.txt', async () => {
   assert.deepEqual(host.calls, ['https://legal.example.test/docs/privacy/2026-01-01.txt']);
 });
 
+test('an answer that is not the document has its body cancelled, not left open', async () => {
+  process.env.AB_OVO_LEGAL_URL = 'https://legal.example.test';
+  const answer = text('<!doctype html><p>Not here</p>', 'text/html', 404);
+  const host = recording(() => answer);
+  assert.deepEqual(await legalDocument('terms', '2026-01-01', host.fetchImpl), {
+    kind: 'unpublished',
+  });
+  assert.equal(answer.bodyUsed, true, 'the 404 body was released');
+});
+
 test('a host that cannot be reached is unavailable, and says which host', async () => {
   process.env.AB_OVO_LEGAL_URL = 'https://legal.example.test';
   const host = recording(() => {
@@ -165,6 +177,58 @@ test('a host that cannot be reached is unavailable, and says which host', async 
   const outcome = await legalDocument('terms', '2026-01-01', host.fetchImpl);
   assert.equal(outcome.kind, 'unavailable');
   assert.match(outcome.kind === 'unavailable' ? outcome.reason : '', /legal\.example\.test.*fetch failed/);
+});
+
+/**
+ * #141 — THE FORM IS WITHDRAWN WHEN THE DOCUMENTS CANNOT BE SHOWN, and that is the state
+ * the AppHost and `flyio/web.fly.toml` are in today, with no `AB_OVO_LEGAL_URL`. The
+ * acceptance suite never reaches it (see `offersRegistrationForm`), so this is the test
+ * that goes red if the checkbox is offered again without a document behind it.
+ */
+const PUBLISHED: LegalDocumentOutcome = { kind: 'published', text: 'Terms.' };
+const UNPUBLISHED: LegalDocumentOutcome = { kind: 'unpublished' };
+const UNAVAILABLE: LegalDocumentOutcome = { kind: 'unavailable', reason: 'down' };
+const READY = {
+  identityConfigured: true,
+  versionsKnown: true,
+  answered: false,
+  documents: [PUBLISHED, PUBLISHED],
+} as const;
+
+test('the form is offered when identity, versions and both documents are all there', () => {
+  assert.equal(offersRegistrationForm(READY), true);
+});
+
+test('a deployment with no document host withdraws the form, end to end', async () => {
+  // What `/register` computes today under the AppHost: the variable unset, both documents
+  // asked for, neither published.
+  const documents = await Promise.all([
+    legalDocument('terms', '2026-01-01', recording(() => text('never read')).fetchImpl),
+    legalDocument('privacy', '2026-01-01', recording(() => text('never read')).fetchImpl),
+  ]);
+  assert.equal(offersRegistrationForm({ ...READY, documents }), false);
+});
+
+test('one document missing or unreadable is enough to withdraw the form', () => {
+  for (const documents of [
+    [PUBLISHED, UNPUBLISHED],
+    [UNPUBLISHED, PUBLISHED],
+    [PUBLISHED, UNAVAILABLE],
+    [UNAVAILABLE, UNAVAILABLE],
+  ]) {
+    assert.equal(offersRegistrationForm({ ...READY, documents }), false, JSON.stringify(documents));
+  }
+});
+
+test('documents not asked for, or none at all, are not documents published', () => {
+  assert.equal(offersRegistrationForm({ ...READY, documents: null }), false);
+  assert.equal(offersRegistrationForm({ ...READY, documents: [] }), false);
+});
+
+test('the earlier reasons still withdraw the form with both documents published', () => {
+  assert.equal(offersRegistrationForm({ ...READY, identityConfigured: false }), false);
+  assert.equal(offersRegistrationForm({ ...READY, versionsKnown: false }), false);
+  assert.equal(offersRegistrationForm({ ...READY, answered: true }), false);
 });
 
 test('paragraphs split on blank lines and keep a paragraph’s own line breaks', () => {

@@ -144,13 +144,32 @@ test.describe('a reader with no account can get one', () => {
   });
 
   test('a document version this deployment has not published is a 404, not a sign-in redirect @identity', async ({
+    page,
     request,
   }) => {
     // `maxRedirects: 0`, as lab-p01.spec.ts does: followed, a redirect to /login would
     // answer 200 and the test would pass for the wrong reason.
-    for (const path of ['/legal/terms/1999-01-01', '/legal/cookies/2026-01-01', '/legal/terms/..%2F..']) {
+    for (const path of [
+      '/legal/terms/1999-01-01',
+      '/legal/cookies/2026-01-01',
+      '/legal/terms/..%2F..',
+      '/legal/privacy',
+    ]) {
       const response = await request.get(path, { maxRedirects: 0 });
       expect(response.status(), path).toBe(404);
+    }
+
+    // The status alone was already 404 before any page existed under /legal/, so it proves
+    // little. What the reader meets is this section's own 404, which says what a right
+    // address looks like, rather than the root one, which is about frames; and the tab says
+    // "Not found" rather than the site's own title over a page with nothing on it.
+    for (const path of ['/legal/terms/1999-01-01', '/legal/privacy']) {
+      await page.goto(path);
+      await expect(
+        page.getByRole('heading', { level: 1, name: 'No document is published at this address.' }),
+        path,
+      ).toBeVisible();
+      await expect(page, path).toHaveTitle('Not found — ab-ovo');
     }
   });
 
