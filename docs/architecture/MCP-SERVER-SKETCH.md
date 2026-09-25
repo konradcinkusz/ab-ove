@@ -105,6 +105,9 @@ before it — one step of it is enough — and the rule is `isOpenWhere` in
 `@ab-ovo/web-kit`, the same function the reading surface calls, over the same
 `ReaderProgress` row this server's cursor store already is. Before, the two surfaces
 disagreed about one reader's doors and neither could explain the other.
+[ADR-0065](../adr/0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md)
+keeps the Foundation programs inside that order: a reader who already knows them still opens
+one step of each before P01, here as in the browser.
 
 `open_program` refuses a shut program **before** it asks which edition to read, so the
 model does not spend the reader's answer on a question that leads nowhere; `current_step`,
