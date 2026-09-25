@@ -406,7 +406,12 @@ guesses were all relative to the working directory, and a host that started the 
 `web/` — its bundled server code cannot know its own place on disk — so its candidates, and
 its Docker image, are unchanged. `bundle.test.ts` asserts the loader's half from a scratch
 directory; `content.test.ts` asserts that the live source names this checkout and finds the
-book from outside it. To see it the way a host does:
+book from outside it, and starts the launcher itself from a scratch directory with `CI` set.
+That last one is not decoration: `have-bundle.ts`, the unit tier's guard that refuses to
+load in CI when the book is missing, guessed from the working directory and reached the
+server through `@ab-ovo/web-kit`'s barrel, so a host running under CI stopped the server
+before it could look. It is now an entry of its own, `@ab-ovo/web-kit/have-bundle`, which
+only tests import. To see it the way a host does:
 
 ```bash
 cd / && node /absolute/path/to/ab-ovo/web/mcp/bin/ab-ovo-mcp.mjs

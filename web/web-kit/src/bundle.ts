@@ -135,7 +135,7 @@ export function tagFor(track: string): string | undefined {
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 function candidateBundlePaths(destination: string, webDir: string | undefined): readonly string[] {
-  const override = process.env[CONTENT_BUNDLE_VARIABLE];
+  const override = overrideNow();
   const filename = 'bundle.json';
   // `destination` is `content/bundle`, relative to `web/` — the same string
   // `scripts/fetch-book-content.sh` reads out of `contentBundle.destination` and resolves
@@ -175,6 +175,15 @@ function locateCompiledBundle(destination: string, webDir: string | undefined): 
 export const CONTENT_BUNDLE_VARIABLE = 'AB_OVO_CONTENT_BUNDLE';
 
 /**
+ * The override as it stands, with an EMPTY value read as unset. A host configuration
+ * template often carries the variable with nothing in it; it names no file, so it is not a
+ * candidate, and a refusal that reported it would tell a person the bundle "is at" nothing.
+ */
+function overrideNow(): string | undefined {
+  return process.env[CONTENT_BUNDLE_VARIABLE] || undefined;
+}
+
+/**
  * No candidate held the compiled bundle.
  *
  * A type of its own, with what was checked on it, so a caller can tell this — nothing to
@@ -184,7 +193,7 @@ export const CONTENT_BUNDLE_VARIABLE = 'AB_OVO_CONTENT_BUNDLE';
 export class BundleNotFound extends Error {
   /** Every path tried, in order, the override first when it was set. */
   readonly checked: readonly string[];
-  /** `AB_OVO_CONTENT_BUNDLE` as it stood when the paths were tried. */
+  /** `AB_OVO_CONTENT_BUNDLE` as it stood when the paths were tried; `undefined` when unset or empty. */
   readonly override: string | undefined;
 
   constructor(message: string, checked: readonly string[], override: string | undefined) {
@@ -242,7 +251,7 @@ export function bundleFor(track: string, webDir?: string): Bundle | undefined {
         `${CONTENT_BUNDLE.destination}/bundle.json, gitignored like web/content/book/. ` +
         `Checked: ${checked.join(', ')}`,
       checked,
-      process.env[CONTENT_BUNDLE_VARIABLE],
+      overrideNow(),
     );
   }
 
@@ -254,10 +263,10 @@ export function bundleFor(track: string, webDir?: string): Bundle | undefined {
 /**
  * The bundle in one file, read and validated the first time that file is asked for.
  *
- * Keyed by the REAL path, because two callers can reach one file by two spellings — the
- * barrel's `HAVE_REAL_BUNDLE` guesses `web/mcp/../content/…` at import, the MCP server then
- * names `web/content/…` — and a 3 MB book parsed twice in one process is a cost with nothing
- * bought by it.
+ * Keyed by the REAL path, because two callers can reach one file by two spellings — in
+ * `@ab-ovo/mcp`'s unit tier, `have-bundle.ts`'s `HAVE_REAL_BUNDLE` guesses
+ * `web/mcp/../content/…` at import, the live source then names `web/content/…` — and a 3 MB
+ * book parsed twice in one process is a cost with nothing bought by it.
  */
 function parsedAt(path: string, pin: ContentPin): Bundle {
   const real = realpathSync(path);

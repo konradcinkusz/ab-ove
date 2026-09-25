@@ -194,6 +194,23 @@ test('AB_OVO_CONTENT_BUNDLE is tried before the named web/ directory, and named 
   );
 });
 
+test('an empty AB_OVO_CONTENT_BUNDLE names nothing, and the refusal does not report it', () => {
+  // A host's configuration template often carries the variable with no value. It is not a
+  // path, so it is not checked, and the refusal says the override was not set rather than
+  // that the bundle "is at" an empty string.
+  const { scratch } = checkoutWithFixture();
+  const empty = join(scratch, 'empty', 'web');
+  mkdirSync(empty, { recursive: true });
+  assert.throws(
+    () => from(process.cwd(), '', () => bundleFor(PINS[0]!.track, empty)),
+    (error: unknown) =>
+      error instanceof BundleNotFound &&
+      error.override === undefined &&
+      error.checked.length === 1 &&
+      error.checked[0] === `${empty}/${DESTINATION}/bundle.json`,
+  );
+});
+
 test('a unit is found by id, and an unknown one is undefined', () => {
   assert.equal(unitIn(FIXTURE, 'P01')?.id, 'P01');
   assert.equal(unitIn(FIXTURE, 'P99'), undefined);

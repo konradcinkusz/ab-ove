@@ -42,10 +42,12 @@ node web/mcp/bin/ab-ovo-mcp.mjs        # or: pnpm --dir web/mcp start
 
 **The working directory does not matter.** The server looks for the book in the checkout
 it is part of — `web/content/bundle/bundle.json`, found from its own place on disk — so it
-starts the same from the repository root, from `web/mcp` or from `/`. A book compiled
-somewhere else is named with `AB_OVO_CONTENT_BUNDLE`, the path of the `bundle.json` file
-itself; it is tried first. If it names nothing, the server says so, rather than telling you
-to fetch a book you already have.
+starts the same from the repository root, from `web/mcp` or from `/`, with or without `CI`
+set. A book compiled somewhere else is named with `AB_OVO_CONTENT_BUNDLE`, the path of the
+`bundle.json` file itself. It is tried first and the checkout's own book second, so an
+override that names no file still serves the checkout's book when there is one. When
+neither is there, the server names both paths and says the override named nothing, rather
+than telling you to fetch a book you already have. An empty value counts as unset.
 
 ## Pointing a host at it
 
