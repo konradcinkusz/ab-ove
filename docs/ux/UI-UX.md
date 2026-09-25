@@ -421,6 +421,10 @@ allows is held by the API under that cookie, not by a session. `/read/` is in th
 middleware's public-prefix list, and so is `/katex/`, without which every font request from a
 reader with no session redirects to `/login` and the system-font fallback hides the break.
 
+**The calls a frame needs leave together.** The step, the program's headings and the track's
+editions do not wait on one another, so a frame costs the slowest of them rather than their
+sum, and the tab's title and the page share the one set (`lib/server/frame.ts`, #160).
+
 **The body is the book's own Markdown and KaTeX**, rendered on the server through an
 allow-list that throws on anything it does not know — tables, code fences, the six admonition
 kinds, 21 714 maths spans. [ADR-0037](../adr/0037-the-books-prose-is-rendered-not-interpolated.md).
@@ -759,11 +763,16 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   `specs/reading.spec.ts` and `specs/pager.spec.ts` measure the box on the reading screens, and
   `specs/targets.spec.ts` off them, at 390 px and 1280 px — where it also checks that a press
   on a control's words lands on that control, since grown boxes overlap wherever a row wraps.
-- **The reveal says when it is under way.** It is the one move that is never prefetched, so
-  it always costs a round trip; while the next frame is on its way the button dims, its arrow
-  nudges and its cursor says so (`reveal-button-label.tsx`, the form's `useFormStatus`; the
-  last frame's `Summary` link reads `useLinkStatus`). Nothing lays out, so the reveal's
-  shift bound holds.
+- **Every move between frames says when it is under way** (#160). A frame is rendered on the
+  server, per request, from live calls to the API, so each move to one is a round trip while
+  the frame being left stays on screen. The reveal's arrow nudges forward and its cursor says
+  so (`reveal-button-label.tsx`, the form's `useFormStatus`); `Previous` leans back the same
+  way, and so does `Contents` in that cell (`pending-label.tsx`, the link's `useLinkStatus`).
+  A heading or a frame number chosen in the program map is said on the map's door: the map
+  shuts on the press, and the pager's position pulses until the frame arrives. There is no
+  `loading.tsx`, so no skeleton replaces the frame. Nothing lays out, so the pager stays
+  pinned and the shift bounds hold; `specs/frame-loading.spec.ts` holds the API back for one
+  reader and watches the wait, and the pager, from the press to the frame's arrival.
 - **No keyboard hint on the page.** The keys are an option (ADR-0063): the frame prints no
   line of them, every move is a labelled button, the pager's buttons name their key in a
   tooltip, and the whole map is inside *Reading settings* for whoever wants it — a tablet

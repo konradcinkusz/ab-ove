@@ -63,6 +63,7 @@ was first written with.
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
 | `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload |
 | `focus-ring.spec.ts` | the controls that showed focus by a colour or a brightness wear the shared ring, in light, dark and forced colours |
+| `frame-loading.spec.ts` | a frame on its way says so where the reader pressed — `Previous`, or the program map's door — while the API is held back for that one reader, and the pager does not move (#160) |
 | `frame-view.spec.ts` | the answer is absent before the reveal, asserted in both directions and both editions |
 | `gate.spec.ts` | the book is entered at the beginning: a program opens when the one before it has |
 | `hydration.spec.ts` | every page hydrates — the one defect that leaves no trace on screen |
@@ -746,8 +747,11 @@ deployment reaches `AbOvo.Api` through `fixtures/api-fault.mts`, a pass-through 
 requests of a reader a spec has cut and forwards everybody else's untouched. It keys the cut
 on the reader id the middleware minted for that one context (ADR-0061), so
 `specs/error-page.spec.ts` can stop the API under its own frame while every other spec reads
-on through the same process. The set of cut readers lives in the fixture's memory and goes
-with it; a cut a failed test leaves behind names a reader nobody else holds.
+on through the same process. It can slow one reader down the same way, holding each of that
+reader's requests for as long as the spec asked before passing it on, which is how
+`specs/frame-loading.spec.ts` sees a page while the server works. The cut and slowed readers
+live in the fixture's memory and go with it; one a failed test leaves behind names a reader
+nobody else holds.
 
 **And one file now does create server-side state, so the paragraph above has an exception
 rather than a slow drift into being false.** `specs/bearer-hop.spec.ts` writes progress rows
@@ -812,7 +816,7 @@ tests/e2e/
   tsconfig.json                     strict; `pnpm run typecheck` is a real gate
   fixtures/                         the identity service stub (and the legal-document host it also
                                     plays), its accounts, the content ingest, and the API
-                                    pass-through that can cut one reader off
+                                    pass-through that can cut one reader off or slow them down
   specs/
     *.spec.ts                       one journey each — the table under *What this suite covers*
     support/

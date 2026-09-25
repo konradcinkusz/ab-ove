@@ -6,6 +6,7 @@ import { isReachable, openingEnds, type SectionSpan } from '@/lib/read/place';
 import controls from './controls.module.css';
 import { FrameJumper } from './frame-jumper.tsx';
 import { Close, List, Lock } from './icons.tsx';
+import { PendingLabel } from './pending-label.tsx';
 import styles from './program-map.module.css';
 import { PROGRAM_MAP_ID } from './popover.ts';
 import { PopoverCloser } from './popover-closer.tsx';
@@ -62,6 +63,12 @@ export interface ProgramMapProps {
  * them on a frame leaks nothing; every link is `prefetch={false}` on the reveal's reasoning,
  * because a section's first frame opens with the answer to the frame before it.
  *
+ * EVERY LINK HERE, AND THE JUMP, SAYS WHEN ITS PAGE IS ON ITS WAY (#160) — and says it on the
+ * pager, because the map shuts on the press (`popover-closer.tsx`) and the row that was
+ * pressed goes with it. The flag stays in the shut panel while the frame comes
+ * (`pending-label.tsx`, and the jump's own in `frame-jumper.tsx`), and the map's door — the
+ * pager's position — reads it from there (`reading-foot.module.css`).
+ *
  * THE CURRENT HEADING IS A SPAN WITH `aria-current` AND NO `lang`, AND ITS RANGE SITS OUTSIDE
  * IT: `navigation.spec.ts` reads its exact text, and `language-choice.spec.ts` holds
  * `[aria-current="true"][lang]` to the language control alone. The `lang` is on the `<li>`.
@@ -106,7 +113,7 @@ export function ProgramMap({
           </span>
         ) : reachable ? (
           <Link className={styles.rowTitle} href={`${base}/${from}`} prefetch={false}>
-            {title}
+            <PendingLabel>{title}</PendingLabel>
           </Link>
         ) : (
           <span className={styles.rowTitle}>
@@ -169,7 +176,7 @@ export function ProgramMap({
           <li className={styles.row}>
             <Link className={styles.rowTitle} href={base}>
               <List className={styles.rowIcon} />
-              {chrome.contents}
+              <PendingLabel>{chrome.contents}</PendingLabel>
             </Link>
           </li>
           {opening >= 1 ? row('opening', chrome.opening, 1, opening, inOpening) : null}

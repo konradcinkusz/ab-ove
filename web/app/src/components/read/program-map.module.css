@@ -132,6 +132,18 @@ a.rowTitle:focus-visible {
   white-space: nowrap;
 }
 
+/*
+ * A place chosen here that is on its way (#160). The map shuts on the press, so where the
+ * Popover API is, the pager's position says it (`reading-foot.module.css`); these are for
+ * where it is not, and the map stays in the page's flow under the reader's pointer
+ * (`sheet.module.css`). A cursor and an opacity — nothing that lays out.
+ */
+a.rowTitle:has([data-pending='yes']),
+.jump [data-pending='yes'] {
+  cursor: progress;
+  opacity: 0.75;
+}
+
 /* Where the reader is: said with a tint and weight, and not a link — there is nowhere to go. */
 .current {
   background: var(--accent-soft);
