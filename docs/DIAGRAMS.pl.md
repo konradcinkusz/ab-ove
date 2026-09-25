@@ -367,8 +367,11 @@ Każde pole tego diagramu działa bez konta, a każda ramka przychodzi z `AbOvo.
 wymogi, które ten diagram rysował kiedyś jako jeden, dopóki
 [ADR-0060](adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md) nie
 odwrócił połowy dotyczącej serwera. API jest narysowane ciągłą linią, bo treść nie jest
-opcjonalna: gdy API nie działa, nie zostaje podana żadna ramka, a czytelnik słyszy to wprost.
-Dwie kropkowane krawędzie wychodzące z pętli są opcjonalne i żadna nie leży na ścieżce.
+opcjonalna: gdy API nie działa, nie zostaje podana żadna ramka, a ramka, która nie może się
+wczytać, mówi to wprost. Odsłonięcie, które nie może do niego dotrzeć, jeszcze tego nie robi —
+zostawia czytelnika na tej samej ramce, bez słowa, co naprawia 380 w
+[kolejności](ux/UI-UX.md#the-order). Dwie kropkowane krawędzie wychodzące z pętli są opcjonalne
+i żadna nie leży na ścieżce.
 
 ```mermaid
 %% Pętla czytelnika ab-ovo.

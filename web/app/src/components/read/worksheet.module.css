@@ -265,10 +265,10 @@
  * owner's report meant by the sketch being hard to open.
  *
  * STILL A `<details>`, AND THE SUMMARY IS THE BUTTON. A `<details>` opens with no
- * JavaScript, which is what makes a pane worth offering on a surface whose first
- * requirement is that the reading loop works without a backend; replacing it with a React
- * toggle would have bought a border and sold that. So the element is unchanged and only its
- * appearance moved — which is also why every locator that finds these panes by their
+ * JavaScript, which is what makes a pane worth offering on a surface whose reading loop
+ * works without it too — the reveal is a form, not a toggle (ADR-0060). Replacing it with a
+ * React toggle would have bought a border and sold that, so the element is unchanged and
+ * only its appearance moved — which is also why every locator that finds these panes by their
  * `group` role still finds them.
  *
  * OUTLINED AND NEVER FILLED, on `reading-foot.module.css`'s reasoning: the reveal below is

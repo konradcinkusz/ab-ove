@@ -22,9 +22,9 @@ import { served, track, trackTitles } from './support/bundle.ts';
  * pass, because today's deployment pins one and the page exists for the day it pins more.
  *
  * NO ACCOUNT, AND NO API CALL WHILE RENDERING: the page reads the bundle compiled into the
- * app, exactly as the index does, which is why the first test is `@smoke`. That is a choice
- * since ADR-0060 made every frame a live call to `AbOvo.Api`, not the requirement it was —
- * `app/page.tsx` carries the argument.
+ * app, exactly as the index does, which is why the first test is `@smoke`. That is today's
+ * placement since ADR-0060 made every frame a live call to `AbOvo.Api`, pending 580 rather
+ * than the requirement it was — `app/page.tsx` carries the argument.
  */
 
 /** A literal title, as a pattern — the titles carry characters a bare RegExp would read. */

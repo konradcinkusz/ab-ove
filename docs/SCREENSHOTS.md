@@ -6,9 +6,9 @@ What ab-ovo looks like to a reader, screen by screen, captured from a real produ
 
 Every image below was taken by
 [`../tests/e2e/specs/screenshots.spec.ts`](../tests/e2e/specs/screenshots.spec.ts) driving the
-application the same way the acceptance suite drives it — a production build, a real browser, and
-the same content bundle a reader would be served, ingested into a running `AbOvo.Api` that serves
-every frame. Nothing here is a mock-up and nothing was retouched. To take them again, see
+application the same way the acceptance suite drives it — a production build, a real browser,
+the same content bundle the reader would be served. Nothing here is a mock-up and nothing was
+retouched. To take them again, see
 [`how-to/capture-the-screenshots.md`](how-to/capture-the-screenshots.md).
 
 **These are the one generated artefact this repository commits.** Everywhere else the rule is

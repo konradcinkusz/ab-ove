@@ -424,7 +424,7 @@ any frame page that carries an answer field, to check answers #57 has not yet co
 large bet on an unmeasured number — and code-splitting moves when the reader pays it rather
 than whether.
 
-> **Since this probe:** [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+> **Since this probe** (noted 2026-09-25): [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
 > reversed the half of that requirement about a server — every frame is now a live call to
 > `AbOvo.Api` — so a checker no longer has to run in the browser. The payload above stays the
 > measured cost of running it there; it is no longer the only place it could run.

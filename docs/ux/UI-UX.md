@@ -73,13 +73,14 @@ asserts the 404's way back.
 that renders from the bundle compiled into the app: it calls no API while rendering, and the
 one cookie it reads is this origin's own, the reader's chosen edition
 ([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md)). **That is
-still true after ADR-0060, and it is now a choice rather than a requirement.** The requirement
+still true after ADR-0060, as today's placement rather than a requirement.** The requirement
 it used to follow from joined two halves — no account, and no server behind the loop — and
 [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
 kept the first and reversed the second: a frame needs the API and the index does not. So a
 reader who arrives while the API is down still sees the programs, and the frame they open is
-the one that says the fault is on this side. 580 in [the order](#the-order) decides whether
-the index stays off the API.
+the one that says the fault is on this side. ADR-0060's Decision counts every read of a
+program as a live call, which this page is not, so the placement is pending rather than
+settled: 580 in [the order](#the-order) decides whether the index stays off the API.
 
 **It used to be the product's argument and is now the programs**
 ([ADR-0036](../adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). The
@@ -181,7 +182,8 @@ Its parts, in order:
 Component on the index's own terms: it calls no API while rendering, reads one cookie of this
 origin's own for the edition, and takes everything else from the bundles compiled into the app
 ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)). That still
-holds after ADR-0060, as a choice rather than a requirement, for the index's reason above.
+holds after ADR-0060, as today's placement rather than a requirement, and is pending 580 for
+the index's reason above.
 
 One entry per pinned course, carrying its title in each edition it is published in, and a
 line of measured facts under it — how many programs, how many frames across them, and the
@@ -657,7 +659,8 @@ it. They are listed here rather than left to be rediscovered per screen.
    a defect. So is a frame, a reveal or an answer that renders without a live, gated call to
    `AbOvo.Api` — content is the one integration this product does not treat as optional, and
    an API that does not answer is said to the reader rather than hidden behind content served
-   from somewhere else.
+   from somewhere else. A frame that cannot load says so today; a reveal that cannot reach the
+   API does not, and 380 is the change that makes it.
 2. **No per-reader view, ever.** No leaderboard, no ranking, no score, no per-reader sort
    control on any table. It is a claim about the code in `README.md` and it is false the
    moment somebody ships the view ([ADR-0009](../adr/0009-the-instrument-measures-the-book.md)).

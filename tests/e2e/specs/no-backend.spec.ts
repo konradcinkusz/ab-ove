@@ -20,7 +20,7 @@ import { served, track } from './support/bundle.ts';
  * WHAT IT STILL ASSERTS IS TRUE, AND IS WORTH ASSERTING. The failure here is injected in the
  * BROWSER, so it cuts off exactly what the browser reaches through the proxy — and the pages
  * driven below need none of it to render: the index reads the bundle compiled into the app
- * (`app/page.tsx` says why that is now a choice rather than a requirement), and `/about`'s
+ * (`app/page.tsx` says why that is today's placement rather than a requirement), and `/about`'s
  * one live part is the integration panel, which must say which fault it was rather than
  * crash or spin. It asserts nothing about a frame, and must not be read as a claim that one
  * renders without the API.

@@ -16,8 +16,8 @@ import { LANGUAGE_COOKIE, isLanguageTag } from '@/lib/language/store';
  *
  * No API call while rendering: `allBundles()` reads the bundle compiled into the app, so the
  * page a reader uses to choose a course renders with no account and with the API down, as the
- * index does. That is a choice now rather than a requirement — ADR-0060 made every frame a
- * live call to `AbOvo.Api` while leaving the pages that list the book where they were — and
+ * index does. That is today's placement rather than a requirement — ADR-0060 made every
+ * frame a live call to `AbOvo.Api`, and the pages that list the book have not moved yet — and
  * `app/page.tsx` carries the argument, and issue #158 (580 in `docs/ux/UI-UX.md`'s order)
  * the decision about whether it stays so. It is rendered per request for the reason the
  * index is — `searchParams` is a request-time API in Next 16 — and the property that

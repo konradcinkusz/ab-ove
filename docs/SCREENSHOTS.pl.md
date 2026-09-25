@@ -8,9 +8,8 @@ produkcyjnego.
 Każdy obrazek poniżej zrobił
 [`../tests/e2e/specs/screenshots.spec.ts`](../tests/e2e/specs/screenshots.spec.ts), sterując
 aplikacją dokładnie tak, jak steruje nią pakiet akceptacyjny — build produkcyjny, prawdziwa
-przeglądarka i ta sama paczka treści, którą dostałby czytelnik, wczytana do działającego
-`AbOvo.Api`, które podaje każdą ramkę. Nic tu nie jest makietą i nic nie było retuszowane. Jak
-zrobić je od nowa, mówi
+przeglądarka, ta sama paczka treści, którą dostałby czytelnik. Nic tu nie jest makietą i nic
+nie było retuszowane. Jak zrobić je od nowa, mówi
 [`how-to/capture-the-screenshots.pl.md`](how-to/capture-the-screenshots.pl.md).
 
 **To jedyny wygenerowany artefakt, który to repozytorium commituje.** Wszędzie indziej

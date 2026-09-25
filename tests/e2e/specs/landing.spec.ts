@@ -24,8 +24,9 @@ import { openThrough } from './support/gate.ts';
  *
  * IT MUST HOLD WITH NO ACCOUNT, which is why almost everything here is `@smoke`. It also
  * holds with the API unreachable, because the page reads the bundle compiled into the app
- * and calls no API while rendering — a choice since ADR-0060 made every FRAME a live call
- * to `AbOvo.Api`, rather than the requirement it was (`app/page.tsx` says why).
+ * and calls no API while rendering — today's placement since ADR-0060 made every FRAME a
+ * live call to `AbOvo.Api`, pending 580 rather than the requirement it was (`app/page.tsx`
+ * says why).
  * `specs/no-backend.spec.ts` is where the same grid is asserted with the API unreachable.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────

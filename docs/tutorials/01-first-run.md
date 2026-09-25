@@ -1,15 +1,15 @@
 # Tutorial 1 — your first run
 
-**What you will have at the end:** ab-ovo running on your own machine, serving the whole
-book, with a frame open in front of you that has asked you a question and is refusing to
-answer it.
+**What you will have at the end:** ab-ovo running on your own machine, with the index of the
+whole book in front of you. Steps 4 and 5 go on to a frame that asks you a question and
+refuses to answer it, and that frame needs the book inside the API — which, on a fresh
+AppHost, nothing puts there yet. Step 3 says why.
 
 **How long:** about twenty minutes, most of it waiting for a build.
 
 **What you need:** a clone of this repository, and nothing else. No account, no credential,
 no key. Reading needs no account — that is not a convenience, it is a property of the
-product — and by the end of this tutorial you will have seen it, along with the one thing
-reading does need.
+product — and steps 4 and 5 show it, along with the one thing reading does need.
 
 > **Wersja polska:** [`01-first-run.pl.md`](01-first-run.pl.md)
 
@@ -84,7 +84,22 @@ Nothing in the AppHost ingests it today: the one scripted ingestion is the accep
 rather than the AppHost's identity service. Until the book is in, the index lists every
 program and a frame answers *not found*.
 
+**Nor can you post it by hand yet.** The obvious route is to sign in as `admin@ab-ovo.test`,
+the SuperAdmin the AppHost's `authservice` seeds itself, and post
+`web/content/bundle/bundle.json` with that bearer. `AbOvo.Api` refuses it with `401`.
+`authservice` builds the `jwks_uri` in its discovery document from `Jwt:PublicBaseUrl`, which
+defaults to an empty string and which `AppHost.cs` does not set, so the address it publishes
+is a bare path and the API finds no key to check the token with. That was measured on
+2026-09-25 against `authservice` v0.3.1 configured as `AppHost.cs` configures it; with the
+base URL set, the same two requests ingest the book. Both gaps are the AppHost's, and closing
+them is a change to it rather than to this tutorial.
+
 ## Step 4 — watch the product refuse to tell you something
+
+> **On a fresh AppHost you cannot follow this step or the next one yet.** Both need a frame,
+> and a frame needs the book inside the API, which step 3 explains the AppHost cannot put
+> there today. Read them as what the AppHost shows once it can; the index and `/about` are
+> what a fresh clone shows now.
 
 You are looking at the index of programs. Pick **F01 — Numbers, powers and roots**, and read
 to frame 3.
@@ -148,6 +163,8 @@ and everything you write on a frame stays in your browser
   or press <kbd>g</kbd>.
 
 ## What you have seen
+
+The rows that point at steps 4 and 5 wait on the same thing those steps do.
 
 | Claim | Where you saw it |
 | --- | --- |

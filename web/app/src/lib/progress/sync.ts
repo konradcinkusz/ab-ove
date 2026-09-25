@@ -11,10 +11,10 @@
  * resume hint. Which frame may be served is no longer this record's to say. Everything else
  * that shows a place still reads it — the index's resume control and tile positions, the
  * program gate, the contents page's way in — and this module does not change which record
- * those read. Nothing on any
- * page waits for this module's round trips, nothing renders differently while a sync is in
- * flight, and every failure below leaves the reader reading — the cost of one is that
- * ANOTHER machine has not seen this one's position yet, which the next cycle repairs.
+ * those read. Nothing on any page waits for this module's round trips, nothing renders
+ * differently while a sync is in flight, and every failure below leaves the reader reading —
+ * the cost of one is that ANOTHER machine has not seen this one's position yet, which the
+ * next cycle repairs.
  *
  * Which is also why there is no error surface. A reader cannot act on "the sync failed",
  * the page in front of them is unaffected, and a banner for a condition that repairs

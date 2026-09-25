@@ -367,8 +367,10 @@ Every box in this diagram runs with no account, and every frame comes from `AbOv
 two requirements this diagram used to draw as one, until
 [ADR-0060](adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
 reversed the half about a server. The API is drawn solid because content is not optional: with
-it down no frame is served, and the reader is told so. The two dotted edges leaving the loop
-are optional, and neither is on the path.
+it down no frame is served, and a frame that cannot load says so. A reveal that cannot reach it
+does not yet — it leaves the reader on the same frame, saying nothing, which 380 in
+[the order](ux/UI-UX.md#the-order) fixes. The two dotted edges leaving the loop are optional,
+and neither is on the path.
 
 ```mermaid
 %% The ab-ovo reader loop.

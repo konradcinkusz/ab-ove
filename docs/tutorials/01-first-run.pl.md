@@ -1,14 +1,16 @@
 # Samouczek 1 — pierwsze uruchomienie
 
-**Co będziesz mieć na końcu:** ab-ovo działające na twojej własnej maszynie, serwujące całą
-książkę, z otwartą przed tobą ramką, która zadała ci pytanie i odmawia na nie odpowiedzi.
+**Co będziesz mieć na końcu:** ab-ovo działające na twojej własnej maszynie, z indeksem całej
+książki przed tobą. Kroki 4 i 5 prowadzą dalej, do ramki, która zadaje ci pytanie i odmawia na
+nie odpowiedzi, a ta ramka potrzebuje książki wewnątrz API — a na świeżym AppHoście nic jej
+tam jeszcze nie umieszcza. Krok 3 mówi dlaczego.
 
 **Ile to potrwa:** około dwudziestu minut, w większości czekania na build.
 
 **Czego potrzebujesz:** klonu tego repozytorium i niczego więcej. Żadnego konta, żadnego
 poświadczenia, żadnego klucza. Lektura nie potrzebuje konta — to nie jest wygoda, to własność
-produktu — i pod koniec tego samouczka zobaczysz ją na własne oczy, razem z jedyną rzeczą,
-której lektura jednak potrzebuje.
+produktu — i kroki 4 i 5 ją pokazują, razem z jedyną rzeczą, której lektura jednak
+potrzebuje.
 
 > **English version:** [`01-first-run.md`](01-first-run.md)
 
@@ -83,7 +85,22 @@ testów akceptacyjnych, `tests/e2e/fixtures/ingest-content.mts`, które loguje s
 zaślepki serwisu tożsamości tego zestawu, a nie do serwisu tożsamości AppHosta. Dopóki
 książki tam nie ma, indeks wymienia każdy program, a ramka odpowiada *nie znaleziono*.
 
+**Nie wyślesz jej też jeszcze ręcznie.** Oczywista droga to zalogować się jako
+`admin@ab-ovo.test`, SuperAdmin, którego `authservice` AppHosta zakłada sam, i wysłać
+`web/content/bundle/bundle.json` z tym tokenem. `AbOvo.Api` odmawia odpowiedzią `401`.
+`authservice` buduje `jwks_uri` w swoim dokumencie discovery z `Jwt:PublicBaseUrl`, którego
+wartością domyślną jest pusty napis i którego `AppHost.cs` nie ustawia, więc publikowany adres
+jest gołą ścieżką, a API nie znajduje klucza, którym mogłoby sprawdzić token. Zmierzono to
+2026-09-25 na `authservice` v0.3.1 skonfigurowanym tak, jak konfiguruje go `AppHost.cs`; z
+ustawionym adresem bazowym te same dwa żądania wczytują książkę. Obie luki należą do AppHosta i
+ich zamknięcie jest zmianą w nim, a nie w tym samouczku.
+
 ## Krok 4 — zobacz, jak produkt odmawia ci powiedzenia czegoś
+
+> **Na świeżym AppHoście nie przejdziesz jeszcze ani tego kroku, ani następnego.** Oba
+> potrzebują ramki, a ramka potrzebuje książki wewnątrz API, której — jak wyjaśnia krok 3 —
+> AppHost nie umie dziś tam umieścić. Czytaj je jako to, co AppHost pokaże, gdy już
+> będzie umiał; indeks i `/about` to jest to, co świeży klon pokazuje teraz.
 
 Patrzysz na indeks programów. Wybierz **F01 — Numbers, powers and roots** i czytaj do ramki 3.
 
@@ -145,6 +162,8 @@ a wszystko, co napiszesz na ramce, zostaje w twojej przeglądarce
   naciśnij <kbd>g</kbd>.
 
 ## Co zobaczyłeś
+
+Wiersze, które wskazują kroki 4 i 5, czekają na to samo, na co czekają te kroki.
 
 | Twierdzenie | Gdzie to zobaczyłeś |
 | --- | --- |
