@@ -85,6 +85,94 @@ test.describe('a reader with no account can get one', () => {
     await expect(page.locator('input[name="accept"]')).not.toBeChecked();
   });
 
+  /*
+    #141 — THE CHECKBOX ASKED FOR ACCEPTANCE OF TWO DOCUMENTS IT DID NOT LINK TO. Each name
+    in the consent sentence now links to the EXACT version the hidden field carries, on this
+    origin, and the page behind the link answers 200 with that document. authservice
+    publishes no text (docs/architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md §8), so the
+    text comes from the host `AB_OVO_LEGAL_URL` names — here the fixture, on a path it
+    labels as not authservice's.
+
+    FOLLOWED, NOT MERELY INSPECTED: an href can be right and the page behind it a sign-in
+    redirect or a 404, so each link is clicked and the navigation's own response is read.
+    And the reader was part-way through the form when they clicked, so what they typed is
+    asserted to be there afterwards.
+  */
+  test('each document the consent names links to the version accepted, on this origin @identity', async ({
+    page,
+    context,
+  }) => {
+    await page.goto('/register');
+    const origin = new URL(page.url()).origin;
+
+    const email = freshEmail();
+    await page.fill('input[name="email"]', email);
+    await page.fill('input[name="password"]', GOOD_PASSWORD);
+
+    const consent = page.locator('label[for="accept"]');
+    for (const [field, title] of [
+      ['terms', 'Terms of Use'],
+      ['privacy', 'Privacy Policy'],
+    ] as const) {
+      const version = await page.locator(`input[name="${field}"]`).inputValue();
+      const path = `/legal/${field}/${version}`;
+
+      const link = consent.getByRole('link', { name: `${title} ${version}` });
+      await expect(link).toHaveAttribute('href', path);
+
+      const [response, tab] = await Promise.all([
+        context.waitForEvent('response', (candidate) => candidate.url() === `${origin}${path}`),
+        page.waitForEvent('popup'),
+        link.click(),
+      ]);
+
+      expect(response.status(), `${path} must answer 200`).toBe(200);
+      await tab.waitForLoadState('domcontentloaded');
+      expect(new URL(tab.url()).origin, 'the document is served by this origin').toBe(origin);
+      expect(new URL(tab.url()).pathname).toBe(path);
+      await expect(tab.getByRole('heading', { level: 1, name: title })).toBeVisible();
+      // The text the fixture published for that version, not a page ABOUT the document.
+      await expect(tab.getByText(`${title} ${version} — a fixture of the acceptance suite`)).toBeVisible();
+      await tab.close();
+    }
+
+    // Following a link inside the label does not tick the box it labels, and nothing typed
+    // was lost on the way out and back.
+    await expect(page.locator('input[name="accept"]')).not.toBeChecked();
+    await expect(page.locator('input[name="email"]')).toHaveValue(email);
+    await expect(page.locator('input[name="password"]')).toHaveValue(GOOD_PASSWORD);
+  });
+
+  test('a document version this deployment has not published is a 404, not a sign-in redirect @identity', async ({
+    page,
+    request,
+  }) => {
+    // `maxRedirects: 0`, as lab-p01.spec.ts does: followed, a redirect to /login would
+    // answer 200 and the test would pass for the wrong reason.
+    for (const path of [
+      '/legal/terms/1999-01-01',
+      '/legal/cookies/2026-01-01',
+      '/legal/terms/..%2F..',
+      '/legal/privacy',
+    ]) {
+      const response = await request.get(path, { maxRedirects: 0 });
+      expect(response.status(), path).toBe(404);
+    }
+
+    // The status alone was already 404 before any page existed under /legal/, so it proves
+    // little. What the reader meets is this section's own 404, which says what a right
+    // address looks like, rather than the root one, which is about frames; and the tab says
+    // "Not found" rather than the site's own title over a page with nothing on it.
+    for (const path of ['/legal/terms/1999-01-01', '/legal/privacy']) {
+      await page.goto(path);
+      await expect(
+        page.getByRole('heading', { level: 1, name: 'No document is published at this address.' }),
+        path,
+      ).toBeVisible();
+      await expect(page, path).toHaveTitle('Not found — ab-ovo');
+    }
+  });
+
   test('registering signs the reader in and lands on the destination asked for @identity', async ({
     page,
     context,

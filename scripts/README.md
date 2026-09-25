@@ -149,6 +149,7 @@ not fail — it silently picks the other behaviour.**
 | `Swagger__Enabled` | off outside Development |
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
 | `AB_OVO_AUTH_PUBLIC_URL` | the server-side address is reused |
+| `AB_OVO_LEGAL_URL` | no Terms or Privacy text is published, so `/register` withdraws its form (ADR-0049's amendment) |
 | `AB_OVO_JWT_ISSUER`, `AB_OVO_JWT_AUDIENCE` | `AbOvo` |
 | `AB_OVO_TRUST_PROXY_CLIENT_IP` | `false` — the BFF forwards no address, and authservice buckets its sign-in limit per web machine |
 | `AB_OVO_CLIENT_IP_HEADER` | `Fly-Client-IP` — **must equal `Network__ClientIpHeader` on authservice** |

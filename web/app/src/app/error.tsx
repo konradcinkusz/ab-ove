@@ -18,6 +18,11 @@ import { RenderFailure } from '@/components/render-failure';
  * does can fix it", the line `bundleFor`'s doc comment drew first; what a reader CAN do is
  * wait, and the page says that nothing is lost by waiting (issue #139).
  *
+ * The same page catches `/legal/<document>/<version>`'s throw when the host that publishes
+ * the Terms and the Privacy Policy does not answer (`lib/server/legal.ts`, ADR-0049's
+ * amendment): a document host is part of the deployment, and that failure gets the
+ * fault-on-this-side sentence, because the page names no cause it cannot know.
+ *
  * The page this replaced blamed "the deployment or the book's compiled bundle" for every
  * failure and promised a place "kept in this browser" — both from before ADR-0060, when
  * content was compiled in and the place lived in the browser alone.

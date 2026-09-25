@@ -33,7 +33,8 @@ something is in the reader loop at all.
 | `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, the consent invitation, and the way into the next one | nothing |
 | `/lab/<id>` | the book's exercises under Pyodide — reached from P01's summary only, and on its way out ([ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md)) | nothing |
 | `/login` | a form that posts credentials to this app's own BFF | an identity service |
-| `/register` | the same form one step earlier: an address, a password, and the consent the identity service records | an identity service |
+| `/register` | the same form one step earlier: an address, a password, and the consent the identity service records | an identity service, and the two documents the consent names |
+| `/legal/<document>/<version>` | the Terms of Use or the Privacy Policy at one version, as this deployment publishes it: what the consent links to | a document host (`AB_OVO_LEGAL_URL`) |
 | `/account` | the reader's own progress, export and deletion | an account |
 | `/instrument` | the author's view: frames ranked by how badly the book is doing | an account |
 | `/healthz` | the app's own liveness | nothing |
@@ -273,6 +274,20 @@ Privacy versions that instance is configured with, so the page asks the instance
 the route asks again and forwards only versions that MATCH the ones the form carried. What
 the reader was shown is what gets recorded, or nothing is
 ([ADR-0049](../adr/0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)).
+
+**Both documents are linked, at the version being accepted** (#141). authservice publishes
+the versions and no text for them
+([the probe](../architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md), §8), so this deployment
+publishes each as plain text at `AB_OVO_LEGAL_URL`. `/legal/terms/<version>` and
+`/legal/privacy/<version>` show it on this origin. A version that is not published, and either
+address with no version, is a 404 titled as one, whose page names the shape of a right
+address rather than the root 404's frames. Each name in the consent sentence links
+there with the same version the hidden field carries, and opens in a new tab, so the form
+keeps what the reader typed. **Where either text cannot be shown, the form is withdrawn**:
+a checkbox for a document nobody can read is not a consent. The page says the fault is
+ours, as it does when the versions cannot be fetched. Nothing in this repository sets
+`AB_OVO_LEGAL_URL` except the acceptance suite, which serves fixture texts, so the withdrawn
+form is what `/register` shows from the AppHost today (ADR-0049's amendment).
 
 The outcomes are a closed set in this app's words, looked up from a code on the query string
 exactly as `/login`'s are. Three of them are separated because each is fixed somewhere

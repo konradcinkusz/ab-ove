@@ -55,7 +55,7 @@ was first written with.
 | File | The journey |
 |---|---|
 | `about.spec.ts` | the argument renders, and states the anti-goal: the instrument measures the book, never the reader |
-| `accessibility.spec.ts` | every screen holds WCAG 2.2 A and AA as far as axe-core can decide — both schemes, each panel open, 360 px, and the forms behind an account |
+| `accessibility.spec.ts` | every screen holds WCAG 2.2 A and AA as far as axe-core can decide — both schemes, each panel open, 360 px, the forms behind an account, and a legal document |
 | `account-deletion.spec.ts` | closing an account, and everything about it that needs no account |
 | `app-icon.spec.ts` | the tab shows the mark, served by this origin to a reader with no account, and `theme-color` is the paper in each scheme |
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
@@ -80,7 +80,7 @@ was first written with.
 | `progress.spec.ts` | coming back to where one was, with no account |
 | `reader-identity.spec.ts` | an anonymous reader's place is held in a cookie the page cannot read, and no header can claim it (ADR-0061) |
 | `reading.spec.ts` | reading a program end to end from the keyboard, the frame's ergonomics, and the frame on paper |
-| `registration.spec.ts` | a reader with no account gets one |
+| `registration.spec.ts` | a reader with no account gets one, and can read the two documents it accepts first |
 | `reveal-failure.spec.ts` | a reveal the API does not take says so beside `Next` and keeps the frame — with the mouse, `→`, `Ctrl+Enter` and no JavaScript (#138) |
 | `runtime-config.spec.ts` | `/api/config` resolved at request time, and the `/healthz` check the platform polls |
 | `runtime-cost.spec.ts` | what the Python runtime costs in this browser, cold and warm |
@@ -801,8 +801,9 @@ tests/e2e/
   package.json                      scripts; every one is run by a CI context
   playwright.config.ts              base URL, layers, harness defaults, webServer
   tsconfig.json                     strict; `pnpm run typecheck` is a real gate
-  fixtures/                         the identity service stub, its accounts, the content ingest,
-                                    and the API pass-through that can cut one reader off
+  fixtures/                         the identity service stub (and the legal-document host it also
+                                    plays), its accounts, the content ingest, and the API
+                                    pass-through that can cut one reader off
   specs/
     *.spec.ts                       one journey each — the table under *What this suite covers*
     support/
