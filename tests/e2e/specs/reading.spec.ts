@@ -133,7 +133,7 @@ test.describe('reading ergonomics', () => {
     await page.waitForURL(`**${at('en', steps.length)}`);
   });
 
-  test('and back again, one frame at a time @core', async ({ page }) => {
+  test('and back again, one frame at a time, and from frame 1 to the contents @core', async ({ page }) => {
     await openReady(page, 'en', steps.length);
     for (let n = steps.length - 1; n >= 1; n -= 1) {
       await page.keyboard.press('ArrowLeft');
@@ -141,12 +141,12 @@ test.describe('reading ergonomics', () => {
     }
     await expect(page.locator('body')).toContainText(uniqueProbeIn(unit, 1, 'en'));
 
-    // Frame 1 has nowhere to go back to, and the key does nothing rather than wrapping to
-    // the end of the program — which is the shape of "nothing happened" a reader can trust.
-    const wasAt = page.url();
+    // Frame 1 has no frame before it, and `←` goes where the button in `Previous`'s place
+    // goes: the program's contents (#159). It used to do nothing — never wrapping to the end
+    // of the program, which stays true — while that button led somewhere, so the key and the
+    // button a reader is told are one move were two.
     await page.keyboard.press('ArrowLeft');
-    await page.waitForTimeout(400);
-    expect(page.url()).toBe(wasAt);
+    await page.waitForURL(`**/read/${track}/${unitId}/en`);
   });
 
   test('the shortcut yields to the browser’s own arrow shortcuts @core', async ({ page }) => {

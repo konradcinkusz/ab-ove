@@ -5,6 +5,7 @@ import controls from './controls.module.css';
 import { Close } from './icons.tsx';
 import { KeyMap } from './keys-details.tsx';
 import { READING_SETTINGS_ID } from './popover.ts';
+import { SettingsKey } from './settings-key.tsx';
 import styles from './sheet.module.css';
 
 /**
@@ -21,6 +22,11 @@ import styles from './sheet.module.css';
  * closes on Esc, on a click anywhere else and on its own ✕, and focus goes back to the button
  * that opened it — all of it the browser's, with no JavaScript of this application's.
  *
+ * `?` opens it from the keyboard as well, on every screen that has it (`settings-key.tsx`,
+ * #159), and puts focus on the panel itself — which is why it takes `tabIndex={-1}`, and why it
+ * carries the `dialog` role the program map carries, so a screen reader arriving in it hears
+ * its name. A role and not a modal: everything above about closing it still holds.
+ *
  * `data-testid` as E2E-ACCEPTANCE-TESTING.md's deliberate fallback, on the reasoning
  * ADR-0058 gave for the disclosure it replaces: the panel's only text is translated, and
  * locating it by its words would put a second copy of a translated string in the suite.
@@ -34,7 +40,10 @@ export function ReadingSettings({ chrome }: { readonly chrome: Chrome }): React.
       id={READING_SETTINGS_ID}
       lang={chrome.language}
       popover="auto"
+      role="dialog"
+      tabIndex={-1}
     >
+      <SettingsKey />
       <div className={styles.head}>
         <h2 className={styles.title} id={`${READING_SETTINGS_ID}-title`}>
           {chrome.readingSettings}

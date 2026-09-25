@@ -7,6 +7,7 @@ import { track, unitNamed } from './support/bundle.ts';
 import { openPane } from './support/pane.ts';
 import { signIn } from './support/sign-in.ts';
 import { walkTo } from './support/walk.ts';
+import { formulas, openWideFrame } from './support/wide.ts';
 
 /**
  * JOURNEY — every screen a reader meets holds WCAG 2.2 at levels A and AA, as far as a machine
@@ -160,6 +161,23 @@ test.describe('accessibility at 360 px', () => {
       expect(await violations(page), `${screen.what}, 360 px`).toEqual([]);
     });
   }
+
+  test('a frame with a formula wider than the screen has no WCAG A or AA violation on a phone @core', async ({
+    page,
+  }) => {
+    /*
+      A FORMULA WIDER THAN THE COLUMN SCROLLS INSIDE IT, and WCAG 2.1.1 asks that a keyboard
+      can scroll it too — axe's `scrollable-region-focusable`. None of the frames above has one
+      at this width, so none of them could see the rule fail: this frame is FOUND, the first
+      whose formula is wider than the screen (`support/wide.ts`), and the scan waits until the
+      page has made that formula a Tab stop (`wide-content.tsx`, #159). Before it did, this scan
+      reported the formula.
+    */
+    await openWideFrame(page, UNIT, 'en');
+    await settle(page);
+    await expect(formulas(page).and(page.locator('[tabindex="0"]')).first()).toBeVisible();
+    expect(await violations(page), 'a frame with a wide formula, 360 px').toEqual([]);
+  });
 });
 
 /*

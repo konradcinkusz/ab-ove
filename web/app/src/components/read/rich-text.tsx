@@ -156,9 +156,12 @@ function renderBlockToken(
     case 'paragraph':
       return <p key={key}>{renderInline(asMarkedTokens(token.tokens), spans, language, key)}</p>;
 
+    // `data-wide`, here and on a table's scroller, marks a block that can be wider than the
+    // measure, so `wide-content.tsx` can make one that scrolls a named Tab stop (#159). Display
+    // maths needs no mark: KaTeX's own `.katex-display` is found by its class.
     case 'code':
       return (
-        <pre key={key} className={styles.code}>
+        <pre key={key} className={styles.code} data-wide="code">
           <code data-lang={token.lang || undefined}>{renderLiteral(token.text, spans)}</code>
         </pre>
       );
@@ -259,7 +262,7 @@ function renderTable(
   key: string,
 ): React.ReactNode {
   return (
-    <div key={key} className={styles.tableScroll}>
+    <div key={key} className={styles.tableScroll} data-wide="table">
       <table className={styles.table}>
         <thead>
           <tr>

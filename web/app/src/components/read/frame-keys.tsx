@@ -4,10 +4,14 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 import { PROGRAM_MAP_ID, isPopoverOpen, showPopover } from './popover.ts';
+import { atRest, typingIn } from './reading-focus.ts';
 import { pressNext } from './reveal-form.tsx';
 
 export interface FrameKeysProps {
-  /** `/read/<track>/<unit>/<lang>` — the path a frame number is appended to. */
+  /**
+   * `/read/<track>/<unit>/<lang>` — the path a frame number is appended to, and the program's
+   * contents, where `←` on frame 1 goes.
+   */
   readonly base: string;
   /** How many steps this unit has, so the ends of the program are ends. */
   readonly last: number;
@@ -55,13 +59,21 @@ export interface FrameKeysProps {
  *
  * WHY THE ARROWS AND NOT THE SPACE BAR. Space is the reader's scroll on a frame that does
  * not fit the screen, and taking it would trade one ergonomic for another. Enter belongs to
- * whatever has focus. Left and Right scroll nothing here — the measure is capped and no
- * page scrolls horizontally — and they are what every reader and slide deck already uses.
+ * whatever has focus. Left and Right scroll nothing on the page — the measure is capped and no
+ * page scrolls horizontally — and they are what every reader and slide deck already uses. A
+ * formula wider than the measure scrolls inside itself, and has them while it has focus.
  *
  * It listens on `document` rather than on an element, because the point is to work WITHOUT
- * tabbing to anything: focus lands on `<body>` after a soft navigation (measured), so a
- * handler on any focusable element would need three tabs first, which is the state this
- * component exists to replace.
+ * tabbing to anything: focus used to land on `<body>` after a soft navigation (measured), and
+ * lands on the new frame's heading since #159 (`frame-focus.tsx`), so a handler on any control
+ * would need three tabs first, which is the state this component exists to replace.
+ *
+ * THE ARROWS AND `Enter` ARE THE PAGE'S ONLY WHILE THE READER IS READING — focus on nothing,
+ * or on that heading (`atRest`, in `reading-focus.ts`, #159). A key pressed at a button, a
+ * link, a pane's summary or a formula wide enough to scroll is that element's: `→` used to
+ * reveal the frame from any of them, and forward is a write. So the keys are named on the
+ * pager's buttons in `aria-keyshortcuts` as well as in their tooltips, and are still not
+ * printed on the frame (ADR-0063).
  *
  * `g` OPENS THE PROGRAM MAP AND PUTS THE CARET IN ITS FRAME NUMBER, rather than navigating
  * anything itself (ADR-0063 moved the jump into the map, behind the pager's position). It is
@@ -78,14 +90,20 @@ export interface FrameKeysProps {
  * `Enter` WITH NOTHING FOCUSED PUTS THE CARET IN THE ANSWER LINE, by the same mechanism and
  * for a reason ADR-0041 already wrote down and this file did not have: without it a reader
  * who had just pressed `→` reached the line through four Tab stops on every frame that
- * asks. "Nothing focused" is the whole condition — a tabbed-to link or button keeps its own
- * Enter, and a field is refused above with every other key — so the reveal a reader has
- * tabbed to still follows Enter, as it always did.
+ * asks. "Nothing focused" is the whole condition — the frame's heading counts as nothing, a
+ * tabbed-to link or button keeps its own Enter, and a field is refused above with every
+ * other key — so the reveal a reader has tabbed to still follows Enter, as it always did.
+ *
+ * `←` ON FRAME 1 OPENS THE CONTENTS, which is where the pager's back button leads there
+ * (#159). It used to do nothing — "the start of the program is a start" — while the button
+ * beside it went somewhere, so the key and the button a reader was told were one move were
+ * two.
  *
  * `Esc` IS NOT HANDLED HERE. Each field returns the reader to reading by blurring itself
  * (`answer-line.tsx`, `working.tsx`), because only the field knows whether leaving means
  * keeping what was typed; the jumper cancels and closes its panel (`frame-jumper.tsx`), and
- * a panel closes itself.
+ * a panel closes itself. Nor is `?`, which opens *Reading settings* on every reading screen
+ * and so is bound beside that panel (`settings-key.tsx`).
  */
 export function FrameKeys({ base, last, after }: FrameKeysProps): null {
   const router = useRouter();
@@ -115,11 +133,9 @@ export function FrameKeys({ base, last, after }: FrameKeysProps): null {
       if (isPopoverOpen()) return;
 
       // Anywhere a reader might be typing — the answer line, the pad, the frame number — and
-      // anywhere a field is added later: a global key handler that waits for a field to exist
-      // before considering it is a handler that eats an arrow key in somebody's answer.
-      const target = event.target as HTMLElement | null;
-      if (target?.isContentEditable) return;
-      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      // anywhere a field is added later (`reading-focus.ts`).
+      const target = event.target;
+      if (typingIn(target)) return;
 
       if (event.key === 'g') {
         const jumper = document.getElementById('frame-jumper');
@@ -131,11 +147,11 @@ export function FrameKeys({ base, last, after }: FrameKeysProps): null {
         return;
       }
 
+      // From here on, only while the reader is reading: a key pressed at a control is the
+      // control's — its own Enter, a wide formula's arrows (this file's header, #159).
+      if (!atRest(target)) return;
+
       if (event.key === 'Enter') {
-        // Only with NOTHING focused: `document.body` is where focus lands after a soft
-        // navigation (measured, in this file's header). A link or a button that has focus
-        // owns its own Enter and is not touched.
-        if (target && target !== document.body) return;
         const line = document.getElementById('answer-line');
         if (!line) return; // A teaching frame asks nothing and has no line to open.
         event.preventDefault();
@@ -151,7 +167,13 @@ export function FrameKeys({ base, last, after }: FrameKeysProps): null {
       if (!Number.isInteger(here)) return;
 
       const to = here + step;
-      if (to < 1) return; // The start of the program is a start.
+      if (to < 1) {
+        // Before frame 1 is the program's contents, as the pager's back button there says
+        // (`frame-view.tsx`) — one move, whether pressed or clicked (#159).
+        event.preventDefault();
+        router.push(base);
+        return;
+      }
 
       if (to > last) {
         // The end of the program used to be a wall; now `→` opens the one thing past it.

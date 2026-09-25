@@ -89,6 +89,23 @@
   overflow-x: auto;
 }
 
+/*
+ * A BLOCK THAT SCROLLS TAKES FOCUS, SO IT SHOWS FOCUS (#159). `wide-content.tsx` makes a
+ * formula, a table or a code block wider than the measure a Tab stop, and its arrows then
+ * scroll it; it wears the ring every control on the reading screens wears
+ * (`controls.module.css`): a box-shadow in the paper and the accent, and a transparent outline
+ * that Windows' forced colours paint instead. Keyed on the attribute and KaTeX's class rather
+ * than on `.code`, because a block that scrolls is not a control, and a code block's edge is a
+ * separator in `--rule` (`tokens.test.ts` reads a class with a focus rule as a control's).
+ */
+.prose [data-wide]:focus-visible,
+.prose :global(.katex-display):focus-visible {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--accent);
+  outline: 2px solid transparent;
+}
+
 .table {
   border-collapse: collapse;
   font-size: 0.95em;

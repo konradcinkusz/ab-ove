@@ -57,10 +57,11 @@ id and title, which lead to its contents; the language control; and *Reading set
 pager at the bottom edge carries **Previous**, where you are — `3 of 45` — and **Next**, in the
 same place on every frame and on screen while the frame scrolls under it
 ([ADR-0063](adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)). The keys work too
-(`→`, `←`, `g`), and nothing on the frame advertises them. **The position shows where you are
-and never progress** ([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md))
-— a percentage over a book of 47 programs would be a number about the reader, and this product
-does not make those.
+(`→`, `←`, `g`, and `?` for the list of them), and nothing on the frame advertises them. **The
+position shows where you are and never progress**
+([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md)) — a percentage
+over a book of 47 programs would be a number about the reader, and this product does not make
+those.
 
 ### The program map
 
