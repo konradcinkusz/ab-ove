@@ -59,6 +59,24 @@ test('a 429 ends the walk, because the configured address answered', async () =>
     /127\.0\.0\.1:8180.*429/,
     'the reason must name the address that refused and why, not the last rung to fail',
   );
+  // #138 — the one `unavailable` a reader is told to wait out rather than to retry.
+  assert.equal(outcome.kind === 'unavailable' && outcome.rateLimited, true);
+});
+
+test('a ladder that ends in silence is not a rate limit', async () => {
+  // The control for the flag above: without it, an outcome that always said "rate limited"
+  // would pass, and a reader would be told to wait for an API that is not there.
+  const { tried, fetch } = spy([
+    () => new Response('', { status: 502 }),
+    () => new Response('', { status: 503 }),
+    () => new Response('', { status: 400 }),
+  ]);
+
+  const outcome = await fetchTrackContent('math-for-ai-engineers', {}, fetch);
+
+  assert.ok(tried.length > 1, 'an ambiguous failure did not walk the ladder');
+  assert.equal(outcome.kind, 'unavailable');
+  assert.equal(outcome.kind === 'unavailable' ? outcome.rateLimited : 'not unavailable', undefined);
 });
 
 test('a 429 carries Retry-After when the limiter sent one', async () => {

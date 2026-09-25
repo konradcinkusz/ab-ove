@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { revealStep } from '@/lib/actions/reveal';
 import { upsertHere, useSheet } from '@/lib/sheet/client';
 import { ANSWER_LIMIT } from '@/lib/sheet/store';
 
+import { pressNext } from './reveal-form.tsx';
 import styles from './worksheet.module.css';
 
 export interface AnswerLineProps {
@@ -14,18 +14,11 @@ export interface AnswerLineProps {
   readonly n: number;
   /** The bundle tag, stored IN the record — see lib/sheet/store.ts on why not in the key. */
   readonly tag: string;
-  /** Where the reveal goes, so `Ctrl+Enter` can commit and turn over in one stroke. */
-  readonly forward: string;
   readonly placeholder: string;
   readonly lockedNote: string;
   readonly earlierEdition: string;
   /** The chrome's own language, for the note under a locked line. */
   readonly language: string;
-  /** ADR-0060 — `chrome.language` here is content chrome; this is the READING language,
-   * what `revealStep` files the advance's edition under (`ProgressUpdate.Language`'s own
-   * shape). Deliberately not derived from `language` above: this line's own note is shown in
-   * the CHROME's language, which a track may not publish a reading edition for. */
-  readonly readingLanguage: string;
 }
 
 /**
@@ -83,12 +76,10 @@ export function AnswerLine({
   unit,
   n,
   tag,
-  forward,
   placeholder,
   lockedNote,
   earlierEdition,
   language,
-  readingLanguage,
 }: AnswerLineProps): React.JSX.Element {
   const field = useRef<HTMLTextAreaElement | null>(null);
 
@@ -186,8 +177,11 @@ export function AnswerLine({
           // cannot lose the last keystroke to a route change.
           commit(value);
           // ADR-0060 — the reveal raises this reader's cursor server-side; a bare navigation
-          // is no longer what turns the frame over (reveal.ts has the full reasoning).
-          void revealStep(track, unit, readingLanguage, n, forward);
+          // is no longer what turns the frame over (reveal.ts has the full reasoning). It
+          // presses the pager's own `Next` rather than calling the action (#138), so this
+          // stroke gets the button's busy state, its sentence when the reveal does not happen,
+          // and its guard against a second reveal (reveal-form.tsx).
+          pressNext();
         }}
         placeholder={locked ? '' : placeholder}
         readOnly={locked}

@@ -24,7 +24,7 @@ import { ReadingScreen } from './reading-screen.tsx';
 import { ReadingSettings } from './reading-settings.tsx';
 import { ReadingTop } from './reading-top.tsx';
 import { RememberPosition } from './remember-position.tsx';
-import { RevealButtonLabel } from './reveal-button-label.tsx';
+import { RevealForm } from './reveal-form.tsx';
 import { RevealLabel } from './reveal-label.tsx';
 import { RichInline, RichText } from './rich-text.tsx';
 import { Sketch } from './sketch.tsx';
@@ -112,7 +112,8 @@ export function FrameView({
   const unitTitle = say(unitTitles, language);
 
   /*
-    THE ONLY WAY THIS READER'S CURSOR MOVES — bound once, used by the pager's `Next`.
+    THE ONLY WAY THIS READER'S CURSOR MOVES — bound once, used by the pager's `Next`, which
+    `→` and `Ctrl+Enter` press rather than call this themselves (reveal-form.tsx, #138).
     `answeringStep` is `step.n`, the step this reveal answers — never the target — which is
     what makes the call idempotent for a reader who goes back and presses Next again
     (`reveal.ts`'s own reasoning, the `submit_answer` precedent).
@@ -141,14 +142,7 @@ export function FrameView({
             security property rather than a style: see frame-keys.tsx. Outside the frame's
             own keyed element, so it binds once per program rather than once per frame.
           */}
-          <FrameKeys
-            after={summaryAt}
-            base={base}
-            language={language}
-            last={stepCount}
-            track={track}
-            unit={unitId}
-          />
+          <FrameKeys after={summaryAt} base={base} last={stepCount} />
           {/*
             The gate, and the recorder that must not outlive it. A reader who has not reached
             this program is returned to the index (ADR-0051); the recorder asks the same
@@ -206,18 +200,19 @@ export function FrameView({
           chrome={chrome}
           forward={
             forwardUrl && revealAction ? (
-              <form action={revealAction} className={foot.revealForm}>
-                <button
-                  className={foot.reveal}
-                  data-testid="frame-reveal"
-                  lang={chrome.language}
-                  title={`${chrome.next} (→)`}
-                  type="submit"
-                >
-                  <RevealButtonLabel label={chrome.next} />
-                  <ArrowRight className={foot.arrow} />
-                </button>
-              </form>
+              /*
+                The reveal's form, and where a reveal that did not happen says so (#138) — a
+                Client Component so `useActionState` can render what the action returns; the
+                action itself is still this Server Component's bound reference, so the form
+                posts with no script at all (reveal-form.tsx).
+              */
+              <RevealForm
+                action={revealAction}
+                busy={chrome.revealBusy}
+                label={chrome.next}
+                language={chrome.language}
+                unreachable={chrome.revealUnreachable}
+              />
             ) : (
               <Link
                 className={foot.reveal}
@@ -361,12 +356,10 @@ export function FrameView({
             </div>
             <AnswerLine
               earlierEdition={chrome.earlierEdition}
-              forward={forwardUrl}
               language={chrome.language}
               lockedNote={chrome.writtenBefore}
               n={step.n}
               placeholder={chrome.writeItDown}
-              readingLanguage={language}
               tag={tag}
               track={track}
               unit={unitId}

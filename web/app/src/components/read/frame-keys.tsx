@@ -3,9 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-import { revealStep } from '@/lib/actions/reveal';
-
 import { PROGRAM_MAP_ID, isPopoverOpen, showPopover } from './popover.ts';
+import { pressNext } from './reveal-form.tsx';
 
 export interface FrameKeysProps {
   /** `/read/<track>/<unit>/<lang>` — the path a frame number is appended to. */
@@ -19,15 +18,6 @@ export interface FrameKeysProps {
    * actually finished the program.
    */
   readonly after?: string;
-  /**
-   * ADR-0060 — added alongside `revealStep`, and it does not weaken the property the header
-   * below explains: a track id, a unit id and a language tag are already sitting in the
-   * address bar this handler reads `here` out of, so handing them in as props leaks nothing
-   * that was not already public. What that property still forbids is a STEP or its content.
-   */
-  readonly track: string;
-  readonly unit: string;
-  readonly language: string;
 }
 
 /**
@@ -97,7 +87,7 @@ export interface FrameKeysProps {
  * keeping what was typed; the jumper cancels and closes its panel (`frame-jumper.tsx`), and
  * a panel closes itself.
  */
-export function FrameKeys({ base, last, after, track, unit, language }: FrameKeysProps): null {
+export function FrameKeys({ base, last, after }: FrameKeysProps): null {
   const router = useRouter();
 
   useEffect(() => {
@@ -187,12 +177,17 @@ export function FrameKeys({ base, last, after, track, unit, language }: FrameKey
 
       /*
         FORWARD IS A REVEAL, AND A REVEAL IS A WRITE (ADR-0060) — see reveal.ts's header for
-        why a bare navigation can no longer be what raises the cursor. `here`, not `to`, is
-        the step being ANSWERED; `${base}/${to}` is where the same idempotency
-        `revealStep` relies on always leaves servable once this call returns, whether it
-        genuinely advanced the cursor or found this reader already past it.
+        why a bare navigation can no longer be what raises the cursor.
+
+        IT PRESSES THE PAGER'S `Next` RATHER THAN CALLING THE ACTION (#138). It used to call
+        `revealStep` itself, outside any transition: the key showed no busy state, a second
+        press sent a second reveal, and a reveal that failed said nothing. Submitting the
+        pager's own form gives the key the button's pending state, its sentence when the
+        reveal does not happen and its one-at-a-time guard, from the one place each is
+        written (`reveal-form.tsx`). What is revealed is the form's own bound step — the frame
+        on screen — so there is nothing here to go stale either.
       */
-      void revealStep(track, unit, language, here, `${base}/${to}`);
+      pressNext();
     };
 
     document.addEventListener('keydown', onKeyDown);
@@ -200,7 +195,7 @@ export function FrameKeys({ base, last, after, track, unit, language }: FrameKey
       document.removeEventListener('keydown', onKeyDown);
       delete document.documentElement.dataset.frameKeys;
     };
-  }, [base, last, after, router, track, unit, language]);
+  }, [base, last, after, router]);
 
   return null;
 }
