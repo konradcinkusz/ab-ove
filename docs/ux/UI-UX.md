@@ -630,11 +630,24 @@ sans, code in mono, all three from the reader's own system — there is no webfo
 - **Focus is a ring, never a brightness.** Every control on the reading screens wears a
   two-colour ring on `:focus-visible` (paper, then the accent), because a ten-percent
   brightness on a blue block is invisible to the keyboard reader it was for (WCAG 2.4.7).
+  Since #148 that includes the answer line and the pad, which showed focus only by their
+  dashed rule turning blue, the pad's *Do the sums*, and the consent's two answers, which
+  brightened. The ring's other half is a transparent outline: Windows' forced colours paint no
+  box-shadow, and they do paint an outline, in the system's colour — so a focus rule that sets
+  `outline: none` leaves a reader in high contrast with no focus at all.
+  `lib/theme/tokens.test.ts` fails any stylesheet's focus rule that takes the outline away or
+  uses a filter, and `specs/focus-ring.spec.ts` checks the ring in light, dark and forced
+  colours.
 - **Two colour floors are held by a test, not a sentence** (`lib/theme/tokens.test.ts`, in
   both schemes): `--ink-faint` at 4.5:1 or more on the paper, a raised panel and the answer
   box (WCAG 1.4.3), and `--control-edge` at 3:1 or more for the edge of anything pressable
   (WCAG 1.4.11). The faint grey used to sit just under both, and outlined buttons wore
-  `--rule`, a hairline the eye reads as decoration.
+  `--rule`, a hairline the eye reads as decoration. A floor says nothing about a control that
+  never uses the token, so the same file also reads every stylesheet in the app and fails when
+  a control draws its edge in `--rule` — a control being anything its own stylesheet gives a
+  `:focus-visible` rule or a pointer cursor. The sign-in and account fields, the consent's
+  *No thanks* and the sketch's canvas were still `--rule` until #146, and axe, which has no
+  rule for 1.4.11, had passed all of them.
 - **A line a reader writes on is `--ink-faint`; a rule that is only a rule is `--rule`.**
   The answer line and the pad's field carry a dashed rule that clears 3:1 against the
   paper (WCAG 1.4.11), and a frame that teaches draws no dashed line at all, so a dashed
@@ -643,8 +656,15 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   other button and the map's rows take 44 px (`--control-min`) directly, and the top bar's
   links are 44 px by their line and padding. The language control, a pair of words on a line,
   is padded to about 44 px and given the space back with a matching negative margin, so its
-  hit area grew and nothing moved.
-  `specs/reading.spec.ts` and `specs/pager.spec.ts` measure the box.
+  hit area grew and nothing moved. Off the reading screens the same pattern holds the index's
+  and the courses page's top-row links, the quiet buttons beside them (*Forget where I am*,
+  *Export my worksheets*, the account's), the consent line's toggle and the sync notice's
+  *Got it* (#147). The index's filled *Continue* is the one exception to the pattern, because a
+  fill is painted over its padding: the link is the padded target and a span inside it is the
+  button a reader sees, at the size it always had.
+  `specs/reading.spec.ts` and `specs/pager.spec.ts` measure the box on the reading screens, and
+  `specs/targets.spec.ts` off them, at 390 px and 1280 px — where it also checks that a press
+  on a control's words lands on that control, since grown boxes overlap wherever a row wraps.
 - **The reveal says when it is under way.** It is the one move that is never prefetched, so
   it always costs a round trip; while the next frame is on its way the button dims, its arrow
   nudges and its cursor says so (`reveal-button-label.tsx`, the form's `useFormStatus`; the

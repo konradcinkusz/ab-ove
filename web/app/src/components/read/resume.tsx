@@ -71,13 +71,20 @@ export function ResumeLast({ limits, language }: ResumeLastProps): React.JSX.Ele
 
   const step = Math.min(last.step, bound);
 
+  /*
+    The link is the target and the span is the button a reader sees: a finger's 44px would
+    make the fill a third taller if the fill were the target (issue #147, resume.module.css).
+    The link's text is still the span's, so its accessible name is unchanged.
+  */
   return (
     <Link
       className={styles.resumeFilled}
       href={`/read/${last.track}/${last.unit}/${last.language}/${step}`}
       lang={chrome.language}
     >
-      {last.unit} · {chrome.continueAtFrame(step)}
+      <span className={styles.resumeFill}>
+        {last.unit} · {chrome.continueAtFrame(step)}
+      </span>
     </Link>
   );
 }

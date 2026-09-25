@@ -61,6 +61,7 @@ was first written with.
 | `consent.spec.ts` | being asked once whether outcomes may be counted, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
 | `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload |
+| `focus-ring.spec.ts` | the controls that showed focus by a colour or a brightness wear the shared ring, in light, dark and forced colours |
 | `frame-view.spec.ts` | the answer is absent before the reveal, asserted in both directions and both editions |
 | `gate.spec.ts` | the book is entered at the beginning: a program opens when the one before it has |
 | `hydration.spec.ts` | every page hydrates — the one defect that leaves no trace on screen |
@@ -87,6 +88,7 @@ was first written with.
 | `sign-in-identity.spec.ts` | the signed-in path, against an identity service this suite starts itself |
 | `sign-in.spec.ts` | the sign-in screen, and everything about it that needs no account |
 | `sync.spec.ts` | the same reader on a second machine |
+| `targets.spec.ts` | the small controls off the reading screens are a finger's target, at a phone's width and a desktop's, and a press on a control's words lands on it |
 | `theme.spec.ts` | a reader turns on light mode, and it stays on |
 | `unknown-address.spec.ts` | a mistyped address still meets the sign-in redirect, and the page it lands on says there is no page there |
 | `worksheet.spec.ts` | committing an answer before turning over, which is the method the book is |
