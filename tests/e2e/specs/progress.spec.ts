@@ -275,9 +275,21 @@ test.describe('local progress', () => {
     await expect(armed).toBeVisible();
     await expect(resumeOn(page, 'en', STOPPED_AT!), 'one press forgot the reader').toHaveCount(1);
     expect(await page.evaluate((key) => window.localStorage.getItem(key), KEY)).not.toBeNull();
+    // And it is SAID, not only shown: a renamed button is silent in most screen readers, so
+    // the armed state is also written into a polite live region beside it (#151).
+    await expect(
+      page.locator('[aria-live="polite"]').filter({ hasText: 'Forget it — on every device' }),
+      'the armed control was not announced',
+    ).toContainText('Press again');
 
     await armed.click();
     await expect(resumeOn(page, 'en', STOPPED_AT!), 'the control survived being forgotten').toHaveCount(0);
+    // The control went with the record, so focus lands on the page's heading rather than on
+    // `<body>` — `use-two-step.ts`, #151.
+    await expect(
+      page.getByRole('heading', { level: 1 }),
+      'focus was lost with the control that held it',
+    ).toBeFocused();
 
     // And it was the STORE that was cleared, not the screen: a reload is the only assertion
     // that tells one from the other.

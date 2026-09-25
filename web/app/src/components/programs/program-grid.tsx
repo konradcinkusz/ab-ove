@@ -20,6 +20,14 @@ import { ShutNotice } from './shut-notice.tsx';
 import { TileEntry } from './tile-entry.tsx';
 import { TilePosition } from './tile-position.tsx';
 
+/**
+ * The index heading's id — where focus lands after either destructive control in the top row
+ * has acted. Both render nothing once there is nothing left to clear, so the element that
+ * held focus is gone by the press it received; the heading is the page's one element that is
+ * certainly there, and landing on it says where the reader is (`use-two-step.ts`, #151).
+ */
+const HEADING_ID = 'programs-heading';
+
 export interface ProgramGridProps {
   readonly bundles: readonly Bundle[];
   /**
@@ -195,14 +203,16 @@ export function ProgramGrid({
             forgetting it is no longer undone by reading one frame (ADR-0047). *Forget where
             I am* is last of the two — furthest from the filled link a returning reader is
             reaching for, which is ADR-0017's own placement rule. Both render nothing when
-            there is nothing to clear, so the row grows no dead control.
+            there is nothing to clear, so the row grows no dead control — and both therefore
+            send focus to the heading below once they have acted, rather than to nothing.
           */}
           <ClearWorksheets
             confirmLabel={chrome.clearWorksheetsConfirm}
             label={chrome.clearWorksheets}
             language={chrome.language}
+            settleOn={HEADING_ID}
           />
-          <ForgetProgress language={chrome.language} />
+          <ForgetProgress language={chrome.language} settleOn={HEADING_ID} />
           <AccountControl language={chrome.language} returnTo={returnTo} />
         </nav>
       </header>
@@ -225,7 +235,10 @@ export function ProgramGrid({
         names.
       */}
       <div className={styles.headingRow}>
-        <h1 className={styles.heading}>{chrome.programs}</h1>
+        {/* `tabIndex={-1}`: reachable by script and not by Tab — see `HEADING_ID`. */}
+        <h1 className={styles.heading} id={HEADING_ID} tabIndex={-1}>
+          {chrome.programs}
+        </h1>
         {/*
           The editions of the courses ON SCREEN, not of every course pinned: a deployment
           whose second course is English-only must not offer a Polish position on a page

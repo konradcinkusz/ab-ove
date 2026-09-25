@@ -499,7 +499,10 @@
   font-size: 0.75rem;
 }
 
-/* The standard visually-hidden idiom, for the live region that reads the results aloud. */
+/*
+ * The standard visually-hidden idiom, for the live regions that read aloud what the eye
+ * already sees: the Working pad's results, and `two-step-status.tsx`'s armed controls.
+ */
 .visuallyHidden {
   clip-path: inset(50%);
   height: 1px;

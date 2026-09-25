@@ -386,9 +386,11 @@ export function FrameView({
               <Sketch
                 axes={chrome.sketchAxes}
                 clear={chrome.sketchClear}
+                clearConfirm={chrome.sketchClearConfirm}
                 full={chrome.sketchFull}
                 grid={chrome.sketchGrid}
                 label={chrome.sketchLabel}
+                language={chrome.language}
                 n={step.n}
                 none={chrome.sketchNone}
                 saved={chrome.showMySketch}

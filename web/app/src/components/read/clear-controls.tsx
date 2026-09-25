@@ -4,14 +4,19 @@ import { useCallback } from 'react';
 
 import { clearAnswerHere, clearEverything, exportNotebook, useAnySheet, useSheet } from '@/lib/sheet/client';
 
+import { TwoStepStatus } from './two-step-status.tsx';
 import { useTwoStep } from './use-two-step.ts';
 import styles from './worksheet.module.css';
 
 /*
- * TWO PRESSES, FIVE SECONDS APART AT MOST — `use-two-step.ts`, which these controls were
- * written with and which *Forget where I am* now shares. A worksheet is the reader's own
- * working and nothing brings it back, which is the case ADR-0017 named as the limit of
- * one-click forgetting; ADR-0047 records the day forgetting reached that limit too.
+ * TWO PRESSES, ARMED UNTIL THE READER GOES ELSEWHERE — `use-two-step.ts`, which these
+ * controls were written with and which *Forget where I am* and the sketch's `Clear` now
+ * share. A worksheet is the reader's own working and nothing brings it back, which is the
+ * case ADR-0017 named as the limit of one-click forgetting; ADR-0047 records the day
+ * forgetting reached that limit too.
+ *
+ * Each control renders its `TwoStepStatus` beside it, so the first press is said aloud, and
+ * names where focus goes after the second — because each of them is gone by then (#151).
  */
 
 export interface ClearAnswerProps {
@@ -57,14 +62,26 @@ export function ClearAnswer({
   // throw away the scroll position to empty one field.
   const act = useCallback(() => clearAnswerHere({ track, unit, n }), [track, unit, n]);
 
-  const { armed, press } = useTwoStep(act);
+  /*
+    FOCUS GOES TO THE LINE IT EMPTIED, which is both the stable element and the next thing a
+    reader who asked to rewrite their answer does. By the same DOM id `frame-keys.tsx`
+    reaches it with and the label's `htmlFor` names: the field is a sibling island and a
+    `ref` cannot cross to it. It is still `readOnly` for the instant before its store
+    re-reads, and a read-only field takes focus like any other.
+  */
+  const settle = useCallback(() => document.getElementById('answer-line'), []);
+
+  const { armed, control } = useTwoStep(act, settle);
 
   if (!present) return null;
 
   return (
-    <button className={styles.clear} lang={language} onClick={press} type="button">
-      {armed ? confirmLabel : label}
-    </button>
+    <>
+      <button className={styles.clear} lang={language} type="button" {...control}>
+        {armed ? confirmLabel : label}
+      </button>
+      <TwoStepStatus armed={armed} confirm={confirmLabel} language={language} />
+    </>
   );
 }
 
@@ -72,6 +89,12 @@ export interface ClearWorksheetsProps {
   readonly language: string;
   readonly label: string;
   readonly confirmLabel: string;
+  /**
+   * The id of the element focus moves to after the second press. This control renders
+   * nothing once there is nothing to clear, so the page that places it names where a reader
+   * lands instead of `<body>` (`use-two-step.ts`).
+   */
+  readonly settleOn: string;
 }
 
 /** Every worksheet in this browser, from the index's header row beside `Forget where I am`. */
@@ -79,21 +102,26 @@ export function ClearWorksheets({
   language,
   label,
   confirmLabel,
+  settleOn,
 }: ClearWorksheetsProps): React.JSX.Element | null {
   // A BOOLEAN, from the store, rather than a count — `lib/sheet/store.ts` explains why
   // nothing here hands a caller a number about a reader's own worksheets.
   const present = useAnySheet();
 
   const act = useCallback(() => clearEverything(), []);
+  const settle = useCallback(() => document.getElementById(settleOn), [settleOn]);
 
-  const { armed, press } = useTwoStep(act);
+  const { armed, control } = useTwoStep(act, settle);
 
   if (!present) return null;
 
   return (
-    <button className={styles.clear} lang={language} onClick={press} type="button">
-      {armed ? confirmLabel : label}
-    </button>
+    <>
+      <button className={styles.clear} lang={language} type="button" {...control}>
+        {armed ? confirmLabel : label}
+      </button>
+      <TwoStepStatus armed={armed} confirm={confirmLabel} language={language} />
+    </>
   );
 }
 

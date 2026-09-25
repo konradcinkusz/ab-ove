@@ -2,7 +2,9 @@
 
 ## Status
 
-**Accepted.** Date: 2026-09-20.
+**Accepted.** Date: 2026-09-20. Amended on 2026-09-25 (#151): the five-second window in
+the Decision below is gone, and the armed state is announced — see *Amendment 2026-09-25*.
+Forgetting is still two presses.
 
 Amends [ADR-0017](0017-progress-is-local-first-and-holds-nothing-worth-scoring.md)
 §"Forget is one click" and [ADR-0019](0019-furthest-frame-wins.md) §"Forgetting reaches
@@ -64,3 +66,31 @@ implementation would fail: after one press the place is still there, on the page
 store.
 
 Not a deviation from the reference architecture; no register row.
+
+## Amendment 2026-09-25
+
+The UX audit (#151) found the shared two-press control hard to use for exactly the readers a
+confirmation should not cost the most, and the sketch's `Clear` outside it altogether. The
+decision is unchanged — forgetting is two presses, not a modal, and the second label says how
+far it reaches. How the first press behaves changed, in `use-two-step.ts`, for every control
+that shares it:
+
+- **No clock.** *"Arms it for five seconds"* above is history. Five seconds was a time limit
+  (WCAG 2.2.1) that a screen-reader user hearing the new label out, or a switch user scanning
+  back to the control, could run out of. The control now stays armed until the reader
+  goes somewhere else — a press or focus anywhere but the control, `Esc` on it, or the page
+  being hidden — which is what the clock was standing in for.
+- **The armed state is announced.** A button renamed under focus is silent in most screen
+  readers, so each control carries a polite live region beside it that says the second label
+  and how to go on or back.
+- **Focus has somewhere to go.** A control that renders nothing once there is nothing to
+  clear took focus with it; the second press now moves focus to a stable element the caller
+  names — the index's heading for the two controls there.
+- **The sketch's `Clear` joined.** It emptied a drawing in one press that `Undo` could not
+  bring back. It is two presses now, like the rest.
+
+What the clock bought and this does not: a reader who pressed once and left the machine
+untouched comes back to the armed label. It says what the next press will do, in as many
+words, which is the protection this record already rested on. `progress.spec.ts` asserts the
+announcement and where focus lands; `worksheet.spec.ts` asserts the sketch's two presses, that
+a minute on the page's clock leaves the control armed, and each way of standing it down.

@@ -20,6 +20,8 @@ import {
 } from '@/lib/sheet/strokes';
 
 import { Pencil } from './icons.tsx';
+import { TwoStepStatus } from './two-step-status.tsx';
+import { useTwoStep } from './use-two-step.ts';
 import styles from './worksheet.module.css';
 
 export interface SketchProps {
@@ -36,7 +38,11 @@ export interface SketchProps {
   readonly none: string;
   readonly undo: string;
   readonly clear: string;
+  /** `Clear`'s second label — the press that empties the pad (`useTwoStep`). */
+  readonly clearConfirm: string;
   readonly full: string;
+  /** The chrome's language, for the live region that says `Clear` is armed. */
+  readonly language: string;
 }
 
 /**
@@ -116,7 +122,9 @@ export function Sketch({
   none,
   undo,
   clear,
+  clearConfirm,
   full,
+  language,
 }: SketchProps): React.JSX.Element {
   // Memoised, so the two callbacks below can depend on it honestly. Rebuilt every render
   // it is a new object each time, which makes `exhaustive-deps` correct to complain and
@@ -298,6 +306,35 @@ export function Sketch({
     });
   }, [frame, tag, background]);
 
+  /*
+    ────────────────────────────────────────────────────────────────────────────────────
+    `Clear` IS TWO PRESSES, BECAUSE `Undo` CANNOT TAKE IT BACK (#151).
+
+    It empties the strokes AND the stored copy in one act, and `Undo` walks back through
+    `strokes.current`, which that act has just emptied — so one press used to throw away a
+    drawing with no way back, one button along from the control that takes back a stroke.
+    The other way the audit offered, keeping the cleared strokes until the next stroke so
+    `Undo` could restore them, would make `Undo` mean two different things depending on
+    what was pressed last. So it is the shape every other control that destroys a reader's
+    own work already has (`use-two-step.ts`): the first press renames it to say how much
+    goes, the second does it, and a press or focus anywhere else in between stands it
+    down — a stroke on the canvas included.
+
+    Focus goes back to the canvas afterwards, as it always did: the reader who cleared is
+    about to draw again, and the control is still there but is not where they are working.
+    ────────────────────────────────────────────────────────────────────────────────────
+  */
+  const wipe = useCallback(() => {
+    strokes.current = [];
+    drawing.current = undefined;
+    paint();
+    setRefusedWrite(false);
+    upsertHere(frame, tag, { hasSketch: false });
+    void clearStrokes(frame);
+  }, [frame, tag, paint]);
+  const toCanvas = useCallback(() => canvas.current, []);
+  const { armed: clearArmed, control: clearControl } = useTwoStep(wipe, toCanvas);
+
   const at = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
     const box = event.currentTarget.getBoundingClientRect();
     // Scaled from the element's rendered size into the canvas's own logical units, so a
@@ -431,22 +468,10 @@ export function Sketch({
           >
             {undo}
           </button>
-          <button
-            className={styles.sketchButton}
-            onClick={(event) => {
-              strokes.current = [];
-              drawing.current = undefined;
-              paint();
-              setRefusedWrite(false);
-              upsertHere(frame, tag, { hasSketch: false });
-              void clearStrokes(frame);
-              canvas.current?.focus();
-              event.currentTarget.blur();
-            }}
-            type="button"
-          >
-            {clear}
+          <button className={styles.sketchButton} type="button" {...clearControl}>
+            {clearArmed ? clearConfirm : clear}
           </button>
+          <TwoStepStatus armed={clearArmed} confirm={clearConfirm} language={language} />
         </p>
 
         {/*

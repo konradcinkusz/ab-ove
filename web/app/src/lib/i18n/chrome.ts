@@ -183,6 +183,12 @@ interface Strings {
    * account copy (ADR-0047); a bare "are you sure" says nothing a reader can weigh.
    */
   readonly forgetConfirm: string;
+  /**
+   * What a screen reader hears when ANY two-press control is armed — its second label, then
+   * how to go on or back. Said through a live region (`two-step-status.tsx`), because a
+   * button renaming itself under focus is silent in most of them (#151).
+   */
+  readonly pressAgain: (action: string) => string;
   readonly signIn: string;
   readonly signOut: string;
   readonly account: string;
@@ -361,6 +367,11 @@ interface Strings {
   readonly sketchNone: string;
   readonly sketchUndo: string;
   readonly sketchClear: string;
+  /**
+   * The sketch's `Clear`, armed — two presses since #151, because `Undo` takes back one
+   * stroke and cannot take this back. It names the reach, `whole`, which is the difference.
+   */
+  readonly sketchClearConfirm: string;
   readonly sketchFull: string;
   /** Downloads every worksheet in this browser as one file. Not destructive, so no confirm. */
   readonly exportWorksheets: string;
@@ -535,6 +546,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   en: {
     forget: 'Forget where I am',
     forgetConfirm: 'Forget it \u2014 on every device',
+    pressAgain: (action) => `${action}. Press again to confirm, or Esc to cancel.`,
     signIn: 'Sign in',
     signOut: 'Sign out',
     account: 'Account',
@@ -637,6 +649,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     sketchNone: 'Plain',
     sketchUndo: 'Undo',
     sketchClear: 'Clear',
+    sketchClearConfirm: 'Clear the whole sketch',
     sketchFull: 'This sketch is now too large to keep. What is on screen stays until you leave the frame.',
     exportWorksheets: 'Export my worksheets',
     clearWorksheets: 'Clear my worksheets',
@@ -693,6 +706,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   pl: {
     forget: 'Zapomnij, gdzie jestem',
     forgetConfirm: 'Zapomnij \u2014 na ka\u017cdym urz\u0105dzeniu',
+    pressAgain: (action) => `${action}. Naciśnij ponownie, aby potwierdzić, albo Esc, aby anulować.`,
     signIn: 'Zaloguj się',
     signOut: 'Wyloguj się',
     account: 'Konto',
@@ -816,6 +830,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     sketchNone: 'Bez tła',
     sketchUndo: 'Cofnij',
     sketchClear: 'Wyczyść',
+    sketchClearConfirm: 'Wyczyść cały szkic',
     sketchFull: 'Ten szkic jest już za duży, żeby go zapisać. To, co widać, zostaje do wyjścia z ramki.',
     exportWorksheets: 'Pobierz moje notatki',
     clearWorksheets: 'Wyczyść moje notatki',
@@ -937,6 +952,12 @@ export interface Chrome {
    * account copy (ADR-0047); a bare "are you sure" says nothing a reader can weigh.
    */
   readonly forgetConfirm: string;
+  /**
+   * What a screen reader hears when ANY two-press control is armed — its second label, then
+   * how to go on or back. Said through a live region (`two-step-status.tsx`), because a
+   * button renaming itself under focus is silent in most of them (#151).
+   */
+  readonly pressAgain: (action: string) => string;
   readonly signIn: string;
   readonly signOut: string;
   readonly account: string;
@@ -992,6 +1013,7 @@ export interface Chrome {
   readonly sketchNone: string;
   readonly sketchUndo: string;
   readonly sketchClear: string;
+  readonly sketchClearConfirm: string;
   readonly sketchFull: string;
   readonly exportWorksheets: string;
   readonly clearWorksheets: string;

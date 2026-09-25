@@ -87,10 +87,15 @@ Its parts, in order:
    a reader who has been here before it is the page's primary action, and it used to be
    the faintest thing on it. It is padded outwards and the padding given back as margin,
    so the row it arrives in does not grow. *Clear my worksheets* and *Forget where I am*
-   are both two presses — the control renames itself to say what the second press does,
-   and reverts in five seconds — and *Forget* is the last of them, furthest from the link
-   a returning reader is reaching for
-   ([ADR-0047](../adr/0047-forgetting-is-two-presses-because-it-reaches-the-account.md)).
+   are both two presses — the control renames itself to say what the second press does —
+   and *Forget* is the last of them, furthest from the link a returning reader is reaching
+   for ([ADR-0047](../adr/0047-forgetting-is-two-presses-because-it-reaches-the-account.md)).
+   An armed control stands down when the reader presses or moves focus anywhere else, or
+   presses Esc, and not on a clock: the five seconds it used to allow were a time limit a
+   screen-reader or switch user could run out of. The first press is also said aloud,
+   through a polite live region beside the control, because a button renamed under focus is
+   silent in most screen readers; and since both controls are gone once they have acted,
+   focus then lands on the page's heading rather than on nothing (#151).
 2. **The heading and the language control**, sharing a line — where the three-position
    edition switch used to be, and the only language control on the page
    ([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md)). It
@@ -439,6 +444,12 @@ And the sketch's button says **Show my sketch** once that frame holds a drawing 
 from the synchronous flag rather than from IndexedDB, which is the whole reason the flag is
 duplicated into localStorage, and which nothing read until ADR-0059. Both labels are in the
 markup from the first paint and `visibility` picks one, so saying the second moves nothing.
+
+Inside the sketch, **Clear** is two presses, the shape of every other control that destroys a
+reader's own work: `Undo` takes back one stroke and cannot take back a cleared pad, so the
+first press renames the button *Clear the whole sketch* and only the second empties it, and
+focus goes back to the canvas (#151). `Clear my answer` is the same two presses, and sends
+focus to the line it emptied.
 
 #### The lab pane is not on this route any more
 

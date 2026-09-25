@@ -322,6 +322,47 @@ test.describe('the worksheet', () => {
     const field = line(page, /your answer/i);
     await expect(field).toBeEditable();
     await expect(field).toHaveValue('');
+    // The control is gone with the answer it cleared, so focus lands on the line it emptied
+    // rather than on `<body>` — `use-two-step.ts`, #151.
+    await expect(field, 'focus was lost with the control that held it').toBeFocused();
+  });
+
+  test('the index clears every worksheet in two presses, and focus lands on its heading @core', async ({
+    page,
+  }) => {
+    /*
+      `Clear my worksheets` is the index's other destructive control, beside *Forget where I
+      am*, and the same three things are asserted of it (#151): the first press destroys
+      nothing and is said aloud, the second clears, and the control — gone with what it
+      cleared — hands focus to the page's heading instead of to `<body>`.
+    */
+    const key = `ab-ovo:sheet:v1:${track}/${unit}/${NUMERIC.asks}`;
+    const sheet = (): Promise<string | null> => page.evaluate((k) => localStorage.getItem(k), key);
+
+    await walkTo(page, unit, 'en', NUMERIC.asks);
+    await page.goto(at('en', NUMERIC.asks));
+    await line_(page).fill('kept until the reader says otherwise');
+    // The line commits when the reader leaves it (`answer-line.tsx`), and `Esc` is leaving it.
+    await line_(page).press('Escape');
+    await expect.poll(sheet, { message: 'nothing was written, so nothing below proves anything' }).not.toBeNull();
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Clear my worksheets' }).click();
+    const armed = page.getByRole('button', { name: 'Clear them — this cannot be undone' });
+    await expect(armed, 'the first press did not arm the control').toBeVisible();
+    expect(await sheet(), 'one press cleared the worksheets').not.toBeNull();
+    await expect(
+      page.locator('[aria-live="polite"]').filter({ hasText: 'Clear them — this cannot be undone' }),
+      'the armed control was not announced',
+    ).toContainText('Press again');
+
+    await armed.click();
+    await expect.poll(sheet, { message: 'the second press left the worksheet stored' }).toBeNull();
+    await expect(page.getByRole('button', { name: /clear my worksheets|clear them/i })).toHaveCount(0);
+    await expect(
+      page.getByRole('heading', { level: 1 }),
+      'focus was lost with the control that held it',
+    ).toBeFocused();
   });
 
   test('an empty line stays editable after the reveal @core', async ({ page }) => {
@@ -807,6 +848,131 @@ test.describe('the worksheet', () => {
       return n;
     });
     expect(lit, 'the drawing was lost by collapsing the pane').toBeGreaterThan(0);
+  });
+
+  test('one press on the sketch’s Clear erases nothing, and the second erases it all @core', async ({
+    page,
+  }) => {
+    /*
+      ──────────────────────────────────────────────────────────────────────────────────
+      #151: `Clear` emptied the pad AND the stored strokes in one press, one button along
+      from `Undo`, which could not bring them back. It is two presses now, the shape every
+      control that destroys a reader's own work has (`use-two-step.ts`), and what is
+      asserted first is the half a one-press implementation fails: after the first press
+      the drawing is still on the canvas and still stored.
+
+      THE FIRST PRESS IS SAID ALOUD. A button renaming itself under focus is silent in most
+      screen readers, so the armed state is also written into a polite live region beside
+      it; it is found here by `aria-live`, which is what a screen reader acts on, and not by
+      a class. Not by `role="status"` either — `two-step-status.tsx` says why it has none.
+
+      AND NO CLOCK STANDS IT DOWN. The window used to be five seconds, which a switch or
+      screen-reader user can run out of. The page's clock is faked from before the
+      first navigation and run a minute on while the control is armed — and the control
+      must still be armed. The clock runs at its natural pace until then, so nothing else
+      on the page is starved of a timer.
+      ──────────────────────────────────────────────────────────────────────────────────
+    */
+    await page.clock.install();
+    const key = `ab-ovo:sheet:v1:${track}/${unit}/${NUMERIC.asks}`;
+    const stored = (): Promise<unknown> =>
+      page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? '{}').hasSketch, key);
+    const ink = async (): Promise<number> =>
+      page.getByLabel(/draw your answer/i).evaluate((node) => {
+        const canvas = node as HTMLCanvasElement;
+        const data = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
+        let lit = 0;
+        for (let i = 3; i < data.length; i += 4) if (data[i]! > 0) lit += 1;
+        return lit;
+      });
+
+    await walkTo(page, unit, 'en', NUMERIC.asks);
+    await page.goto(at('en', NUMERIC.asks));
+    await paneReady(page);
+    await openPane(page, 'sketch');
+    const box = await sketchPad(page, 184);
+    await page.mouse.move(box.x + 60, box.y + 40);
+    await page.mouse.down();
+    for (let i = 1; i <= 12; i += 1) await page.mouse.move(box.x + 60, box.y + 40 + i * 12);
+    await page.mouse.up();
+    await expect.poll(stored, { message: 'nothing was drawn, so nothing below proves anything' }).toBe(true);
+
+    await page.getByRole('button', { name: 'Clear', exact: true }).click();
+    const armed = page.getByRole('button', { name: 'Clear the whole sketch' });
+    await expect(armed, 'the first press did not arm the control').toBeVisible();
+    expect(await ink(), 'one press erased the drawing').toBeGreaterThan(0);
+    expect(await stored(), 'one press erased the stored copy').toBe(true);
+    await expect(
+      page.locator('[aria-live="polite"]').filter({ hasText: 'Clear the whole sketch' }),
+      'the armed control was not announced',
+    ).toContainText('Press again');
+
+    await page.clock.fastForward(60_000);
+    await expect(armed, 'a clock stood the armed control down').toBeVisible();
+
+    await armed.click();
+    await expect.poll(ink, { message: 'the second press left the drawing on the canvas' }).toBe(0);
+    // `.not.toBe(true)` and not `.toBe(false)`: a sheet with nothing left in it is removed
+    // whole, so the flag goes from `true` to absent rather than to `false`.
+    await expect.poll(stored, { message: 'the second press left the drawing stored' }).not.toBe(true);
+    await expect(page.getByRole('button', { name: 'Clear', exact: true })).toBeVisible();
+    await expect(
+      page.locator('[aria-live="polite"]').filter({ hasText: 'Press again' }),
+      'the announcement outlived the act',
+    ).toHaveCount(0);
+    // Back where the reader draws, as the one-press control always put them.
+    await expect(page.getByLabel(/draw your answer/i)).toBeFocused();
+  });
+
+  test('an armed Clear stands down when the reader goes anywhere else @core', async ({ page }) => {
+    /*
+      With no clock, going elsewhere is the only thing that disarms the control, so each way
+      of going elsewhere is pressed here: `Esc` on the control, a stroke on the canvas, and
+      Tab away from it. After each the label is back, the announcement is gone, and the
+      drawing is where it was — a control that stayed armed would be waiting under a reader
+      who had moved on.
+    */
+    const ink = async (): Promise<number> =>
+      page.getByLabel(/draw your answer/i).evaluate((node) => {
+        const canvas = node as HTMLCanvasElement;
+        const data = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
+        let lit = 0;
+        for (let i = 3; i < data.length; i += 4) if (data[i]! > 0) lit += 1;
+        return lit;
+      });
+
+    await walkTo(page, unit, 'en', NUMERIC.asks);
+    await page.goto(at('en', NUMERIC.asks));
+    await paneReady(page);
+    await openPane(page, 'sketch');
+    const box = await sketchPad(page, 184);
+    const stroke = async (x: number): Promise<void> => {
+      await page.mouse.move(box.x + x, box.y + 40);
+      await page.mouse.down();
+      for (let i = 1; i <= 12; i += 1) await page.mouse.move(box.x + x, box.y + 40 + i * 12);
+      await page.mouse.up();
+    };
+    await stroke(60);
+    expect(await ink(), 'nothing was drawn, so nothing below proves anything').toBeGreaterThan(0);
+
+    const clear = page.getByRole('button', { name: 'Clear', exact: true });
+    const armed = page.getByRole('button', { name: 'Clear the whole sketch' });
+    const said = page.locator('[aria-live="polite"]').filter({ hasText: 'Press again' });
+    const goneElsewhere: ReadonlyArray<readonly [string, () => Promise<void>]> = [
+      ['Esc', () => page.keyboard.press('Escape')],
+      ['a stroke on the canvas', () => stroke(160)],
+      ['Tab', () => page.keyboard.press('Tab')],
+    ];
+
+    for (const [how, go] of goneElsewhere) {
+      await clear.click();
+      await expect(armed, `the control did not arm before ${how}`).toBeVisible();
+      await expect(said).toHaveCount(1);
+      await go();
+      await expect(clear, `${how} left the control armed`).toBeVisible();
+      await expect(said, `${how} left the announcement standing`).toHaveCount(0);
+      expect(await ink(), `${how} erased the drawing`).toBeGreaterThan(0);
+    }
   });
 
   test('a frame that asks nothing offers no pad @core', async ({ page }) => {
