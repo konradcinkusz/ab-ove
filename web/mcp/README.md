@@ -104,8 +104,11 @@ refusals do not, and nothing about them changes.
 
 ## The first three calls
 
-1. `list_programs` — every program the server carries, by title, and how far the reader is
-   in each.
+1. `list_programs` — what the reader can open, in a few lines: by title, every program they
+   have a place in and how far they are, every one open to them now, and the one that opens
+   next. Each run of shut programs after that is folded into one line, and `all: true` names
+   every one. Titles are in the reader's edition, or English until they have one;
+   `language` gives the other.
 2. `open_program` — start one, or resume it; the step the reader is on comes back, and every
    step opens with where it is: program, title, section, step *n* of *N*. The edition
    (`language`) is asked once per reader, not once per program. A program resumes in the

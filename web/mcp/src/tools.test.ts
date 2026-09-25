@@ -820,19 +820,90 @@ test('every rendered step opens with where it is: program, title, section, posit
   assert.match(third.text, /The book's answer to step 2/, 'the banner names the step it answers');
 });
 
-test('list_programs names the programs, in every edition until the reader has chosen one', async () => {
+test("list_programs names the programs in one edition: English until the reader has one, then theirs", async () => {
   const d = deps();
 
+  // #145: every unopened program used to carry its title in every edition.
   const before = await handle('list_programs', {}, d);
   assert.ok(before.text.includes('Mathematics from Zero for the AI Engineer'), before.text);
-  assert.ok(
-    before.text.includes('P01 · How a computer stores a number · Jak komputer przechowuje liczbę — 4 steps — not opened'),
-    before.text,
-  );
+  assert.ok(before.text.includes('P01 · How a computer stores a number — 4 steps — open to the reader now'), before.text);
+  assert.ok(!before.text.includes('Jak komputer przechowuje liczbę'), 'the other edition was listed as well');
+  assert.match(before.text, /Titles are in the "en" edition; list_programs with "language" gives them in another \(pl\)/);
+
+  const asked = await handle('list_programs', { language: 'pl' }, d);
+  assert.ok(asked.text.includes('P01 · Jak komputer przechowuje liczbę — 4 steps'), 'the other edition on request');
+  assert.ok((await handle('list_programs', { language: 'de' }, d)).isError, 'an edition the track lacks names nothing');
 
   await handle('open_program', { unit: UNIT, language: 'pl' }, d);
   const after = await handle('list_programs', {}, d);
   assert.ok(after.text.includes('P01 · Jak komputer przechowuje liczbę — 4 steps — at step 1 of 4'), after.text);
+  assert.ok(after.text.includes('Matematyka od zera dla inżyniera AI'), 'the track title follows the reader too');
+});
+
+/**
+ * A track the size of the book — thirteen Foundation programs and thirty-four in the main
+ * sequence, the pinned bundle's shape — built from the fixture's one unit, so the budget
+ * below is measured on something the length of what a reader's agent actually receives.
+ */
+function wholeBook(): BundleSource {
+  const bundle = BUNDLES.for(TRACK)!;
+  const bare: { -readonly [K in keyof Unit]?: Unit[K] } = { ...bundle.units[0]! };
+  delete bare.part;
+  const ids = [
+    ...Array.from({ length: 13 }, (_, i) => `F${String(i + 1).padStart(2, '0')}`),
+    ...Array.from({ length: 34 }, (_, i) => `P${String(i + 1).padStart(2, '0')}`),
+  ];
+  const book: Bundle = { ...bundle, units: ids.map((id) => ({ ...(bare as Unit), id })) };
+  return { for: (id) => (id === TRACK ? book : undefined), all: () => [book] };
+}
+
+/** What a new reader's list is allowed to cost: 1.5 KiB, the ephemeral note included. */
+const LIST_BUDGET_BYTES = 1536;
+
+test('for a new reader, list_programs fits its budget and still names the open program and the next', async () => {
+  // #145: measured on 2026-09-24 at about 7 KB — every unopened program in both editions,
+  // and "SHUT, opens after …" once per shut program — paid again at every re-check.
+  const d = { cursors: new MemoryCursorStore(), bundles: wholeBook(), placeIsEphemeral: true };
+  const listed = (await handle('list_programs', {}, d)).text;
+
+  const bytes = Buffer.byteLength(listed);
+  assert.ok(bytes <= LIST_BUDGET_BYTES, `a new reader's list is ${bytes} bytes, over ${LIST_BUDGET_BYTES}`);
+  assert.match(listed, /F01 · How a computer stores a number — 4 steps — open to the reader now/);
+  assert.match(listed, /F02 · How a computer stores a number — 4 steps — SHUT, opens after F01/);
+  // The rest, folded, one line per group — and the grouping kept.
+  assert.match(listed, /\n  Foundation\n[\s\S]*\n    F03–F13 — 11 programs, shut: each opens after the one before it\n/);
+  assert.match(listed, /\n  Main sequence\n    P01–P34 — 34 programs, shut: each opens after the one before it\n/);
+  assert.doesNotMatch(listed, /F03 ·|P01 ·/, 'a folded program was listed by name');
+  assert.match(listed, /"all": true names every program/);
+  assert.match(listed, /Programs open in order/, 'the rule is still stated once');
+});
+
+test('the fold follows the reader: what is open is named, and the run starts after the next one', async () => {
+  const d = { cursors: new MemoryCursorStore(), bundles: wholeBook() };
+  await handle('open_program', { unit: 'F01', language: LANG }, d);
+  await handle('open_program', { unit: 'F02' }, d);
+
+  const listed = (await handle('list_programs', {}, d)).text;
+  assert.match(listed, /F01 · .* — at step 1 of 4/);
+  assert.match(listed, /F02 · .* — at step 1 of 4/);
+  assert.match(listed, /F03 · .* — open to the reader now/);
+  assert.match(listed, /F04 · .* — SHUT, opens after F03/);
+  assert.match(listed, /F05–F13 — 9 programs, shut/);
+});
+
+test('list_programs with all: true names every program, the folded ones too', async () => {
+  const bundles = wholeBook();
+  const d = { cursors: new MemoryCursorStore(), bundles };
+
+  const listed = (await handle('list_programs', { all: true }, d)).text;
+  for (const unit of bundles.all()[0]!.units) {
+    assert.match(listed, new RegExp(`\\n    ${unit.id} · How a computer stores a number — 4 steps — `), `${unit.id} is missing`);
+  }
+  assert.match(listed, /P34 · .* — SHUT, opens after P33/);
+  assert.doesNotMatch(listed, /programs, shut: each opens/, 'all: true still folded a run');
+
+  const list = TOOLS.find((tool) => tool.name === 'list_programs')!;
+  assert.deepEqual(Object.keys((list.inputSchema as { properties: object }).properties).sort(), ['all', 'language']);
 });
 
 test('list_programs divides the book the way the index does', async () => {

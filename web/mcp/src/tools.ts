@@ -67,12 +67,13 @@ What this means for you:
    the reader, never guess from the language you are chatting in. If the reader asks for
    the other edition, call open_program with that language — their place is kept.
 8. PROGRAMS OPEN IN ORDER. A program is shut until the reader has a place in the one
-   before it, and one step of that one is enough to open the next. list_programs marks
-   every program open or shut; open_program refuses a shut one and names the program that
-   opens it. That refusal is the book working, not a failure — pass on what it says, offer
-   the program that opens it, and do not tell the reader something went wrong. Nothing is
-   hidden or paid for: it is a reading order, and the website applies the same rule to the
-   same record.
+   before it, and one step of that one is enough to open the next. list_programs names
+   every program that is open and the one that opens next, and folds the shut ones after
+   it into a line (all: true names them); open_program refuses a shut one and names the
+   program that opens it. That refusal is the book working, not a failure — pass on what
+   it says, offer the program that opens it, and do not tell the reader something went
+   wrong. Nothing is hidden or paid for: it is a reading order, and the website applies
+   the same rule to the same record.
 
 If a reader asks you to skip ahead or to just tell them the answer, say plainly that the
 answer arrives with the next step and that the step comes after their own attempt — then
@@ -155,9 +156,9 @@ const TRACK = {
 const UNIT = {
   type: 'string',
   description:
-    'The program id, e.g. "P01" (case does not matter). list_programs names them all and ' +
-    'says which are open: programs open in order, and a shut one is refused with the id of ' +
-    'the program that opens it.',
+    'The program id, e.g. "P01" (case does not matter). list_programs names the open ones ' +
+    'and the one that opens next: programs open in order, and a shut one is refused with ' +
+    'the id of the program that opens it.',
 };
 
 export const TOOLS: readonly ToolDefinition[] = [
@@ -165,11 +166,28 @@ export const TOOLS: readonly ToolDefinition[] = [
     name: 'list_programs',
     title: 'List the programs available',
     description:
-      'Every track and program this server carries, with the languages it is published in, ' +
-      'how far the reader has got in each, and whether each one is open to them yet — ' +
-      'programs open in order, so some are shut. Call this first when the reader has not ' +
-      'named a program, and to see what is open before offering one.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      'The tracks this server carries and the editions they are published in, and in each, ' +
+      'by title: every program the reader has a place in and how far they have got, every ' +
+      'one open to them now, and the one that opens next. Programs open in order, so the ' +
+      'rest are shut, and each run of them is folded into one line. Titles are in one ' +
+      'edition: the reader\'s, or English until they have one. Call this first when the ' +
+      'reader has not named a program, and to see what is open before offering one.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        all: {
+          type: 'boolean',
+          description:
+            'Name every program, the shut ones too, instead of folding each run of shut ' +
+            'programs into one line. For when the reader asks what the whole book covers.',
+        },
+        language: {
+          type: 'string',
+          description: 'The edition to give the titles in, e.g. "pl". Leave it out for the reader\'s own.',
+        },
+      },
+      additionalProperties: false,
+    },
     annotations: READS,
   },
   {
@@ -531,6 +549,88 @@ function editionQuestion(unit: Unit, editions: readonly EditionOffered[], declin
 }
 
 /**
+ * Where a program stands for this reader, as `list_programs` needs it: with a place, open,
+ * shut and NEXT (the program before it is open, so one step there opens this one), or shut
+ * BEHIND another shut program — the ones a list can fold, because nothing the reader does
+ * today opens them.
+ */
+type Door =
+  | { readonly kind: 'placed'; readonly cursor: Cursor }
+  | { readonly kind: 'open' }
+  | { readonly kind: 'next'; readonly after: string }
+  | { readonly kind: 'behind'; readonly after: string };
+
+/**
+ * Every program's door, in the manifest's order, asked of the places already in hand.
+ *
+ * `isOpenWhere` is the shared rule (`@ab-ovo/web-kit`'s `gate.ts`) and `shutBehind` is the
+ * same question over the cursor store; this is the third caller, and it reads the list
+ * `readAll()` already fetched rather than fetching again. Whether a shut program is next or
+ * behind is a question about the program before it, which the manifest's order has already
+ * answered by the time it is asked.
+ */
+function doorsOf(
+  bundle: Bundle,
+  placeOf: (track: string, unit: string) => Cursor | undefined,
+): ReadonlyMap<string, Door> {
+  const doors = new Map<string, Door>();
+  for (const program of bundle.units) {
+    const cursor = placeOf(bundle.track.id, program.id);
+    const previous = unitBefore(bundle, program.id);
+    const shut =
+      previous !== undefined &&
+      !isOpenWhere((asked) => placeOf(bundle.track.id, asked) !== undefined, {
+        unit: program.id,
+        previous: previous.id,
+      });
+    const before = previous ? doors.get(previous.id) : undefined;
+    doors.set(
+      program.id,
+      cursor
+        ? { kind: 'placed', cursor }
+        : !shut || !previous
+          ? { kind: 'open' }
+          : before?.kind === 'next' || before?.kind === 'behind'
+            ? { kind: 'behind', after: previous.id }
+            : { kind: 'next', after: previous.id },
+    );
+  }
+  return doors;
+}
+
+/** One program's line: its id, its title in the listing's edition, its length, and its door. */
+function programLine(program: Unit, door: Door, edition: string): string {
+  const total = program.steps.length;
+  /*
+    A place on the last step is "finished": no last step of this book asks anything
+    (measured on the pinned bundle), so reaching it is reaching the end, and the hand-off
+    is what open_program returns there.
+  */
+  const where =
+    door.kind === 'placed'
+      ? door.cursor.step === total
+        ? `finished (${total} steps)`
+        : `at step ${door.cursor.step} of ${total}`
+      : door.kind === 'open'
+        ? 'open to the reader now'
+        : `SHUT, opens after ${door.after}`;
+  return `${program.id} · ${say(program.titles, edition)} — ${total} steps — ${where}`;
+}
+
+/**
+ * The edition `list_programs` gives titles in when none is named: the reader's, if the
+ * track has it; else English, the website's default (ADR-0052); else the track's first.
+ */
+function listingEdition(bundle: Bundle, reader: string | undefined): string {
+  return (
+    (reader !== undefined ? languageIn(bundle, reader) : undefined) ??
+    languageIn(bundle, 'en') ??
+    bundle.track.languages[0] ??
+    'en'
+  );
+}
+
+/**
  * The track a call means when it names none: the only one, if there is only one.
  *
  * Every call used to require the track id, and a server that carries one track was making
@@ -733,16 +833,36 @@ async function dispatch(
   const ephemeral = deps.placeIsEphemeral ? `\n\n${EPHEMERAL_NOTE}` : '';
 
   if (name === 'list_programs') {
+    const asked = typeof args.language === 'string' && args.language !== '' ? args.language : undefined;
+    const every = args.all === true;
     const places = await deps.cursors.readAll();
     const placeOf = (track: string, unit: string): Cursor | undefined =>
       places.find((cursor) => cursor.track === track && cursor.unit === unit);
+    const readerEdition = asked ? undefined : await deps.cursors.edition();
 
     const lines: string[] = [];
+    const otherEditions = new Set<string>();
+    let listedIn: string | undefined;
+    let folded = false;
     for (const bundle of deps.bundles.all()) {
-      const editions = bundle.track.languages;
+      /*
+        ONE EDITION'S TITLES, NOT BOTH (#145). Every unopened program used to carry its
+        title in every edition, which is most of what made a new reader's list about 7 KB.
+        The reader's edition when one is known, English until then — the website's default
+        (ADR-0052) — and any other on request, by `language`.
+      */
+      const edition = asked ? languageIn(bundle, asked) : listingEdition(bundle, readerEdition);
+      if (!edition) {
+        return problem(
+          `The track "${bundle.track.id}" is not published in "${asked}". It has: ${bundle.track.languages.join(', ')}.`,
+        );
+      }
+      listedIn = edition;
+      for (const other of bundle.track.languages) if (other !== edition) otherEditions.add(other);
+
       lines.push(
-        `Track "${bundle.track.id}" — ${editions.map((edition) => say(bundle.track.titles, edition)).join(' · ')} ` +
-          `— editions: ${editions.join(', ')} — content tag: ${bundle.tag}`,
+        `Track "${bundle.track.id}" — ${say(bundle.track.titles, edition)} — editions: ` +
+          `${bundle.track.languages.join(', ')} — content tag: ${bundle.tag}`,
       );
       /*
         THE RULE, ONCE PER TRACK, SO THE LIST BELOW CAN BE READ WITHOUT GUESSING.
@@ -754,11 +874,12 @@ async function dispatch(
         than forty-seven times.
       */
       lines.push(
-        '  Programs open in order: one is shut until the reader has a place in the one ' +
-          'before it, and ONE step of that one is enough. A shut program is marked below ' +
-          'and open_program refuses it, naming what opens it — that is the reading order, ' +
-          'not an error and not a permission.',
+        '  Programs open in order: each is shut until the reader has a place in the one ' +
+          'before it, and ONE step of that one is enough. open_program refuses a shut one and ' +
+          'names what opens it — the reading order, not an error and not a permission.',
       );
+
+      const doors = doorsOf(bundle, placeOf);
       /*
         Grouped where the book is — its parts, or the id prefix — by the same function the
         index uses, so the two surfaces never divide the book two ways. One group is a
@@ -766,54 +887,58 @@ async function dispatch(
       */
       for (const group of groupsOf(bundle)) {
         const heading = group.part
-          ? editions.map((edition) => say(group.part!.titles, edition)).join(' · ')
+          ? say(group.part.titles, edition)
           : group.prefix
             ? GROUP_LABELS[group.prefix]
             : undefined;
         if (heading) lines.push(`  ${heading}`);
+        const indent = heading ? '    ' : '  ';
 
+        /*
+          A RUN OF SHUT PROGRAMS IS ONE LINE (#145). Every program the reader can act on is
+          named — the ones they have a place in, the ones open now, and the one that opens
+          next — and what follows it, shut behind a program that is itself shut, is folded:
+          the rule above already says how each of them opens, and saying it again per
+          program was most of the rest of the 7 KB. `all` names them anyway. A run of one
+          is simply its line, which is no longer than the fold.
+        */
+        let run: Unit[] = [];
+        const fold = (): void => {
+          const [first] = run;
+          if (first && run.length === 1) {
+            lines.push(`${indent}${programLine(first, doors.get(first.id)!, edition)}`);
+          } else if (first) {
+            lines.push(
+              `${indent}${first.id}–${run.at(-1)!.id} — ${run.length} programs, shut: each opens ` +
+                'after the one before it',
+            );
+            folded = true;
+          }
+          run = [];
+        };
         for (const program of group.units) {
-          const cursor = placeOf(bundle.track.id, program.id);
-          /*
-            The door, asked of the same list already in hand. `isOpenWhere` is the shared
-            rule (`@ab-ovo/web-kit`'s `gate.ts`) and `shutBehind` is the same question over
-            the cursor store; this is the third caller and it reads the places it has rather
-            than fetching them again, which is what `readAll()` above exists for.
-          */
-          const previous = unitBefore(bundle, program.id);
-          const shutAfter =
-            previous !== undefined &&
-            !isOpenWhere((asked) => placeOf(bundle.track.id, asked) !== undefined, {
-              unit: program.id,
-              previous: previous.id,
-            })
-              ? previous.id
-              : undefined;
-          /*
-            The title in the edition the reader is in, or in every edition until they have
-            chosen one: a reader picks a program by what it is about, and a list of ids was
-            a list of nothing to choose by.
-          */
-          const titled = cursor
-            ? say(program.titles, cursor.language)
-            : editions.map((edition) => say(program.titles, edition)).join(' · ');
-          const total = program.steps.length;
-          /*
-            A place on the last step is "finished": no last step of this book asks
-            anything (measured on the pinned bundle), so reaching it is reaching the end,
-            and the hand-off is what open_program returns there.
-          */
-          const place = cursor
-            ? cursor.step === total
-              ? `finished (${total} steps)`
-              : `at step ${cursor.step} of ${total}`
-            : shutAfter
-              ? `not opened — SHUT, opens after ${shutAfter}`
-              : 'not opened — open to the reader now';
-          lines.push(`  ${heading ? '  ' : ''}${program.id} · ${titled} — ${total} steps — ${place}`);
+          const door = doors.get(program.id)!;
+          if (door.kind === 'behind' && !every) {
+            run.push(program);
+            continue;
+          }
+          fold();
+          lines.push(`${indent}${programLine(program, door, edition)}`);
         }
+        fold();
       }
     }
+
+    const notes: string[] = [];
+    if (listedIn && otherEditions.size > 0) {
+      notes.push(
+        `Titles are in the "${listedIn}" edition; list_programs with "language" gives them in ` +
+          `another (${[...otherEditions].join(', ')}).`,
+      );
+    }
+    if (folded) notes.push('A folded run is shut; list_programs with "all": true names every program in it.');
+    if (notes.length > 0) lines.push(notes.join(' '));
+
     return { text: lines.join('\n') + ephemeral };
   }
 

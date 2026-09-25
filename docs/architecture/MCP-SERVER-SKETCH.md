@@ -88,7 +88,7 @@ empty file is not a check*.
 
 | Tool | Moves? | What it does |
 | --- | --- | --- |
-| `list_programs` | no | Tracks, programs by title, editions, where the reader is in each, and whether each is open to them yet |
+| `list_programs` | no | Tracks and editions; by title in one edition, the programs the reader has a place in, those open now and the one that opens next, with each run of shut programs folded into a line (`all: true` names every one) |
 | `open_program` | no | Start or resume, in the edition asked for, the one the program was read in, or the one the reader reads in; returns the step they are on. Refuses a program the reader has not reached |
 | `current_step` | no | Re-show the current step without reconstructing it from chat |
 | `submit_answer` | **yes** | Records the answer to the step it names, returns the next step — which opens with the book's answer to the one just done |
@@ -109,10 +109,23 @@ disagreed about one reader's doors and neither could explain the other.
 `open_program` refuses a shut program **before** it asks which edition to read, so the
 model does not spend the reader's answer on a question that leads nowhere; `current_step`,
 `submit_answer` and `review_step` say the same thing rather than advising an
-`open_program` that is itself refused; `list_programs` marks each program `open to the
+`open_program` that is itself refused; `list_programs` marks a program `open to the
 reader now` or `SHUT, opens after F01` and states the rule once per track. Two cursor
 reads at most, never a scan, because the rule asks about this program and the one before
 it and about nothing else.
+
+**`list_programs` says what is open in a few lines.** For a new reader it used to be about
+7 KB (measured 2026-09-24): every unopened program with its title in both editions, and
+`SHUT, opens after …` once for each shut program — paid again by the agent every time it
+re-checked. It now names every program the reader can act on — the ones with a place, the
+ones open now, and the one that opens next — and folds each run of shut programs behind
+that into one line per group, such as `F03–F13 — 11 programs, shut: each opens after the one
+before it`. The grouping by part or prefix and the rule stated once per track are kept.
+Titles are in one edition: the reader's (`CursorStore.edition()`), or English until they
+have one, which is the website's default (ADR-0052). `language` gives the other edition, and
+`all: true` names every program. The `read` prompt's completions list every id regardless.
+`tools.test.ts` holds a new reader's list, on a track the size of the book, to 1.5 KiB with
+the in-memory note included.
 
 **The refusal is a refusal and not an error** — `refused`, not `problem`, on `reveal.ts`'s
 own reasoning about `not-reached` — and it names the program that opens this one, says one
