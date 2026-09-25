@@ -16,13 +16,14 @@ import { LANGUAGE_COOKIE, isLanguageTag } from '@/lib/language/store';
  *
  * No API call while rendering: `allBundles()` reads the bundle compiled into the app, so the
  * page a reader uses to choose a course renders with no account and with the API down, as the
- * index does. That is today's placement rather than a requirement — ADR-0060 made every
- * frame a live call to `AbOvo.Api`, and the pages that list the book have not moved yet — and
- * `app/page.tsx` carries the argument, and issue #158 (580 in `docs/ux/UI-UX.md`'s order)
- * the decision about whether it stays so. It is rendered per request for the reason the
- * index is — `searchParams` is a request-time API in Next 16 — and the property that
- * rendering mode gives up is held by `@ab-ovo/web-kit`'s `bundle.test.ts` rather than by a
- * build.
+ * index does. That is a recorded deviation from ADR-0060, which made every read of a program a
+ * live call to `AbOvo.Api`: issue #158 moved a program's contents and summary onto the API and
+ * left the two pages that list the book where they are, and the deviation register in
+ * `docs/architecture/00-ARCHITECTURE.md` says why and what ends it. This page says nothing
+ * about the API being down; the index it leads to does. It is rendered per request for the
+ * reason the index is — `searchParams` is a request-time API in Next 16 — and the property
+ * that rendering mode gives up is held by `@ab-ovo/web-kit`'s `bundle.test.ts` rather than
+ * by a build.
  *
  * It reads ONE cookie, this origin's own, for the index's reason (ADR-0052): this is a
  * screen with no language in its URL and nothing on it but titles, so without the remembered

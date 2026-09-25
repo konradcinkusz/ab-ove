@@ -45,6 +45,41 @@
 }
 
 /*
+ * THE WAY ON — `Next program` above, the program's id and title under it (issue #158), so a
+ * reader always knows what the button does and sees where it goes. Left-aligned inside the
+ * button, so the lines start together.
+ *
+ * THE TITLE MAY TAKE TWO LINES BEFORE IT IS CUT. The book's titles run from two words to a
+ * clause, and the pager's forward cell is a flank of the text column — half of it at a
+ * desktop width, less than half of 360 px on a phone. On one line the cell held the id and a
+ * word or two of a typical title at either width (measured at 1280 and 360 px), which is the
+ * tooltip-only title again by another route. Two lines show the whole of a typical title on
+ * a desktop and its opening on a phone; the words above it stay whole, and the tooltip keeps
+ * the rest for the pointer. The bar is a line taller on this screen alone, which ends a
+ * program and has no frame for it to cover.
+ */
+.onward {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+  text-align: left;
+}
+
+.onwardKicker {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.onwardTitle {
+  -webkit-box-orient: vertical;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/*
  * THE FOOT MOVED — ADR-0058. `.foot` and `.footSide` are `reading-foot.module.css`'s now,
  * shared with the frame and the contents page, because three copies of one row in three
  * stylesheets is what let ADR-0057 restyle one of them and leave the other two behind.

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { track } from './support/bundle.ts';
+import { track, unitNamed } from './support/bundle.ts';
+import { walkTo } from './support/walk.ts';
 
 /**
  * JOURNEY — being asked, and being left alone.
@@ -81,6 +82,8 @@ test.describe('the ask', () => {
       declining on either page is declining everywhere, and nothing asks twice.
     */
     const summary = `/read/${track}/F01/en/summary`;
+    // A reader who has reached the last frame — the summary's own gate (issue #158).
+    await walkTo(page, 'F01', 'en', unitNamed('F01').steps.length);
     await page.goto(summary);
     await expect(invitation(page)).toBeVisible();
     await expect(page.locator('section', { has: invitation(page) })).toContainText(

@@ -185,7 +185,8 @@ test.describe('a program opens when the one before it has been opened', () => {
     await expect(foot).toContainText(
       `${second!.id} opens once you have read any frame of this program.`,
     );
-    await expect(foot.getByRole('link', { name: `${second!.id} →` })).toHaveCount(0);
+    // By the id alone: the arrow beside it is drawn and hidden from the name (issue #158).
+    await expect(foot.getByRole('link', { name: second!.id, exact: true })).toHaveCount(0);
   });
 
   test('reading one frame of a program opens the next one, and only the next @core', async ({
@@ -215,12 +216,12 @@ test.describe('a program opens when the one before it has been opened', () => {
     page,
   }) => {
     // A reader on a contents page has not necessarily opened a FRAME of it — the gate let
-    // them in on the program before. `F02 →` at the foot would lead somewhere they would
-    // be sent back from, so it is not offered yet.
+    // them in on the program before. A way on to F02 at the foot would lead somewhere they
+    // would be sent back from, so it is not offered yet.
     await openThrough(page, second!.id);
     await page.goto(contentsOf(second!.id));
 
-    const onward = page.getByRole('link', { name: `${third!.id} →` });
+    const onward = page.getByRole('link', { name: third!.id, exact: true });
     await expect(onward).toHaveCount(0);
 
     // Read one frame of it, and the way on appears.

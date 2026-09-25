@@ -1,0 +1,24 @@
+/*
+ * The index's line saying reading is unavailable (`reading-unavailable.tsx`, issue #158), in
+ * the shut notice's shape (`program-grid.module.css`): a rule down the left edge and the
+ * interface's type — a fact about this moment, told plainly, rather than an alarm.
+ *
+ * EMPTY, IT HAS NO BOX. It is in the document from the first render, so its live region is
+ * announced when the sentence arrives, and on the ordinary path it never has one: every rule
+ * that draws it is on `:not(:empty)`, so the index's zero shift bound (`progress.spec.ts`) is
+ * untouched while the API answers.
+ */
+.notice {
+  margin: 0;
+}
+
+.notice:not(:empty) {
+  border-left: 2px solid var(--accent);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0 0 1.5rem;
+  max-width: 44rem;
+  padding: 0.25rem 0 0.25rem 0.875rem;
+}

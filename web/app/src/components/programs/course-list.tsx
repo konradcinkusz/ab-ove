@@ -34,13 +34,14 @@ export interface CourseListProps {
  * title, a length and a set of editions, which a row of links cannot say and a reader
  * deciding between two courses needs.
  *
- * IT MAKES NO FETCH AND CALLS NO API, like the index it leads to. Everything here is in the
- * bundles compiled into the app, so the page renders with no account and with the API down.
- * That is today's placement since ADR-0060 rather than the requirement it was under
- * ADR-0004: every frame is now a live call to `AbOvo.Api`, the pages that list the book have
- * not moved yet, and `app/page.tsx` says why and where the question of moving them is
- * decided. The
- * route that renders it reads one cookie, this origin's own, which is where the reader's
+ * IT MAKES NO FETCH AND CALLS NO API, like the index it leads to while rendering. Everything
+ * here is in the bundles compiled into the app, so the page renders with no account and with
+ * the API down. That is a deviation from ADR-0060 rather than the requirement it was under
+ * ADR-0004: every read of a program is a live call to `AbOvo.Api`, and issue #158 left the
+ * pages that list the book where they are, with the reason and the exit in the architecture
+ * document's deviation register (`app/page.tsx` carries the argument). It says nothing about
+ * an API that does not answer; the index it leads to does, from the browser, once it is up.
+ * The route that renders it reads one cookie, this origin's own, which is where the reader's
  * remembered edition lives (ADR-0052) — no request, and nothing this component knows about.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *

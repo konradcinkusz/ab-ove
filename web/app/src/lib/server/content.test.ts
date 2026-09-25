@@ -13,7 +13,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
 
-import { fetchTrackContent, type FetchLike } from './content.ts';
+import { fetchReturnIndex, fetchTrackContent, type FetchLike } from './content.ts';
 
 const CONFIGURED = 'http://127.0.0.1:8180';
 
@@ -108,4 +108,29 @@ test('a 404 is the reader’s problem and ends the walk too', async () => {
 
   assert.equal(tried.length, 1);
   assert.equal(outcome.kind, 'not-found');
+});
+
+test('the return index is asked for under the unit, as the reader, and a refusal is data', async () => {
+  // Issue #158 — the summary is gated as the last frame is, so the call has to carry who is
+  // asking (the gate reads that reader's cursor), and a refusal comes back as an `ok` outcome
+  // holding the refusal, exactly as `fetchStep`'s does: the gate working is not a fault.
+  const asked: { url: string; readerId: string | null }[] = [];
+  const refusal = {
+    ok: false,
+    index: null,
+    refusal: { kind: 'NotReached', requested: 45, furthest: 3, steps: 45, message: '' },
+    furthest: 3,
+  };
+  const fetch: FetchLike = (input, init) => {
+    asked.push({ url: input, readerId: new Headers(init.headers).get('x-ab-ovo-reader-id') });
+    return Promise.resolve(new Response(JSON.stringify(refusal), { status: 200 }));
+  };
+
+  const outcome = await fetchReturnIndex('math-for-ai-engineers', 'F01', { readerId: 'r-1' }, fetch);
+
+  assert.deepEqual(asked, [
+    { url: `${CONFIGURED}/api/v1/content/math-for-ai-engineers/F01/summary`, readerId: 'r-1' },
+  ]);
+  assert.equal(outcome.kind, 'ok');
+  assert.equal(outcome.kind === 'ok' ? outcome.data.refusal?.kind : undefined, 'NotReached');
 });

@@ -104,6 +104,35 @@
 }
 
 /*
+ * A HEADING THE GATE WOULD REFUSE (issue #158), drawn as the program map draws one: the title
+ * in the faint ink with a lock and the reason, and no link, because a control that is reliably
+ * refused is the dead one this surface removes (ADR-0056, `program-map.module.css`). It keeps
+ * `.sectionTitle`'s box, so a locked row is a linked row's height and nothing moves when the
+ * reader reaches it — and not its underline on hover, which is what a link does.
+ */
+.lockedTitle {
+  color: var(--ink-faint);
+}
+
+.lockedTitle:hover {
+  text-decoration: none;
+}
+
+.lockNote {
+  align-items: center;
+  display: inline-flex;
+  font-size: 0.8125rem;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+}
+
+.lockIcon {
+  flex: none;
+  height: 0.875rem;
+  width: 0.875rem;
+}
+
+/*
  * The page's one filled control — the shared button family's primary (`controls.module.css`),
  * so it is the same shape as the pager's `Next` a reader will press next.
  */

@@ -115,7 +115,8 @@ const SCREENS: readonly Screen[] = [
   { what: 'the program map, open over a frame', path: frameAt('en', asks.n), walk: asks.n, open: openMap },
   { what: 'the reading settings, open over a frame', path: frameAt('en', asks.n), walk: asks.n, open: openSettings },
   { what: 'both worksheet panes, open', path: frameAt('en', asks.n), walk: asks.n, open: openBothPanes },
-  { what: 'a program’s summary', path: `${contentsAt('en')}/summary` },
+  // Walked to the last frame: before it, the summary is the gate's "Not there yet" (#158).
+  { what: 'a program’s summary', path: `${contentsAt('en')}/summary`, walk: program.steps.length },
   { what: 'a frame the reader has not reached', path: frameAt('en', program.steps.length) },
   { what: 'a page that does not exist', path: `/read/${track}/NOPE/en` },
   { what: 'an address no page answers, on the sign-in page', path: '/nope' },

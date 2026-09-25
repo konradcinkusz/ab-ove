@@ -37,9 +37,10 @@ export interface ProgramGateProps {
  * every reader's cursor, an anonymous one's under an opaque cookie, and refuses a step past
  * it. What they did not build is THIS rule: the API's gate is per step within a program and
  * deliberately does not carry the program-level one (`src/AbOvo.Api/Content/Reveal.cs` says
- * why), and the contents and summary pages still read the compiled bundle and ask the API
- * nothing. So this question is still put to the browser's record: the page renders,
- * hydration reads the record, and a shut program is left within a few hundred milliseconds.
+ * why), so a program's contents, which the API serves since issue #158, come back whether or
+ * not the program is open. So this question is still put to the browser's record: the page
+ * renders, hydration reads the record, and a shut program is left within a few hundred
+ * milliseconds.
  * The honest cost is in ADR-0051's Consequences: the first paint of a shut program is the
  * program, and a reader with script off is not gated at all.
  *

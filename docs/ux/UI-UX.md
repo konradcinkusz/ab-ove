@@ -27,12 +27,12 @@ any account.
 
 | Route | What it is | Needs |
 | --- | --- | --- |
-| `/` | the landing page: every program as a tile, in the book's own runs, in the reader's edition, and the narrowing to one course | nothing — it reads the compiled bundle |
-| `/courses` | the courses this deployment carries, each with its length and its editions, and the way into one ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) | nothing — it reads the compiled bundle |
+| `/` | the landing page: every program as a tile, in the book's own runs, in the reader's edition, and the narrowing to one course | nothing to render — it reads the compiled bundle, a recorded deviation; it asks the API from the browser only to say when no program will open |
+| `/courses` | the courses this deployment carries, each with its length and its editions, and the way into one ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) | nothing — it reads the compiled bundle, a recorded deviation |
 | `/about` | what the product is, the anti-goal, the loop, the integration panel | nothing |
-| `/read/<track>/<unit>/<lang>` | a program's contents: its headings, and the filled way in — frame 1, or the reader's own place | nothing — it reads the compiled bundle |
+| `/read/<track>/<unit>/<lang>` | a program's contents: its headings, those past the reader's furthest frame locked, and the filled way in — frame 1, or the reader's own place | the API, and no account |
 | `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a form that raises the reader's place on the API | the API, and no account |
-| `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, the consent invitation, and the way into the next one | nothing — it reads the compiled bundle |
+| `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, the consent invitation, and the way into the next one — once the reader has reached the last frame | the API, and no account |
 | `/lab/<id>` | the book's exercises under Pyodide — reached from P01's summary only, and on its way out ([ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md)) | nothing |
 | `/login` | a form that posts credentials to this app's own BFF | an identity service |
 | `/register` | the same form one step earlier: an address, a password, and the consent the identity service records | an identity service, and the two documents the consent names |
@@ -44,9 +44,12 @@ any account.
 
 **The first six are the whole product for a reader who never signs in**, and that is a
 requirement rather than an accident. They are not the whole product for a deployment with no
-API: the rows that read the compiled bundle still render from the bundle built into the web
-app and call no API while rendering, but no frame does. That split is today's rather than
-a rule — 580 in [the order](#the-order) moves the contents and the summary onto the API.
+API: the index and `/courses` still render from the bundle built into the web app and call no
+API while rendering, but no program's contents, no summary and no frame does. That split is a
+deviation from [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+recorded with its exit in
+[the register](../architecture/00-ARCHITECTURE.md#deviation-register), and the index is the
+page that says so to a reader: when the API does not answer, it says that no program will open.
 
 **A *course* is a whole work and a *program* is one of its forty-seven units.** The two
 words are minutes apart in the same chrome row, so they are worth separating once here: a
@@ -83,14 +86,20 @@ that needs an account.
 that renders from the bundle compiled into the app: it calls no API while rendering, and the
 one cookie it reads is this origin's own, the reader's chosen edition
 ([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md)). **That is
-still true after ADR-0060, as today's placement rather than a requirement.** The requirement
-it used to follow from joined two halves — no account, and no server behind the loop — and
+still true after ADR-0060, and it is a recorded deviation from it.** The requirement it used
+to follow from joined two halves — no account, and no server behind the loop — and
 [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
-kept the first and reversed the second: a frame needs the API and the index does not. So a
-reader who arrives while the API is down still sees the programs, and the frame they open is
-the one that says the fault is on this side. ADR-0060's Decision counts every read of a
-program as a live call, which this page is not, so the placement is pending rather than
-settled: 580 in [the order](#the-order) decides whether the index stays off the API.
+kept the first and reversed the second: a frame, a program's contents and its summary need the
+API, and the index does not. ADR-0060's Decision counts every read of a program as a live call,
+which this page is not; 580 in [the order](#the-order) decided that it stays so for now, and
+[the register](../architecture/00-ARCHITECTURE.md#deviation-register) says why and what ends
+it. So a reader who arrives while the API is down still sees the programs — and **the index
+says, above them, that no program will open right now**, rather than leaving every tile to lead
+to the error page. The line is asked for from the browser, after the page is up and through
+this origin's proxy, with the question a program's contents would ask
+(`components/programs/reading-unavailable.tsx`): the first paint never waits on the API, and
+while the API answers the line is empty and has no box, so nothing on the page moves.
+`specs/no-backend.spec.ts` holds both halves.
 
 **It used to be the product's argument and is now the programs**
 ([ADR-0036](../adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). The
@@ -206,8 +215,8 @@ Its parts, in order:
 Component on the index's own terms: it calls no API while rendering, reads one cookie of this
 origin's own for the edition, and takes everything else from the bundles compiled into the app
 ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)). That still
-holds after ADR-0060, as today's placement rather than a requirement, and is pending 580 for
-the index's reason above.
+holds after ADR-0060, and it is the index's recorded deviation, with the same exit. It says
+nothing about an API that does not answer: the index every entry leads to does.
 
 One entry per pinned course, carrying its title in each edition it is published in, and a
 line of measured facts under it — how many programs, how many frames across them, and the
@@ -367,20 +376,28 @@ the panel say so.
 
 ### `/read/<track>/<unit>/<lang>` — a program's contents
 
-`components/read/program-contents.tsx`. The program's headings, each linking at the frame it
-opens on, and nothing from any frame — a heading carries no question and no answer, which is
-the contents page's own rule. **Its one filled control follows the reader**: *Start at
+`components/read/program-contents.tsx`. The program's headings, each with the frames it
+covers, and nothing from any frame — a heading carries no question and no answer, which is
+the contents page's own rule. **It comes from `AbOvo.Api`, as a frame does** (#158): the page
+asks for the course and the program as the reader, so an API that does not answer is the
+error page a frame gets — before the reader has clicked into anything — and the program comes
+back with the reader's furthest frame (`UnitSummary.Furthest`). **A heading the reader has
+reached links at the frame it opens on; one past their furthest frame is named, locked, and
+says *not reached yet***, as the program map draws it — every heading used to be a link, and
+a new reader who pressed the third one landed on *Not there yet*. **Its one filled control
+follows the reader**: *Start at
 frame 1* for a reader who has not, *Continue at frame N* for one who has, in the edition
 they were actually in. Server-rendered as the start and swapped after hydration in place —
 same element, same class — so the page moves by nothing when the record is read
 (`progress.spec.ts` holds it to the index's shift bound). The crumb row's quiet *Start at
 frame 1* appears only beside a *Continue*, so the page has exactly one link to the reader's
-frame and always one to the first. The foot carries the two neighbouring programs — the key
-map is in *Reading settings*, opened from the top bar
+frame and always one to the first. The foot carries the two neighbouring programs, each an
+id beside the pager's drawn arrow rather than a typed one — the key map is in *Reading
+settings*, opened from the top bar
 ([ADR-0063](../adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)) — and **the next
 one only once this program has been opened**
-([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)): a
-`F03 →` that led somewhere the reader would be sent back from is a control that is reliably
+([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)): an
+`F03` that led somewhere the reader would be sent back from is a control that is reliably
 refused. **In its place the foot states the fact**
 ([ADR-0056](../adr/0056-the-reading-order-is-gated-on-every-surface-and-every-refusal-says-what-opens-it.md)):
 *F03 opens once you have read any frame of this program.* A control stays absent; a fact is
@@ -388,10 +405,24 @@ owed, and this was the one screen where the next program's existence was withhel
 page itself is gated on the same rule.** A reader who has not reached this program is
 returned to the index, at the tile that says which program opens it, with the sentence that
 says why they were moved. It happens
-after hydration, because this rule is asked of the browser's own record: the page reads the
-compiled bundle and calls no API, and `AbOvo.Api`'s gate refuses a frame past the reader's
-furthest one without carrying the program-level rule (`src/AbOvo.Api/Content/Reveal.cs` says
-why). A first paint of a shut program is the honest cost of that.
+after hydration, because this rule is asked of the browser's own record: `AbOvo.Api`'s gate
+refuses a frame past the reader's furthest one without carrying the program-level rule
+(`src/AbOvo.Api/Content/Reveal.cs` says why), so it serves this page whether or not the
+program is open. A first paint of a shut program is the honest cost of that.
+
+**The summary, `/read/<track>/<unit>/<lang>/summary`, is the program's other end** — its
+Summary, its *Can you?*, the lab where the book has one, the consent invitation, and the way on
+— and it opens only once the reader has reached the last frame. `AbOvo.Api` serves it under the
+last frame's own gate (`Reveal.ServeReturnIndex`, #158): a Summary item paraphrases what a run
+of frames concluded, and before this it printed the whole program's findings at frame 3 of 45
+to anybody with the address. Before the last frame it is the frame's own *Not there yet*, with
+a sentence naming the frame it opens after and the way on to the reader's furthest one. Its
+pager goes back to the last frame by number — *Back to frame 45*, where it used to say *Back
+to the frame* and name none — and on to the next program by its id and its title, under the
+words *Next program*, which stay whole: the title takes up to two lines before it is cut, which
+is the whole of a typical title on a desktop and its opening on a phone. It used to be only in
+a tooltip, which a touch screen never shows. Its tab and its description are in the reader's
+edition.
 
 ### `/read/<track>/<unit>/<lang>/<step>` — one frame
 
@@ -412,9 +443,9 @@ their bearer when they are signed in, and otherwise the opaque cookie
 defines, so reading still needs no account. An API that does not answer is the 500 described
 above, never a frame rendered from something else (`lib/server/content.ts`). The web app's
 image still carries the compiled bundle, every answer in it (`web/app/Dockerfile`), because
-the index, `/courses`, a program's contents and its summary read it, and `/instrument` takes
-its list of programs from it; 580 in [the order](#the-order) moves the contents and the
-summary onto the API. Nothing on the frame route reads it.
+the index and `/courses` read it — the deviation `/` above describes — and `/instrument` takes its
+list of programs from it. Nothing under `/read/` reads it: a program's contents and its summary
+came off it in #158 (580 in [the order](#the-order)).
 
 The URL is the position, so it survives a reload with no account: the furthest frame the gate
 allows is held by the API under that cookie, not by a session. `/read/` is in the

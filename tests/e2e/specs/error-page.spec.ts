@@ -137,4 +137,41 @@ test.describe('the error page', () => {
     // test. It is lifted anyway, so a fixture reused by the next local run starts clean.
     await setCut(reader, 'DELETE');
   });
+
+  test('a program’s contents and summary fail as a frame does, before the reader is led into one @core', async ({
+    page,
+  }) => {
+    /*
+      ISSUE #158. The contents and the summary read the compiled bundle, so with the API
+      stopped they rendered — every heading on the contents a link into a frame that then
+      answered 500. They come from the API now, so the page that fails is the first page of
+      the program the reader opens, and it is the same page a frame gets.
+    */
+    await page.goto('/');
+    const reader = await readerIdOf(page.context());
+    await setCut(reader, 'PUT');
+
+    const contents = await page.goto(contentsOf('en'));
+    expect(contents?.status(), 'a failure on this side is a 500').toBe(500);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('The book’s server did not answer.');
+    // The contents are the page that failed, so the way back is the programs (`failedReading`).
+    await expect(page.getByRole('link', { name: 'Back to the program’s contents' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Open the programs' })).toBeVisible();
+    // The tab names the page in the address's edition, and nothing the server would have said.
+    await expect(page).toHaveTitle('Contents — ab-ovo');
+
+    const summary = await page.goto(`${contentsOf('pl')}/summary`);
+    expect(summary?.status()).toBe(500);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Serwer książki nie odpowiedział.');
+    await expect(page.getByRole('link', { name: 'Wróć do spisu treści programu' })).toHaveAttribute(
+      'href',
+      contentsOf('pl'),
+    );
+    await expect(page).toHaveTitle('Podsumowanie — ab-ovo');
+
+    // And back, once the server answers: the contents, from the API, for this reader.
+    await setCut(reader, 'DELETE');
+    await page.goto(contentsOf('en'));
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(FIRST.titles['en']!);
+  });
 });

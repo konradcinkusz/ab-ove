@@ -209,6 +209,8 @@ test.describe('the skip link', () => {
 
   for (const path of PAGES) {
     test(`is the first thing Tab reaches on ${path} @core`, async ({ page }) => {
+      // The summary itself, not the "Not there yet" it is before the last frame (#158).
+      if (path.endsWith('/summary')) await walkTo(page, UNIT, 'en', program.steps.length);
       await page.goto(path);
       const first = await firstTab(page);
       await expect(first, 'the first Tab reached something other than the skip link').toHaveText(

@@ -23,8 +23,8 @@ namespace AbOvo.Api.Endpoints;
 /// NAVIGATES THE STORED BUNDLE WITH <c>System.Text.Json</c> RATHER THAN A TYPED MODEL. The
 /// bundle's real shape lives once, in <c>@ab-ovo/web-kit</c>'s <c>schema.ts</c>; mirroring it
 /// as a parallel C# hierarchy would be a second copy with nothing to keep the two in step
-/// (P11). What this file reads out of the JSON is exactly what <see cref="StepContent"/> and
-/// <see cref="UnitSummary"/> carry — nothing more.
+/// (P11). What this file reads out of the JSON is exactly what <see cref="StepContent"/>,
+/// <see cref="UnitSummary"/> and <see cref="ReturnIndex"/> carry — nothing more.
 /// </para>
 /// </summary>
 public static class ContentEndpoints
@@ -51,15 +51,17 @@ public static class ContentEndpoints
                     .Select(language => language!.GetValue<string>())
                     .ToList() ?? [];
 
-                return Results.Ok(new TrackContent(bundle.Value.Tag, languages, programs));
+                return Results.Ok(new TrackContent(
+                    bundle.Value.Tag, languages, programs, ToText(root["track"]?["titles"])));
             })
             .WithName(EndpointNames.GetPrograms)
-            .WithSummary("The current bundle's tag, editions and every program in it.")
+            .WithSummary("The current bundle's tag, the course's titles and editions, and every program in it.")
             .Produces<TrackContent>();
 
         anonContentApi.MapGet("/content/{track}/{unit}", async (
                 string track,
                 string unit,
+                HttpContext http,
                 [FromServices] ContentBundleCache cache,
                 [FromServices] AbOvoDbContext db,
                 CancellationToken cancellationToken) =>
@@ -67,17 +69,78 @@ public static class ContentEndpoints
                 var unitNode = await FindUnit(cache, db, track, unit, cancellationToken);
                 if (unitNode is null) return Results.NotFound();
 
+                // The reader's own cursor, so the contents can lock a heading the gate would
+                // refuse (UnitSummary.Furthest, issue #158). Inlined for the step endpoint's
+                // reason below: ProgressIsNotEvidenceTests sees only a NAMED method reaching
+                // ReaderProgress, and a shared helper here would be one.
+                var identity = ReaderIdentity.Resolve(http);
+                var cursorStep = identity is null
+                    ? Reveal.FirstStep
+                    : (await db.ReaderProgress.AsNoTracking().SingleOrDefaultAsync(
+                        p => p.Subject == identity && p.Track == track && p.Unit == unit,
+                        cancellationToken))?.Step ?? Reveal.FirstStep;
+
                 var steps = unitNode["steps"]!.AsArray();
                 return Results.Ok(new UnitSummary(
                     unitNode["id"]!.GetValue<string>(),
                     ToText(unitNode["titles"]),
                     steps.Count,
                     ToSections(unitNode["sections"]),
-                    ToPart(unitNode["part"])));
+                    ToPart(unitNode["part"]),
+                    cursorStep));
             })
             .WithName(EndpointNames.GetUnit)
-            .WithSummary("A program's title and step count.")
+            .WithSummary("A program's title, headings and step count, and how far the asking reader may read in it.")
             .Produces<UnitSummary>();
+
+        /*
+         * THE RETURN INDEX, BEHIND THE LAST STEP'S GATE — issue #158. A literal segment, so it
+         * never meets `{step:int}` below, and a GET that moves nothing: it reads the cursor
+         * and serves or refuses, exactly as a step does (Reveal.ServeReturnIndex).
+         */
+        anonContentApi.MapGet("/content/{track}/{unit}/summary", async (
+                string track,
+                string unit,
+                HttpContext http,
+                [FromServices] ContentBundleCache cache,
+                [FromServices] AbOvoDbContext db,
+                CancellationToken cancellationToken) =>
+            {
+                var bundle = await cache.GetLatest(db, track, cancellationToken);
+                if (bundle is null) return Results.NotFound();
+                var unitNode = bundle.Value.Root["units"]!.AsArray()
+                    .Select(u => u!.AsObject())
+                    .FirstOrDefault(u => u["id"]!.GetValue<string>() == unit);
+                if (unitNode is null) return Results.NotFound();
+                var steps = unitNode["steps"]!.AsArray();
+
+                // Inlined, for the step endpoint's reason below.
+                var identity = ReaderIdentity.Resolve(http);
+                var cursorStep = identity is null
+                    ? Reveal.FirstStep
+                    : (await db.ReaderProgress.AsNoTracking().SingleOrDefaultAsync(
+                        p => p.Subject == identity && p.Track == track && p.Unit == unit,
+                        cancellationToken))?.Step ?? Reveal.FirstStep;
+
+                var served = Reveal.ServeReturnIndex(steps.Count, cursorStep);
+                if (!served.Ok)
+                {
+                    return Results.Ok(new ReturnIndexResponse(false, null, ToGateRefusal(served.Refusal!), cursorStep));
+                }
+
+                var routes = unitNode["routes"]?.AsArray().Select(route => route!.AsObject()).ToList() ?? [];
+                var lab = bundle.Value.Root["labs"]?.AsArray()
+                    .Select(candidate => candidate!["id"]!.GetValue<string>())
+                    .FirstOrDefault(id => id == unit);
+
+                return Results.Ok(new ReturnIndexResponse(true, new ReturnIndex(
+                    ToReturnRoutes(routes, "summary"),
+                    ToReturnRoutes(routes, "outcome"),
+                    lab), null, cursorStep));
+            })
+            .WithName(EndpointNames.GetReturnIndex)
+            .WithSummary("A program's Summary and outcomes, subject to the reveal gate as its last step.")
+            .Produces<ReturnIndexResponse>();
 
         anonContentApi.MapGet("/content/{track}/{unit}/{step:int}", async (
                 string track,
@@ -328,6 +391,20 @@ public static class ContentEndpoints
                     ToText(section["titles"]),
                     section["firstStep"]!.GetValue<int>()))
                 .ToList();
+
+    /// <summary>
+    /// The routes of one kind, as the return index carries them: the label and the span, in
+    /// the book's order. <c>route.answer</c> is never read — a Quiz's answer has no field on
+    /// <see cref="ReturnRoute"/> to arrive in (ADR-0014).
+    /// </summary>
+    private static List<ReturnRoute> ToReturnRoutes(IEnumerable<JsonObject> routes, string kind)
+        => routes
+            .Where(route => route["kind"]?.GetValue<string>() == kind)
+            .Select(route => new ReturnRoute(
+                ToText(route["labels"]),
+                route["from"]!.GetValue<int>(),
+                route["to"]!.GetValue<int>()))
+            .ToList();
 
     private static IResult IngestRejected(string detail) => Results.Problem(
         title: "Not a content bundle.",

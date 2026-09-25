@@ -197,14 +197,6 @@
   width: 1.125rem;
 }
 
-/* A label the book makes long — a program's title — takes what the cell has and no more. */
-.label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /*
  * The way on, when there is not one yet (`when-open.tsx`): the sentence in the slot a link
  * would occupy while the next program is shut. A fact about the book's order, not a warning,

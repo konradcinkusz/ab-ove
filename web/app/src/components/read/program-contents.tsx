@@ -1,13 +1,16 @@
 import Link from 'next/link';
 
-import { say, sectionSpans, unitBefore, type Bundle, type Unit } from '@ab-ovo/web-kit';
+import { say } from '@ab-ovo/web-kit';
 
+import { neighboursOf } from '@/lib/content/neighbours';
+import type { TrackContent, UnitSummary } from '@/lib/content/wire';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
+import { isReachable, openingEnds, sectionSpansOf } from '@/lib/read/place';
 
 import styles from './contents.module.css';
 import { EntryControl, StartAfresh } from './entry-control.tsx';
-import { ArrowLeft } from './icons.tsx';
+import { ArrowLeft, ArrowRight, Lock } from './icons.tsx';
 import { ProgramGate } from './program-gate.tsx';
 import foot from './reading-foot.module.css';
 import { ReadingFoot } from './reading-foot.tsx';
@@ -18,13 +21,27 @@ import { RichInline } from './rich-text.tsx';
 import { WhenOpen } from './when-open.tsx';
 
 export interface ProgramContentsProps {
-  readonly bundle: Bundle;
-  readonly unit: Unit;
+  /** The track's id, as the address carries it. */
+  readonly track: string;
+  /** `GET /api/v1/content/{track}` — the course's titles and editions, and the programs in order. */
+  readonly trackContent: TrackContent;
+  /** `GET /api/v1/content/{track}/{unit}` — the program's headings, and how far this reader may go. */
+  readonly unit: UnitSummary;
   readonly language: string;
 }
 
 /**
  * One program's contents, in one language: its headings, and the frame each one opens at.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * FROM `AbOvo.Api`, LIKE EVERY FRAME — issue #158, ADR-0060.
+ *
+ * It and the summary were the last reading pages to render from the bundle compiled into the
+ * app, so with the API stopped it drew every heading and every link into a program whose
+ * every frame then answered 500 — a reader was led into the failure. It renders from the
+ * track and the unit the API serves now (`page.tsx`), so an API that does not answer is the
+ * same page a frame gets, before the reader has clicked anything.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * IT LISTS HEADINGS AND NOT FRAMES, AND THAT IS THE BOOK'S OWN SHAPE.
@@ -35,6 +52,13 @@ export interface ProgramContentsProps {
  * navigation a reader actually wants ("where does the part about the gap start?"), and it
  * carries no question and no answer.
  *
+ * A HEADING PAST THE READER'S FURTHEST FRAME IS TEXT WITH A LOCK, NOT A LINK — the program
+ * map's rule (ADR-0063), on the page that lists the same headings. Every heading used to be
+ * a link, so a new reader who pressed the third one landed on the gate's "Not there yet": a
+ * control that is reliably refused (ADR-0056). The furthest frame is the gate's own cursor,
+ * sent with the unit (`UnitSummary.furthest`); an API that does not send it gets every
+ * heading as a link, and the gate answers, as before.
+ *
  * WHAT IS DELIBERATELY NOT HERE: the unit's `routes`. A Quiz item, a declared outcome and a
  * Summary bracket are the book's RETURN index — they belong beside the material they send
  * a reader back to. Putting them on a contents page would print the Quiz before frame 1,
@@ -42,44 +66,39 @@ export interface ProgramContentsProps {
  * than once: an outcome may name the skill and may not carry the finding.
  *
  * THAT REFUSAL SURVIVED `/summary` AND IS WHY THE FOOT DOES NOT LINK TO IT. The Summary
- * and the `Can you?` list now have a screen of their own (`program-summary.tsx`), and a
- * link to it from here would keep the letter of the refusal and lose its reason: a reader
- * one click before frame 1 would be one click from 763 labels that paraphrase what the
- * program concludes. It is reached from the last frame, from the resume control once the
- * reader has got there, and by URL.
+ * and the `Can you?` list have a screen of their own (`program-summary.tsx`), reached from
+ * the last frame, and the API serves it only once the reader has reached that frame (issue
+ * #158) — a link to it from here would be a way to a page the gate refuses until then.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * THE PAGER CARRIES THE TWO NEIGHBOURING PROGRAMS — PR3, in the shape ADR-0063 gave every
- * reading screen. Between-program movement used to exist only on the index: a reader
- * finishing F01 went up two levels to reach F02. The neighbours are found by ADJACENCY IN
- * `bundle.units`, never by adding one to a parsed id — the book renumbered its own main
- * sequence once already when P07 was inserted, and an id is a name rather than an index.
+ * reading screen, and with the arrows every other screen's pager draws (`icons.tsx`) rather
+ * than a `←` typed into the label. The neighbours are found by ADJACENCY in the API's list
+ * of programs (`neighboursOf`), never by adding one to a parsed id.
  *
  * THE WAY IN IS UNDER THE TITLE, where the page is first looked at, rather than under the list
  * of headings: a reader who came here to start or to carry on should not have to scroll past
  * eight headings to find the button that does it (ADR-0063).
  */
 export function ProgramContents({
-  bundle,
+  track,
+  trackContent,
   unit,
   language,
 }: ProgramContentsProps): React.JSX.Element {
-  const spans = sectionSpans(unit);
-  const track = bundle.track.id;
+  const spans = sectionSpansOf(unit.sections, unit.stepCount);
   const at = (n: number): string => `/read/${track}/${unit.id}/${language}/${n}`;
   const chrome = chromeFor(language);
+  const furthest = unit.furthest ?? undefined;
 
   // Steps before the first heading. The book's programs open with a Quiz and an opener
-  // before §1, so this is a legitimate span rather than a defect — see sectionSpans, which
-  // declines to invent a title for it. It is named here and not titled.
-  const openingEnds = (spans[0]?.from ?? 1) - 1;
+  // before §1, so this is a legitimate span rather than a defect — see sectionSpansOf, which
+  // declines to invent a title for it. It is named here and not titled. It starts at frame
+  // 1, which every reader may open, so it is never locked.
+  const opening = openingEnds(spans);
 
-  const index = bundle.units.findIndex((candidate) => candidate.id === unit.id);
-  // Through `unitBefore` rather than `index - 1`, so the gate and this pager read the
-  // book's order out of one function (ADR-0051). The forward neighbour has no such
-  // sharer and stays here.
-  const previousUnit = unitBefore(bundle, unit.id);
-  const nextUnit = index >= 0 ? bundle.units[index + 1] : undefined;
+  const { previous: previousUnit, next: nextUnit } = neighboursOf(trackContent.programs, unit.id);
+  const trackTitle = trackContent.titles?.[language];
 
   return (
     <ReadingScreen
@@ -104,7 +123,8 @@ export function ProgramContents({
           back={
             previousUnit ? (
               <Link className={foot.pagerButton} href={`/read/${track}/${previousUnit.id}/${language}`}>
-                ← {previousUnit.id}
+                <ArrowLeft className={foot.arrow} />
+                <span>{previousUnit.id}</span>
               </Link>
             ) : (
               <Link className={foot.pagerButton} href="/">
@@ -124,7 +144,8 @@ export function ProgramContents({
             nextUnit ? (
               <WhenOpen language={chrome.language} previous={unit.id} track={track} unit={nextUnit.id}>
                 <Link className={foot.pagerButton} href={`/read/${track}/${nextUnit.id}/${language}`}>
-                  {nextUnit.id} →
+                  <span>{nextUnit.id}</span>
+                  <ArrowRight className={foot.arrow} />
                 </Link>
               </WhenOpen>
             ) : null
@@ -136,8 +157,8 @@ export function ProgramContents({
         <ReadingTop
           chrome={chrome}
           language={language}
-          languageHrefs={editionHrefs(bundle.track.languages, (other) => `/read/${track}/${unit.id}/${other}`)}
-          languages={bundle.track.languages}
+          languageHrefs={editionHrefs(trackContent.languages, (other) => `/read/${track}/${unit.id}/${other}`)}
+          languages={trackContent.languages}
           unitId={unit.id}
         />
       }
@@ -151,8 +172,11 @@ export function ProgramContents({
         are different language sets (lib/i18n/chrome.ts).
       */}
       <p className={styles.subtitle}>
-        {say(bundle.track.titles, language)}{' '}
-        <span lang={chrome.language}>· {chrome.frames(unit.steps.length)}</span>
+        {trackTitle ? <>{trackTitle} </> : null}
+        <span lang={chrome.language}>
+          {trackTitle ? '· ' : null}
+          {chrome.frames(unit.stepCount)}
+        </span>
       </p>
 
       {/*
@@ -165,8 +189,8 @@ export function ProgramContents({
         (`progress.spec.ts` holds the page to its shift bound).
       */}
       <div className={styles.entry}>
-        <EntryControl language={language} last={unit.steps.length} track={track} unit={unit.id} />
-        <StartAfresh language={language} last={unit.steps.length} track={track} unit={unit.id} />
+        <EntryControl language={language} last={unit.stepCount} track={track} unit={unit.id} />
+        <StartAfresh language={language} last={unit.stepCount} track={track} unit={unit.id} />
       </div>
 
       {spans.length > 0 ? (
@@ -175,11 +199,9 @@ export function ProgramContents({
             {chrome.contents}
           </h2>
           <ol className={styles.list}>
-            {openingEnds >= 1 ? (
+            {opening >= 1 ? (
               <li className={styles.sectionEntry}>
-                <span className={styles.range}>
-                  {openingEnds === 1 ? '1' : `1–${openingEnds}`}
-                </span>
+                <span className={styles.range}>{opening === 1 ? '1' : `1–${opening}`}</span>
                 <Link className={styles.sectionTitle} href={at(1)}>
                   <span className={styles.opening} lang={chrome.language}>
                     {chrome.opening}
@@ -201,19 +223,28 @@ export function ProgramContents({
                   "3–3", which reads as a defect.
                 */}
                 <span className={styles.range}>{from === to ? from : `${from}–${to}`}</span>
-                {/*
-                  `prefetch={false}`: a section's first frame opens with the answer to the
-                  frame before it, and a contents page in the viewport was pulling every one
-                  of them over the wire. The reveal's own reasoning (frame-view.tsx).
-                */}
-                <Link className={styles.sectionTitle} href={at(from)} prefetch={false}>
-                  {/*
-                    Through the renderer, not raw: the pinned bundle's section titles carry
-                    maths spans, and a raw `say()` here would print `$` and a TeX macro on the
-                    one page whose whole job is to be scanned.
-                  */}
-                  <RichInline language={language} text={say(section.titles, language)} />
-                </Link>
+                {isReachable(from, furthest) ? (
+                  /*
+                    `prefetch={false}`: a section's first frame opens with the answer to the
+                    frame before it, and a contents page in the viewport was pulling every one
+                    of them over the wire. The reveal's own reasoning (frame-view.tsx).
+                  */
+                  <Link className={styles.sectionTitle} href={at(from)} prefetch={false}>
+                    {/*
+                      Through the renderer, not raw: the pinned bundle's section titles carry
+                      maths spans, and a raw `say()` here would print `$` and a TeX macro on the
+                      one page whose whole job is to be scanned.
+                    */}
+                    <RichInline language={language} text={say(section.titles, language)} />
+                  </Link>
+                ) : (
+                  <span className={`${styles.sectionTitle} ${styles.lockedTitle}`}>
+                    <RichInline language={language} text={say(section.titles, language)} />
+                    <span className={styles.lockNote} lang={chrome.language}>
+                      <Lock className={styles.lockIcon} /> {chrome.lockedSection}
+                    </span>
+                  </span>
+                )}
               </li>
             ))}
           </ol>
