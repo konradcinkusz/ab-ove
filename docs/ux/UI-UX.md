@@ -704,6 +704,45 @@ written.
 | 330 | blocked | #79 | The real content bundle: 47 programs | 2b.1 |
 | 340 | blocked | #80 | A second lab | — |
 | 350 | blocked | #81 | A second track — the content pipeline, not the screens ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) | — |
+| 360 | bug | #136 | MCP: the server says it has no book when a host starts it outside the repository | — |
+| 370 | bug | #137 | MCP: a failed progress call reaches the host as a raw JSON-RPC error | — |
+| 380 | bug | #138 | A reveal that cannot reach the API leaves the reader on the same frame, saying nothing | — |
+| 390 | bug | #139 | The error page cannot recover, blames the bundle, and titles a failed frame "Not found" | — |
+| 400 | bug | #140 | A mistyped address asks the reader to sign in | — |
+| 410 | bug | #141 | Registration asks for acceptance of Terms and a Privacy Policy it does not link to | — |
+| 420 | bug | #142 | `/about` and the integration panel tell readers the frames need no backend | — |
+| 430 | docs | #143 | The documents and templates still state the premise ADR-0060 reversed | — |
+| 440 | feature | #144 | MCP: the edition is asked once per reader, and asking is not an error | — |
+| 450 | feature | #145 | MCP: `list_programs` says what is open in a few lines | — |
+| 460 | bug | #146 | Form-field edges, the Decline button and the sketch canvas fall below 3:1 | — |
+| 470 | bug | #147 | Controls outside the reading screens are too small to hit | — |
+| 480 | bug | #148 | Some controls show focus only by a colour or brightness change | — |
+| 490 | feature | #149 | A skip link on every page | — |
+| 500 | feature | #150 | An app icon and a theme colour | — |
+| 510 | bug | #151 | The sketch's Clear is one irreversible press; the two-press window is short and silent | — |
+| 520 | bug | #152 | Polish chrome: strings that say something other than what is meant | — |
+| 530 | feature | #153 | The consent question in plain words, with focus kept after answering | — |
+| 540 | decision | #154 | Can a reader who knows the Foundation programs start the Main sequence | — |
+| 550 | decision | #155 | How an agent reaches the book: the MCP reader's identity, installing or hosting, the licence | — |
+| 560 | probe | #156 | What the pinned authservice offers for a forgotten password and an unverified address | — |
+| 570 | bug | #157 | Where the reader is: Continue and sync follow the furthest frame | — |
+| 580 | feature | #158 | Contents and summary come from the API; the summary opens from the last frame | — |
+| 590 | feature | #159 | The reading loop explains itself: the cue, the keys, focus on the new frame | — |
+| 600 | feature | #160 | A frame loads with parallel API calls, and shows that it is loading | — |
+| 610 | feature | #161 | `/account` is the reader's overview; deletion gets its own page | — |
+| 620 | docs | #162 | A plain-language pass over reader-facing copy | — |
+| 630 | feature | #163 | The index greets a first-time reader | — |
+| 640 | feature | #164 | MCP: results carry structured content | — |
+| 650 | feature | #165 | The index's top row: one Start/Continue card, the reader's data out of the masthead | — |
+| 660 | feature | #166 | Sign-in, registration, 2FA, `/about` and the error pages follow the reader's edition | — |
+| 670 | feature | #167 | MCP speaks the reader's edition | — |
+| 680 | feature | #168 | The reveal shows the reader's own working and sketch | — |
+| 690 | feature | #169 | One button system and one page header outside the reading screens | — |
+| 700 | feature | #170 | A way back from a forgotten password or a lost verification email | — |
+| 710 | feature | #171 | The MCP server reads and advances through `AbOvo.Api`; `PUT` stops raising a step | — |
+| 720 | feature | #172 | MCP: one command connects an agent, with no checkout | — |
+| 730 | blocked | #173 | MCP over Streamable HTTP with OAuth | — |
+| 740 | blocked | #174 | A frame that points at a figure shows none | — |
 
 **Three things this ordering asserts**, each of which is a claim and not a preference:
 
@@ -714,6 +753,23 @@ written.
 3. **100 and 110 precede 120 deliberately.** An ADR written before its measurement is a
    decision without its evidence, and a refusal at 120 is a valid outcome that closes
    130–160 with it.
+
+**360–740 are the UX audit of 2026-09-24, tracked in #135**, and they run beside the deploy
+chain rather than after it: nothing in 190–350 waits for them, and only 720 and 730 wait on a
+deployment. The numbers rank; the stages below decide what may run at once. Each issue names
+what it waits for at its top, so a stage is a claim a reader can check against the issues.
+
+1. **360–560 wait on nothing, not even on each other.** They are small, and where two of them
+   share a file they touch different parts of it, which each issue names. Take them in
+   parallel, in any order. 540 and 550 are decisions and 560 is a probe: no code, but later
+   items wait on their answers.
+2. **570–640 each wait on something in 360–560,** and they are larger. They can run beside one
+   another; where two share a file, the issues say which.
+3. **650–680, then 690–710, then 720–740 follow the same rule, one stage further on each.** 690
+   is last on the web side on purpose: it unifies the styles every earlier item edits.
+4. **730 and 740 are blocked on things no change to this code provides** — the first deploy,
+   and the book's placement model for figures — and say so, rather than leaving it to be
+   discovered.
 
 Phase 5.1 — scanning the full git history for secrets — is absent because it is done: 56
 commits, 4.61 MB, zero findings, audit committed under `docs/architecture/`.
