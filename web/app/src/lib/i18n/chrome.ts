@@ -207,6 +207,15 @@ interface Strings {
    */
   readonly next: string;
   readonly previous: string;
+  /**
+   * What `Next` says when the reveal did not happen (#138) — one sentence on the pager's edge
+   * above it, gone with the next press (`reveal-form.tsx`). `revealUnreachable` when the API
+   * did not answer or refused the call, so pressing again is what there is to do;
+   * `revealBusy` when its rate limiter answered, so waiting is. Neither says anything about
+   * the frame: the next one stays shut until it is served (ADR-0060).
+   */
+  readonly revealUnreachable: string;
+  readonly revealBusy: string;
   readonly languageLabel: string;
   readonly programs: string;
   /**
@@ -597,6 +606,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     cue: 'The next frame answers this.',
     next: 'Next',
     previous: 'Previous',
+    revealUnreachable: 'Could not reach the book. Try again.',
+    revealBusy: 'Too many requests at once. Wait a moment, then try again.',
     languageLabel: 'Language',
     programs: 'Programs',
     about: 'About ab-ovo',
@@ -759,6 +770,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     // third of the pager (ADR-0063), where `Poprzednia` / `Następna` did not quite.
     next: 'Dalej',
     previous: 'Wstecz',
+    revealUnreachable: 'Nie udało się dotrzeć do książki. Spróbuj ponownie.',
+    revealBusy: 'Zbyt wiele żądań naraz. Odczekaj chwilę i spróbuj ponownie.',
     languageLabel: 'Język',
     programs: 'Programy',
     about: 'O ab-ovo',
@@ -947,6 +960,8 @@ export interface Chrome {
   readonly cue: string;
   readonly next: string;
   readonly previous: string;
+  readonly revealUnreachable: string;
+  readonly revealBusy: string;
   readonly languageLabel: string;
   readonly programs: string;
   readonly about: string;

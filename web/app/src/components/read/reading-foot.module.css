@@ -126,6 +126,39 @@
 }
 
 /*
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * A REVEAL THAT DID NOT HAPPEN SAYS SO, HERE (#138). `reveal-form.tsx` puts one sentence in
+ * this `role="status"` line when the action comes back without turning the page — the same
+ * line for a click, `→` and `Ctrl+Enter`, because all three submit the one form.
+ *
+ * ON THE BAR'S TOP EDGE, AS WIDE AS THE BAR, ending under `Next`'s right edge — and never in
+ * the grid: in the forward cell it would wrap into a column a third of a phone wide and make
+ * the pinned bar taller under the reader's thumb. Positioned against the bar itself (`sticky`
+ * makes `.pinned` the containing block), it moves nothing on the page, and it lies over the
+ * text's last line only as the bar does (ADR-0063), for as long as there is something to say.
+ *
+ * EMPTY, IT HAS NO BOX — but it is in the document from the first render, because a live
+ * region that arrives with its first message is not reliably announced.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
+.revealStatus {
+  bottom: 100%;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  right: 0;
+  text-align: right;
+}
+
+.revealStatus:not(:empty) {
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+  color: var(--ink);
+  /* The text column's edges, as `.inner` draws them: the measure, less the gutter. */
+  padding: 0.5rem max(1.25rem, calc((100% - var(--measure)) / 2 + 1.25rem));
+}
+
+/*
  * WHILE THE NEXT FRAME IS ON ITS WAY. The reveal is a round trip on every press (a Server
  * Action, never prefetched — ADR-0060), so the press has to show it registered: the cursor
  * says so and the arrow keeps moving. Nothing lays out, so the pager moves by nothing.
@@ -212,6 +245,11 @@
 
   .position {
     padding: 0.25rem 0.375rem;
+  }
+
+  /* The phone's gutter, as `.inner` takes it above. */
+  .revealStatus:not(:empty) {
+    padding-inline: 0.75rem;
   }
 
   /*

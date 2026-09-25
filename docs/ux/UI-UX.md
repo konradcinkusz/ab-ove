@@ -357,6 +357,23 @@ notice is lifted over it. `specs/pager.spec.ts` asserts the owner's requirement 
 before and after scrolling, labelled, a finger tall, in the same place on consecutive frames,
 and a click on each goes where it says, with JavaScript and without.
 
+**A reveal that does not happen says so, beside `Next`** (#138). The reveal's action goes to
+`n + 1` only when `AbOvo.Api` took the advance; otherwise it returns why, and the pager shows
+one sentence in a `role="status"` line on its top edge, ending under `Next`
+(`components/read/reveal-form.tsx`). *Could not reach the book. Try again.* when the API did
+not answer or refused the call; *Too many requests at once. Wait a moment, then try again.*
+when its rate limiter answered — both in both editions (`chrome.ts`). The frame and the
+address stay where they were, the sentence carries nothing of the next frame (the answer is
+still absent until that frame is served), and it clears on the next press. `→` and
+`Ctrl+Enter` press the same form rather than calling the action, so they show the button's
+busy state — the arrow keeps moving, the cursor says `progress` — and a second press while one
+is out sends nothing. With no script the browser posts the form and the server renders the
+same frame with the sentence in it. Before this, a failed reveal left the reader on the frame
+with no word, no busy state and no change of address, because the action's comment relied on
+a re-render Next 16 does not do. `specs/reveal-failure.spec.ts` fails the advance with a real
+API that refuses the reader's identity, and asserts the sentence for the click, both keys and
+no JavaScript.
+
 **The top bar** (`reading-top.tsx`) scrolls away with the page: `ab-ovo`, which is the way to
 every program; the program's id and its title, the title leading to its contents; the
 language control, unchanged ([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md));

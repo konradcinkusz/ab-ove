@@ -78,6 +78,7 @@ was first written with.
 | `reader-identity.spec.ts` | an anonymous reader's place is held in a cookie the page cannot read, and no header can claim it (ADR-0061) |
 | `reading.spec.ts` | reading a program end to end from the keyboard, the frame's ergonomics, and the frame on paper |
 | `registration.spec.ts` | a reader with no account gets one |
+| `reveal-failure.spec.ts` | a reveal the API does not take says so beside `Next` and keeps the frame — with the mouse, `→`, `Ctrl+Enter` and no JavaScript (#138) |
 | `runtime-config.spec.ts` | `/api/config` resolved at request time, and the `/healthz` check the platform polls |
 | `runtime-cost.spec.ts` | what the Python runtime costs in this browser, cold and warm |
 | `screenshots.spec.ts` | the pictures `docs/SCREENSHOTS.md` shows, captured from the real application — not a gate |

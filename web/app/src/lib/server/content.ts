@@ -69,11 +69,15 @@ export interface ReaderIdentity {
  * `unavailable` is DEPLOYMENT's (every candidate failed to answer at all) — the same split
  * `bundleFor`'s own doc comment draws between "the page is absent" and "a 500 with a sentence
  * in the log", carried over a network instead of a disk read.
+ *
+ * `rateLimited` marks the one `unavailable` a reader can do something about by waiting: the
+ * configured rung answered 429 (see `request` below). The reveal says a different sentence for
+ * it (`lib/actions/reveal-outcome.ts`, #138); everything else reads only `reason`.
  */
 export type ContentOutcome<T> =
   | { readonly kind: 'ok'; readonly data: T }
   | { readonly kind: 'not-found' }
-  | { readonly kind: 'unavailable'; readonly reason: string };
+  | { readonly kind: 'unavailable'; readonly reason: string; readonly rateLimited?: true };
 
 /** Injectable for tests, on `delete-account.ts`'s pattern. The global is production's only implementation. */
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
@@ -162,6 +166,7 @@ async function request<T>(
         return {
           kind: 'unavailable',
           reason: `${base}: api answered 429${retryAfter ? `, retry after ${retryAfter}s` : ''}`,
+          rateLimited: true,
         };
       }
 
