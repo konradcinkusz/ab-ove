@@ -18,7 +18,17 @@ import { advance, current, explain, serve, FIRST_STEP } from './reveal.ts';
 import type { Cursor, Refusal } from './reveal.ts';
 import type { CursorStore } from './cursor.ts';
 import { isIdentifier } from './cursor.ts';
-import { ContentUnavailable, groupsOf, isOpenWhere, languageIn, say, unitBefore, unitIn } from './content.ts';
+import {
+  CONTENT_BUNDLE_VARIABLE,
+  ContentUnavailable,
+  REPOSITORY_ROOT,
+  groupsOf,
+  isOpenWhere,
+  languageIn,
+  say,
+  unitBefore,
+  unitIn,
+} from './content.ts';
 import type { Bundle, BundleSource, Step, Text, Unit } from './content.ts';
 
 /**
@@ -294,14 +304,58 @@ export const EPHEMERAL_NOTE =
   'write it to, so a restart begins the program again. Fine for reading; not a bookmark.';
 
 /**
- * The one sentence a reader gets when the deployment has no book, and the one line that
- * fixes it. The loader's own message follows, because it names the paths it checked and
- * that is what whoever runs the server needs.
+ * What a reader is told when the deployment has no book, and what fixes it — which depends
+ * on WHY there is none, so it is built from what the loader found rather than fixed.
+ *
+ * The first version was one constant for every case: the bundle "is not on this machine",
+ * run the fetch script. Started from `/` by a host, the server said that with the bundle
+ * sitting in the checkout, and sent whoever ran it to a script that could not help (#136).
+ * The loader now looks in this checkout whatever the working directory (`content.ts`'s
+ * `WEB_DIR`), which leaves three cases, and each has its own fix:
+ *
+ * - NEVER FETCHED into this checkout: the fetch script, run from the root named here —
+ *   a host's working directory says nothing about which checkout the server is in.
+ * - FETCHED, BUT NOT WHERE THIS PROCESS WAS TOLD TO LOOK: `AB_OVO_CONTENT_BUNDLE` names a
+ *   file that is not there. The variable is the fix, not the script.
+ * - FOUND AND REFUSED: a bundle that does not validate is not missing, and saying so
+ *   would send somebody looking for a file they can see.
+ *
+ * Every path tried is named, because that is the one thing whoever runs the server can
+ * check for themselves.
  */
-export const NO_CONTENT_NOTE =
-  'This server has no book to serve yet: the compiled content bundle is not on this ' +
-  'machine. Whoever runs the server should run `bash scripts/fetch-book-content.sh` from ' +
-  'the repository root, once, and start the server again.';
+export function noContentNote(missing: ContentUnavailable): string {
+  const fetch =
+    `run \`bash scripts/fetch-book-content.sh\` once, from ${REPOSITORY_ROOT}, and start the ` +
+    'server again';
+
+  if (missing.checked === undefined) {
+    return (
+      'This server found its book and cannot load it: the compiled content bundle is on ' +
+      'disk and does not validate, and a book is served whole or not at all. Whoever runs ' +
+      `the server should ${fetch}; the script compiles the bundle again at the revision this ` +
+      `checkout pins.\n\n${missing.message}`
+    );
+  }
+
+  const looked = missing.checked.map((path) => `  ${path}`).join('\n');
+  if (missing.override !== undefined) {
+    return (
+      `This server has no book to serve: ${CONTENT_BUNDLE_VARIABLE} says the compiled content ` +
+      `bundle is at ${missing.override}, and there is no file there. The book may well be on ` +
+      `this machine, just not where this process was told to look. It looked at:\n${looked}\n` +
+      `Whoever runs the server should set ${CONTENT_BUNDLE_VARIABLE} to the path of the ` +
+      `bundle.json file itself, or remove it and ${fetch}.`
+    );
+  }
+
+  return (
+    'This server has no book to serve: the compiled content bundle has never been fetched ' +
+    `into the checkout it runs from. It looked at:\n${looked}\n` +
+    `Whoever runs the server should ${fetch}. A book compiled somewhere else can be named ` +
+    `instead: set ${CONTENT_BUNDLE_VARIABLE} to its bundle.json in the environment the host ` +
+    'starts this server with.'
+  );
+}
 
 /**
  * The names for the id prefixes `groupsOf` divides a track by — the reading surface's
@@ -562,7 +616,7 @@ export async function handle(
   try {
     return await dispatch(name, args, deps);
   } catch (error) {
-    if (error instanceof ContentUnavailable) return problem(`${NO_CONTENT_NOTE}\n\n${error.message}`);
+    if (error instanceof ContentUnavailable) return problem(noContentNote(error));
     throw error;
   }
 }

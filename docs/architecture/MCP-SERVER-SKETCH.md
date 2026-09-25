@@ -179,7 +179,10 @@ asked for one — is an error. The gate's sentence and the end of a program trav
 **A deployment with no book answers with the fix.** The loader's throw for a bundle that was
 never fetched used to reach the host as a JSON-RPC error on the reader's first call, carrying
 a developer's message. `content.ts` wraps it at the one crossing as `ContentUnavailable`, and
-`handle()` answers it with the one line that fixes it and the loader's own message after.
+`handle()` answers it with `noContentNote`: the paths it looked at, and the fix for the case
+it is in — never fetched into this checkout (run the fetch script, from the root it names),
+pointed by `AB_OVO_CONTENT_BUNDLE` at a file that is not there (correct the variable), or
+found and refused by the validator (not "missing", and the loader's message follows).
 
 **A place kept in memory is said in the results.** `server.ts` warned on stderr, which no
 reader of a host sees; `list_programs` and `open_program` now carry the same sentence, so
@@ -353,3 +356,19 @@ TypeScript server, because the Node that cannot strip types cannot be told so by
 cannot parse; `web/mcp/README.md` has the host configuration. With neither
 `AB_OVO_API_URL` nor `AB_OVO_READER_TOKEN` set it keeps the reader's place in memory and
 says so — on stderr, and in every result that shows a place.
+
+**It can be started from any working directory**, which is what a host does. The book is
+looked for in the server's own checkout, not relative to where the process was started:
+`content.ts` finds `web/` from its own `import.meta.url` — reliable here because Node runs
+this package's source directly — and hands it to `@ab-ovo/web-kit`'s `bundleFor`, which then
+tries `AB_OVO_CONTENT_BUNDLE` and that one path and guesses nothing. Before, the loader's
+guesses were all relative to the working directory, and a host that started the server from
+`/` was told there was no book while it sat in the checkout. `@ab-ovo/app` passes no
+`web/` — its bundled server code cannot know its own place on disk — so its candidates, and
+its Docker image, are unchanged. `bundle.test.ts` asserts the loader's half from a scratch
+directory; `content.test.ts` asserts that the live source names this checkout and finds the
+book from outside it. To see it the way a host does:
+
+```bash
+cd / && node /absolute/path/to/ab-ovo/web/mcp/bin/ab-ovo-mcp.mjs
+```

@@ -2,12 +2,11 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
 import { MemoryCursorStore } from './cursor.ts';
-import { ContentUnavailable, fixtureBundles, say, unitIn } from './content.ts';
+import { BundleNotFound, ContentUnavailable, REPOSITORY_ROOT, fixtureBundles, say, unitIn } from './content.ts';
 import type { Bundle, BundleSource, Text, Unit } from './content.ts';
 import {
   ANSWER_CONTRACT,
   EPHEMERAL_NOTE,
-  NO_CONTENT_NOTE,
   SERVER_INSTRUCTIONS,
   TOOLS,
   handle,
@@ -438,19 +437,27 @@ test('the hand-off names the next program and the call that opens it', async () 
   }
 });
 
-test('a missing bundle is a sentence naming the fetch script, not a protocol error', async () => {
+/** A source whose every call fails the way `liveBundles` does when the loader throws `cause`. */
+function failingWith(cause: Error): BundleSource {
+  return {
+    for: () => {
+      throw new ContentUnavailable(cause);
+    },
+    all: () => {
+      throw new ContentUnavailable(cause);
+    },
+  };
+}
+
+const notFound = (checked: readonly string[], override?: string) =>
+  new BundleNotFound('no compiled content bundle found (the loader\'s own words)', checked, override);
+
+test('a book never fetched is a sentence naming the script, the checkout and the paths — not a protocol error', async () => {
   // `bundleFor()` throws when the content was never fetched; wrapped at the one crossing in
   // content.ts, it reaches a reader as a result with the fix in it rather than as a
   // JSON-RPC error on their first call.
-  const absent: BundleSource = {
-    for: () => {
-      throw new ContentUnavailable(new Error('no compiled content bundle found (checked: here)'));
-    },
-    all: () => {
-      throw new ContentUnavailable(new Error('no compiled content bundle found (checked: here)'));
-    },
-  };
-  const d = { cursors: new MemoryCursorStore(), bundles: absent };
+  const checked = [`${REPOSITORY_ROOT}/web/content/bundle/bundle.json`];
+  const d = { cursors: new MemoryCursorStore(), bundles: failingWith(notFound(checked)) };
 
   for (const call of [
     handle('list_programs', {}, d),
@@ -458,10 +465,40 @@ test('a missing bundle is a sentence naming the fetch script, not a protocol err
   ]) {
     const result = await call;
     assert.ok(result.isError);
-    assert.ok(result.text.startsWith(NO_CONTENT_NOTE));
+    assert.match(result.text, /never been fetched into the checkout it runs from/);
     assert.match(result.text, /fetch-book-content\.sh/);
-    assert.match(result.text, /checked: here/, 'the loader\'s own message must follow');
+    assert.ok(result.text.includes(`from ${REPOSITORY_ROOT}`), 'the checkout to run it in is named');
+    assert.ok(result.text.includes(`  ${checked[0]}`), 'the path it looked at is named');
+    assert.ok(result.text.includes('AB_OVO_CONTENT_BUNDLE'), 'the override is offered for a book compiled elsewhere');
   }
+});
+
+test('a book looked for where the override points, and not there, says so rather than blaming the fetch', async () => {
+  // #136: the book can be on the machine and the process looking somewhere else. Then the
+  // fetch script is not the fix, and the note must not lead with it.
+  const override = '/srv/elsewhere/bundle.json';
+  const checked = [override, `${REPOSITORY_ROOT}/web/content/bundle/bundle.json`];
+  const d = { cursors: new MemoryCursorStore(), bundles: failingWith(notFound(checked, override)) };
+
+  const result = await handle('list_programs', {}, d);
+  assert.ok(result.isError);
+  assert.match(result.text, /AB_OVO_CONTENT_BUNDLE says the compiled content bundle is at \/srv\/elsewhere\/bundle\.json/);
+  assert.match(result.text, /not where this process was told to look/);
+  assert.doesNotMatch(result.text, /never been fetched/);
+  for (const path of checked) assert.ok(result.text.includes(`  ${path}`), `${path} was not named`);
+});
+
+test('a book found and refused by the validator is not called missing', async () => {
+  const d = {
+    cursors: new MemoryCursorStore(),
+    bundles: failingWith(new Error('the bundle at here does not validate against content-schema.v1')),
+  };
+
+  const result = await handle('list_programs', {}, d);
+  assert.ok(result.isError);
+  assert.match(result.text, /found its book and cannot load it/);
+  assert.doesNotMatch(result.text, /no book to serve/);
+  assert.match(result.text, /does not validate against content-schema\.v1/, 'the loader\'s own message follows');
 });
 
 test('a place kept in memory is said in the results, and only then', async () => {

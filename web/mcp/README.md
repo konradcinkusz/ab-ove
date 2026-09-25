@@ -28,9 +28,10 @@ a line of TypeScript:
   then hands over — a check inside `src/server.ts` could not run on the Node that needs it.
 - **The workspace installed**: `pnpm --dir web install`.
 - **The book compiled**: `bash scripts/fetch-book-content.sh`, once per clone. Without it
-  the server starts and answers every call with the one line that fixes it. `bundleFor()`
-  refuses to fall back to a fixture, because silently substituting a four-frame fixture for
-  the forty-seven-program book is the "looks finished and is not" failure this repository
+  the server starts and answers every call with what fixes it: the path it looked at, the
+  checkout to run the script in, and the override below. `bundleFor()` refuses to fall back
+  to a fixture, because silently substituting a four-frame fixture for the
+  forty-seven-program book is the "looks finished and is not" failure this repository
   refuses everywhere. The *tests* need none of it — they inject the committed fixture.
 
 ```bash
@@ -39,10 +40,19 @@ pnpm --dir web install
 node web/mcp/bin/ab-ovo-mcp.mjs        # or: pnpm --dir web/mcp start
 ```
 
+**The working directory does not matter.** The server looks for the book in the checkout
+it is part of — `web/content/bundle/bundle.json`, found from its own place on disk — so it
+starts the same from the repository root, from `web/mcp` or from `/`. A book compiled
+somewhere else is named with `AB_OVO_CONTENT_BUNDLE`, the path of the `bundle.json` file
+itself; it is tried first. If it names nothing, the server says so, rather than telling you
+to fetch a book you already have.
+
 ## Pointing a host at it
 
-A host starts the command from a working directory of its own choosing, so the path has to
-be absolute — a relative one is the first thing that goes wrong. From the repository root:
+A host starts the command from a working directory of its own choosing, so the path to the
+launcher has to be absolute — a relative one is the first thing that goes wrong. Where the
+host starts it does not change where the book is found: that is the launcher's own checkout.
+From the repository root:
 
 ```bash
 claude mcp add ab-ovo -- node "$PWD/web/mcp/bin/ab-ovo-mcp.mjs"
@@ -60,6 +70,9 @@ or, in a host's own configuration file, with the path written out:
   }
 }
 ```
+
+For a book compiled outside this checkout, add
+`"env": { "AB_OVO_CONTENT_BUNDLE": "/absolute/path/to/bundle.json" }` beside `args`.
 
 In a host that lists a server's prompts, **`read`** is the way in: pick it, name a program
 or leave it out, and the host's model is told the method before it is told a step. Its
