@@ -1,0 +1,25 @@
+/*
+ * The legal documents, as this deployment publishes them (`lib/server/legal.ts`).
+ *
+ * The text arrives as plain text and is rendered as text, so nothing here styles a heading
+ * or a list the document never declared. A paragraph's own line breaks are kept — a clause
+ * per line is the usual shape of a plain-text policy — and the measure is `--measure`, the
+ * one declared in globals.css for every column of prose in the product.
+ */
+.document {
+  margin: 0;
+}
+
+.document p {
+  max-width: var(--measure);
+  white-space: pre-line;
+  /* A long address in a policy must wrap rather than widen the page past a phone's edge. */
+  overflow-wrap: anywhere;
+}
+
+/* The version, set apart as it is in the consent sentence that links here. */
+.version {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}

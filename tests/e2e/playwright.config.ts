@@ -344,10 +344,17 @@ export default defineConfig({
              * `AB_OVO_API_URL` is the same rung for the other backend. Both deployments
              * get it now (ADR-0060 — see `apiBaseUrl` above); this one also gets
              * `AB_OVO_AUTH_URL`, which is the one thing left that only it has.
+             *
+             * `AB_OVO_LEGAL_URL` is where the deployment publishes the Terms and the
+             * Privacy Policy its registration asks a reader to accept — the same fixture
+             * process, under a path that is labelled there as not authservice's (#141,
+             * ADR-0049). Without it `/register` withdraws its form, correctly, and
+             * `registration.spec.ts` would be testing that instead.
              */
             env: {
               PORT: String(identityPort),
               AB_OVO_AUTH_URL: stubBaseUrl,
+              AB_OVO_LEGAL_URL: `${stubBaseUrl}/legal`,
               ...(apiBaseUrl ? { AB_OVO_API_URL: apiBaseUrl } : {}),
             },
           },

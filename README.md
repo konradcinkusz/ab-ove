@@ -383,6 +383,9 @@ supported configuration that the API reports as *degraded* rather than failing t
 button that cannot work. Where there IS one, `/register` is where an account comes from —
 a plain form on this origin, with the tokens minted into the server and never into the
 document ([ADR-0049](docs/adr/0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)).
+The form links the Terms of Use and the Privacy Policy it asks the reader to accept, at the
+version accepted, and is withdrawn while this deployment publishes no text for them —
+`AB_OVO_LEGAL_URL` in `secrets.env.example` says where that text goes.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

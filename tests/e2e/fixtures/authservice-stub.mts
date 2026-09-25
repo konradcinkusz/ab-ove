@@ -50,6 +50,10 @@
  * registration journey needs: an account made on one page has to be signable-in on the
  * next, and a fixture that forgot it between two requests would fail a test about an
  * application that works.
+ *
+ * ONE ROUTE IS NOT authservice's, AND SAYS SO WHERE IT IS: `GET /legal/…`, the host the
+ * deployment publishes its Terms and Privacy Policy on, because authservice publishes none
+ * (#141). Everything else here is the identity service's.
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
@@ -268,6 +272,47 @@ const server = createServer(async (request, response) => {
    */
   if (request.method === 'GET' && url.pathname === '/api/v1/auth/consents/versions') {
     return json(response, 200, CONSENT_VERSIONS);
+  }
+
+  /*
+   * ══════════════════════════════════════════════════════════════════════════════════
+   * NOT authservice's. THE ONE ROUTE IN THIS FILE THAT IMPERSONATES SOMETHING ELSE.
+   *
+   * authservice publishes the consent versions and no text for them — read at the pinned
+   * tag and at the latest one, docs/architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md §8 —
+   * so the documents are the DEPLOYMENT's to publish, at whatever address
+   * `AB_OVO_LEGAL_URL` names (ADR-0049, `web/app/src/lib/server/legal.ts`). This route
+   * stands in for that host: `<host>/<document>/<version>.txt`, plain text, 404 otherwise.
+   *
+   * It lives in this process because it is the process `playwright.config.ts` already
+   * starts beside the identity deployment, and a second fixture server for two static
+   * files would be a second port to keep in step for nothing. The web app is pointed here
+   * by `AB_OVO_LEGAL_URL`, a variable separate from `AB_OVO_AUTH_URL`, so nothing in
+   * web/app believes these come from the identity service.
+   *
+   * The versions are `CONSENT_VERSIONS`, so the documents published and the versions
+   * required cannot drift apart inside the fixture. The text is labelled as a fixture's in
+   * its first line: it is never a real deployment's terms, and says so to anyone who reads
+   * it on screen.
+   * ══════════════════════════════════════════════════════════════════════════════════
+   */
+  const legal = /^\/legal\/(terms|privacy)\/([^/]+)\.txt$/.exec(url.pathname);
+  if (request.method === 'GET' && legal) {
+    const [, document, version] = legal;
+    const required = document === 'terms' ? CONSENT_VERSIONS.terms : CONSENT_VERSIONS.privacy;
+    if (version !== required) return json(response, 404, { error: 'Not found' });
+
+    const title = document === 'terms' ? 'Terms of Use' : 'Privacy Policy';
+    const body =
+      `${title} ${version} — a fixture of the acceptance suite, not any deployment's.\n\n` +
+      `1. This text exists so that the registration journey can follow the link to it.\n` +
+      `2. It is served as text/plain, which is the only type the web app renders.\n`;
+    response.writeHead(200, {
+      'content-type': 'text/plain; charset=utf-8',
+      'content-length': Buffer.byteLength(body),
+      'cache-control': 'no-store',
+    });
+    return response.end(body);
   }
 
   /*

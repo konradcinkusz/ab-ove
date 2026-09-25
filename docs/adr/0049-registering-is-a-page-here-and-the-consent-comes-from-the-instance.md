@@ -2,7 +2,8 @@
 
 ## Status
 
-**Accepted.** Date: 2026-09-20.
+**Accepted.** Date: 2026-09-20. Amended 2026-09-25 — the documents the versions name, and
+what the form does when they are not published (#141); see the end.
 
 Extends [ADR-0018](0018-password-sign-in-happens-server-side.md) to the step before it. That
 decision is not superseded: registering takes the same route shape, the same same-origin
@@ -118,3 +119,58 @@ be caught by a human reading a diff, and it now carries the captured bodies so t
 compares against what was seen rather than against what was assumed.
 
 Not a deviation from the reference architecture; no register row.
+
+## Amendment 2026-09-25 — the documents the versions name
+
+### Context
+
+**The consent named two documents and linked to neither** (#141). The sentence beside the
+checkbox gave the Terms of Use and the Privacy Policy by version, and a reader was asked to
+accept text they had no way to read.
+
+**authservice has nothing to link to.** The probe for #156 read the pinned tag and ran it
+([`AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md`](../architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md)
+§8). `GET /auth/consents/versions` is the whole of what it publishes about either document:
+no text, no URL field, no route that serves one, at `v0.3.1` and still at `v0.3.4`. A version
+is an identifier for a text that lives somewhere else, so there was nothing to proxy.
+
+### Decision
+
+- **The documents are this deployment's to publish, at a run-time address.** Each is a
+  plain-text file at `<AB_OVO_LEGAL_URL>/terms/<version>.txt` or `…/privacy/<version>.txt`.
+  The version is the one the identity instance's `ConsentVersions__*` requires. It is an
+  address read at run time (P12) and not a file baked into the web image, so publishing the
+  text for a new version needs no new image.
+- **This app shows them on its own origin**, at `/legal/terms/<version>` and
+  `/legal/privacy/<version>` (FRONTEND-BFF.md §1), fetched server-side by
+  `lib/server/legal.ts`. Only `text/plain` is accepted, and it is rendered as text. HTML from
+  another host served from this origin would run with this origin's cookies. A static host's
+  HTML fallback page, answering 200 for a missing file, reads as "not published" rather than
+  as the document.
+- **Each name in the consent sentence links to the exact version the hidden field carries**,
+  never to "the current" text. The link opens in a new tab, so the form keeps what the reader
+  has typed.
+- **No text, no form.** When either document for the required version cannot be fetched (no
+  host configured, no such file, or the host did not answer), `/register` withdraws the form.
+  The page says the fault is ours, as it already does when the versions cannot be fetched. A
+  checkbox for a document nobody can read is not a consent.
+
+### Consequences
+
+- **Registration is withdrawn wherever `AB_OVO_LEGAL_URL` is unset**, and that includes the
+  AppHost and `flyio/web.fly.toml` today. That is the fix, not a regression: the form it
+  replaces recorded acceptance of documents that did not exist. Writing the two texts is the
+  owner's decision. None is committed here, and the acceptance suite's fixture labels its own
+  as a fixture's.
+- **Publish before you require.** A new version's text goes up before authservice's
+  `ConsentVersions__*` is raised to it. In the other order registration is withdrawn in the
+  gap, which is the safe direction.
+- **Two more GETs per render of `/register`**, run in parallel after the versions, each
+  bounded at 10 s. They are skipped when the page has already answered the reader and has no
+  form to offer.
+- **`/api/auth/register` does not check the documents again.** It still checks the versions
+  against the live ones, and a request that skips the page is not a reader who was shown a
+  checkbox.
+- **The acceptance suite serves the texts from its authservice fixture**, on a path that is
+  labelled there as not authservice's, and `specs/registration.spec.ts` follows both links
+  to a 200 on this origin. Nothing in `web/app` reads `AB_OVO_AUTH_URL` to find them.

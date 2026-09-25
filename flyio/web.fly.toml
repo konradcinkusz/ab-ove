@@ -104,6 +104,14 @@ primary_region = "waw"                       # ADR-0002
   # they are unset rather than restated. They are set EXPLICITLY on authservice
   # instead — flyio/authservice.fly.toml — because there the default is "AuthService"
   # and two products left on it would accept each other's tokens.
+  #
+  # AB_OVO_LEGAL_URL is absent BECAUSE NOTHING IS PUBLISHED YET, and so this app's
+  # /register withdraws its form. authservice asks every account to accept a Terms of
+  # Use and a Privacy Policy by version and publishes no text for either; the text is
+  # this deployment's to publish, and until it is, a checkbox for it would be a consent
+  # nobody could read (#141, ADR-0049's amendment). Set it to the address the two
+  # plain-text files are served from — secrets.env.example says the layout — and
+  # registration comes back with both documents linked.
 
 [http_service]
   internal_port       = 3000                 # equals the port the Node process binds (§2)
