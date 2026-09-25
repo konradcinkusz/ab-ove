@@ -36,7 +36,7 @@ any account.
 | `/lab/<id>` | the book's exercises under Pyodide — reached from P01's summary only, and on its way out ([ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md)) | nothing |
 | `/login` | a form that posts credentials to this app's own BFF | an identity service |
 | `/register` | the same form one step earlier: an address, a password, and the consent the identity service records | an identity service |
-| `/account` | deleting the account, and signing out | an account |
+| `/account` | deleting the account, and nothing else | an account |
 | `/instrument` | the author's view: frames ranked by how badly the book is doing | an account |
 | `/healthz` | the app's own liveness | nothing |
 | `/api/*` | the BFF: config, auth, session, and the one proxy to any backend | — |
@@ -545,9 +545,10 @@ check offer that ADR-0040 removed.
 
 ### `/account` — the reader's own record
 
-Today it is deletion that deletes, and a sign-out, and nothing else. The reader's place and
-the export of their worksheets are on the index, not here; 610 in [the order](#the-order)
-makes this page the reader's overview and gives deletion its own. The deletion screen says
+Today it is deletion that deletes, and nothing else. The reader's place, the export of their
+worksheets and *Sign out* are on the index's top row (the account control), not here; 610 in
+[the order](#the-order) makes this page the reader's overview, sign-out included, and gives
+deletion its own page. The deletion screen says
 what goes, what stays, what no deletion can reach — an anonymous outcome already folded into
 a rate cannot be retracted, because nothing can find the rows that were yours — and that the
 account is marked and scheduled rather than erased. That fourth sentence was off the page for a
