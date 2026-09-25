@@ -75,8 +75,9 @@ public static class ProgressEndpoints
          * (subject only to "does not lower it"), which is exactly what a caller could use to
          * skip the reveal gate `GET/POST .../content/**` now enforces — see the 2026-09-21
          * deviation register row in docs/architecture/00-ARCHITECTURE.md for why this is not
-         * closed here (it would break web/mcp's only way to persist an advance today) and
-         * what retires it.
+         * closed here (it would break the two callers that still raise Step through it:
+         * web/mcp, and web/app's sync.ts pushing a place read anonymously) and what retires
+         * it.
          */
         authApi.MapPut("/progress/{track}/{unit}", async (
                 string track,

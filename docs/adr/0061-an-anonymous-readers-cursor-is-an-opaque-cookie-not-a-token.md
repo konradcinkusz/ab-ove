@@ -2,7 +2,9 @@
 
 ## Status
 
-**Accepted.** Date: 2026-09-21.
+**Accepted.** Date: 2026-09-21. Its pattern is extended to the MCP server on 2026-09-25 by
+[ADR-0066](0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
+§2: the same opaque id, held in a file instead of a cookie.
 
 ## Context
 

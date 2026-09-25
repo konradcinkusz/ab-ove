@@ -105,6 +105,9 @@ before it — one step of it is enough — and the rule is `isOpenWhere` in
 `@ab-ovo/web-kit`, the same function the reading surface calls, over the same
 `ReaderProgress` row this server's cursor store already is. Before, the two surfaces
 disagreed about one reader's doors and neither could explain the other.
+[ADR-0065](../adr/0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md)
+keeps the Foundation programs inside that order: a reader who already knows them still opens
+one step of each before P01, here as in the browser.
 
 `open_program` refuses a shut program **before** it asks which edition to read, so the
 model does not spend the reader's answer on a question that leads nowhere; `current_step`,
@@ -292,6 +295,24 @@ and it is deliberately a separate commit:
 - a deployed server is a fifth Fly app in a topology none of whose `fly.toml` files has ever
   been applied, and it needs its own address row in `flyio/README.md`.
 
+**[ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
+answers the questions this section left open:**
+
+- **The implementation.** This package stays in TypeScript and becomes a client of the
+  content API (#171). No .NET client is planned.
+- **An anonymous reader's identity.** It is an opaque id on ADR-0061's pattern, minted once
+  by the process and kept in a file in the user's state directory, one id per API origin.
+  Pairing it with a browser is out: an account is what joins the two surfaces. #171 gives
+  that reader an anonymous read of every place and a write that records opening a program,
+  so `open_program` keeps a place without `PUT`.
+- **The order.** A one-command package comes first (#172). This Streamable HTTP shape comes
+  after the first deploy, and only if a probe shows that `authservice` can be the
+  authorization server for a third-party host (#173).
+- **Taking the token per call is a caution as well as a plan.** The shape above passes the
+  reader's bearer on to the API, and the MCP authorization specification forbids a server to
+  do that with a token a host gave it. #173 has to settle what the hosted server presents
+  instead.
+
 ---
 
 ## 5. What it deliberately does not do
@@ -365,6 +386,10 @@ Nothing else in this package reaches into `@ab-ovo/app` any more, and nothing ne
   question and it is the book's to answer, not this repository's (ADR-0033). The book's
   `LICENSE-CONTENT` still carries its undecided block, and neither of its licence files
   names `lab/` or `figures/values/`.
+  [ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
+  §4 says what each route may do under the licence as it stands. The package carries no
+  book. An instance, and a hosted server, serve the prose free and credited, never behind a
+  payment. Every route must credit the book where its reader sees it, and today none does.
 - **Schema version.** The book's compiler at the pinned revision emits a v1 bundle; the
   application supports v1 and v2. Nothing here depends on the difference — `Step.answer`
   means the same in both — but the leak assertion above needs a v2 shape, which is why the
