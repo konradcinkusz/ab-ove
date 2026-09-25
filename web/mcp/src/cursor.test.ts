@@ -49,6 +49,20 @@ test('readAll is every place the reader has, in one call', async () => {
   );
 });
 
+test("the memory store's edition is the edition of the place written last", async () => {
+  // #144: one edition per reader. With no account there is no preference, so the most
+  // recent place is what says it — and a switch is a write, so it moves this too.
+  const store = new MemoryCursorStore();
+  assert.equal(await store.edition(), undefined, 'a reader with no place has no edition');
+
+  await store.save(at(2, 'pl'));
+  assert.equal(await store.edition(), 'pl');
+  await store.save({ track: 't', unit: 'P02', language: 'en', step: 1 });
+  assert.equal(await store.edition(), 'en');
+  await store.save(at(2, 'pl'));
+  assert.equal(await store.edition(), 'pl', 'switching P01 back is the latest word');
+});
+
 test('identifiers are the shape AbOvo.Api enforces on the route', () => {
   for (const good of ['P01', 'math-for-ai-engineers', 'a', 'a.b_c-d']) {
     assert.ok(isIdentifier(good), good);
@@ -150,6 +164,25 @@ test('another machine reading past the switched step takes its own edition with 
   rows[0] = row(9, 'en'); // the phone read on, in English
 
   assert.deepEqual(await store.read('t', 'P01'), at(9, 'en'));
+});
+
+test("the API store's edition is the reader's chosen one, else their most recent place's", async () => {
+  const asked: string[] = [];
+  const answering = (preference: string | null, rows: readonly Row[]) =>
+    new ApiCursorStore('https://api.example', () => 'the-token', (async (input: string | URL | Request) => {
+      asked.push(new URL(String(input)).pathname);
+      return String(input).endsWith('/preferences/language')
+        ? Response.json({ language: preference, updatedAt: preference ? 'then' : null })
+        : Response.json({ records: rows });
+    }) as typeof fetch);
+
+  assert.equal(await answering('pl', [row(4, 'en')]).edition(), 'pl', 'the choice made on the website wins');
+  assert.deepEqual(asked, ['/api/v1/preferences/language'], 'and a chosen edition needs no second request');
+
+  const older = { ...row(9, 'en'), unit: 'P01', updatedAt: '2026-09-01T10:00:00Z' };
+  const newer = { ...row(2, 'pl'), unit: 'P02', updatedAt: '2026-09-02T10:00:00Z' };
+  assert.equal(await answering(null, [newer, older]).edition(), 'pl', 'never chosen: the latest place, by time');
+  assert.equal(await answering(null, []).edition(), undefined, 'nothing anywhere: nothing known');
 });
 
 test('every way the API store can fail is PlaceUnavailable, with the reason that says what fixes it', async () => {

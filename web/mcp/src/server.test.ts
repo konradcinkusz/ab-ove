@@ -13,6 +13,7 @@ import { test } from 'node:test';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { ElicitRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 import { MemoryCursorStore } from './cursor.ts';
 import { fixtureBundles } from './content.ts';
@@ -57,6 +58,37 @@ test('a tool call answers through the same wiring', async () => {
   const listed = await client.callTool({ name: 'list_programs', arguments: {} });
   assert.match(text(listed), /P01 · How a computer stores a number/);
   assert.match(text(listed), /kept for this session only/);
+  await client.close();
+});
+
+test('a host that can elicit is asked for the edition with the track\'s editions as the choices', async () => {
+  // #144, through the real protocol: the SDK validates the reader's answer against the
+  // schema this server sends, so a schema a host could not render would fail here first.
+  const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+  const server = createServer(new MemoryCursorStore(), { bundles: fixtureBundles() });
+  await server.connect(serverSide);
+  const client = new Client({ name: 'server.test', version: '0.0.0' }, { capabilities: { elicitation: { form: {} } } });
+
+  const asked: unknown[] = [];
+  client.setRequestHandler(ElicitRequestSchema, async (request) => {
+    asked.push(request.params);
+    return { action: 'accept', content: { edition: 'pl' } };
+  });
+  await client.connect(clientSide);
+
+  const opened = await client.callTool({ name: 'open_program', arguments: { unit: 'P01' } });
+  assert.equal((opened as { isError?: boolean }).isError, undefined, text(opened));
+  assert.match(text(opened), /Starting "P01" in the "pl" edition, chosen directly by the reader/);
+
+  assert.equal(asked.length, 1);
+  const schema = (asked[0] as { requestedSchema: { properties: { edition: { enum: string[] } }; required: string[] } })
+    .requestedSchema;
+  assert.deepEqual(schema.properties.edition.enum, ['en', 'pl']);
+  assert.deepEqual(schema.required, ['edition']);
+
+  // Asked once: the next opening, of anything, finds the edition already known.
+  await client.callTool({ name: 'open_program', arguments: { unit: 'P01' } });
+  assert.equal(asked.length, 1, 'the reader was asked again');
   await client.close();
 });
 

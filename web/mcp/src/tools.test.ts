@@ -638,14 +638,21 @@ test('reopening resumes where the reader was rather than restarting', async () =
   assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 2);
 });
 
-test('resuming needs no edition; a first opening does, and is told which exist', async () => {
+test('resuming needs no edition; with none known anywhere, the answer is a question and not an error', async () => {
   const d = deps();
 
   const unopened = await handle('open_program', { track: TRACK, unit: UNIT }, d);
-  assert.ok(unopened.isError);
-  assert.match(unopened.text, /needs an edition/);
-  assert.match(unopened.text, /en, pl/);
-  assert.match(unopened.text, /Ask the reader/);
+  // #144: asking the reader something is an ordinary step of the conversation. It used to
+  // carry `isError`, and a host painted it red at the start of every program.
+  assert.ok(!unopened.isError, 'asking which edition is not an error');
+  assert.match(unopened.text, /needs an edition, and none is known for this reader yet/);
+  assert.match(
+    unopened.text,
+    /"en" \(Mathematics from Zero for the AI Engineer\) or "pl" \(Matematyka od zera dla inżyniera AI\)/,
+    'each edition is offered with the track\'s own title in it',
+  );
+  assert.match(unopened.text, /Ask them which/);
+  assert.match(unopened.text, /It is asked once/);
   assert.equal(await d.cursors.read(TRACK, UNIT), undefined, 'nothing was opened');
 
   await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
@@ -655,6 +662,96 @@ test('resuming needs no edition; a first opening does, and is told which exist',
   assert.ok(!resumed.isError, resumed.text);
   assert.match(resumed.text, /Resuming "P01" at step 2\./);
   assert.equal((await d.cursors.read(TRACK, UNIT))?.language, LANG);
+});
+
+test('the edition is asked once per reader: after F01 is opened in pl, F02 starts in pl', async () => {
+  const { bundles } = sequence();
+  const d = { cursors: new MemoryCursorStore(), bundles };
+
+  await handle('open_program', { unit: 'F01', language: 'pl' }, d);
+  const second = await handle('open_program', { unit: 'F02' }, d);
+  assert.ok(!second.isError, second.text);
+  assert.match(second.text, /Starting "F02" in the "pl" edition, the one the reader already reads in/);
+  assert.equal((await d.cursors.read(TRACK, 'F02'))?.language, 'pl');
+  assert.ok(second.text.includes(say(program().titles, 'pl')), 'the step is in the Polish edition');
+
+  // The most recent place is what says it: switching F02 to English moves the reader's
+  // edition, and the program after it follows.
+  await handle('open_program', { unit: 'F02', language: 'en' }, d);
+  const third = await handle('open_program', { unit: 'F03' }, d);
+  assert.match(third.text, /Starting "F03" in the "en" edition/);
+});
+
+test('with an elicitation-capable host, the edition is chosen by the reader from the track\'s own list', async () => {
+  const asked: { unit: string; offered: readonly string[] }[] = [];
+  const d = {
+    ...deps(),
+    chooseEdition: async (unit: string, offered: readonly { language: string; title: string }[]) => {
+      asked.push({ unit, offered: offered.map((edition) => edition.language) });
+      return { kind: 'chosen' as const, language: 'pl' };
+    },
+  };
+
+  const opened = await handle('open_program', { unit: UNIT }, d);
+  assert.ok(!opened.isError, opened.text);
+  assert.match(opened.text, /Starting "P01" in the "pl" edition, chosen directly by the reader/);
+  assert.deepEqual(asked, [{ unit: 'P01', offered: ['en', 'pl'] }]);
+
+  // Known now, so never asked again — neither to resume nor for another program.
+  await handle('open_program', { unit: UNIT }, d);
+  assert.equal(asked.length, 1, 'the reader was asked a second time');
+});
+
+test('a declined edition question opens nothing and is not an error; a named edition is never elicited', async () => {
+  let calls = 0;
+  const declining = {
+    ...deps(),
+    chooseEdition: async () => {
+      calls += 1;
+      return { kind: 'declined' as const };
+    },
+  };
+  const declined = await handle('open_program', { unit: UNIT }, declining);
+  assert.ok(!declined.isError, declined.text);
+  assert.match(declined.text, /Nothing opened: the reader was asked directly/);
+  assert.match(declined.text, /Ask them in the conversation instead/);
+  assert.equal(await declining.cursors.read(TRACK, UNIT), undefined);
+
+  await handle('open_program', { unit: UNIT, language: LANG }, declining);
+  assert.equal(calls, 1, 'an edition the call already named was asked for again');
+
+  // A named edition the track does not have still names nothing, and is still an error.
+  const unpublished = await handle('open_program', { unit: UNIT, language: 'de' }, deps());
+  assert.ok(unpublished.isError);
+});
+
+test("over the API store, a first opening starts in the edition the reader chose on the website", async () => {
+  // `GET /api/v1/preferences/language` — ADR-0052's ReaderPreference — and, when the
+  // reader never chose there, the edition of their most recent place.
+  const serving = (preference: string | null, records: readonly object[]) =>
+    new ApiCursorStore(
+      'https://api.example',
+      () => 'the-token',
+      (async (input: string | URL | Request) =>
+        String(input).endsWith('/preferences/language')
+          ? Response.json({ language: preference, updatedAt: null })
+          : String(input).endsWith('/progress')
+            ? Response.json({ records })
+            : Response.json({ track: TRACK, unit: UNIT, step: 1, language: preference ?? 'pl', updatedAt: 'now' })) as typeof fetch,
+    );
+
+  const chosen = await handle('open_program', { unit: UNIT }, { cursors: serving('pl', []), bundles: BUNDLES });
+  assert.ok(!chosen.isError, chosen.text);
+  assert.match(chosen.text, /Starting "P01" in the "pl" edition/);
+
+  const older = { track: TRACK, unit: 'X01', step: 3, language: 'en', updatedAt: '2026-09-01T00:00:00Z' };
+  const newer = { track: TRACK, unit: 'X02', step: 1, language: 'pl', updatedAt: '2026-09-20T00:00:00Z' };
+  const fromPlaces = await handle('open_program', { unit: UNIT }, { cursors: serving(null, [older, newer]), bundles: BUNDLES });
+  assert.match(fromPlaces.text, /Starting "P01" in the "pl" edition/);
+
+  const nothing = await handle('open_program', { unit: UNIT }, { cursors: serving(null, []), bundles: BUNDLES });
+  assert.ok(!nothing.isError);
+  assert.match(nothing.text, /none is known for this reader yet/);
 });
 
 test('switching edition keeps the step, says so, and renders in the new one', async () => {

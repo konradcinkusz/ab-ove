@@ -35,6 +35,18 @@ export interface CursorStore {
    * than what was written — that is the merge, and the caller adopts the answer.
    */
   save(cursor: Cursor): Promise<Cursor>;
+
+  /**
+   * The edition this reader reads in, when one is known; `undefined` when nothing says.
+   *
+   * ONE EDITION PER READER, NOT ONE PER PROGRAM (#144). `open_program` used to know an
+   * edition only for a program the reader already had a place in, so every first opening
+   * asked "English or Polish?" again — at the start of each of forty-seven programs, and as
+   * an error the host painted red. The website remembers one edition per reader (ADR-0052);
+   * this is the same question asked of the same record, so that a first opening can start
+   * in it and only a reader with no edition anywhere is asked.
+   */
+  edition(): Promise<string | undefined>;
 }
 
 /**
@@ -124,6 +136,13 @@ function problemFor(status: number): PlaceProblem {
 export class MemoryCursorStore implements CursorStore {
   readonly #rows = new Map<string, Cursor>();
 
+  /**
+   * The edition of the place written last. There is no account here and so no preference
+   * to read; the reader's most recent place is the one record that says which edition they
+   * are reading in, and a switch is a write, so it moves this too.
+   */
+  #latest: string | undefined;
+
   static #key(track: string, unit: string): string {
     return `${track}/${unit}`;
   }
@@ -140,7 +159,12 @@ export class MemoryCursorStore implements CursorStore {
     const key = MemoryCursorStore.#key(cursor.track, cursor.unit);
     const merged = furthest(this.#rows.get(key), cursor);
     this.#rows.set(key, merged);
+    this.#latest = merged.language;
     return merged;
+  }
+
+  async edition(): Promise<string | undefined> {
+    return this.#latest;
   }
 }
 
@@ -227,7 +251,9 @@ export class ApiCursorStore implements CursorStore {
    * not this API.
    */
   async #json(url: string, init: RequestInit, writing: boolean): Promise<unknown> {
-    const doing = writing ? 'progress write' : 'progress read';
+    // The URL as given, never parsed here: an AB_OVO_API_URL with no scheme would throw out
+    // of `new URL()` before the `try` below could name it, and reach the host bare again.
+    const doing = `${init.method ?? 'GET'} ${url}`;
 
     let response: Response;
     try {
@@ -256,11 +282,43 @@ export class ApiCursorStore implements CursorStore {
     }
   }
 
-  async readAll(): Promise<readonly Cursor[]> {
+  /** The account's rows as the service answers them, `updatedAt` and all. */
+  async #records(): Promise<readonly ProgressRecordJson[]> {
     const body = (await this.#json(`${this.#baseUrl}/api/v1/progress`, { headers: this.#headers() }, false)) as {
       records?: readonly ProgressRecordJson[];
     };
-    return (body.records ?? []).map((row) => this.#adopt(row));
+    return body.records ?? [];
+  }
+
+  async readAll(): Promise<readonly Cursor[]> {
+    return (await this.#records()).map((row) => this.#adopt(row));
+  }
+
+  /**
+   * The edition the reader chose on the website — `GET /api/v1/preferences/language`, the
+   * `ReaderPreference` row ADR-0052 keeps for an account — and, when they never chose one
+   * there, the edition of their most recent place.
+   *
+   * The service answers "never chosen" as a 200 with nulls rather than a 404
+   * (`PreferenceEndpoints`), so a null here is an answer, not a fault, and the fallback is
+   * the same record the memory store reads: the place the reader last moved, which says
+   * which edition they were reading in on whichever surface they read it. Nothing is written
+   * to the preference from here — choosing the web's language is the web's control.
+   */
+  async edition(): Promise<string | undefined> {
+    const chosen = (await this.#json(
+      `${this.#baseUrl}/api/v1/preferences/language`,
+      { headers: this.#headers() },
+      false,
+    )) as { language?: string | null };
+    if (chosen.language) return chosen.language;
+
+    const rows = await this.#records();
+    const latest = rows.reduce<ProgressRecordJson | undefined>(
+      (best, row) => (best === undefined || Date.parse(row.updatedAt) > Date.parse(best.updatedAt) ? row : best),
+      undefined,
+    );
+    return latest ? this.#adopt(latest).language : undefined;
   }
 
   async read(track: string, unit: string): Promise<Cursor | undefined> {

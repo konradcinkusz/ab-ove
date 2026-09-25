@@ -107,9 +107,13 @@ refusals do not, and nothing about them changes.
 1. `list_programs` — every program the server carries, by title, and how far the reader is
    in each.
 2. `open_program` — start one, or resume it; the step the reader is on comes back, and every
-   step opens with where it is: program, title, section, step *n* of *N*. The first time a
-   program is opened it needs an edition (`language`); after that the edition is remembered,
-   and naming a different one switches, at the same step.
+   step opens with where it is: program, title, section, step *n* of *N*. The edition
+   (`language`) is asked once per reader, not once per program. A program resumes in the
+   edition it was read in. A new one starts in the edition the reader already reads in: the
+   one chosen on the website, or else that of their most recent place — with no account, the
+   most recent place alone. Only when no edition is known does it ask. That is an ordinary
+   result, not an error; on a host that supports elicitation, the reader picks from the
+   track's editions directly. Naming a different edition switches, at the same step.
 3. `submit_answer` — the reader's own words, verbatim, with the number of the step they
    answer; the next step comes back, and it opens with the book's answer to the one just
    done. A step that asks nothing says so, and goes on with no answer. On the last step it

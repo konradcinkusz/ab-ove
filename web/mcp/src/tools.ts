@@ -61,9 +61,11 @@ What this means for you:
    "Close enough" is a judgement this product deliberately does not make.
 6. Show a step as it is served — its words, its mathematics in the $…$ notation it
    arrives in, its place line — rather than a paraphrase. The book chose those words.
-7. A step that asks nothing says so; move on with submit_answer and no answer. If the
-   reader asks for the other edition, call open_program with that language — their place
-   is kept.
+7. A step that asks nothing says so; move on with submit_answer and no answer. The
+   edition is the reader's and is asked once: open_program starts a new program in the
+   edition the reader already reads in, and asks only when none is known yet — then ask
+   the reader, never guess from the language you are chatting in. If the reader asks for
+   the other edition, call open_program with that language — their place is kept.
 8. PROGRAMS OPEN IN ORDER. A program is shut until the reader has a place in the one
    before it, and one step of that one is enough to open the next. list_programs marks
    every program open or shut; open_program refuses a shut one and names the program that
@@ -189,10 +191,13 @@ export const TOOLS: readonly ToolDefinition[] = [
         language: {
           type: 'string',
           description:
-            'The edition to read, e.g. "en" or "pl". Needed the first time a program is ' +
-            'opened — ask the reader rather than inferring it from the language they happen ' +
-            'to be chatting in. Leave it out to resume in the edition they were reading; ' +
-            'give a different one to switch editions, which keeps their place.',
+            'The edition to read, e.g. "en" or "pl". Usually left out: a program resumes in ' +
+            'the edition it was read in, and a program opened for the first time starts in ' +
+            'the edition the reader already reads in. Only when no edition is known for the ' +
+            'reader at all does open_program ask for one, in an ordinary result — then ask ' +
+            'the reader rather than inferring it from the language they happen to be chatting ' +
+            'in, and pass what they chose. Give a different one to switch editions, which ' +
+            'keeps their place.',
         },
       },
       required: ['unit'],
@@ -501,6 +506,31 @@ export function completion(unit: Unit, language: string, next: Unit | undefined)
 }
 
 /**
+ * THE ONE QUESTION `open_program` ASKS, AS AN ORDINARY RESULT.
+ *
+ * Asked only when no edition is known for this reader at all, which is once: the answer
+ * becomes a place, and every program after it starts in the edition that place is in. So
+ * it is not an error — nothing was wrong with the call, the reader simply has not said yet
+ * — and a result flagged as one is painted red by a host and apologised for by a model.
+ * `isError` stays for an edition the track does not have, which names nothing.
+ */
+function editionQuestion(unit: Unit, editions: readonly EditionOffered[], declined: boolean): string {
+  const choices = editions.map((edition) => `"${edition.language}" (${edition.title})`);
+  const list =
+    choices.length > 1 ? `${choices.slice(0, -1).join(', ')} or ${choices.at(-1)}` : (choices[0] ?? 'none');
+  return (
+    (declined
+      ? `Nothing opened: the reader was asked directly which edition to read "${unit.id}" in, and ` +
+        'declined or cancelled. Ask them in the conversation instead: '
+      : `"${unit.id}" needs an edition, and none is known for this reader yet. Ask them which ` +
+        'to read: ') +
+    `${list}. Do not infer it from the language the conversation is in. Then call ` +
+    'open_program again with "language". It is asked once: every program they open after ' +
+    'this one starts in the same edition.'
+  );
+}
+
+/**
  * The track a call means when it names none: the only one, if there is only one.
  *
  * Every call used to require the track id, and a server that carries one track was making
@@ -627,6 +657,22 @@ export type ElicitOutcome =
   | { readonly kind: 'declined' }
   | { readonly kind: 'unavailable' };
 
+/** An edition a track is published in, with the track's own title in it — what a reader picks by. */
+export interface EditionOffered {
+  readonly language: string;
+  readonly title: string;
+}
+
+/**
+ * What came back from asking the reader which edition to read, through the host's own UI.
+ * `unavailable` is `ElicitOutcome`'s: no support, or a call that failed anyway — and
+ * `open_program` then asks in its result, exactly as it does on a host with no elicitation.
+ */
+export type EditionOutcome =
+  | { readonly kind: 'chosen'; readonly language: string }
+  | { readonly kind: 'declined' }
+  | { readonly kind: 'unavailable' };
+
 export interface Deps {
   readonly cursors: CursorStore;
   /** Injected so the unit tier runs against the committed fixture, never through bundleFor(). */
@@ -644,6 +690,13 @@ export interface Deps {
    * before. Never called for a step with no cue, because there is nothing to confirm.
    */
   readonly elicit?: (step: number, proposed: string) => Promise<ElicitOutcome>;
+  /**
+   * Ask the reader which edition to read, through the host's UI, with the track's editions
+   * as the only choices — the same MCP elicitation as `elicit`, and ADR-0054's reason for
+   * it: the reader answers, not the model. Called only when no edition is known for the
+   * reader at all, which is once; absent on a host that cannot, which asks in the result.
+   */
+  readonly chooseEdition?: (unit: string, offered: readonly EditionOffered[]) => Promise<EditionOutcome>;
 }
 
 /**
@@ -783,19 +836,45 @@ async function dispatch(
     if (shut) return refusalResult(shut);
 
     /*
-      The edition: the one asked for, else the one the reader was already in. A reader who
-      resumes is not asked again — the first version required the argument on every call
-      and then discarded it whenever a cursor existed, so the model asked a question whose
-      answer went nowhere. A first opening still needs one, and a bad one names the editions.
+      THE EDITION, ASKED ONCE PER READER AND NOT ONCE PER PROGRAM (#144): the one named, else
+      the one this program was read in, else the one the READER reads in — and only when
+      none of those is known, a question.
+
+      A reader who resumes is not asked again — the first version required the argument on
+      every call and then discarded it whenever a cursor existed, so the model asked a
+      question whose answer went nowhere. The second version still asked at the first
+      opening of EVERY program, so an agent put "English or Polish?" at the start of each of
+      forty-seven, and with `isError` set, so the host painted an ordinary step of the
+      conversation red — the mistake ADR-0056 had already corrected for refusals. The
+      website keeps one edition per reader (ADR-0052); `CursorStore.edition()` reads the
+      same record. A named edition the track does not have is still an error: it names
+      nothing.
     */
-    const language = asked ? (bundle ? languageIn(bundle, asked) : undefined) : existing?.language;
-    if (!language) {
-      const offered = bundle?.track.languages.join(', ') ?? 'none';
-      return problem(
-        asked
-          ? `The track "${track}" is not published in "${asked}". It has: ${offered}.`
-          : `"${unit.id}" has not been opened before, so it needs an edition: one of ${offered}. Ask the reader which.`,
-      );
+    const offered = bundle?.track.languages ?? [];
+    let language: string | undefined;
+    let how: 'named' | 'kept' | 'remembered' | 'chosen';
+    if (asked) {
+      language = bundle ? languageIn(bundle, asked) : undefined;
+      if (!language) return problem(`The track "${track}" is not published in "${asked}". It has: ${offered.join(', ')}.`);
+      how = 'named';
+    } else if (existing) {
+      language = existing.language;
+      how = 'kept';
+    } else {
+      const known = await deps.cursors.edition();
+      language = known !== undefined && bundle ? languageIn(bundle, known) : undefined;
+      how = 'remembered';
+      if (!language) {
+        const editions: readonly EditionOffered[] = bundle
+          ? offered.map((edition) => ({ language: edition, title: say(bundle.track.titles, edition) }))
+          : [];
+        const outcome: EditionOutcome = deps.chooseEdition
+          ? await deps.chooseEdition(unit.id, editions)
+          : { kind: 'unavailable' };
+        language = outcome.kind === 'chosen' && bundle ? languageIn(bundle, outcome.language) : undefined;
+        how = 'chosen';
+        if (!language) return { text: editionQuestion(unit, editions, outcome.kind === 'declined') };
+      }
     }
 
     const cursor: Cursor = existing ? { ...existing, language } : { track, unit: unit.id, language, step: FIRST_STEP };
@@ -805,7 +884,12 @@ async function dispatch(
     if (!served.ok) return refusalResult(served.refusal);
 
     const opening = !existing
-      ? `Starting "${unit.id}".`
+      ? how === 'remembered'
+        ? `Starting "${unit.id}" in the "${saved.language}" edition, the one the reader already reads in. ` +
+          'Naming another edition switches, at the same step.'
+        : how === 'chosen'
+          ? `Starting "${unit.id}" in the "${saved.language}" edition, chosen directly by the reader.`
+          : `Starting "${unit.id}".`
       : existing.language !== saved.language
         ? `Resuming "${unit.id}" at step ${saved.step}, switched to the "${saved.language}" edition.`
         : `Resuming "${unit.id}" at step ${saved.step}.`;

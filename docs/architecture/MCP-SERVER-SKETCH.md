@@ -89,7 +89,7 @@ empty file is not a check*.
 | Tool | Moves? | What it does |
 | --- | --- | --- |
 | `list_programs` | no | Tracks, programs by title, editions, where the reader is in each, and whether each is open to them yet |
-| `open_program` | no | Start or resume, in the edition asked for or the one the reader was in; returns the step they are on. Refuses a program the reader has not reached |
+| `open_program` | no | Start or resume, in the edition asked for, the one the program was read in, or the one the reader reads in; returns the step they are on. Refuses a program the reader has not reached |
 | `current_step` | no | Re-show the current step without reconstructing it from chat |
 | `submit_answer` | **yes** | Records the answer to the step it names, returns the next step — which opens with the book's answer to the one just done |
 | `review_step` | no | An earlier step, refused beyond the furthest |
@@ -130,12 +130,26 @@ closing line names no tool; the assistant has the tool's own description for tha
 
 **Fewer arguments, and none whose answer is discarded.** `track` may be left out when the
 server carries one track, which `list_programs` shows; a program id matches in any case and
-is filed under the bundle's own spelling. `language` is needed the first time a program is
-opened — the refusal names the editions and says to ask the reader — and may be left out to
-resume; a different edition on resume switches, keeps the step (frame-for-frame parity is
-what makes that safe) and says so. The first version required the edition on every call and
-then discarded it whenever a place existed, so the model asked a question whose answer went
-nowhere.
+is filed under the bundle's own spelling. `language` may be left out to resume; a different
+edition on resume switches, keeps the step (frame-for-frame parity is what makes that safe)
+and says so. The first version required the edition on every call and then discarded it
+whenever a place existed, so the model asked a question whose answer went nowhere.
+
+**The edition is asked once per reader, not once per program.** The second version still
+needed `language` at the first opening of *every* program, and refused without it with
+`isError`: an agent asked "English or Polish?" at the start of each program, and the host
+painted an ordinary step of the conversation red — the mistake ADR-0056 corrected for
+refusals. The website keeps one edition per reader
+([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md));
+`CursorStore.edition()` reads the same thing. The API store asks
+`GET /api/v1/preferences/language`, and when the reader never chose there, takes the edition
+of their most recent place by `updatedAt`. The memory store, with no account, has only the
+most recent place. A new program starts in that edition, and the result says so. Only a
+reader with no edition anywhere is asked, as an ordinary result naming each edition by the
+track's own title in it. On a host that supports elicitation, the reader picks from the
+track's editions as an enum, the way `submit_answer` asks for an answer (ADR-0054). Nothing
+here writes the preference: choosing the website's language is the website's control. An
+edition the track does not have is still an error, because it names nothing.
 
 **The service keeps its edition on a tie, so the API store keeps the switch.** A write at
 the same step is answered with the account's edition (`ProgressEndpoints`, and
