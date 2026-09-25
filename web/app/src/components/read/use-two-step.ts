@@ -2,6 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+/**
+ * What a press has to land on to count as the reader going elsewhere: anything a reader can
+ * operate, the sketch's canvas among them. Everything else is bare page (see "A PRESS ON
+ * NOTHING" below). `[tabindex]` takes in whatever a page made focusable on purpose, the
+ * index's heading included.
+ */
+const OPERABLE =
+  'a[href], button, input, select, textarea, summary, label, canvas, [contenteditable], [role="button"], [tabindex]';
+
 export interface TwoStep {
   /** Whether the next press acts. The caller renders its second label from it. */
   readonly armed: boolean;
@@ -36,7 +45,7 @@ export interface TwoStep {
  * turn off, and nothing here could. So the armed state now ends when the reader has gone
  * somewhere else, which is what "walked away" was standing in for:
  *
- *   - a press anywhere but this control — a stroke on the canvas, another button, the page;
+ *   - a press on another control — a button, a link, a field, the canvas a stroke starts on;
  *   - focus arriving anywhere but this control — Tab, Shift+Tab, a field clicked into;
  *   - `Esc`, wherever focus is — the keyboard's own word for "not this";
  *   - the page being hidden — another tab, another application, a phone locked.
@@ -47,7 +56,8 @@ export interface TwoStep {
  * waiting for it would stay armed indefinitely; and whatever a browser does with focus on
  * the way to a second click, a press ON the control must never count as leaving it. A
  * capturing listener on the document sees every press and every arrival of focus, and asks
- * one question of each — was it this control. `Esc` is heard on the document for the same
+ * of each whether it was this control — and of a press, whether it landed on anything at all
+ * (below). `Esc` is heard on the document for the same
  * reason: after a click in those browsers the key goes to whatever held focus before, or to
  * `<body>`, and a listener on the button alone would never hear the cancel the announcement
  * offers.
@@ -55,6 +65,36 @@ export interface TwoStep {
  * What the clock did that this does not: a reader who pressed once and left the machine
  * untouched comes back to the armed label. It says what the next press will do, in as many
  * words, which is the protection ADR-0047 actually rests on.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * A PRESS ON NOTHING IS NOT LEAVING, BECAUSE A CONTROL CAN MOVE WHEN IT ARMS.
+ *
+ * A second label longer than the first makes the button wider, and in a row that wraps a
+ * wider button can change line: the reader's second press, where the first one was, then
+ * lands on the space the control left. Counting that as leaving turned a harmless miss —
+ * which is all it was while the clock ran — into a cancel, and the reader saw a control that
+ * ignored them. So a press counts only when it lands on something a reader can operate
+ * (`OPERABLE`); on bare page it is nothing, and the control stays armed and says so.
+ *
+ * Where the box CAN be kept, it is: `two-step-label.tsx` puts both labels in the button from
+ * the first paint, so arming moves nothing and the second press lands on the control. The
+ * sketch's `Clear` and `Clear my answer` use it. The index's two do not — their second
+ * labels are the longer ones, and the row they sit in arrives after hydration and wraps
+ * (`program-grid.tsx`): reserving both second labels' width made it one or two lines
+ * (29 to 59 px) taller as it arrived at most widths from 320 to 480 px, which is the grid
+ * moving under the reader (measured 2026-09-25, en and pl, a worksheet and a place stored).
+ * `worksheet.spec.ts` presses them twice at one point where they move.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE ARMED STATE DOES NOT OUTLIVE WHAT IT WOULD DESTROY.
+ *
+ * A caller that renders nothing once there is nothing to clear keeps this hook — and so
+ * `armed` — while it renders nothing. Another tab clearing the store while the control is
+ * armed, and the data coming back, would otherwise bring the control back already armed,
+ * with its announcement arriving with it. `present` is the caller's own test for having
+ * something to clear; while it is false the control is not armed.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
@@ -77,8 +117,15 @@ export interface TwoStep {
  * (`sketch.tsx`) and the index's *Forget where I am* (`resume.tsx`), so every control that
  * destroys a reader's own work behaves one way.
  */
-export function useTwoStep(act: () => void, settle?: () => HTMLElement | null): TwoStep {
+export function useTwoStep(
+  act: () => void,
+  settle?: () => HTMLElement | null,
+  present = true,
+): TwoStep {
   const [armed, setArmed] = useState(false);
+  // Adjusted during render rather than in an effect — React's documented way to reset state
+  // when an input changes, and the one that never paints the stale value first.
+  if (armed && !present) setArmed(false);
   // The element that was pressed, recorded BY the press rather than by a ref the caller has
   // to thread onto its button — every caller already has a `<button>` and an `onClick`.
   const pressed = useRef<HTMLElement | null>(null);
@@ -86,10 +133,16 @@ export function useTwoStep(act: () => void, settle?: () => HTMLElement | null): 
   useEffect(() => {
     if (!armed) return;
 
-    const elsewhere = (event: Event): void => {
+    const focusedElsewhere = (event: Event): void => {
       const target = event.target;
       if (target instanceof Node && pressed.current?.contains(target)) return;
       setArmed(false);
+    };
+    // A press on bare page is a miss, not a decision — see "A PRESS ON NOTHING" above.
+    const pressedElsewhere = (event: Event): void => {
+      const target = event.target;
+      if (!(target instanceof Element) || !target.closest(OPERABLE)) return;
+      focusedElsewhere(event);
     };
     const hidden = (): void => {
       if (document.visibilityState === 'hidden') setArmed(false);
@@ -103,13 +156,13 @@ export function useTwoStep(act: () => void, settle?: () => HTMLElement | null): 
 
     // Capturing, so a handler that stops propagation further down cannot keep a stale
     // control armed behind the reader's back.
-    document.addEventListener('pointerdown', elsewhere, true);
-    document.addEventListener('focusin', elsewhere, true);
+    document.addEventListener('pointerdown', pressedElsewhere, true);
+    document.addEventListener('focusin', focusedElsewhere, true);
     document.addEventListener('keydown', escape, true);
     document.addEventListener('visibilitychange', hidden);
     return () => {
-      document.removeEventListener('pointerdown', elsewhere, true);
-      document.removeEventListener('focusin', elsewhere, true);
+      document.removeEventListener('pointerdown', pressedElsewhere, true);
+      document.removeEventListener('focusin', focusedElsewhere, true);
       document.removeEventListener('keydown', escape, true);
       document.removeEventListener('visibilitychange', hidden);
     };

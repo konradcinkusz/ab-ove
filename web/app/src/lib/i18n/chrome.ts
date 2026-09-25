@@ -186,7 +186,8 @@ interface Strings {
   /**
    * What a screen reader hears when ANY two-press control is armed — its second label, then
    * how to go on or back. Said through a live region (`two-step-status.tsx`), because a
-   * button renaming itself under focus is silent in most of them (#151).
+   * button renaming itself under focus is silent in most of them (#151). The way back names
+   * another control as well as `Esc`, because a touch screen reader has no `Esc` key.
    */
   readonly pressAgain: (action: string) => string;
   readonly signIn: string;
@@ -546,7 +547,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   en: {
     forget: 'Forget where I am',
     forgetConfirm: 'Forget it \u2014 on every device',
-    pressAgain: (action) => `${action}. Press again to confirm, or Esc to cancel.`,
+    pressAgain: (action) => `${action}. Press again to confirm, or Esc or another control to cancel.`,
     signIn: 'Sign in',
     signOut: 'Sign out',
     account: 'Account',
@@ -706,7 +707,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
   pl: {
     forget: 'Zapomnij, gdzie jestem',
     forgetConfirm: 'Zapomnij \u2014 na ka\u017cdym urz\u0105dzeniu',
-    pressAgain: (action) => `${action}. Naciśnij ponownie, aby potwierdzić, albo Esc, aby anulować.`,
+    pressAgain: (action) => `${action}. Naciśnij ponownie, aby potwierdzić, albo Esc lub inny element strony, aby anulować.`,
     signIn: 'Zaloguj się',
     signOut: 'Wyloguj się',
     account: 'Konto',
@@ -955,7 +956,8 @@ export interface Chrome {
   /**
    * What a screen reader hears when ANY two-press control is armed — its second label, then
    * how to go on or back. Said through a live region (`two-step-status.tsx`), because a
-   * button renaming itself under focus is silent in most of them (#151).
+   * button renaming itself under focus is silent in most of them (#151). The way back names
+   * another control as well as `Esc`, because a touch screen reader has no `Esc` key.
    */
   readonly pressAgain: (action: string) => string;
   readonly signIn: string;

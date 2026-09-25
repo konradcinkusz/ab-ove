@@ -90,9 +90,14 @@ Its parts, in order:
    are both two presses — the control renames itself to say what the second press does —
    and *Forget* is the last of them, furthest from the link a returning reader is reaching
    for ([ADR-0047](../adr/0047-forgetting-is-two-presses-because-it-reaches-the-account.md)).
-   An armed control stands down when the reader presses or moves focus anywhere else, or
-   presses Esc, and not on a clock: the five seconds it used to allow were a time limit a
-   screen-reader or switch user could run out of. The first press is also said aloud,
+   An armed control stands down when the reader presses another control, moves focus
+   elsewhere or presses Esc, and not on a clock: the five seconds it used to allow were a
+   time limit a screen-reader or switch user could run out of. A press on bare page does not
+   stand it down, because both second labels are longer than the first and can carry the
+   control onto the next line of this row, so a second press where the first one was would
+   land on the space it left; that press is a miss, and the control is still armed where it
+   went. Reserving the longer label's width instead would widen a row that already arrives
+   after the first paint. The first press is also said aloud,
    through a polite live region beside the control, because a button renamed under focus is
    silent in most screen readers; and since both controls are gone once they have acted,
    focus then lands on the page's heading rather than on nothing (#151).
@@ -450,8 +455,13 @@ reader's own work: `Undo` takes back one stroke and cannot take back a cleared p
 first press renames the button *Clear the whole sketch* and only the second empties it, and
 focus goes back to the canvas (#151). Both of its labels are in the button from the first
 paint, the pane's own button's arrangement, so the rename cannot push it onto the next line
-of the foot on a phone and put the second press somewhere else. `Clear my answer` is the same
-two presses, and sends focus to the line it emptied.
+of the foot on a phone and put the second press somewhere else. That costs a line before
+anything is pressed: the button is as wide as *Clear the whole sketch* from the start, so
+from 414 to 480 px in English, and at 480 px in Polish, it begins on the foot's second line
+and the foot is two rows (96 px) where a one-word `Clear` would have left it one (44 px);
+below 414 px the foot is two rows either way (measured on 2026-09-25 against a production
+build). `Clear my answer` is the same two presses, keeps its box the same way at no cost —
+its first label is the longer — and sends focus to the line it emptied.
 
 #### The lab pane is not on this route any more
 

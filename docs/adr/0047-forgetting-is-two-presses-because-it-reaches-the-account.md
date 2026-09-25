@@ -78,25 +78,38 @@ that shares it:
 - **No clock.** *"Arms it for five seconds"* above is history. Five seconds was a time limit
   (WCAG 2.2.1) that a screen-reader user hearing the new label out, or a switch user scanning
   back to the control, could run out of. The control now stays armed until the reader
-  goes somewhere else — a press or focus anywhere but the control, `Esc` wherever focus is,
-  or the page being hidden — which is what the clock was standing in for.
+  goes somewhere else — a press on another control, focus arriving anywhere but this one,
+  `Esc` wherever focus is, or the page being hidden — which is what the clock was standing
+  in for. A press on bare page is not going somewhere else: it is a miss, as it was while
+  the clock ran, and the control stays armed.
 - **The armed state is announced.** A button renamed under focus is silent in most screen
   readers, so each control carries a polite live region beside it that says the second label
   and how to go on or back.
 - **Focus has somewhere to go.** A control that renders nothing once there is nothing to
   clear took focus with it; the second press now moves focus to a stable element the caller
   names — the index's heading for the controls in its top row.
+- **The armed state does not outlive the control.** A control that renders nothing when
+  there is nothing to clear is not armed while it renders nothing, so data that another tab
+  empties and brings back does not bring the control back already armed.
 - **The sketch's `Clear` joined.** It emptied a drawing in one press that `Undo` could not
-  bring back. It is two presses now, like the rest, and it does not move when it arms: both
-  of its labels are in the button from the first paint, so the longer one cannot push it
-  onto the next line of a wrapping row. "The control stays where the pointer is" is this
-  record's reason for a second press over a dialog, and a press where the control used to be
-  would now stand it down rather than confirm.
+  bring back. It is two presses now, like the rest.
+- **Where the control can keep its box, it does.** "The control stays where the pointer is"
+  is this record's reason for a second press over a dialog, and a control whose labels differ
+  in width breaks it: in a wrapping row the longer label can carry it onto the next line, and
+  a right-aligned one shrinks away from the pointer. The sketch's `Clear` and *Clear my
+  answer* hold both labels in the button from the first paint, so arming moves neither.
+  *Clear my worksheets* and this record's *Forget where I am* do not, because their second
+  labels are the longer ones and the index row they would widen arrives after hydration and
+  wraps — reserving that width made the row one or two lines taller as it arrived at most phone widths,
+  which moves the page under the reader. They can move when they arm, and the second press,
+  where the first one was, is then the miss above rather than a cancel.
 
 What the clock bought and this does not: a reader who pressed once and left the machine
 untouched comes back to the armed label. It says what the next press will do, in as many
 words, which is the protection this record already rested on. `progress.spec.ts` asserts the
 announcement and where focus lands; `worksheet.spec.ts` asserts the sketch's two presses, that
 a minute on the page's clock leaves the control armed, that `Esc` (with focus on the control
-and off it), a stroke on the canvas and Tab stand it down, and that at a phone's width the
-second press lands where the first did.
+and off it), a stroke on the canvas and Tab stand it down, that a second press at the point
+of the first clears the sketch at a phone's width and the answer in both editions at a desk's
+width and a phone's, that the same press on the index's two controls where they move is a
+miss and not a cancel, and that a control another tab emptied comes back unarmed.

@@ -133,11 +133,16 @@ export function ForgetProgress({
   */
   const act = useCallback(() => void forgetEverywhere(), []);
   const settle = useCallback(() => document.getElementById(settleOn), [settleOn]);
-  const { armed, control } = useTwoStep(act, settle);
-
   const has = progress.last !== undefined || Object.keys(progress.positions).length > 0;
+  const { armed, control } = useTwoStep(act, settle, has);
+
   if (!has) return null;
 
+  /*
+    ONE LABEL AT A TIME, as `ClearWorksheets` beside it and for its reason (`use-two-step.ts`):
+    the second label is the longer, and the row it would widen arrives after hydration. A
+    second press on the space the control left is a miss, not a cancel.
+  */
   return (
     <>
       <button className={styles.forget} lang={chrome.language} type="button" {...control}>

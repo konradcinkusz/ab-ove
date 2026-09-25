@@ -20,6 +20,7 @@ import {
 } from '@/lib/sheet/strokes';
 
 import { Pencil } from './icons.tsx';
+import { TwoStepLabel } from './two-step-label.tsx';
 import { TwoStepStatus } from './two-step-status.tsx';
 import { useTwoStep } from './use-two-step.ts';
 import styles from './worksheet.module.css';
@@ -317,8 +318,8 @@ export function Sketch({
     `Undo` could restore them, would make `Undo` mean two different things depending on
     what was pressed last. So it is the shape every other control that destroys a reader's
     own work already has (`use-two-step.ts`): the first press renames it to say how much
-    goes, the second does it, and a press or focus anywhere else in between stands it
-    down — a stroke on the canvas included.
+    goes, the second does it, and going elsewhere in between — another control pressed,
+    focus moved, `Esc` — stands it down, a stroke on the canvas included.
 
     Focus goes back to the canvas afterwards, as it always did: the reader who cleared is
     about to draw again, and the control is still there but is not where they are working.
@@ -469,27 +470,19 @@ export function Sketch({
             {undo}
           </button>
           {/*
-            BOTH LABELS, ONE CELL, SO ARMING MOVES NOTHING. The second press has to land on
-            the control the first one armed, because a press anywhere else stands it down
-            (`use-two-step.ts`). A button that swapped its text grew to the second label's
-            width, and wherever the foot had room for `Clear` and not for `Clear the whole
-            sketch` (414–480 px, measured) the row wrapped and the button jumped to the next
-            line — so the reader's second press, in the same place, cancelled. Both labels are
-            therefore in the button from the first paint, stacked in one grid cell as wide as
-            the wider, and `visibility` picks one: the rule `.paneLabels` states for the
-            pane's own button. A `visibility: hidden` label is not part of the accessible
-            name, so the button is still called by the one it shows. `specs/worksheet.spec.ts`
+            BOTH LABELS, ONE CELL, SO ARMING MOVES NOTHING (`two-step-label.tsx`). The second
+            press has to land on the control the first one armed. A button that swapped its
+            text grew to the second label's width, and wherever the foot had room for `Clear`
+            and not for `Clear the whole sketch` (414–480 px, measured) the row wrapped and
+            the button jumped to the next line — so the reader's second press, in the same
+            place, landed on the empty foot. The price is paid before anything is pressed: the
+            button is as wide as `Clear the whole sketch` from the first paint, so across that
+            same range it starts on the foot's second line where `Clear` alone would have fit
+            on the first (`docs/ux/UI-UX.md` has the measurement). `specs/worksheet.spec.ts`
             presses it twice at one point on a phone's width.
           */}
           <button className={styles.sketchButton} type="button" {...clearControl}>
-            <span className={styles.twoLabels} data-armed={clearArmed ? 'yes' : 'no'}>
-              <span className={styles.twoLabel} data-when="idle">
-                {clear}
-              </span>
-              <span className={styles.twoLabel} data-when="armed">
-                {clearConfirm}
-              </span>
-            </span>
+            <TwoStepLabel armed={clearArmed} confirm={clearConfirm} idle={clear} />
           </button>
           <TwoStepStatus armed={clearArmed} confirm={clearConfirm} language={language} />
         </p>

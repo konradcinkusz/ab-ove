@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 
 import { clearAnswerHere, clearEverything, exportNotebook, useAnySheet, useSheet } from '@/lib/sheet/client';
 
+import { TwoStepLabel } from './two-step-label.tsx';
 import { TwoStepStatus } from './two-step-status.tsx';
 import { useTwoStep } from './use-two-step.ts';
 import styles from './worksheet.module.css';
@@ -15,8 +16,10 @@ import styles from './worksheet.module.css';
  * case ADR-0017 named as the limit of one-click forgetting; ADR-0047 records the day
  * forgetting reached that limit too.
  *
- * Each control renders its `TwoStepStatus` beside it, so the first press is said aloud, and
- * names where focus goes after the second — because each of them is gone by then (#151).
+ * Each control renders its `TwoStepStatus` beside it, so the first press is said aloud,
+ * names where focus goes after the second — because each of them is gone by then — and
+ * hands the hook its own `present`, so an armed state cannot outlive the thing it would
+ * clear (#151).
  */
 
 export interface ClearAnswerProps {
@@ -71,14 +74,21 @@ export function ClearAnswer({
   */
   const settle = useCallback(() => document.getElementById('answer-line'), []);
 
-  const { armed, control } = useTwoStep(act, settle);
+  const { armed, control } = useTwoStep(act, settle, present);
 
   if (!present) return null;
 
+  /*
+    BOTH LABELS IN ONE BOX (`two-step-label.tsx`), at no cost: the first label is the longer
+    in both editions, so the box is the width it always was. The control is right-aligned in
+    `.answerHead`, and a second label half as long used to shrink it out from under the
+    pointer, so a second press where the first one was landed beside it. `start`, so `Clear`
+    stays where it was and only the rest of the label changes.
+  */
   return (
     <>
       <button className={styles.clear} lang={language} type="button" {...control}>
-        {armed ? confirmLabel : label}
+        <TwoStepLabel align="start" armed={armed} confirm={confirmLabel} idle={label} />
       </button>
       <TwoStepStatus armed={armed} confirm={confirmLabel} language={language} />
     </>
@@ -111,10 +121,16 @@ export function ClearWorksheets({
   const act = useCallback(() => clearEverything(), []);
   const settle = useCallback(() => document.getElementById(settleOn), [settleOn]);
 
-  const { armed, control } = useTwoStep(act, settle);
+  const { armed, control } = useTwoStep(act, settle, present);
 
   if (!present) return null;
 
+  /*
+    ONE LABEL AT A TIME, and so a control that can move when it arms: the second label is the
+    longer one, and reserving its width would widen the index's top row, which arrives after
+    hydration and wraps (`use-two-step.ts` has the reasoning, `program-grid.tsx` the row). A
+    second press on the space it left is a miss, not a cancel.
+  */
   return (
     <>
       <button className={styles.clear} lang={language} type="button" {...control}>
