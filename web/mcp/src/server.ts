@@ -33,7 +33,7 @@ import { liveBundles } from './content.ts';
 import type { BundleSource } from './content.ts';
 import { PROMPTS, completeArgument, promptMessages } from './prompts.ts';
 import { SERVER_INSTRUCTIONS, TOOLS, handle } from './tools.ts';
-import type { ElicitOutcome } from './tools.ts';
+import type { EditionOffered, EditionOutcome, ElicitOutcome } from './tools.ts';
 
 export interface ServerOptions {
   /** Where the content comes from; the live loader unless a test injects the fixture. */
@@ -98,6 +98,42 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
     }
   };
 
+  /*
+    WHICH EDITION, ASKED OF THE READER RATHER THAN OF THE MODEL — the same elicitation, for
+    the one question `open_program` still asks (#144), and only when no edition is known for
+    the reader at all. The editions are an enum, so the host offers exactly what the track
+    has and the reader cannot type one it does not; each is described by the track's own
+    title in it, which says what the choice is in the language it is a choice of. Every
+    failure collapses to `unavailable`, and `open_program` then asks in its result.
+  */
+  const chooseEdition = async (unit: string, offered: readonly EditionOffered[]): Promise<EditionOutcome> => {
+    if (!server.getClientCapabilities()?.elicitation?.form || offered.length === 0) return { kind: 'unavailable' };
+    try {
+      const result = await server.elicitInput({
+        message:
+          `Which edition would you like to read ${unit} in? You are asked once: the programs you ` +
+          'open after it start in the same edition, and you can switch at any step.',
+        requestedSchema: {
+          type: 'object',
+          properties: {
+            edition: {
+              type: 'string',
+              title: 'Edition',
+              description: offered.map((edition) => `${edition.language}: ${edition.title}`).join('; '),
+              enum: offered.map((edition) => edition.language),
+            },
+          },
+          required: ['edition'],
+        },
+      });
+      if (result.action !== 'accept') return { kind: 'declined' };
+      const value = result.content?.edition;
+      return typeof value === 'string' ? { kind: 'chosen', language: value } : { kind: 'declined' };
+    } catch {
+      return { kind: 'unavailable' };
+    }
+  };
+
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: TOOLS.map((tool) => ({
       name: tool.name,
@@ -140,6 +176,7 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
         cursors,
         bundles: bundles(),
         elicit: elicitAnswer,
+        chooseEdition,
         ...(options.placeIsEphemeral ? { placeIsEphemeral: true } : {}),
       },
     );

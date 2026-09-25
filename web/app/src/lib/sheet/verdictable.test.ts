@@ -28,7 +28,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { PINS, bundleFor, say, skipWithoutBundle, type Bundle } from '@ab-ovo/web-kit';
+import { PINS, bundleFor, say, type Bundle } from '@ab-ovo/web-kit';
+import { skipWithoutBundle } from '@ab-ovo/web-kit/have-bundle';
 
 import { bookNumberOf } from './number.ts';
 import fixture from './verdictable.json' with { type: 'json' };

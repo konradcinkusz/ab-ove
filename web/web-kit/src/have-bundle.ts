@@ -24,6 +24,12 @@ import { PINS, bundleFor } from './bundle.ts';
  * the run that found it reported eight skips and one failure — the failure only because
  * `runtime-assets.test.ts` happens to call `allBundles()`, which throws. Without that
  * accident the whole thing would have been green.
+ *
+ * AND BECAUSE IT THROWS AT IMPORT, ONLY A TEST MAY IMPORT IT. It is reached through its own
+ * `exports` entry, `@ab-ovo/web-kit/have-bundle`, and never through the barrel: re-exported
+ * there, this guard ran in every consumer's production graph, and the MCP server started
+ * under CI=true from a directory with no book near it exited at once — the guesses below
+ * are the working directory's, not the server's (#136).
  * ────────────────────────────────────────────────────────────────────────────────────────
  */
 export const HAVE_REAL_BUNDLE: boolean = (() => {

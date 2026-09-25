@@ -88,8 +88,8 @@ empty file is not a check*.
 
 | Tool | Moves? | What it does |
 | --- | --- | --- |
-| `list_programs` | no | Tracks, programs by title, editions, where the reader is in each, and whether each is open to them yet |
-| `open_program` | no | Start or resume, in the edition asked for or the one the reader was in; returns the step they are on. Refuses a program the reader has not reached |
+| `list_programs` | no | Tracks and editions; by title in one edition, the programs the reader has a place in, those open now and the one that opens next, with each run of shut programs folded into a line (`all: true` names every one) |
+| `open_program` | no | Start or resume, in the edition asked for, the one the program was read in, or the one the reader reads in; returns the step they are on. Refuses a program the reader has not reached |
 | `current_step` | no | Re-show the current step without reconstructing it from chat |
 | `submit_answer` | **yes** | Records the answer to the step it names, returns the next step — which opens with the book's answer to the one just done |
 | `review_step` | no | An earlier step, refused beyond the furthest |
@@ -109,10 +109,24 @@ disagreed about one reader's doors and neither could explain the other.
 `open_program` refuses a shut program **before** it asks which edition to read, so the
 model does not spend the reader's answer on a question that leads nowhere; `current_step`,
 `submit_answer` and `review_step` say the same thing rather than advising an
-`open_program` that is itself refused; `list_programs` marks each program `open to the
+`open_program` that is itself refused; `list_programs` marks a program `open to the
 reader now` or `SHUT, opens after F01` and states the rule once per track. Two cursor
 reads at most, never a scan, because the rule asks about this program and the one before
 it and about nothing else.
+
+**`list_programs` says what is open in a few lines.** For a new reader it used to be about
+7 KB (measured 2026-09-24): every unopened program with its title in both editions, and
+`SHUT, opens after …` once for each shut program — paid again by the agent every time it
+re-checked. It now names every program the reader can act on — the ones with a place, the
+ones open now, and the one that opens next — and folds each run of shut programs behind
+that into one line per group, such as `F03–F13 — 11 programs, shut: each opens after the one
+before it`. The grouping by part or prefix and the rule stated once per track are kept.
+Titles are in one edition: the reader's (`CursorStore.edition()`), or English until they
+have one, which is the website's default (ADR-0052). `language` gives the other edition, and
+`all: true` names every program. The `read` prompt's completions list every id regardless,
+and a `read` prompt given an edition and no program asks for the list in that edition.
+`tools.test.ts` holds a new reader's list, on a track the size of the book, to 1.5 KiB with
+the in-memory note included.
 
 **The refusal is a refusal and not an error** — `refused`, not `problem`, on `reveal.ts`'s
 own reasoning about `not-reached` — and it names the program that opens this one, says one
@@ -130,12 +144,26 @@ closing line names no tool; the assistant has the tool's own description for tha
 
 **Fewer arguments, and none whose answer is discarded.** `track` may be left out when the
 server carries one track, which `list_programs` shows; a program id matches in any case and
-is filed under the bundle's own spelling. `language` is needed the first time a program is
-opened — the refusal names the editions and says to ask the reader — and may be left out to
-resume; a different edition on resume switches, keeps the step (frame-for-frame parity is
-what makes that safe) and says so. The first version required the edition on every call and
-then discarded it whenever a place existed, so the model asked a question whose answer went
-nowhere.
+is filed under the bundle's own spelling. `language` may be left out to resume; a different
+edition on resume switches, keeps the step (frame-for-frame parity is what makes that safe)
+and says so. The first version required the edition on every call and then discarded it
+whenever a place existed, so the model asked a question whose answer went nowhere.
+
+**The edition is asked once per reader, not once per program.** The second version still
+needed `language` at the first opening of *every* program, and refused without it with
+`isError`: an agent asked "English or Polish?" at the start of each program, and the host
+painted an ordinary step of the conversation red — the mistake ADR-0056 corrected for
+refusals. The website keeps one edition per reader
+([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md));
+`CursorStore.edition()` reads the same thing. The API store asks
+`GET /api/v1/preferences/language`, and when the reader never chose there, takes the edition
+of their most recent place by `updatedAt`. The memory store, with no account, has only the
+most recent place. A new program starts in that edition, and the result says so. Only a
+reader with no edition anywhere is asked, as an ordinary result naming each edition by the
+track's own title in it. On a host that supports elicitation, the reader picks from the
+track's editions as an enum, the way `submit_answer` asks for an answer (ADR-0054). Nothing
+here writes the preference: choosing the website's language is the website's control. An
+edition the track does not have is still an error, because it names nothing.
 
 **The service keeps its edition on a tie, so the API store keeps the switch.** A write at
 the same step is answered with the account's edition (`ProgressEndpoints`, and
@@ -174,12 +202,30 @@ start that `not-reached` "is NOT an error — it is the product working", and th
 layer sent it with `isError: true` anyway, along with a finished program; a host paints that
 red and a model apologises for it. Now only an argument that names nothing — a track, a
 program, an edition or a step number the book does not have, an empty answer to a step that
-asked for one — is an error. The gate's sentence and the end of a program travel as results.
+asked for one — is an error, beside the two failures of the deployment described next: no
+book, and a place out of reach. The gate's sentence and the end of a program travel as
+results.
 
 **A deployment with no book answers with the fix.** The loader's throw for a bundle that was
 never fetched used to reach the host as a JSON-RPC error on the reader's first call, carrying
 a developer's message. `content.ts` wraps it at the one crossing as `ContentUnavailable`, and
-`handle()` answers it with the one line that fixes it and the loader's own message after.
+`handle()` answers it with `noContentNote`: the paths it looked at, and the fix for the case
+it is in — never fetched into this checkout (run the fetch script, from the root it names),
+pointed by `AB_OVO_CONTENT_BUNDLE` at a file that is not there (correct the variable), or
+found and refused by the validator (not "missing", and the loader's message follows).
+
+**A place that cannot be reached answers with what fixes it.** With the API store, a
+non-2xx answer used to throw a bare `Error` and a rejected `fetch` passed straight through;
+both reached the host as `MCP error -32603` carrying `progress read failed: 401` or
+`fetch failed`. `ApiCursorStore` now throws `PlaceUnavailable` with a reason —
+`unauthorised`, `unreachable` or `refused` — and `handle()` answers it beside
+`ContentUnavailable`, as a result with `isError`: nothing is lost, a failed write may not
+have been recorded and is safe to repeat either way, and the fix for that reason (a fresh
+token, a moment, or the address). An `AB_OVO_API_URL` that is not an http or https address
+is `refused` before anything is sent, rather than `unreachable` and retried for nothing, and
+a JSON answer that is not an object is `refused` rather than a `TypeError` out of
+`handle()`. The gate's refusals are untouched. Anything else `handle()` cannot name still
+throws, because a sentence would dress a defect in this package up as the deployment's.
 
 **A place kept in memory is said in the results.** `server.ts` warned on stderr, which no
 reader of a host sees; `list_programs` and `open_program` now carry the same sentence, so
@@ -353,3 +399,24 @@ TypeScript server, because the Node that cannot strip types cannot be told so by
 cannot parse; `web/mcp/README.md` has the host configuration. With neither
 `AB_OVO_API_URL` nor `AB_OVO_READER_TOKEN` set it keeps the reader's place in memory and
 says so — on stderr, and in every result that shows a place.
+
+**It can be started from any working directory**, which is what a host does. The book is
+looked for in the server's own checkout, not relative to where the process was started:
+`content.ts` finds `web/` from its own `import.meta.url` — reliable here because Node runs
+this package's source directly — and hands it to `@ab-ovo/web-kit`'s `bundleFor`, which then
+tries `AB_OVO_CONTENT_BUNDLE` and that one path and guesses nothing. Before, the loader's
+guesses were all relative to the working directory, and a host that started the server from
+`/` was told there was no book while it sat in the checkout. `@ab-ovo/app` passes no
+`web/` — its bundled server code cannot know its own place on disk — so its candidates, and
+its Docker image, are unchanged. `bundle.test.ts` asserts the loader's half from a scratch
+directory; `content.test.ts` asserts that the live source names this checkout and finds the
+book from outside it, and starts the launcher itself from a scratch directory with `CI` set.
+That last one is not decoration: `have-bundle.ts`, the unit tier's guard that refuses to
+load in CI when the book is missing, guessed from the working directory and reached the
+server through `@ab-ovo/web-kit`'s barrel, so a host running under CI stopped the server
+before it could look. It is now an entry of its own, `@ab-ovo/web-kit/have-bundle`, which
+only tests import. To see it the way a host does:
+
+```bash
+cd / && node /absolute/path/to/ab-ovo/web/mcp/bin/ab-ovo-mcp.mjs
+```

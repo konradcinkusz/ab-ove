@@ -28,9 +28,10 @@ a line of TypeScript:
   then hands over — a check inside `src/server.ts` could not run on the Node that needs it.
 - **The workspace installed**: `pnpm --dir web install`.
 - **The book compiled**: `bash scripts/fetch-book-content.sh`, once per clone. Without it
-  the server starts and answers every call with the one line that fixes it. `bundleFor()`
-  refuses to fall back to a fixture, because silently substituting a four-frame fixture for
-  the forty-seven-program book is the "looks finished and is not" failure this repository
+  the server starts and answers every call with what fixes it: the path it looked at, the
+  checkout to run the script in, and the override below. `bundleFor()` refuses to fall back
+  to a fixture, because silently substituting a four-frame fixture for the
+  forty-seven-program book is the "looks finished and is not" failure this repository
   refuses everywhere. The *tests* need none of it — they inject the committed fixture.
 
 ```bash
@@ -39,10 +40,21 @@ pnpm --dir web install
 node web/mcp/bin/ab-ovo-mcp.mjs        # or: pnpm --dir web/mcp start
 ```
 
+**The working directory does not matter.** The server looks for the book in the checkout
+it is part of — `web/content/bundle/bundle.json`, found from its own place on disk — so it
+starts the same from the repository root, from `web/mcp` or from `/`, with or without `CI`
+set. A book compiled somewhere else is named with `AB_OVO_CONTENT_BUNDLE`, the path of the
+`bundle.json` file itself. It is tried first and the checkout's own book second, so an
+override that names no file still serves the checkout's book when there is one. When
+neither is there, the server names both paths and says the override named nothing, rather
+than telling you to fetch a book you already have. An empty value counts as unset.
+
 ## Pointing a host at it
 
-A host starts the command from a working directory of its own choosing, so the path has to
-be absolute — a relative one is the first thing that goes wrong. From the repository root:
+A host starts the command from a working directory of its own choosing, so the path to the
+launcher has to be absolute — a relative one is the first thing that goes wrong. Where the
+host starts it does not change where the book is found: that is the launcher's own checkout.
+From the repository root:
 
 ```bash
 claude mcp add ab-ovo -- node "$PWD/web/mcp/bin/ab-ovo-mcp.mjs"
@@ -61,9 +73,13 @@ or, in a host's own configuration file, with the path written out:
 }
 ```
 
+For a book compiled outside this checkout, add
+`"env": { "AB_OVO_CONTENT_BUNDLE": "/absolute/path/to/bundle.json" }` beside `args`.
+
 In a host that lists a server's prompts, **`read`** is the way in: pick it, name a program
 or leave it out, and the host's model is told the method before it is told a step. Its
-`program` argument completes to the ids as you type. The tools carry their annotations, so
+`program` argument completes to the ids as you type. A `language` given with no program is
+also the edition the list is asked for in, so the titles a reader chooses from are in it. The tools carry their annotations, so
 a host that reads them stops asking permission for a re-read: `list_programs`,
 `current_step` and `review_step` are read-only; `open_program` and `submit_answer` write a
 place and never destroy one, and calling either again changes nothing more.
@@ -76,14 +92,37 @@ program opened here resumes where the browser left it. With either missing it is
 memory and forgotten at restart. The process says so on stderr, and **every result that
 shows a place says so too**, because a reader of an MCP host sees results and never the log.
 
+When the place cannot be reached, the call answers with a result, not a protocol error. It
+says that nothing is lost, because the place is on the account. A write that failed may
+still have been recorded, since a 5xx or a dropped connection can come after the service
+committed it, so the result says only that it may not have been — and that the same call is
+safe to make again, because it will not move the reader twice. It also says what fixes it:
+
+- a 401 or 403 needs a fresh `AB_OVO_READER_TOKEN`;
+- no answer, a 5xx, a 408 or a 429 needs a moment: *try again shortly*;
+- any other answer, such as a 404 or a body that is not a JSON object, means
+  `AB_OVO_API_URL` is not the API;
+- an `AB_OVO_API_URL` that is not an http or https address, such as `localhost:8180`, is
+  said to be one, and nothing is sent.
+
+The result carries `isError`, because the call did not do what it was asked. The gate's own
+refusals do not, and nothing about them changes.
+
 ## The first three calls
 
-1. `list_programs` — every program the server carries, by title, and how far the reader is
-   in each.
+1. `list_programs` — what the reader can open, in a few lines: by title, every program they
+   have a place in and how far they are, every one open to them now, and the one that opens
+   next. Each run of shut programs after that is folded into one line, and `all: true` names
+   every one. Titles are in the reader's edition, or English until they have one;
+   `language` gives the other.
 2. `open_program` — start one, or resume it; the step the reader is on comes back, and every
-   step opens with where it is: program, title, section, step *n* of *N*. The first time a
-   program is opened it needs an edition (`language`); after that the edition is remembered,
-   and naming a different one switches, at the same step.
+   step opens with where it is: program, title, section, step *n* of *N*. The edition
+   (`language`) is asked once per reader, not once per program. A program resumes in the
+   edition it was read in. A new one starts in the edition the reader already reads in: the
+   one chosen on the website, or else that of their most recent place — with no account, the
+   most recent place alone. Only when no edition is known does it ask. That is an ordinary
+   result, not an error; on a host that supports elicitation, the reader picks from the
+   track's editions directly. Naming a different edition switches, at the same step.
 3. `submit_answer` — the reader's own words, verbatim, with the number of the step they
    answer; the next step comes back, and it opens with the book's answer to the one just
    done. A step that asks nothing says so, and goes on with no answer. On the last step it
