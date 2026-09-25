@@ -100,8 +100,12 @@ export function promptMessages(
       ', and show me the step I am on. If the server says that program is not open to me ' +
       'yet, that is the book\'s reading order and not a fault: tell me what it says, name ' +
       'the program that opens it, and offer to start me there instead.'
-    : 'Call list_programs and show me the programs by title, grouped as the server groups ' +
-      'them, so I can choose one. Then open the one I name with open_program' +
+    : // The edition named here is the one the list's titles are in too (#145): a reader who
+      // picked "pl" for a first reading has no edition the server knows yet, and would
+      // otherwise choose from English titles.
+      `Call list_programs${language ? ` with "language": "${language}"` : ''} and show me the ` +
+      'programs by title, grouped as the server groups them, so I can choose one. Then open ' +
+      'the one I name with open_program' +
       (language ? ` in the "${language}" edition` : ', asking me which edition if the server asks') +
       '.';
 

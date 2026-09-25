@@ -108,7 +108,12 @@ test('the prompt is listed, and renders the method before it asks for a step', a
 
   const unnamed = await client.getPrompt({ name: 'read', arguments: {} });
   const open = unnamed.messages[0]!.content;
-  assert.match(open.type === 'text' ? open.text : '', /Call list_programs/);
+  assert.match(open.type === 'text' ? open.text : '', /Call list_programs and show me/);
+
+  // An edition with no program: the list is asked for in it, so the titles chosen from are.
+  const inPolish = await client.getPrompt({ name: 'read', arguments: { language: 'pl' } });
+  const listed = inPolish.messages[0]!.content;
+  assert.match(listed.type === 'text' ? listed.text : '', /Call list_programs with "language": "pl"/);
   await client.close();
 });
 

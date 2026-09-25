@@ -123,7 +123,8 @@ that into one line per group, such as `F03–F13 — 11 programs, shut: each ope
 before it`. The grouping by part or prefix and the rule stated once per track are kept.
 Titles are in one edition: the reader's (`CursorStore.edition()`), or English until they
 have one, which is the website's default (ADR-0052). `language` gives the other edition, and
-`all: true` names every program. The `read` prompt's completions list every id regardless.
+`all: true` names every program. The `read` prompt's completions list every id regardless,
+and a `read` prompt given an edition and no program asks for the list in that edition.
 `tools.test.ts` holds a new reader's list, on a track the size of the book, to 1.5 KiB with
 the in-memory note included.
 

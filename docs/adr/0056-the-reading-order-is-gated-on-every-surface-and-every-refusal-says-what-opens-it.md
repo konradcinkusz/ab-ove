@@ -11,6 +11,12 @@ nothing else. Constrained by
 [ADR-0017](0017-progress-is-local-first-and-holds-nothing-worth-scoring.md) and
 [ADR-0019](0019-furthest-frame-wins.md), none of which it amends.
 
+Amended on 2026-09-25 by issue #145, with no ADR of its own: `list_programs` no longer marks
+every program. It names the programs a reader can act on and folds each run of shut
+programs behind them into one line ([`web/mcp/README.md`](../../web/mcp/README.md),
+[`MCP-SERVER-SKETCH.md`](../architecture/MCP-SERVER-SKETCH.md) §3). The one sentence it
+overtook is annotated below; the gate and the refusals are unchanged.
+
 ## Context
 
 The owner put it in one sentence: *there is nowhere I can find out why a program will not
@@ -66,6 +72,12 @@ because a reader starting at the wrong end of a book has broken nothing. `curren
 `submit_answer` and `review_step` answer the same way instead of advising a call that is
 itself refused. `list_programs` marks every program `open to the reader now` or `SHUT,
 opens after F01`, and states the rule once per track.
+
+> **Amended by issue #145:** every program the reader can act on is still named with where
+> it stands — their place in it, `open to the reader now`, or, for the one that opens next,
+> `SHUT, opens after …`. A run of shut programs behind that one is folded into a single
+> line, such as `F03–F13 — 11 programs, shut: each opens after the one before it`, and
+> `all: true` names every program again.
 
 **Every refusal names the program that opens it, and says that one step of it is enough.**
 That clause is load-bearing rather than friendly: ADR-0051 chose the weakest gate that

@@ -78,7 +78,8 @@ For a book compiled outside this checkout, add
 
 In a host that lists a server's prompts, **`read`** is the way in: pick it, name a program
 or leave it out, and the host's model is told the method before it is told a step. Its
-`program` argument completes to the ids as you type. The tools carry their annotations, so
+`program` argument completes to the ids as you type. A `language` given with no program is
+also the edition the list is asked for in, so the titles a reader chooses from are in it. The tools carry their annotations, so
 a host that reads them stops asking permission for a re-read: `list_programs`,
 `current_step` and `review_step` are read-only; `open_program` and `submit_answer` write a
 place and never destroy one, and calling either again changes nothing more.
