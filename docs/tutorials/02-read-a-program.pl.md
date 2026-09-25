@@ -46,8 +46,9 @@ Wybierz **F01 — Liczby, potęgi i pierwiastki**. Każdy czytelnik zaczyna tam.
 Ramka to jedna myśl, czasem jeden wiersz. Przeczytaj ją i zatrzymaj się na pytaniu.
 
 Większość ramek o coś prosi. Gdy któraś prosi, linia pod nią — podpisana *Twoja odpowiedź* —
-mówi *Zapisz, zanim pójdziesz dalej*. Użyj jej albo kartki — linia jest lokalna dla twojej
-przeglądarki i nic jej nie czyta ([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
+mówi *Napisz odpowiedź, zanim przejdziesz dalej*. Użyj jej albo kartki — linia jest lokalna
+dla twojej przeglądarki i nic jej nie czyta
+([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
 
 Obok stoją dwie rzeczy, obie opcjonalne:
 

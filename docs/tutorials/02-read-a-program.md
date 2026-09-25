@@ -46,7 +46,7 @@ Pick **F01 — Numbers, powers and roots**. Every reader starts there.
 A frame is one idea, sometimes one line. Read it, and stop at the question.
 
 Most frames ask for something. When one does, the line below it — labelled *Your answer* —
-says *write it down before you read on*. Use it, or use paper — the line is local to your
+says *Write it down before you read on*. Use it, or use paper — the line is local to your
 browser and nothing reads it
 ([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
 

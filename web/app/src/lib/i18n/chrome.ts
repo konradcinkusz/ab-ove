@@ -778,17 +778,29 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     opening: 'Wstęp',
     position: (n, total) => `${n} z ${total}`,
     startAtFrame: (n) => `Zacznij od ramki ${n}`,
-    continueAtFrame: (n) => `Wróć do ramki ${n}`,
+    // `Kontynuuj`, the verb the English says (issue #152). `Wróć do ramki` read as *go back
+    // to frame n* — a step backwards, on the one control whose job is to carry the reader
+    // forwards — and it was `backToLastFrame`'s wording too, so two controls with opposite
+    // jobs spoke alike. `od`, as in `startAtFrame` one line up, so the pair reads as a pair.
+    continueAtFrame: (n) => `Kontynuuj od ramki ${n}`,
     frame: { one: 'ramka', few: 'ramki', many: 'ramek', other: 'ramki' },
     section: { one: 'sekcja', few: 'sekcje', many: 'sekcji', other: 'sekcji' },
     // `other` is the genitive singular, as it is for the two nouns above: it is the form a
     // fraction takes ('0,5 programu'), which is the only band `other` selects in Polish.
     program: { one: 'program', few: 'programy', many: 'program\u00f3w', other: 'programu' },
     yourAnswer: 'Twoja odpowiedź',
-    writeItDown: 'Zapisz, zanim pójdziesz dalej',
-    // Impersonal on purpose: a second-person past tense in Polish has to pick a gender,
-    // and "Zapisałeś" picked one for every reader. "Zapisano" — recorded — picks none.
-    youWrote: 'Zapisano',
+    // `Napisz`, not `Zapisz` (issue #152): in an interface `zapisz` is the word on every Save
+    // button, so the placeholder read as *save before you go on* — an instruction about
+    // storage, where the book's is about writing the answer down. It names the answer, as the
+    // English `it` need not, because a Polish imperative with no object reads as unfinished.
+    writeItDown: 'Napisz odpowiedź, zanim przejdziesz dalej',
+    // A noun phrase, so it chooses no gender for the reader — ADR-0016's rule, which a
+    // second-person past tense ("Zapisałeś") cannot keep. The impersonal `Zapisano` kept it
+    // too, and read as a save confirmation ("Saved: 42") in front of what the reader wrote
+    // (issue #152). It is `yourAnswer`'s wording on purpose: this one stands inside the box
+    // `answerTo` names, in front of what was written for THAT frame, and `you-wrote.tsx`
+    // supplies the colon.
+    youWrote: 'Twoja odpowiedź',
     matchesBook: 'Tak jak w książce',
     writtenBefore: 'zapisane przed odsłonięciem',
     earlierEdition: 'zapisane przy wcześniejszym wydaniu',
@@ -826,8 +838,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     go: 'Przejdź',
     close: 'Zamknij',
     programMap: 'Sekcje i ramki',
-    // Impersonal, like `youWrote`: a second-person "you have not reached" would have to pick
-    // a gender in Polish.
+    // Impersonal, and for `youWrote`'s reason: a second-person "you have not reached" would
+    // have to pick a gender in Polish (ADR-0016).
     lockedSection: 'jeszcze niedostępna',
     readingSettings: 'Ustawienia czytania',
     keysHeading: 'Klawisze',
@@ -855,8 +867,14 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     previousProgramLabel: 'Poprzedni program',
     groupLabels: { F: 'Podstawy', P: 'Część główna' },
     sectionsLabel: 'Sekcje',
-    atFrame: (n) => `na ramce ${n}`,
-    opensAfter: (unit) => `dostępne po ${unit}`,
+    // `przy ramce` rather than `na ramce`, which is spoken Polish rather than written (issue
+    // #152). Still a position and nothing more (ADR-0041).
+    atFrame: (n) => `przy ramce ${n}`,
+    // A verb, not an adjective (issue #152): `dostępne` is neuter, and the thing that opens
+    // is a program, which is masculine. `otworzy się` agrees with any subject, and it is
+    // `shutExplain`'s and `shutNextProgram`'s own verb, so the tile and its explanation
+    // say the same thing.
+    opensAfter: (unit) => `otworzy się po ${unit}`,
     shutExplain: (previous) =>
       `Jeszcze nieotwarty. Otworzy się, gdy przeczytasz dowolną ramkę ${previous} — wystarczy ` +
       `jedna, nic tu nie jest płatne ani ukryte.`,
