@@ -177,6 +177,19 @@ test.describe('accessibility behind an account', () => {
     expect(await violations(page)).toEqual([]);
   });
 
+  // Not a form, but the variant of the no-page view (issue #140) that only this deployment
+  // renders: the quiet *Sign in* link beside the programs is here and not above.
+  test('an address no page answers, with its way to sign in, has no WCAG A or AA violation @identity', async ({
+    page,
+  }) => {
+    await page.goto('/nope');
+    await expect(
+      page.getByRole('main').getByRole('link', { name: 'Sign in', exact: true }),
+    ).toBeVisible();
+    await settle(page);
+    expect(await violations(page)).toEqual([]);
+  });
+
   test('the registration form has no WCAG A or AA violation @identity', async ({ page }) => {
     await page.goto('/register');
     await expect(page.locator('input[name="email"]')).toBeVisible();

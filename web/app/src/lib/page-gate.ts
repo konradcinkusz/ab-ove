@@ -5,17 +5,22 @@
  * WHY THE GATE'S LISTS LIVE HERE AND NOT IN `middleware.ts`, WHERE THEY WERE WRITTEN.
  *
  * Two things read them now. The middleware DECIDES with them, exactly as it did before they
- * moved: the three lists and the two functions below are the middleware's own, word for
- * word, and the gate is still private by default (FRONTEND-BFF.md §4). And `/login`
- * EXPLAINS with them (issue #140). A reader bounced off an address no page answers — a typo,
- * an old link — used to be told it was "one of the few pages that needs to know who you
- * are", because the sign-in page could not tell `/nope` from `/account`. Telling them apart
- * needs the gate's own answer to "does this address need a session?", and a second copy of
- * that answer in the page would be a copy that drifts.
+ * moved: PUBLIC_PATHS, PUBLIC_PREFIXES, CARVE_OUT_PREFIXES, `isPublic` and `isCarveOut` are
+ * the middleware's own, word for word, and the gate is still private by default
+ * (FRONTEND-BFF.md §4). And `/login` EXPLAINS with them (issue #140). A reader bounced off
+ * an address no page answers — a typo, an old link — used to be told it was "one of the few
+ * pages that needs to know who you are", because the sign-in page could not tell `/nope`
+ * from `/account`. Telling them apart needs the gate's own answer to "does this address need
+ * a session?", and a second copy of that answer in the page would be a copy that drifts.
  *
  * So this module imports nothing — no `next/server`, no `@/` alias — which is what lets the
  * Edge bundle, a Server Component and `node --test` load the same file. `page-gate.test.ts`
  * holds it against every page `app/` declares.
+ *
+ * It is a security-relevant path for the reason the middleware is: one entry added to the
+ * public lists removes authentication from a page, and nothing fails a build. So
+ * `.github/CODEOWNERS` names it beside `middleware.ts`, in the Auth section
+ * (REPO-BASELINE.md §1).
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 
@@ -134,6 +139,19 @@ export function isCarveOut(pathname: string): boolean {
 }
 
 /**
+ * Whether the gate lets `pathname` through before it asks for a cookie: the early exits at
+ * the top of middleware.ts's `gate()`, carve-outs then public paths, in its order.
+ *
+ * `gate()` calls `isCarveOut` and `isPublic` itself, so its code reads as it did before the
+ * lists moved. This is the one restatement of those exits, for what EXPLAINS the gate rather
+ * than running it — `destinationAt` below, and `page-gate.test.ts` — so the page and the
+ * test cannot come to disagree. An early exit added to `gate()` belongs here too.
+ */
+export function opensWithoutSession(pathname: string): boolean {
+  return isCarveOut(pathname) || isPublic(pathname);
+}
+
+/**
  * The pages the gate closes, NAMED — issue #140.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
@@ -203,8 +221,7 @@ export type Destination = 'open' | 'private-page' | 'no-page';
 export function destinationAt(target: string): Destination {
   const { pathname } = new URL(target, 'http://page-gate.invalid');
 
-  // The two early exits at the top of middleware.ts's `gate()`, in the same order.
-  if (isCarveOut(pathname) || isPublic(pathname)) return 'open';
+  if (opensWithoutSession(pathname)) return 'open';
 
   return PRIVATE_PAGES.some((pattern) => pageAnswers(pattern, pathname))
     ? 'private-page'

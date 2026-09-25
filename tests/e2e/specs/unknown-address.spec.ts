@@ -60,6 +60,10 @@ test.describe('an address no page answers', () => {
   }) => {
     await page.goto('/nope');
 
+    // No form, in the one deployment that has one to show: signing in cannot make a page
+    // appear, so the page offers a fresh sign-in rather than a form aimed at the typo.
+    await expect(page.locator('form[action="/api/auth/login"]')).toHaveCount(0);
+
     const signIn = page.getByRole('main').getByRole('link', { name: 'Sign in', exact: true });
     await expect(signIn).toHaveAttribute('href', '/login');
 

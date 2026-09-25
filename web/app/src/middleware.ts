@@ -88,6 +88,11 @@ function redirectToLogin(request: NextRequest): NextResponse {
 async function gate(request: NextRequest, pathname: string): Promise<NextResponse> {
   // Carve-outs first, before anything looks at a cookie: these requests are unauthenticated
   // by construction and must reach their page with the query string they arrived with.
+  //
+  // This exit and the one below are restated in one place, `opensWithoutSession` in
+  // `lib/page-gate.ts`, for `/login` to explain the gate with (issue #140). An exit added here
+  // is added there too, or `/login` and `page-gate.test.ts` go on believing the gate closes
+  // what it now opens.
   if (isCarveOut(pathname)) return NextResponse.next();
 
   if (isPublic(pathname)) return NextResponse.next();

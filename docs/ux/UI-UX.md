@@ -59,7 +59,8 @@ again*. Both are English only, on `/login`'s reasoning. The middleware is privat
 default, so an unknown *top-level* path meets the sign-in redirect first; the pages are met
 under `/read/` and `/lab/`, and anywhere at all once signed in. `specs/navigation.spec.ts`
 asserts the 404's way back. What the redirect lands on says the same thing — see `/login`
-below — so a typo is never described to the reader as a page that needs an account.
+below — so an address no page answers is not described to the reader as a page that needs
+an account.
 
 ### `/` — the landing page, which is the index
 
@@ -228,7 +229,9 @@ own lists — moved there from `middleware.ts` word for word, so the page and th
 question to one answer — and one more, `PRIVATE_PAGES`, the pages the gate closes, named:
 
 - **a page the gate closes**, which is one `PRIVATE_PAGES` names, keeps the sentence and the
-  form, which carries the reader there after signing in;
+  form, which carries the reader there after signing in. The question is put to the
+  address's shape, not to the content: `/instrument/wrong-track/P99` has the shape of a page
+  the gate closes, and is told so;
 - **an address the gate opens** is one the reader chose to sign in from — every *Sign in* link
   carries where the reader was — and is carried as before;
 - **an address the gate closes with no page behind it** gets *There is no page at this

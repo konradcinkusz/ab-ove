@@ -16,7 +16,8 @@
  * WHY NOT THE MIDDLEWARE ITSELF. `middleware.ts` imports `next/server`, which plain ESM
  * cannot resolve (the package has no exports map), so `node --test` cannot load it. It
  * decides with `isCarveOut` and `isPublic` and nothing else before it asks for a cookie, and
- * those are what `closed` below calls — the gate's own functions, not a restatement of them.
+ * `opensWithoutSession` is those two, in `gate()`'s order — the one function `closed` below
+ * and `/login`'s `destinationAt` both call, so the test and the page cannot disagree.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 import assert from 'node:assert/strict';
@@ -25,16 +26,10 @@ import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
-import {
-  PRIVATE_PAGES,
-  destinationAt,
-  isCarveOut,
-  isPublic,
-  pageAnswers,
-} from './page-gate.ts';
+import { PRIVATE_PAGES, destinationAt, opensWithoutSession, pageAnswers } from './page-gate.ts';
 
 /** What the middleware's `gate()` does with no session: carve-outs and public paths pass. */
-const closed = (pathname: string): boolean => !isCarveOut(pathname) && !isPublic(pathname);
+const closed = (pathname: string): boolean => !opensWithoutSession(pathname);
 
 const appRoot = join(dirname(fileURLToPath(import.meta.url)), '..', 'app');
 
@@ -48,6 +43,13 @@ const ROUTE_FILE = /^(page|route)\.(tsx|ts|jsx|js)$/;
  * there, so no request under it can be bounced to `/login`. The rest of Next's folder rules
  * are applied rather than assumed absent: a `_private` folder is not routable, and a
  * `(group)` or `@slot` folder adds no segment to the address.
+ *
+ * THE LIMIT OF THE WALK: it knows `page.*` and `route.*` and nothing else. A metadata file
+ * (`icon`, `opengraph-image`, `manifest.ts`) is an address too, and so is a file under
+ * `public/` that neither the public prefixes nor the matcher's exclusions cover; the gate
+ * would close either, this walk would not see it, and `/login` would call it no page. None
+ * is in the tree today. Whoever adds one opens it in the gate's lists, or teaches this walk
+ * its file name, in the same change.
  */
 function declaredRoutes(directory: string): string[] {
   const found: string[] = [];
@@ -98,8 +100,9 @@ test('the matcher reads a route the way app/ does', () => {
 });
 
 test('the walk finds the pages it has to, so an empty walk cannot pass', () => {
-  // Three kinds, one of each: a public page, a private one, and a dynamic private one. A
-  // walk rooted in the wrong directory would find none of them and hold nothing.
+  // One of each kind the walk has to recognise: a public page, a private one, a dynamic
+  // private one and a route handler. A walk rooted in the wrong directory would find none of
+  // them and hold nothing.
   for (const expected of ['/', '/account', '/instrument/[track]/[unit]', '/healthz']) {
     assert.ok(routes.includes(expected), `app/ was walked and ${expected} was not found`);
   }
