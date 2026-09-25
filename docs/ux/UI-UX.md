@@ -636,6 +636,14 @@ it. They are listed here rather than left to be rediscovered per screen.
    commitment. A component that shows the next frame's opening, a hint that contains the
    answer, or an exercise check that prints the solution has broken the product, not
    improved it.
+9. **The first thing Tab reaches is a way past the masthead** (WCAG 2.4.1). Every page
+   renders `components/skip/skip-link.tsx` first, in the edition its own controls speak, and
+   puts `SKIP_TARGET_ID` where its content begins: the `<main>` of a reading screen, whose
+   bar is outside it, and the `<h1>` of every other page, whose masthead is inside its
+   `<main>`. The link is hidden until it has focus and is then drawn over the page, so it
+   moves nothing. The root layout cannot render it, because it does not know the edition;
+   a new page that forgets it is a page a keyboard reader tabs through the masthead of
+   (`specs/skip-link.spec.ts`).
 
 ---
 

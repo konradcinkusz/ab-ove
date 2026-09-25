@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+
 /**
  * The page behind a render failure.
  *
@@ -35,13 +37,16 @@ export default function RenderError({
 }): React.JSX.Element {
   return (
     <main className="shell">
+      <SkipLink language="en" />
       <header className="masthead">
         <p className="wordmark">
           <Link href="/">
             ab<span>-</span>ovo
           </Link>
         </p>
-        <h1 className="lede">This page could not be rendered.</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>
+          This page could not be rendered.
+        </h1>
         <p className="standfirst">
           That is a fault on this side &mdash; in the deployment or in the book&rsquo;s compiled
           bundle &mdash; and not in the address you asked for. Nothing you wrote is lost: your

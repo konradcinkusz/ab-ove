@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { allBundles, say } from '@ab-ovo/web-kit';
 
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { LABS } from '@/lib/lab/protocol';
 
 import styles from './instrument.module.css';
@@ -43,10 +44,11 @@ export const metadata: Metadata = {
 export default function InstrumentIndexPage(): React.JSX.Element {
   return (
     <main className={styles.page}>
+      <SkipLink language="en" />
       <p className={styles.crumb}>
         <Link href="/">ab-ovo</Link> / instrument
       </p>
-      <h1 className={styles.title}>The instrument</h1>
+      <h1 className={styles.title} id={SKIP_TARGET_ID}>The instrument</h1>
       <p className={styles.subtitle}>
         What the book&rsquo;s own readers found hard, frame by frame. Every number carries the
         interval around it, because a rate quoted without one is a ratio quoted without its two

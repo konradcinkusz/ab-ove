@@ -5,6 +5,7 @@ import { groupsOf, say, sectionSpans, unitBefore, type Bundle } from '@ab-ovo/we
 import { AccountControl } from '@/components/account/account-control';
 import { ConsentControl } from '@/components/consent/consent-control';
 import { LanguageChoice } from '@/components/language/language-choice';
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { editionsOffered } from '@/lib/content/chosen-edition';
 import { shownBundles } from '@/lib/content/chosen-track';
@@ -132,6 +133,13 @@ export function ProgramGrid({
 
   return (
     <main className={styles.page} lang={chrome.language}>
+      {/*
+        THE WAY PAST THE ROW BELOW (issue #149), which a keyboard reader otherwise tabs
+        through control by control — the destinations, the theme, and everything a returning
+        reader's place, worksheets and account add to it — before the first program. It lands
+        on the heading rather than on `<main>`, because the row is inside `<main>`.
+      */}
+      <SkipLink language={chrome.language} />
       <header className={styles.top}>
         <p className={styles.wordmark}>
           ab<span>-</span>ovo
@@ -225,7 +233,9 @@ export function ProgramGrid({
         names.
       */}
       <div className={styles.headingRow}>
-        <h1 className={styles.heading}>{chrome.programs}</h1>
+        <h1 className={styles.heading} id={SKIP_TARGET_ID}>
+          {chrome.programs}
+        </h1>
         {/*
           The editions of the courses ON SCREEN, not of every course pinned: a deployment
           whose second course is English-only must not offer a Polish position on a page

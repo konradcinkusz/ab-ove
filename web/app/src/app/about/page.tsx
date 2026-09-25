@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { IntegrationReport } from '@/components/integration-report';
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 
 /**
  * What ab-ovo is, and what its instrument is for.
@@ -32,6 +33,7 @@ export const metadata: Metadata = {
 export default function AboutPage(): React.JSX.Element {
   return (
     <main className="shell">
+      <SkipLink language="en" />
       <header className="masthead">
         {/*
           The way back to the programs, first in the document, because this page is a
@@ -42,7 +44,9 @@ export default function AboutPage(): React.JSX.Element {
             ab<span>-</span>ovo
           </Link>
         </p>
-        <h1 className="lede">A book you work, not a book you read.</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>
+          A book you work, not a book you read.
+        </h1>
         <p className="standfirst">
           ab-ovo encapsulates <em>Mathematics from Zero for the AI Engineer</em> — 47 programs
           of programmed-learning frames, in English and Polish, together with the book&rsquo;s

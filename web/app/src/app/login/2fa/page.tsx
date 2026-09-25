@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { readChallenge } from '@/lib/server/challenge';
 import { safeRedirectTarget } from '@/lib/redirect-target';
 import { signInProblem } from '@/lib/sign-in-problem';
@@ -53,11 +54,12 @@ export default async function SecondFactorPage({
 
   return (
     <main className="shell">
+      <SkipLink language="en" />
       <header className="masthead">
         <p className="wordmark">
           ab<span>-</span>ovo
         </p>
-        <h1 className="lede">One more step.</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>One more step.</h1>
         <p className="standfirst">
           That account has a second factor. Your password was accepted; this is the other
           half, and it is the last thing between you and the page you asked for.

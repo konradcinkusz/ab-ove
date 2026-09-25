@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+
 /**
  * The page behind a 404.
  *
@@ -33,13 +35,16 @@ import Link from 'next/link';
 export default function NotFound(): React.JSX.Element {
   return (
     <main className="shell">
+      <SkipLink language="en" />
       <header className="masthead">
         <p className="wordmark">
           <Link href="/">
             ab<span>-</span>ovo
           </Link>
         </p>
-        <h1 className="lede">There is no page at this address.</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>
+          There is no page at this address.
+        </h1>
         <p className="standfirst">
           A frame number past the end of a program, a program the book does not have, or an
           edition it is not published in all answer this way. The book itself is fine, and

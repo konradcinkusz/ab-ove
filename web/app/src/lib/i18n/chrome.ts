@@ -408,6 +408,13 @@ interface Strings {
    * OUT of the program, to the next one.
    */
   readonly footNav: string;
+  /**
+   * The skip link, the first thing Tab reaches on every page (WCAG 2.4.1, issue #149). It
+   * says *main content* and not *content*, because `contents` is this table's word for a
+   * program's list of headings, and a link reading *Skip to content* on a page with a
+   * *Contents* button would read as a second way to the same page.
+   */
+  readonly skipToContent: string;
   /** Frame 1's own back button, replacing `previous` where there is nowhere to go back to. */
   readonly backToContents: string;
   /** The last frame's forward button, in `next`'s place: it opens `/summary`, not a frame. */
@@ -661,6 +668,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       { key: 'Esc', does: 'back to reading', where: 'in a field or a panel' },
     ],
     footNav: 'Where to next',
+    skipToContent: 'Skip to main content',
     backToContents: 'Contents',
     toSummary: 'Summary',
     answerTo: (n) => `Answer to frame ${n}`,
@@ -842,6 +850,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       { key: 'Esc', does: 'wróć do czytania', where: 'w polu lub panelu' },
     ],
     footNav: 'Dokąd dalej',
+    // `Przejdź` is this table's word for *go to* (`goToFrame`, `go`), and `głównej` keeps it
+    // apart from `Spis treści`, the contents page, for the reason the English says *main*.
+    skipToContent: 'Przejdź do głównej treści',
     backToContents: 'Spis treści',
     toSummary: 'Podsumowanie',
     answerTo: (n) => `Odpowiedź do ramki ${n}`,
@@ -1007,6 +1018,7 @@ export interface Chrome {
   readonly keysHeading: string;
   readonly keysMap: readonly KeyEntry[];
   readonly footNav: string;
+  readonly skipToContent: string;
   readonly backToContents: string;
   readonly toSummary: string;
   readonly answerTo: (n: number) => string;

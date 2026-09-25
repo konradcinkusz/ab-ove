@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { tagFor } from '@ab-ovo/web-kit';
 
 import { RateRanking } from '@/components/instrument/rate-ranking';
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 
 import styles from '../../instrument.module.css';
 
@@ -43,10 +44,11 @@ export default async function UnitRankingPage({ params }: Params): Promise<React
 
   return (
     <main className={styles.page}>
+      <SkipLink language="en" />
       <p className={styles.crumb}>
         <Link href="/">ab-ovo</Link> / <Link href="/instrument">instrument</Link> / {unit}
       </p>
-      <h1 className={styles.title}>{unit}, worst first</h1>
+      <h1 className={styles.title} id={SKIP_TARGET_ID}>{unit}, worst first</h1>
       <p className={styles.subtitle}>
         Frames ranked by how badly the book is doing, at <code>{bundleTag}</code>. A frame&rsquo;s
         place is decided by its worst check at one attempt — never by an average of its checks,

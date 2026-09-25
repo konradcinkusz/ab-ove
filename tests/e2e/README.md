@@ -84,6 +84,7 @@ was first written with.
 | `second-factor.spec.ts` | signing in to an account that has a second factor |
 | `sign-in-identity.spec.ts` | the signed-in path, against an identity service this suite starts itself |
 | `sign-in.spec.ts` | the sign-in screen, and everything about it that needs no account |
+| `skip-link.spec.ts` | a keyboard reader's first Tab offers a way past the masthead, on every page, in their edition |
 | `sync.spec.ts` | the same reader on a second machine |
 | `theme.spec.ts` | a reader turns on light mode, and it stays on |
 | `worksheet.spec.ts` | committing an answer before turning over, which is the method the book is |
@@ -400,7 +401,7 @@ checking.
 - **What a machine cannot decide about accessibility.** `specs/accessibility.spec.ts` covers the
   rules axe-core can decide from the DOM. Whether a name is a good one, whether the focus order
   makes sense and how a screen reader reads the maths are asserted only where a spec asserts
-  them (`reading.spec.ts`, `pager.spec.ts`), and otherwise by a person.
+  them (`reading.spec.ts`, `pager.spec.ts`, `skip-link.spec.ts`), and otherwise by a person.
 - **The MCP transport.** `web/mcp` serves the book to an MCP host; its tests are unit tests in
   that package, run by CI's `pnpm test`, and nothing drives it end to end.
 - **The API's own behaviour.** `/api/v1/info`, `/health`, `/alive`, JWT validation, the

@@ -1,3 +1,5 @@
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+
 import styles from './reading-screen.module.css';
 
 export interface ReadingScreenProps {
@@ -38,6 +40,13 @@ export interface ReadingScreenProps {
  * horizontal overflow `narrow-screen.spec.ts` exists to catch.
  * ──────────────────────────────────────────────────────────────────────────────────────────
  *
+ * THE SKIP LINK COMES FIRST, and lands on `<main>` (issue #149, `skip-link.tsx`): the bar is
+ * above `<main>` rather than inside it, so `<main>` is exactly where the frame begins, and the
+ * next Tab reaches the first control in the page — on a frame that asks, the answer line —
+ * rather than the wordmark. It is written from `lang` through `chromeFor`, which is the call
+ * every reading screen makes for its own chrome, so the link is in the edition the rest of
+ * the screen's controls are in.
+ *
  * THE POPOVERS COME LAST IN SOURCE ORDER, on purpose: a browser without the Popover API
  * ignores the attribute and draws them in flow, and at the end of the page they read as two
  * closing panels rather than as a list dropped into the middle of the frame.
@@ -52,9 +61,10 @@ export function ReadingScreen({
 }: ReadingScreenProps): React.JSX.Element {
   return (
     <div className={styles.screen}>
+      <SkipLink language={lang} />
       {before}
       {top}
-      <main className={styles.main} lang={lang}>
+      <main className={styles.main} id={SKIP_TARGET_ID} lang={lang}>
         {children}
       </main>
       {pager}

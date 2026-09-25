@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import styles from '@/components/lab/lab-pane.module.css';
+import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { LABS } from '@/lib/lab/protocol';
 
 /**
@@ -25,10 +26,11 @@ export const metadata: Metadata = {
 export default function LabIndexPage(): React.JSX.Element {
   return (
     <main className={styles.page}>
+      <SkipLink language="en" />
       <p className={styles.crumb}>
         <Link href="/">ab-ovo</Link> / lab
       </p>
-      <h1 className={styles.title}>The lab</h1>
+      <h1 className={styles.title} id={SKIP_TARGET_ID}>The lab</h1>
       <p className={styles.subtitle}>
         The book&rsquo;s computer exercises, worked in the browser. Every expected value a
         check compares against is one the book prints, read out of the same file the
