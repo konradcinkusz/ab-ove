@@ -17,7 +17,7 @@
 import { advance, current, explain, serve, FIRST_STEP } from './reveal.ts';
 import type { Cursor, Refusal } from './reveal.ts';
 import type { CursorStore } from './cursor.ts';
-import { isIdentifier } from './cursor.ts';
+import { PlaceUnavailable, isIdentifier } from './cursor.ts';
 import {
   CONTENT_BUNDLE_VARIABLE,
   ContentUnavailable,
@@ -358,6 +358,49 @@ export function noContentNote(missing: ContentUnavailable): string {
 }
 
 /**
+ * What a reader is told when their place could not be reached — a result they can read,
+ * where there used to be a JSON-RPC error they could not (#137).
+ *
+ * Two things, in the order a reader needs them. First that NOTHING IS LOST: the place is
+ * the account's, and a call that failed did not move it — a failed write recorded nothing,
+ * and making the same call again is safe, because `open_program` writes the same place
+ * twice and `submit_answer` names its step. Then what fixes it, which is different for each
+ * `PlaceProblem`: a fresh token, a moment's wait, or a look at the address. The model gets
+ * the same sentence and so has something true to relay instead of `fetch failed`.
+ *
+ * `isError`, unlike the gate's refusals: this is not the book working, it is a call that
+ * did not do what it was asked.
+ */
+export function placeUnavailableNote(failure: PlaceUnavailable): string {
+  const status = failure.status === undefined ? '' : ` (HTTP ${failure.status})`;
+  const kept =
+    'Your place in the book could not be reached just now, and nothing is lost: it is kept ' +
+    'on your account, exactly where you left it.' +
+    (failure.writing
+      ? ' Nothing from this call was recorded, so the same call is safe to make again once ' +
+        'the place can be reached — it will not move you twice.'
+      : '');
+
+  switch (failure.reason) {
+    case 'unauthorised':
+      return (
+        `${kept}\n\nThe service that keeps it would not let this server in${status}: the reader ` +
+        'token it was started with has expired or is not valid. Whoever runs the server should ' +
+        'give it a fresh AB_OVO_READER_TOKEN and start it again; trying again before that will ' +
+        'not help.'
+      );
+    case 'unreachable':
+      return `${kept}\n\nThe service that keeps it is out of reach or not answering right now${status}. Try again shortly.`;
+    case 'refused':
+      return (
+        `${kept}\n\nWhat answered at AB_OVO_API_URL refused the request${status}, or answered ` +
+        'with something that is not a place. Whoever runs the server should check that ' +
+        'AB_OVO_API_URL names the ab-ovo API; trying again will not change the answer.'
+      );
+  }
+}
+
+/**
  * The names for the id prefixes `groupsOf` divides a track by — the reading surface's
  * `chrome.groupLabels`, in the one language this server's own sentences have (§3 of the
  * sketch). A prefix with no entry is listed without a heading.
@@ -604,9 +647,14 @@ export interface Deps {
 }
 
 /**
- * Answer one tool call. The one thing wrapped here is the content going missing: a bundle
- * that was never fetched throws out of the loader, and that used to reach the host as a
- * JSON-RPC error on the reader's first call. It is a tool result now, with the fix in it.
+ * Answer one tool call. Two things are wrapped here, and they are the two a deployment can
+ * get wrong under a reader who did nothing wrong: the content going missing — a bundle that
+ * was never fetched throws out of the loader — and the reader's place going out of reach —
+ * a token that expired, an API that is down. Each used to reach the host as a JSON-RPC
+ * error carrying a developer's string. Each is a tool result now, with what fixes it.
+ *
+ * Anything else still throws, on purpose: an error this file cannot name is a defect in
+ * this package, and a sentence would dress it up as the deployment's.
  */
 export async function handle(
   name: string,
@@ -617,6 +665,7 @@ export async function handle(
     return await dispatch(name, args, deps);
   } catch (error) {
     if (error instanceof ContentUnavailable) return problem(noContentNote(error));
+    if (error instanceof PlaceUnavailable) return problem(placeUnavailableNote(error));
     throw error;
   }
 }

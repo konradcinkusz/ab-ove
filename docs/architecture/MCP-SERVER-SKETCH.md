@@ -174,7 +174,9 @@ start that `not-reached` "is NOT an error — it is the product working", and th
 layer sent it with `isError: true` anyway, along with a finished program; a host paints that
 red and a model apologises for it. Now only an argument that names nothing — a track, a
 program, an edition or a step number the book does not have, an empty answer to a step that
-asked for one — is an error. The gate's sentence and the end of a program travel as results.
+asked for one — is an error, beside the two failures of the deployment described next: no
+book, and a place out of reach. The gate's sentence and the end of a program travel as
+results.
 
 **A deployment with no book answers with the fix.** The loader's throw for a bundle that was
 never fetched used to reach the host as a JSON-RPC error on the reader's first call, carrying
@@ -183,6 +185,16 @@ a developer's message. `content.ts` wraps it at the one crossing as `ContentUnav
 it is in — never fetched into this checkout (run the fetch script, from the root it names),
 pointed by `AB_OVO_CONTENT_BUNDLE` at a file that is not there (correct the variable), or
 found and refused by the validator (not "missing", and the loader's message follows).
+
+**A place that cannot be reached answers with what fixes it.** With the API store, a
+non-2xx answer used to throw a bare `Error` and a rejected `fetch` passed straight through;
+both reached the host as `MCP error -32603` carrying `progress read failed: 401` or
+`fetch failed`. `ApiCursorStore` now throws `PlaceUnavailable` with a reason —
+`unauthorised`, `unreachable` or `refused` — and `handle()` answers it beside
+`ContentUnavailable`, as a result with `isError`: nothing is lost, a failed write recorded
+nothing and is safe to repeat, and the fix for that reason (a fresh token, a moment, or the
+address). The gate's refusals are untouched. Anything else `handle()` cannot name still
+throws, because a sentence would dress a defect in this package up as the deployment's.
 
 **A place kept in memory is said in the results.** `server.ts` warned on stderr, which no
 reader of a host sees; `list_programs` and `open_program` now carry the same sentence, so

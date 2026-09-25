@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { ApiCursorStore, MemoryCursorStore, furthest, isIdentifier } from './cursor.ts';
+import { ApiCursorStore, MemoryCursorStore, PlaceUnavailable, furthest, isIdentifier } from './cursor.ts';
 import type { Cursor } from './reveal.ts';
 
 const at = (step: number, language = 'en'): Cursor => ({ track: 't', unit: 'P01', language, step });
@@ -150,6 +150,37 @@ test('another machine reading past the switched step takes its own edition with 
   rows[0] = row(9, 'en'); // the phone read on, in English
 
   assert.deepEqual(await store.read('t', 'P01'), at(9, 'en'));
+});
+
+test('every way the API store can fail is PlaceUnavailable, with the reason that says what fixes it', async () => {
+  // #137: a bare Error and a rejected fetch used to escape as themselves, and tools.ts had
+  // nothing to name them by. Each case here is one `PlaceProblem`, read and write alike.
+  const cases: readonly { answer: () => Promise<Response>; reason: string; status: number | undefined }[] = [
+    { answer: async () => new Response('', { status: 401 }), reason: 'unauthorised', status: 401 },
+    { answer: async () => new Response('', { status: 403 }), reason: 'unauthorised', status: 403 },
+    { answer: async () => new Response('', { status: 500 }), reason: 'unreachable', status: 500 },
+    { answer: async () => new Response('', { status: 429 }), reason: 'unreachable', status: 429 },
+    { answer: async () => Promise.reject(new TypeError('fetch failed')), reason: 'unreachable', status: undefined },
+    { answer: async () => new Response('', { status: 404 }), reason: 'refused', status: 404 },
+    { answer: async () => new Response('not json', { status: 200 }), reason: 'refused', status: 200 },
+  ];
+
+  for (const { answer, reason, status } of cases) {
+    const store = new ApiCursorStore('https://api.example', () => 'the-token', (async () => answer()) as typeof fetch);
+    const attempts = [
+      { writing: false, attempt: () => store.readAll() },
+      { writing: true, attempt: () => store.save(at(1)) },
+    ];
+    for (const { writing, attempt } of attempts) {
+      await assert.rejects(attempt(), (error: unknown) => {
+        assert.ok(error instanceof PlaceUnavailable, `${reason}: ${String(error)}`);
+        assert.equal(error.reason, reason);
+        assert.equal(error.status, status);
+        assert.equal(error.writing, writing);
+        return true;
+      });
+    }
+  }
 });
 
 test('the API store refuses to build a route from a bad identifier', async () => {

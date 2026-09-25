@@ -65,6 +65,59 @@ export function furthest(existing: Cursor | undefined, incoming: Cursor): Cursor
 }
 
 /**
+ * Why a reader's place could not be reached, in the three shapes that have different fixes.
+ *
+ * - `unauthorised` — the service answered 401 or 403: the reader token has expired or is
+ *   not a reader's. A fresh token fixes it; trying again does not.
+ * - `unreachable` — no answer at all (the fetch itself rejected), or one that says "later"
+ *   (5xx, 408, 429). Trying again shortly is the fix.
+ * - `refused` — any other answer that is not the record: a 404 from an address that is not
+ *   this API, a body that is not JSON. Trying again will not change it.
+ */
+export type PlaceProblem = 'unauthorised' | 'unreachable' | 'refused';
+
+/**
+ * The store could not reach the reader's place.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * A TYPE, BECAUSE A BARE `Error` BECAME A PROTOCOL ERROR (#137).
+ *
+ * `ApiCursorStore` used to throw `new Error('progress read failed: 401')` and let a rejected
+ * `fetch` pass straight through. `handle()` in `tools.ts` catches what it can name and
+ * nothing else, so both reached the host as JSON-RPC `-32603` with a developer's string in
+ * it: the host showed a failure, the model read `fetch failed`, and the reader was told
+ * nothing they could act on. With a type and a reason, `handle()` answers with a result and
+ * a sentence — what happened to their place (nothing), and what fixes it.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+export class PlaceUnavailable extends Error {
+  readonly reason: PlaceProblem;
+  /** The HTTP status, when the service answered at all. */
+  readonly status: number | undefined;
+  /** True when a WRITE failed — the call that made it recorded nothing and can be made again. */
+  readonly writing: boolean;
+
+  constructor(
+    reason: PlaceProblem,
+    message: string,
+    detail: { readonly status?: number; readonly writing: boolean; readonly cause?: unknown },
+  ) {
+    super(message, detail.cause === undefined ? undefined : { cause: detail.cause });
+    this.name = 'PlaceUnavailable';
+    this.reason = reason;
+    this.status = detail.status;
+    this.writing = detail.writing;
+  }
+}
+
+/** Which of the three a status is; see `PlaceProblem` for why these lines. */
+function problemFor(status: number): PlaceProblem {
+  if (status === 401 || status === 403) return 'unauthorised';
+  if (status >= 500 || status === 408 || status === 429) return 'unreachable';
+  return 'refused';
+}
+
+/**
  * For development and for the unit tier. NOT for a deployment: it forgets every reader's
  * place when the process restarts, which is the one thing an account is supposed to buy.
  */
@@ -165,13 +218,48 @@ export class ApiCursorStore implements CursorStore {
     };
   }
 
-  async readAll(): Promise<readonly Cursor[]> {
-    const response = await this.#fetch(`${this.#baseUrl}/api/v1/progress`, {
-      headers: this.#headers(),
-    });
-    if (!response.ok) throw new Error(`progress read failed: ${response.status}`);
+  /**
+   * One request to the service, and its JSON — or `PlaceUnavailable`, never anything else.
+   *
+   * Every way this can fail is turned into the one type `handle()` answers with a sentence,
+   * here where the difference between them is still visible: a rejected `fetch` is no
+   * answer, a status is an answer, and a body that is not JSON came from something that is
+   * not this API.
+   */
+  async #json(url: string, init: RequestInit, writing: boolean): Promise<unknown> {
+    const doing = writing ? 'progress write' : 'progress read';
 
-    const body = (await response.json()) as { records?: readonly ProgressRecordJson[] };
+    let response: Response;
+    try {
+      response = await this.#fetch(url, init);
+    } catch (error) {
+      throw new PlaceUnavailable('unreachable', `${doing} failed: ${String(error)}`, { writing, cause: error });
+    }
+    if (!response.ok) {
+      throw new PlaceUnavailable(problemFor(response.status), `${doing} failed: ${response.status}`, {
+        status: response.status,
+        writing,
+      });
+    }
+
+    try {
+      return await response.json();
+    } catch (error) {
+      // A body that does not parse is an answer from the wrong thing; one cut off half-way
+      // is the network, and the network is worth trying again.
+      const reason: PlaceProblem = error instanceof SyntaxError ? 'refused' : 'unreachable';
+      throw new PlaceUnavailable(reason, `${doing} answered ${response.status} with no record: ${String(error)}`, {
+        status: response.status,
+        writing,
+        cause: error,
+      });
+    }
+  }
+
+  async readAll(): Promise<readonly Cursor[]> {
+    const body = (await this.#json(`${this.#baseUrl}/api/v1/progress`, { headers: this.#headers() }, false)) as {
+      records?: readonly ProgressRecordJson[];
+    };
     return (body.records ?? []).map((row) => this.#adopt(row));
   }
 
@@ -185,19 +273,17 @@ export class ApiCursorStore implements CursorStore {
       throw new Error('a track and a unit are short identifiers: letters, digits, dot, dash, underscore');
     }
 
-    const response = await this.#fetch(
+    // A ProgressRecord, not a ProgressResponse — read from ProgressEndpoints rather than
+    // assumed, because the read and the write deliberately answer different shapes.
+    const row = (await this.#json(
       `${this.#baseUrl}/api/v1/progress/${encodeURIComponent(cursor.track)}/${encodeURIComponent(cursor.unit)}`,
       {
         method: 'PUT',
         headers: this.#headers(),
         body: JSON.stringify({ step: cursor.step, language: cursor.language }),
       },
-    );
-    if (!response.ok) throw new Error(`progress write failed: ${response.status}`);
-
-    // A ProgressRecord, not a ProgressResponse — read from ProgressEndpoints rather than
-    // assumed, because the read and the write deliberately answer different shapes.
-    const row = (await response.json()) as ProgressRecordJson;
+      true,
+    )) as ProgressRecordJson;
 
     // The service kept its edition on a tie: keep the reader's here, for this step.
     const key = ApiCursorStore.#key(row.track, row.unit);

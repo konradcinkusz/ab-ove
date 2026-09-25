@@ -89,6 +89,19 @@ program opened here resumes where the browser left it. With either missing it is
 memory and forgotten at restart. The process says so on stderr, and **every result that
 shows a place says so too**, because a reader of an MCP host sees results and never the log.
 
+When the place cannot be reached, the call answers with a result, not a protocol error. It
+says that nothing is lost, because the place is on the account and a failed call did not
+move it. A write that failed recorded nothing, and the same call is safe to make again. It
+also says what fixes it:
+
+- a 401 or 403 needs a fresh `AB_OVO_READER_TOKEN`;
+- no answer, a 5xx, a 408 or a 429 needs a moment: *try again shortly*;
+- any other answer, such as a 404 or a body that is not JSON, means `AB_OVO_API_URL` is not
+  the API.
+
+The result carries `isError`, because the call did not do what it was asked. The gate's own
+refusals do not, and nothing about them changes.
+
 ## The first three calls
 
 1. `list_programs` — every program the server carries, by title, and how far the reader is

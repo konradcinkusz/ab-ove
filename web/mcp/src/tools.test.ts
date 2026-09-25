@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { MemoryCursorStore } from './cursor.ts';
+import { ApiCursorStore, MemoryCursorStore } from './cursor.ts';
 import { BundleNotFound, ContentUnavailable, REPOSITORY_ROOT, fixtureBundles, say, unitIn } from './content.ts';
 import type { Bundle, BundleSource, Text, Unit } from './content.ts';
 import {
@@ -499,6 +499,93 @@ test('a book found and refused by the validator is not called missing', async ()
   assert.match(result.text, /found its book and cannot load it/);
   assert.doesNotMatch(result.text, /no book to serve/);
   assert.match(result.text, /does not validate against content-schema\.v1/, 'the loader\'s own message follows');
+});
+
+/**
+ * An API that gives every request the same answer — the store's failures, through its own
+ * injectable `fetchImpl` rather than a network (#137).
+ */
+function apiAnswering(answer: (method: string) => Promise<Response>): ApiCursorStore {
+  const fetchImpl = (async (_input: string | URL | Request, init?: RequestInit) =>
+    answer(init?.method ?? 'GET')) as typeof fetch;
+  return new ApiCursorStore('https://api.example', () => 'the-token', fetchImpl);
+}
+
+const UNREACHABLE: readonly { name: string; answer: () => Promise<Response>; fix: RegExp }[] = [
+  { name: 'an expired token (401)', answer: async () => new Response('', { status: 401 }), fix: /fresh AB_OVO_READER_TOKEN/ },
+  { name: 'a service that is down (503)', answer: async () => new Response('', { status: 503 }), fix: /Try again shortly/ },
+  {
+    name: 'a rejected fetch',
+    answer: async () => {
+      throw new TypeError('fetch failed');
+    },
+    fix: /Try again shortly/,
+  },
+];
+
+test('a place that cannot be reached is a result the reader can act on, never a protocol error', async () => {
+  const calls: readonly [string, Record<string, unknown>][] = [
+    ['list_programs', {}],
+    ['open_program', { unit: UNIT, language: LANG }],
+    ['current_step', { unit: UNIT }],
+    ['review_step', { unit: UNIT, step: 1 }],
+    ['submit_answer', { unit: UNIT, step: 1 }],
+  ];
+  for (const failure of UNREACHABLE) {
+    const d = { cursors: apiAnswering(failure.answer), bundles: BUNDLES };
+    for (const [name, args] of calls) {
+      // `handle()` resolving at all is the first assertion: it used to reject, and the SDK
+      // turned that into `MCP error -32603: progress read failed: 401`.
+      const result = await handle(name, args, d);
+      const where = `${failure.name}, ${name}`;
+      assert.ok(result.isError, `${where}: a call that did not do what it was asked is not an ordinary result`);
+      assert.match(result.text, /could not be reached just now, and nothing is lost/, where);
+      assert.match(result.text, failure.fix, where);
+      assert.doesNotMatch(
+        result.text,
+        /fetch failed|progress read failed/,
+        `${where}: the developer's string reached the reader`,
+      );
+    }
+  }
+});
+
+test('a write that fails records nothing, and says the same call is safe to make again', async () => {
+  const placed = { track: TRACK, unit: UNIT, step: 1, language: LANG, updatedAt: '2026-09-24T00:00:00Z' };
+  const cursors = apiAnswering(async (method) =>
+    method === 'GET' ? Response.json({ records: [placed] }) : new Response('', { status: 502 }),
+  );
+
+  const result = await handle('submit_answer', { unit: UNIT, step: 1 }, { cursors, bundles: BUNDLES });
+  assert.ok(result.isError);
+  assert.match(result.text, /Nothing from this call was recorded/);
+  assert.match(result.text, /will not move you twice/);
+  assert.match(result.text, /Try again shortly/);
+  assert.doesNotMatch(result.text, /Recorded as the reader's answer/, 'a write that failed claimed to have recorded');
+});
+
+test('an address that is not the API is named as the thing to check, not as something to retry', async () => {
+  const notTheApi = [
+    async () => new Response('not here', { status: 404 }),
+    async () => new Response('a sign-in page', { status: 200, headers: { 'content-type': 'text/html' } }),
+  ];
+  for (const answer of notTheApi) {
+    const result = await handle('list_programs', {}, { cursors: apiAnswering(answer), bundles: BUNDLES });
+    assert.ok(result.isError);
+    assert.match(result.text, /check that AB_OVO_API_URL names the ab-ovo API/);
+    assert.match(result.text, /trying again will not change the answer/);
+  }
+});
+
+test("the gate's refusals are untouched: a shut program is still an ordinary result over the API store", async () => {
+  // #137 is about the store, not the gate. A reader with no places, asking for the second
+  // program, is refused by the reading order, and a store that answers properly must not
+  // turn that into anything else.
+  const { bundles } = sequence();
+  const cursors = apiAnswering(async () => Response.json({ records: [] }));
+  const asked = await handle('open_program', { unit: 'F02', language: LANG }, { cursors, bundles });
+  assert.ok(!asked.isError, asked.text);
+  assert.match(asked.text, /"F02" is not open/);
 });
 
 test('a place kept in memory is said in the results, and only then', async () => {
