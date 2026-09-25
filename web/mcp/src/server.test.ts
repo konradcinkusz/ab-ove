@@ -86,7 +86,8 @@ test('a host that can elicit is asked for the edition with the track\'s editions
   assert.deepEqual(schema.properties.edition.enum, ['en', 'pl']);
   assert.deepEqual(schema.required, ['edition']);
 
-  // Asked once: the next opening, of anything, finds the edition already known.
+  // Asked once: reopening resumes in the edition chosen. (The fixture carries one program;
+  // a second program starting in it is tools.test.ts's, over a longer track.)
   await client.callTool({ name: 'open_program', arguments: { unit: 'P01' } });
   assert.equal(asked.length, 1, 'the reader was asked again');
   await client.close();

@@ -706,20 +706,24 @@ test('the edition is asked once per reader: after F01 is opened in pl, F02 start
 test('with an elicitation-capable host, the edition is chosen by the reader from the track\'s own list', async () => {
   const asked: { unit: string; offered: readonly string[] }[] = [];
   const d = {
-    ...deps(),
+    cursors: new MemoryCursorStore(),
+    bundles: sequence().bundles,
     chooseEdition: async (unit: string, offered: readonly { language: string; title: string }[]) => {
       asked.push({ unit, offered: offered.map((edition) => edition.language) });
       return { kind: 'chosen' as const, language: 'pl' };
     },
   };
 
-  const opened = await handle('open_program', { unit: UNIT }, d);
+  const opened = await handle('open_program', { unit: 'F01' }, d);
   assert.ok(!opened.isError, opened.text);
-  assert.match(opened.text, /Starting "P01" in the "pl" edition, chosen directly by the reader/);
-  assert.deepEqual(asked, [{ unit: 'P01', offered: ['en', 'pl'] }]);
+  assert.match(opened.text, /Starting "F01" in the "pl" edition, chosen directly by the reader/);
+  assert.deepEqual(asked, [{ unit: 'F01', offered: ['en', 'pl'] }]);
 
   // Known now, so never asked again — neither to resume nor for another program.
-  await handle('open_program', { unit: UNIT }, d);
+  await handle('open_program', { unit: 'F01' }, d);
+  const next = await handle('open_program', { unit: 'F02' }, d);
+  assert.ok(!next.isError, next.text);
+  assert.match(next.text, /Starting "F02" in the "pl" edition, the one the reader already reads in/);
   assert.equal(asked.length, 1, 'the reader was asked a second time');
 });
 
