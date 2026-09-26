@@ -6,8 +6,9 @@ import { track, uniqueProbeIn, unitNamed } from './support/bundle.ts';
 import { walkTo } from './support/walk.ts';
 
 /**
- * JOURNEY — a frame on its way says so, where the reader pressed, and the pager stays where it
- * is while it comes.
+ * JOURNEY — a frame on its way from another frame says so where the reader pressed, and the
+ * pager stays where it is while it comes. A move from the summary or the contents page does not
+ * say so yet (UI-UX.md, #160).
  *
  * ──────────────────────────────────────────────────────────────────────────────────────────
  * ISSUE #160, MEASURED BEFORE IT WAS FIXED. Every frame is rendered by the Next server from

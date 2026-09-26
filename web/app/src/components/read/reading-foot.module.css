@@ -173,10 +173,14 @@
 
 /*
  * ────────────────────────────────────────────────────────────────────────────────────────
- * AND WHILE ANY OTHER PAGE IS (#160). A frame is rendered per request from live calls to the
- * API, so the way back is a round trip too, and it says so the same way, leaning the way it
- * goes: the back cell's mark nudges left — `Previous`, and `Contents` where that cell holds
- * it. The label carries the flag (`pending-label.tsx`).
+ * SO DOES THE WAY BACK, ON A FRAME AND ON *NOT THERE YET* (#160). A frame is rendered per
+ * request from live calls to the API, so the way back is a round trip too, and it says so
+ * the same way, leaning the way it goes: the back cell's mark nudges left —
+ * `Previous`, and `Contents` where that cell holds it. The label carries the flag, so a link in
+ * the pager shows the wait only where its label is a `PendingLabel` (`pending-label.tsx`) — not
+ * yet on the summary or the contents page (UI-UX.md, #160). The lean is written for the way
+ * back; a `.pagerButton` that leads on, as the contents page's next program does, would want
+ * its own before its label carried the flag.
  *
  * A PLACE CHOSEN IN THE PROGRAM MAP IS SAID HERE, ON THE MAP'S DOOR. The map shuts on the
  * press, so the row that was pressed is off the screen before it could say anything; its flag
