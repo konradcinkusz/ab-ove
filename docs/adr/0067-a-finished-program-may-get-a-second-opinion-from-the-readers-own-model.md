@@ -75,20 +75,53 @@ keeps no copy; `advance` in `web/mcp/src/reveal.ts` takes no answer; `AbOvo.Api`
 `AdvanceRequest.Answer` and discards it. The header of `web/mcp/src/cursor.ts` says "THIS
 PACKAGE OWNS NO STORE", and it is about the reader's place.
 
+**The host the owner named is GitHub Copilot CLI, on the reader's own Copilot subscription.**
+Measured on 2026-09-26 against `@github/copilot` 1.0.88, from its `--help` and from the
+`changelog.md` in `github/copilot-cli`. It was not run end to end, because that needs a
+signed-in subscription.
+
+- **It is an MCP host.** `copilot mcp add <name> -- <command>` writes a local stdio server
+  into `~/.copilot/mcp-config.json`, and `--env KEY=VALUE` passes a variable such as
+  `AB_OVO_API_URL`.
+- **It shows MCP elicitation forms** (0.0.421 names the form), so ADR-0054's gate holds
+  there. Since 1.0.56 it surfaces a tool's `structuredContent` to the model beside its text.
+- **It does not put this server's instructions in the model's prompt by default.**
+  `--allow-all-mcp-server-instructions` exists to "include initialization instructions from
+  all MCP servers in the system prompt instead of only allowlisted servers" (1.0.66). Without
+  the flag, `SERVER_INSTRUCTIONS`, which is the method, never reaches the model. Only the tool
+  descriptions do, and `ANSWER_CONTRACT` is one of them. This affects reading through Copilot
+  CLI at all, not only this ADR.
+- **Autopilot answers for the reader.** Since 1.0.64, autopilot mode "auto-handles
+  elicitation, ask_user, sampling, and permission prompts … instead of surfacing dialogs to
+  the user". The model would then confirm its own answer in the one form that exists to take
+  the reader's.
+- **The changelog names no support for MCP prompts,** so the `read` prompt does not appear
+  there, and the reader starts by asking for a program in words.
+- **An organisation can block the server.** On a managed plan an MCP allowlist policy hides
+  or blocks servers the organisation has not registered.
+- **What it spends is the reader's.** Usage counts against the reader's plan, and
+  `--max-ai-credits` caps a session.
+
 **MCP sampling was considered and not chosen.** With sampling the server asks the host's model
-for a completion. That makes ab-ovo's code the caller of a model, which is the line ADR-0010
-draws. It also routes the model's output back through ab-ovo's code, which is the only place
-something could start recording it. In the shape below the model's output never reaches an
-ab-ovo process, and that is a property of the design rather than a rule somebody keeps.
+for a completion, and Copilot CLI supports it "with user approval via a new review prompt"
+(1.0.13). That would still be the reader's model and the reader's subscription. But it makes
+ab-ovo's code the caller of a model, which is the line ADR-0010 draws, and it routes the model's
+output back through ab-ovo's code, which is the only place something could start recording it.
+The approval is not reliable either, because autopilot handles sampling prompts too. In the
+shape below the model's output never reaches an ab-ovo process, and that is a property of the
+design rather than a rule somebody keeps.
 
 ## Decision
 
 ### 1. The only model is the reader's own
 
 **The one model that may compare a reader's answers with the book's is the one the reader
-brought:** the model behind the MCP host they chose, local or hosted, on their machine or
-their account and at their cost. ab-ovo never runs, hosts, configures, proxies, pays for or
-chooses one.
+brought:** the model behind the MCP host they run, on their own subscription and at their own
+cost. The host this is designed, documented and checked against is **GitHub Copilot CLI on the
+reader's Copilot subscription** (§7). ab-ovo never runs, hosts, configures, proxies, pays for
+or chooses a model, and it never holds the reader's Copilot or GitHub credential. The CLI
+starts the server as its own child process, and the only thing it passes in is what the reader
+configured.
 
 - **No instance supplies a model.** Not `AbOvo.Api`, not the BFF, not the hosted MCP server of
   #173, and not an operator's configuration. No model endpoint, key or parameter exists in
@@ -195,6 +228,9 @@ The website has no model of the reader's to reach, so under §1 it has none to u
   covers an endpoint the operator configures behind `AbOvo.Api` and a provider behind the BFF.
   It also covers a model served into the page from this origin: ab-ovo would have picked it
   and shipped it.
+- **The reader's Copilot subscription cannot reach the website either.** Spending it from a
+  page would mean ab-ovo holding the reader's GitHub token and calling a model with it, and
+  §1 refuses both.
 - **A web worksheet stays in the browser** (ADR-0039), so it never reaches the reader's host
   either. `compare_answers` covers answers given through the host, and no others.
 
@@ -202,6 +238,25 @@ A reader who wants a second opinion on the website's worksheets can export them 
 and take the file to any model they like. That happens outside ab-ovo, and the export still
 carries none of the book's text
 ([ADR-0033](0033-the-content-is-the-books-to-licence-and-noncommercial-is-the-binding-term.md)).
+
+### 7. The host is GitHub Copilot CLI, run interactively, with the server's instructions let in
+
+`web/mcp/README.md` gains a Copilot CLI block beside its Claude one, and it says these things
+in these words:
+
+- **Add the server once:** `copilot mcp add ab-ovo -- node /absolute/path/to/web/mcp/bin/ab-ovo-mcp.mjs`,
+  with `--env AB_OVO_API_URL=…`. After #172 the command is the package's.
+- **Start with `copilot --allow-all-mcp-server-instructions`.** Without the flag the host's
+  model never sees the method, and it may work the frames for the reader. This is the one
+  condition the server cannot check, because nothing tells a server what reached the model's
+  prompt.
+- **Never autopilot, and never `-p`.** Autopilot confirms the model's own answer in the reader's
+  elicitation form (Context), and prompt mode has no reader to ask. Reading is a conversation.
+- **The second opinion is paid from the reader's Copilot plan.** One comparison is one more
+  turn of the reader's own session.
+
+Other MCP hosts are not blocked, and nothing could block them: a client names itself at
+`initialize`, and a name is not a credential. They are not what this is checked against.
 
 ### How it is built, if accepted
 
@@ -230,9 +285,12 @@ schema, and no new entity (`AGENTS.md` item 3).
   - a client that records every request the server sends it works a program through
     and asks for the comparison, and finds no `sampling/createMessage`: §1 as a test, not
     a sentence.
-- **Documents:** `web/mcp/README.md`'s tool list,
+- **Documents:** `web/mcp/README.md`'s tool list and its Copilot CLI block (§7),
   [`MCP-SERVER-SKETCH.md`](../architecture/MCP-SERVER-SKETCH.md), the refused list in
   `docs/ux/UI-UX.md`, and ADR-0010's Status.
+- **One manual check, because CI has no Copilot subscription and should not have one.** The
+  owner works one short program in Copilot CLI with the flag from §7, asks for the second
+  opinion, and records the CLI version and what happened in the pull request that builds it.
 
 ## Consequences
 
@@ -259,6 +317,12 @@ opinion on the second half only, and the result tells them so.
 **The two surfaces differ, and they stay different.** A reader on the website gets no second
 opinion, now or later. The reason is where the model is: the MCP host is the reader's, and
 nothing the website can reach is.
+
+**It leans on a host ab-ovo does not control.** The flag in §7, autopilot's behaviour and
+the missing prompt support are facts about Copilot CLI 1.0.88, and the next release can move
+any of them. §7's block names the version it was written against, so it is visibly stale
+rather than quietly wrong. A reader whose organisation blocks custom MCP servers, or who has
+no Copilot plan, gets no second opinion. ab-ovo supplies none in its place.
 
 **An operator cannot turn this on.** No instance has a model setting to fill in. A
 deployment that wants to supply its own model supersedes §1 in an ADR; it does not change a
