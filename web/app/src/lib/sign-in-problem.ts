@@ -51,13 +51,32 @@ export interface SignInProblem {
    * every row would be a flag somebody sets to make a page behave.
    */
   readonly startsOver?: true;
+  /**
+   * The way back for an address that was never confirmed is offered under this problem: a link
+   * to ask for the confirmation email again (issue #170, `/login/resend`). Absent everywhere
+   * else, for `startsOver`'s reason.
+   */
+  readonly offersResend?: true;
 }
 
 export const SIGN_IN_PROBLEMS = {
   incomplete: { retryable: true },
-  rejected: { retryable: true },
+  /**
+   * WHAT AN UNCONFIRMED ADDRESS IS ACTUALLY TOLD, so the way back is offered here too (issue
+   * #170). The pinned authservice refuses an unconfirmed account's RIGHT password with the same
+   * 401 as a wrong one: Identity's own `RequireConfirmedEmail` rejects the sign-in before the
+   * controller's 403 is reached (docs/architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md §5).
+   * Asking again for the link is safe to offer under every refusal, because the identity service
+   * answers it the same for every address.
+   */
+  rejected: { retryable: true, offersResend: true },
   locked: { retryable: false },
-  unverified: { retryable: false },
+  /**
+   * A 403 `emailVerificationRequired` — what `AuthController.Login` would answer if Identity
+   * did not refuse first, which it does at the pinned tag (above). Kept, with the same way back,
+   * for the version where it does not.
+   */
+  unverified: { retryable: false, offersResend: true },
   /**
    * WHAT THIS MEANS CHANGED WITH ISSUE #30, and the code was kept rather than renamed.
    *
@@ -114,4 +133,46 @@ export function signInProblem(raw: string | string[] | undefined): SignInProblem
   if (typeof value !== 'string' || !Object.hasOwn(SIGN_IN_PROBLEMS, value)) return null;
   const code = value as SignInProblemCode;
   return { code, ...SIGN_IN_PROBLEMS[code] };
+}
+
+/**
+ * Whether `/login` offers the confirmation link again under `problem` (issue #170) — one
+ * decision, pure, so it is tested where every state that withdraws it can be reached, as
+ * `recovery-problem.ts`'s `offersLinkRequestForm` is for the pages that ask for a link. Two of
+ * those states are ones no acceptance deployment is in: an identity service with no way to send
+ * email, and a site with no identity service showing a problem somebody composed.
+ *
+ * Under a problem an unconfirmed address can meet (`offersResend`), and only where an email can
+ * come: `app/login/recovery-links.tsx` says why, beside the link it renders.
+ */
+export function offersResendLink(state: {
+  readonly identityConfigured: boolean;
+  readonly sendsEmail: boolean;
+  readonly problem: SignInProblem | null;
+}): boolean {
+  return state.identityConfigured && state.sendsEmail && state.problem?.offersResend === true;
+}
+
+/**
+ * What `/login` is told when a reader arrives from the end of a way back into their account
+ * (issue #170) — a closed set looked up as the problems are, for the same reason: `?notice=`
+ * is on a URL anybody can compose. Each is a NOTICE and not a problem, as `/register`'s
+ * `verify-email` is: something was done, and the sign-in form under it is the next step.
+ *
+ *   `password-reset`   a new password was chosen from the link in the email;
+ *   `email-verified`   the address was confirmed from the link in the email.
+ *
+ * The words are `chrome.signInNotices`, keyed by this set.
+ */
+export const SIGN_IN_NOTICES = ['password-reset', 'email-verified'] as const;
+
+export type SignInNoticeCode = (typeof SIGN_IN_NOTICES)[number];
+
+/** Look up a notice that arrived on a URL. Anything unrecognised is `null`, never a message. */
+export function signInNotice(raw: string | string[] | undefined): SignInNoticeCode | null {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof value !== 'string') return null;
+  return (SIGN_IN_NOTICES as readonly string[]).includes(value)
+    ? (value as SignInNoticeCode)
+    : null;
 }

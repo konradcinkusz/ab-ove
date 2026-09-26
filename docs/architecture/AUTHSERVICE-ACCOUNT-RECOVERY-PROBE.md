@@ -118,6 +118,19 @@ Both links are built from **`FrontendBaseUrl`** and a fixed path, in `AuthContro
   bar before the reader does anything, for instance by keeping them server-side and
   redirecting to the bare path. This probe did not try that.
 
+  > **What 700 did with this** (#170, recorded here so the question above has its answer
+  > beside it). The arriving URL is upstream's and stays so; the rule covers every address
+  > the app shows after it. `/reset-password` and `/verify-email` are routes, not pages: they
+  > move the pair into a short-lived HttpOnly cookie and answer 303 with `/login/reset` or
+  > `/login/confirm`, and `specs/account-recovery.spec.ts` holds every address after that to
+  > carrying neither. The cookie had to be `SameSite=Lax` — a `Strict` one set on a
+  > navigation another site started is not sent on the redirect that follows — which
+  > `web/app/src/lib/server/emailed-link-cookie.ts` records. The two paths are carved out of
+  > the gate by name, as `CARVE_OUT_PATHS` in `web/app/src/lib/page-gate.ts`, rather than in
+  > the prefix list named above. The decision and what it costs are
+  > [ADR-0018's amendment](../adr/0018-password-sign-in-happens-server-side.md);
+  > `docs/ux/UI-UX.md`, under `/login`, has the rest.
+
 ## 4. Whether any email is sent at all
 
 **Not in any configuration this repository has.** `Program.cs` chooses
@@ -176,7 +189,10 @@ origin and the call to authservice in a server route. All four endpoints fit tha
 plain form posts to a route under `/api/auth/`, the route calls authservice through the
 candidate ladder with the reader's address forwarded, and the page is told an outcome from a
 closed set, never upstream's sentence. None of them returns a token, so no route here sets a
-cookie; `reset-password` does not sign the reader in, and the next step is the sign-in form.
+~~cookie~~ session; `reset-password` does not sign the reader in, and the next step is the sign-in
+form. **Corrected by #170:** the routes do set cookies, and none of them is a session. The
+landing keeps the emailed link's pair in one, and a request for a link refused for its address
+leaves the address in the sign-in address's, to fill the field back in. See the note under §3.
 AGENTS.md #8 holds because the only thing the browser ever reaches is the link in the email,
 and that link is this origin's.
 

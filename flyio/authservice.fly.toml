@@ -54,6 +54,19 @@ primary_region = "waw"                       # ADR-0002
   # The indexed form. CORS_ALLOWED_ORIGIN does not exist.
   Cors__AllowedOrigins__0 = "https://ab-ovo-web-dev.fly.dev"
 
+  # THE BASE OF THE LINKS IN THIS SERVICE'S EMAILS, which are the web app's pages:
+  # {FrontendBaseUrl}/reset-password?... and /verify-email?..., the paths fixed upstream
+  # (docs/architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md §3, #170). Unset, upstream's
+  # appsettings.json leaves it an EMPTY string, which its "http://localhost:3000"
+  # fallback never replaces, and the links come out relative — measured — which no mail
+  # client can open. It is the web app's public origin, so it MUST EQUAL
+  # Cors__AllowedOrigins__0 above; fly-config-agrees.test.ts holds the pair.
+  #
+  # Set although nothing in this file makes the service send email: that takes
+  # SendGrid__ApiKey, a secret no workflow sets yet (flyio/SECRETS.md). A key that arrived
+  # without this line would send links nobody can follow.
+  FrontendBaseUrl = "https://ab-ovo-web-dev.fly.dev"
+
   # Without it every user shares one rate-limit bucket, because behind the Fly proxy
   # every TCP peer is the edge. It fails silently: the limiter works perfectly on the
   # key it was given.

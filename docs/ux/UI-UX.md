@@ -35,6 +35,9 @@ any account.
 | `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, the consent invitation, and the way into the next one — once the reader has reached the last frame | the API, and no account |
 | `/lab/<id>` | the book's exercises under Pyodide — reached from P01's summary only, and on its way out ([ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md)) | nothing |
 | `/login` | a form that posts credentials to this app's own BFF | an identity service |
+| `/login/forgot`, `/login/resend` | asking for a link by email — to choose a new password, or to confirm the address again — and the notice saying what happens next | an identity service that can send email (`AB_OVO_AUTH_SENDS_EMAIL`) |
+| `/reset-password`, `/verify-email` | where the links in those emails land: routes, not pages, that move the address and the token into this origin's server and redirect to the two below | an identity service |
+| `/login/reset`, `/login/confirm` | choosing the new password, or confirming the address, with the link held server-side | an identity service, and a link opened on this device |
 | `/register` | the same form one step earlier: an address, a password, and the consent the identity service records | an identity service, and the two documents the consent names |
 | `/legal/<document>/<version>` | the Terms of Use or the Privacy Policy at one version, as this deployment publishes it: what the consent links to | a document host (`AB_OVO_LEGAL_URL`) |
 | `/account` | the reader's overview: who is signed in, the place the account holds in each program, the export of their worksheets, sign-out, and the way to deletion | an account, and the API for the places |
@@ -471,6 +474,39 @@ The gate never reads `PRIVATE_PAGES`, so a private page added without an entry w
 described to its own reader as missing. `page-gate.test.ts` walks `app/` and holds the list
 equal to the pages the gate closes; `specs/unknown-address.spec.ts` is the reader's view of
 both halves — the redirect still happens, and the page says what is true.
+
+**It is where a way back into an account starts, and where it ends** (700 in
+[the order](#the-order)). *Forgot your password?* under the form leads to `/login/forgot`. Inside
+the panel of a refused password, a link leads to `/login/resend`, to send the confirmation
+email again — under that problem because it is what the pinned authservice answers an
+unconfirmed account's right password with, not the `unverified` problem its source describes
+([the probe](../architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md), §5). Both pages are one
+form: an address in, a link out, and a notice saying what happens next. The notice begins with
+"if", because authservice answers every address alike, and a page that said more would be the
+account-existence oracle upstream refuses to be.
+
+The links in the emails are authservice's. They land on `/reset-password` and `/verify-email`,
+paths it fixes, with the reader's address and a token in the query. Those two are routes rather
+than pages: they move both into a short-lived HttpOnly cookie only this origin's server reads
+(`lib/server/emailed-link-cookie.ts`) and redirect to `/login/reset` or `/login/confirm`, so no
+document is ever rendered at an address that holds a token, and no address the app shows from
+there on carries the account — `specs/account-recovery.spec.ts` collects every one and holds it
+to that. The cookie is `SameSite=Lax`, lifted from the `Strict` that is the rule for a cookie
+the server sets: the link is followed from another site, the reader's mail, and a `Strict`
+cookie set on the way in is not sent on the redirect that follows. The spec follows the link
+from a page on another host, and fails with `Strict`.
+[ADR-0018's amendment](../adr/0018-password-sign-in-happens-server-side.md) records the
+decision and what it costs. The token is spent only by the form's POST — the new password,
+whose rules are the field's description as on `/register`, or one button to confirm — never by
+the GET a mail program makes when it scans a link. Each way ends back here, with a notice from
+a closed set.
+
+**The forms that ask for an email are offered only where one can come.** Without a mail
+provider authservice answers "a link has been sent" and sends nothing, and no endpoint of its
+says which it is (§4 of the probe), so the deployment says it: `AB_OVO_AUTH_SENDS_EMAIL`. Where
+it is unset — every deployment described in `flyio/` today — the pages say this site sends no
+email, and `/login` does not offer the confirmation again. A link that has already arrived works
+either way.
 
 ### `/register` — where an account comes from
 

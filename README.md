@@ -517,6 +517,13 @@ one:
 dotnet user-secrets list --project src/AbOvo.AppHost   # Parameters:seed-password
 ```
 
+**A password can be replaced locally, and no email is sent to do it.** `/login`'s *Forgot your
+password?* asks `authservice` for a link, and with no mail provider configured it writes the
+email's link to its own log instead — in Development only — where the dashboard shows it
+beside the other resources'. The AppHost gives it the web app's address as the base of that
+link, so the line in the log opens `/reset-password` in the browser, which is how the way back
+into an account runs on a laptop (issue #170).
+
 ### What the setup script does, and why it is not optional
 
 `scripts/setup.sh` runs four numbered steps and is safe to re-run; `scripts/setup.ps1` does

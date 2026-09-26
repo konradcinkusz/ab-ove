@@ -112,6 +112,13 @@ primary_region = "waw"                       # ADR-0002
   # nobody could read (#141, ADR-0049's amendment). Set it to the address the two
   # plain-text files are served from — secrets.env.example says the layout — and
   # registration comes back with both documents linked.
+  #
+  # AB_OVO_AUTH_SENDS_EMAIL is absent BECAUSE authservice HAS NO MAIL PROVIDER here. Without
+  # SendGrid__ApiKey it sends nothing and still answers "a link has been sent", and nothing
+  # it publishes says which (docs/architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md §4). So
+  # unset, /login/forgot and /login/resend say this site sends no email rather than promise
+  # one (#170); a link that does arrive still works. Set it to "true" in the change that
+  # gives authservice its key.
 
 [http_service]
   internal_port       = 3000                 # equals the port the Node process binds (§2)

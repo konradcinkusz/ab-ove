@@ -21,7 +21,10 @@ import { sessionCookieAttributes } from '@/lib/session-cookies';
  * Its attributes are the session pair's (`sessionCookieAttributes`: HttpOnly, Secure outside
  * dev, SameSite=strict) except the PATH, which is `/login`: that scope sends it with requests
  * for `/login` and the pages under it — the second step is one — and with nothing else on
- * this origin, and of those only `/login` reads it. It authenticates nothing and is not in
+ * this origin. `/login` reads it, and so do the two pages under it that ask for a link by
+ * email (issue #170, `app/login/link-request.tsx`): a reader refused a sign-in who follows the
+ * way back finds the address already in the field, and the routes behind those two pages leave
+ * it here again when they send the reader back to fix it. It authenticates nothing and is not in
  * `CLEARABLE_COOKIES` — a sign-out deletes with the session pair's path, which would not
  * reach it, and a minute is the whole of its life.
  *
@@ -78,7 +81,10 @@ export async function forgetAddress(): Promise<void> {
   (await cookies()).set({ name: SIGN_IN_ADDRESS_COOKIE, value: '', ...attributes(), maxAge: 0 });
 }
 
-/** The address to fill the form with, or `null`. Read by `/login`, never rendered as text. */
+/**
+ * The address to fill the form with, or `null`. Read by `/login` and the two pages that ask for
+ * a link (issue #170), put into a field and never rendered as text.
+ */
 export async function rememberedAddress(): Promise<string | null> {
   const value = (await cookies()).get(SIGN_IN_ADDRESS_COOKIE)?.value;
   return value !== undefined && usable(value) ? value : null;

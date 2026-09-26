@@ -6,7 +6,8 @@
  *
  * Two things read them now. The middleware DECIDES with them, exactly as it did before they
  * moved: PUBLIC_PATHS, PUBLIC_PREFIXES, CARVE_OUT_PREFIXES, `isPublic` and `isCarveOut` are
- * the middleware's own, word for word, and the gate is still private by default
+ * the middleware's own, word for word — and CARVE_OUT_PATHS, written here since, is the
+ * middleware's through `isCarveOut` — and the gate is still private by default
  * (FRONTEND-BFF.md §4). And `/login` EXPLAINS with them (issue #140). A reader bounced off
  * an address no page answers — a typo, an old link — used to be told it was "one of the few
  * pages that needs to know who you are", because the sign-in page could not tell `/nope`
@@ -51,6 +52,15 @@ const PUBLIC_PATHS = new Set<string>([
   // nothing an account provides.
   '/courses',
   '/login',
+  // The way back into an account (issue #170): asking for a link to choose a new password,
+  // choosing it, asking for the confirmation link again, and confirming. Public for `/login`'s
+  // reason — each is a step of signing in, taken by a reader who cannot sign in — and each by
+  // name rather than as a `/login/` prefix, which would open whatever is written under it next.
+  // The two addresses the emails' links land on are carve-outs, below.
+  '/login/forgot',
+  '/login/reset',
+  '/login/resend',
+  '/login/confirm',
   '/register',
   // The platform health check. `flyio/web.fly.toml` points [[http_service.checks]] at
   // /healthz, and Fly's checker does NOT follow redirects — so without this entry the
@@ -131,12 +141,27 @@ const PUBLIC_PREFIXES: readonly string[] = [
  */
 const CARVE_OUT_PREFIXES: readonly string[] = ['/auth/callback', '/login/2fa', '/legal/'];
 
+/**
+ * The addresses the identity service's emails link to are callbacks in all but name (issue
+ * #170): `/reset-password` and `/verify-email`, paths authservice fixes, reached as a rule by a
+ * reader who is not signed in, carrying in the query the token and the address the route there
+ * moves into this origin's server. Bounced to `/login`, the link would arrive with neither, and
+ * its query would be written into `?redirect=` besides.
+ *
+ * CARVED OUT BY NAME, NOT AS PREFIXES — PUBLIC_PATHS' reason, and the two index paths' above. A
+ * carve-out opens an address exactly as a public path does, and as prefixes these two would also
+ * open `/reset-password-x` and `/verify-email/anything`: pages nobody has written yet, let
+ * through with no session the day somebody writes one.
+ */
+const CARVE_OUT_PATHS = new Set<string>(['/reset-password', '/verify-email']);
+
 export function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.has(pathname)) return true;
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
 export function isCarveOut(pathname: string): boolean {
+  if (CARVE_OUT_PATHS.has(pathname)) return true;
   return CARVE_OUT_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 

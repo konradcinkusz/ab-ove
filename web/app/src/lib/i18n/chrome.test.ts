@@ -9,8 +9,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import { LINK_PROBLEMS, LINK_REQUEST_PROBLEMS } from '../recovery-problem.ts';
 import { REGISTRATION_NOTICES, REGISTRATION_PROBLEMS } from '../registration-problem.ts';
-import { SIGN_IN_PROBLEMS } from '../sign-in-problem.ts';
+import { SIGN_IN_NOTICES, SIGN_IN_PROBLEMS } from '../sign-in-problem.ts';
+import { EMAILED_LINK_LIFETIME_SECONDS } from '../server/emailed-link.ts';
 
 import { CHROME_LANGUAGES, FALLBACK_LANGUAGE, TABLE, chromeFor, endonym, type Explained } from './chrome.ts';
 
@@ -127,6 +129,10 @@ test('a version of the book is a version: on a screen, "edition" is the language
 test('every problem and notice on the account pages has words in every edition', () => {
   const sets = [
     ['signInProblems', Object.keys(SIGN_IN_PROBLEMS)],
+    // The way back into an account (issue #170): `/login`'s notices, and the two recovery sets.
+    ['signInNotices', [...SIGN_IN_NOTICES]],
+    ['linkRequestProblems', Object.keys(LINK_REQUEST_PROBLEMS)],
+    ['linkProblems', Object.keys(LINK_PROBLEMS)],
     ['registrationProblems', Object.keys(REGISTRATION_PROBLEMS)],
     ['registrationNotices', [...REGISTRATION_NOTICES]],
   ] as const;
@@ -178,13 +184,50 @@ test('the account pages speak to the reader, not to whoever runs the site, in ev
     const said = everyString([
       strings.signInPage,
       strings.signInProblems,
+      strings.signInNotices,
       strings.secondFactorPage,
+      // Issue #170's pages, which a reader reaches from an email: "token" is upstream's word for
+      // what the reader holds as a link, and the link is what these pages call it.
+      strings.forgotPage,
+      strings.resendPage,
+      strings.linkRequestProblems,
+      strings.resetPage,
+      strings.confirmPage,
+      strings.linkProblems,
       strings.registerPage,
       strings.registrationProblems,
       strings.registrationNotices,
     ]);
     for (const sentence of said) {
       assert.doesNotMatch(sentence, words, `${language} says this to a reader: "${sentence}"`);
+    }
+  }
+});
+
+/*
+ * THE PAGES A LINK FROM AN EMAIL LEADS TO SAY HOW LONG THEY HOLD IT (issue #170), in words, and
+ * the number is `EMAILED_LINK_LIFETIME_SECONDS`, which the cookie holding the link is set with. A
+ * lifetime changed there and not here would have the page promise a reader time it does not
+ * give them — or tell them to hurry for no reason — and nothing else would notice.
+ */
+test('the pages a link leads to say how long they hold it, and it is how long they do (#170)', () => {
+  const minutes = EMAILED_LINK_LIFETIME_SECONDS / 60;
+  const inWords: Readonly<Record<string, Readonly<Record<number, RegExp>>>> = {
+    en: { 15: /fifteen minutes/ },
+    pl: { 15: /piętnaście minut/ },
+  };
+  for (const language of CHROME_LANGUAGES) {
+    const words = inWords[language]?.[minutes];
+    assert.ok(words, `${language} has no words here for ${minutes} minutes, so what its pages say cannot be held`);
+    const strings = TABLE[language]!;
+    for (const sentence of [
+      strings.resetPage.standfirst,
+      strings.resetPage.noLink.before,
+      strings.confirmPage.standfirst,
+      strings.confirmPage.noLink.before,
+      strings.linkProblems['link-lapsed'].detail,
+    ]) {
+      assert.match(sentence, words, `${language} says a different time: "${sentence}"`);
     }
   }
 });

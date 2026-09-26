@@ -4,7 +4,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { AUTHOR, READER } from '../fixtures/accounts.mts';
 
 import { served, track, unitNamed } from './support/bundle.ts';
+import { accountAtFixture, followEmailLink, unconfirmedAddress } from './support/outbox.ts';
 import { openPane } from './support/pane.ts';
+import { freshEmail, GOOD_PASSWORD, register } from './support/register.ts';
 import { signIn } from './support/sign-in.ts';
 import { walkTo } from './support/walk.ts';
 import { formulas, openWideFrame } from './support/wide.ts';
@@ -172,6 +174,11 @@ const SCREENS: readonly Screen[] = [
   { what: 'a page that does not exist', path: `/read/${track}/NOPE/en` },
   { what: 'an address no page answers, on the sign-in page', path: '/nope' },
   { what: 'sign-in, with no identity service', path: '/login' },
+  // The way back into an account (issue #170), which says there are no accounts here.
+  { what: 'asking for a new password’s link, with no identity service', path: '/login/forgot' },
+  { what: 'asking for the confirmation again, with no identity service', path: '/login/resend' },
+  { what: 'choosing a new password, with no identity service', path: '/login/reset' },
+  { what: 'confirming an address, with no identity service', path: '/login/confirm' },
   { what: 'registration, with no identity service', path: '/register' },
   { what: 'the page a deleted account ends on', path: '/account/deleted' },
   { what: 'the exercises', path: '/lab/p01' },
@@ -266,6 +273,49 @@ test.describe('accessibility behind an account', () => {
     await expect(page.locator('input[name="email"]')).toBeVisible();
     await settle(page);
     expect(await violations(page)).toEqual([]);
+  });
+
+  /*
+    THE WAY BACK INTO AN ACCOUNT (issue #170): each form in the state a reader meets it in —
+    the page that asks for a link, the page it ends on, and the two a link leads to, reached the
+    only way a reader reaches them: by following the link from the fixture's outbox, which is
+    what puts a link on this device for them to offer their forms under.
+  */
+  test('asking for a link, and the page that says what happens next, have no WCAG A or AA violation @identity', async ({
+    page,
+  }) => {
+    await page.goto('/login/forgot');
+    await expect(page.locator('input[name="email"]')).toBeVisible();
+    await settle(page);
+    expect(await violations(page), 'the form').toEqual([]);
+
+    await page.fill('input[name="email"]', freshEmail());
+    await Promise.all([page.waitForURL(/notice=sent/), page.click('button[type="submit"]')]);
+    await settle(page);
+    expect(await violations(page), 'what happens next').toEqual([]);
+  });
+
+  test('the new-password form and the confirmation have no WCAG A or AA violation @identity', async ({
+    page,
+    request,
+  }) => {
+    const email = freshEmail();
+    await accountAtFixture(request, email, GOOD_PASSWORD);
+    await page.goto('/login/forgot');
+    await page.fill('input[name="email"]', email);
+    await Promise.all([page.waitForURL(/notice=sent/), page.click('button[type="submit"]')]);
+    await followEmailLink(page, email, 'Reset Password');
+    await expect(page.locator('input[name="password"]')).toBeVisible();
+    await settle(page);
+    expect(await violations(page), 'the new-password form').toEqual([]);
+
+    const waiting = unconfirmedAddress();
+    await page.goto('/register');
+    await register(page, waiting, GOOD_PASSWORD, /notice=verify-email/);
+    await followEmailLink(page, waiting, 'Verify email address');
+    await expect(page.locator('form[action="/api/auth/verify-email"] button')).toBeVisible();
+    await settle(page);
+    expect(await violations(page), 'the confirmation').toEqual([]);
   });
 
   // The page the consent links to (#141). Only this deployment publishes one, and a

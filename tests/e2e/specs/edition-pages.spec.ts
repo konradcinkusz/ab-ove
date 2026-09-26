@@ -184,18 +184,22 @@ test.describe('no link prefetches a page whose title follows the edition', () =>
     into the sign-in pages and `/about` says which edition to open them in (issue #166).
   */
   test('walked in Polish, from the index to the sign-in pages @core @identity', async ({ page }) => {
+    // The way back into an account's four pages (issue #170) title their tab in the edition as
+    // well, and every link into them says which one.
+    const recovery = ['/login/forgot', '/login/resend', '/login/reset', '/login/confirm'];
     const titled = new Set([
       '/',
       '/courses',
       '/about',
       '/login',
       '/login/2fa',
+      ...recovery,
       '/register',
       '/account',
       '/account/delete',
       '/account/deleted',
     ]);
-    const carryTheEdition = new Set(['/about', '/login', '/login/2fa', '/register']);
+    const carryTheEdition = new Set(['/about', '/login', '/login/2fa', ...recovery, '/register']);
 
     // Next marks a prefetch with this header; a navigation does not carry it.
     const prefetched: string[] = [];
@@ -212,6 +216,7 @@ test.describe('no link prefetches a page whose title follows the edition', () =>
       `/read/${track}/F01/pl/9999`,
       '/login?lang=pl',
       '/login/2fa?lang=pl',
+      ...recovery.map((page) => `${page}?lang=pl`),
       '/register?lang=pl',
     ];
     for (const address of walk) {

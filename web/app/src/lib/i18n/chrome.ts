@@ -23,8 +23,9 @@
  * compiler responsible for this application's chrome. The book compiles frames; it does not
  * compile the word for "Contents".
  */
+import type { LinkProblemCode, LinkRequestProblemCode } from '../recovery-problem.ts';
 import type { RegistrationNoticeCode, RegistrationProblemCode } from '../registration-problem.ts';
-import type { SignInProblemCode } from '../sign-in-problem.ts';
+import type { SignInNoticeCode, SignInProblemCode } from '../sign-in-problem.ts';
 
 /**
  * The forms a count takes. The keys are `Intl.PluralRules` categories, and `other` is
@@ -265,6 +266,13 @@ interface SignInPageStrings {
   readonly useYourAccount: string;
   readonly takenBack: string;
   readonly noAccount: Linked;
+  /** The link to `/login/forgot`, under the form (issue #170). */
+  readonly forgotPassword: string;
+  /**
+   * The way to `/login/resend`, under a problem an unconfirmed address can meet
+   * (`SignInProblem.offersResend`, issue #170).
+   */
+  readonly resend: Linked;
   readonly noAccounts: string;
   readonly backToWhereYouWere: string;
   /** Around the address nothing answers — `notFound.title`'s fact, with the address in it. */
@@ -289,6 +297,62 @@ interface SecondFactorPageStrings {
   readonly lostBoth: string;
   readonly lostBothReading: string;
   readonly backToSignIn: string;
+}
+
+/**
+ * `/login/forgot` and `/login/resend` — asking for a link by email (issue #170). One shape for
+ * both, because the two pages are one form with two purposes: an address in, a link out, and a
+ * notice saying what happens next that says nothing about whether the address has an account.
+ */
+interface LinkRequestPageStrings {
+  /** The section's heading, and the tab's title. */
+  readonly heading: string;
+  readonly lede: string;
+  readonly standfirst: string;
+  readonly instructions: string;
+  readonly submit: string;
+  /** What happens next — the notice the page ends on (issue #170's Done-when). */
+  readonly sent: Explained;
+  /** Under the notice: the way to ask again. */
+  readonly sentNext: Linked;
+  /** Why there is no form, under a problem no retry fixes; the link is the same page, fresh. */
+  readonly withdrawn: Linked;
+  /** Where this deployment sends no email (`sendsEmail`), in place of the form. */
+  readonly noEmail: string;
+  readonly noAccounts: string;
+}
+
+/**
+ * `/login/reset` and `/login/confirm` — the pages a link in an email leads to, once the page it
+ * lands on has moved the address and the token into this origin's server (issue #170).
+ *
+ * They say how long the page holds the link — FIFTEEN MINUTES, in words, in both editions —
+ * which is `EMAILED_LINK_LIFETIME_SECONDS` in `lib/server/emailed-link.ts`, and `chrome.test.ts`
+ * fails when the two part company.
+ */
+interface LinkPageStrings {
+  /** The section's heading, and the tab's title. */
+  readonly heading: string;
+  readonly lede: string;
+  readonly standfirst: string;
+  readonly instructions: string;
+  readonly submit: string;
+  /** Where no link is held on this device: what opens one, and the way to a new one. */
+  readonly noLink: Linked;
+  /**
+   * In `noLink`'s place where the service refused the link (`link-invalid`) and the route dropped
+   * it: the way to a new one, without `noLink`'s "open it again", which the panel above has just
+   * said would end the same way.
+   */
+  readonly spent: Linked;
+  /** Why there is no form, under a problem no retry fixes; the link is the same page, fresh. */
+  readonly withdrawn: Linked;
+  readonly noAccounts: string;
+}
+
+/** `/login/reset`: `LinkPageStrings`, and the one field it has. */
+interface ResetPageStrings extends LinkPageStrings {
+  readonly passwordLabel: string;
 }
 
 /** `/register` (ADR-0049). */
@@ -491,6 +555,8 @@ interface Strings {
   readonly emailAddress: string;
   readonly password: string;
   readonly backToReader: string;
+  /** The way back to `/login` from the pages of the way back into an account (issue #170). */
+  readonly backToSignIn: string;
   readonly openPrograms: string;
   /** Around the address of a page the gate closes, which the reader was bounced off. */
   readonly askedPrivate: Around;
@@ -500,7 +566,19 @@ interface Strings {
    * so a code added there without words here, in every edition, does not build.
    */
   readonly signInProblems: Readonly<Record<SignInProblemCode, Explained>>;
+  /** `?notice=` on `/login`, where a way back into an account ends (issue #170). */
+  readonly signInNotices: Readonly<Record<SignInNoticeCode, Explained>>;
   readonly secondFactorPage: SecondFactorPageStrings;
+  /**
+   * THE WAY BACK INTO AN ACCOUNT (issue #170): the two pages that ask for a link, the two a
+   * link leads to, and their problems, keyed by the closed sets in `recovery-problem.ts`.
+   */
+  readonly forgotPage: LinkRequestPageStrings;
+  readonly resendPage: LinkRequestPageStrings;
+  readonly linkRequestProblems: Readonly<Record<LinkRequestProblemCode, Explained>>;
+  readonly resetPage: ResetPageStrings;
+  readonly confirmPage: LinkPageStrings;
+  readonly linkProblems: Readonly<Record<LinkProblemCode, Explained>>;
   readonly registerPage: RegisterPageStrings;
   /** `?error=` and `?notice=` on `/register`, keyed as `signInProblems` is. */
   readonly registrationProblems: Readonly<Record<RegistrationProblemCode, Explained>>;
@@ -1186,6 +1264,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     emailAddress: 'Email address',
     password: 'Password',
     backToReader: 'Back to the reader',
+    backToSignIn: 'Back to sign in',
     openPrograms: 'Open the programs',
     askedPrivate: {
       before: 'You asked for ',
@@ -1213,6 +1292,15 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         link: 'Create one',
         after:
           ' — it takes an email address and a password, and it is only needed to carry your place between devices.',
+      },
+      // The reader's own question, which is how most sign-in pages put it (issue #170).
+      forgotPassword: 'Forgot your password?',
+      // Under a refusal an unconfirmed address can meet — at the pinned identity service, a
+      // refused password (`sign-in-problem.ts`) — so it says "if", and names what it sends.
+      resend: {
+        before: 'If the account’s address has never been confirmed, ',
+        link: 'send the confirmation link again',
+        after: '.',
       },
       // P8, in the reader's words: no identity service means no accounts here (issue #162).
       noAccounts: 'This site has no accounts, so there is nothing to sign in to.',
@@ -1312,6 +1400,21 @@ export const TABLE: Readonly<Record<string, Strings>> = {
           'There is nothing to sign in to, and nothing else needs an account: the frames and the lab work without one.',
       },
     },
+    // Where a way back into an account ends (issue #170): above the form, which is the next step.
+    signInNotices: {
+      // "Will have to sign in again", not "has been signed out": authservice ends the account's
+      // refresh tokens at once (the probe, §2), but an access token already issued is a signed
+      // token that stays good until it runs out — so the sentence says what happens, not when.
+      'password-reset': {
+        title: 'Your password has been changed.',
+        detail:
+          'Sign in with the new one below. Anywhere else the account was signed in will have to sign in again, with the new password.',
+      },
+      'email-verified': {
+        title: 'Your address is confirmed.',
+        detail: 'Sign in below with it and the password you chose when you made the account.',
+      },
+    },
     secondFactorPage: {
       heading: 'Your code',
       lede: 'One more step.',
@@ -1336,6 +1439,206 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       lostBothReading:
         'Nothing except progress that follows you between machines needs an account at all, so a locked-out reader still has the whole book and the whole lab.',
       backToSignIn: 'Back to sign in',
+    },
+    /*
+      THE WAY BACK INTO AN ACCOUNT (issue #170). Two things hold every sentence here, and both
+      are the identity service's, read in the probe (docs/architecture/
+      AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md):
+        - asking for a link is answered the same for every address, so what the page says next
+          begins with "if" and never says whether the address has an account;
+        - a link is spent by a POST the reader makes and not by opening it, so "opening it again"
+          is always a remedy that costs nothing.
+    */
+    forgotPage: {
+      heading: 'Reset your password',
+      lede: 'A forgotten password is not recovered. It is replaced.',
+      // True in every state the page has — the form, what happens next, no email, no accounts —
+      // so the specifics are in `instructions`, which is shown only with the form.
+      standfirst:
+        'Nothing you read needs an account in the meantime: every frame and the lab work without one, and this browser still knows where you are.',
+      instructions:
+        'Give the address the account was created with, and a link to choose a new password is sent to it.',
+      submit: 'Send the link',
+      sent: {
+        title: 'If that address has an account, a link is on its way to it.',
+        detail:
+          'Open the email and follow its link to choose a new password. Nothing after a few minutes? Look in the spam folder, and check the address for a typo.',
+      },
+      sentNext: {
+        before: 'A link works once. If this one does not arrive, or has stopped working, ',
+        link: 'ask for another',
+        after: '.',
+      },
+      withdrawn: {
+        before:
+          'Sending the address again cannot fix the problem described above, so there is no form here. When it has cleared, ',
+        link: 'start again',
+        after: ' from a fresh page.',
+      },
+      noEmail:
+        'This site sends no email, so it cannot send a link to choose a new password, and a forgotten one cannot be replaced from here.',
+      noAccounts: 'This site has no accounts, so there is no password to reset.',
+    },
+    resendPage: {
+      heading: 'A new confirmation link',
+      lede: 'Signing in waits for the address to be confirmed.',
+      standfirst:
+        'Nothing you read needs an account in the meantime: every frame and the lab work without one, and this browser still knows where you are.',
+      // A link sent before still works after a new one is sent — measured (the probe, §2).
+      instructions:
+        'Give the address the account was created with, and a new link to confirm it is sent there. A link sent before still works too, until it is used.',
+      submit: 'Send a new link',
+      sent: {
+        title: 'If that address is waiting to be confirmed, a new link is on its way to it.',
+        detail:
+          'Open the email and follow its link, then sign in. Nothing after a few minutes? Look in the spam folder, and check the address for a typo.',
+      },
+      sentNext: { before: 'If it does not arrive, ', link: 'ask for another', after: '.' },
+      withdrawn: {
+        before:
+          'Sending the address again cannot fix the problem described above, so there is no form here. When it has cleared, ',
+        link: 'start again',
+        after: ' from a fresh page.',
+      },
+      noEmail: 'This site sends no email, so there is no confirmation link to send from here.',
+      noAccounts: 'This site has no accounts, so there is no address to confirm.',
+    },
+    // `/login/forgot` and `/login/resend` alike: each code is met on one or both.
+    linkRequestProblems: {
+      incomplete: {
+        title: 'An address is needed.',
+        detail: 'Enter the email address the account was created with.',
+      },
+      'invalid-email': {
+        title: 'That address was not accepted as an email address.',
+        detail: 'Check it for a typo — a missing @, a stray space — and send it again.',
+      },
+      'no-password': {
+        title: 'That account has no password to replace.',
+        detail: 'It was made through another service and signs in through it, so no link was sent.',
+      },
+      // `signInProblems['rate-limited']`'s reasoning: one budget per address, shared.
+      'rate-limited': {
+        title: 'Too many attempts have been made recently.',
+        detail:
+          'The identity service is refusing new ones for a minute or so, and nothing was sent. The limit counts an address rather than an account, so you can meet it on your first attempt — someone else on the same network may have spent it.',
+      },
+      unavailable: {
+        title: 'The identity service could not be reached.',
+        detail:
+          'This is our side, not yours, and nothing was sent. Reading needs no account and is unaffected; try again in a few minutes.',
+      },
+      'no-email': {
+        title: 'This site sends no email.',
+        detail: 'So no link can be sent from here. Reading needs no account and is unaffected.',
+      },
+      'not-configured': {
+        title: 'This site has no accounts.',
+        detail:
+          'There is nothing to send a link for, and nothing else needs an account: the frames and the lab work without one.',
+      },
+    },
+    // "Fifteen minutes" is `EMAILED_LINK_LIFETIME_SECONDS`; see `LinkPageStrings`.
+    resetPage: {
+      heading: 'Choose a new password',
+      lede: 'One step left: the new password.',
+      // How the page works, rather than what just happened: it is said on the page with no link too.
+      standfirst:
+        'A link from the email opens this page, and keeps it open on this device for fifteen minutes. Once the password is changed, anywhere the account was signed in will have to sign in again.',
+      instructions: 'The account is the one the email was sent to.',
+      passwordLabel: 'New password',
+      submit: 'Change the password',
+      noLink: {
+        before:
+          'There is no password reset open on this device. The link in the email opens one for fifteen minutes; open it again, or ',
+        link: 'ask for a new link',
+        after: ' if it has stopped working.',
+      },
+      // Under `linkProblems['link-invalid']`, which has just said the link no longer works: a new
+      // one is the only remedy left, so `noLink`'s "open it again" is not offered beside it.
+      spent: {
+        before: 'Opening that link again would end the same way. ',
+        link: 'Ask for a new link',
+        after: ', and choose the new password with it.',
+      },
+      withdrawn: {
+        before:
+          'Choosing a password again cannot fix the problem described above, so there is no form here. When it has cleared, ',
+        link: 'try again',
+        after: '.',
+      },
+      noAccounts: 'This site has no accounts, so there is no password to change.',
+    },
+    confirmPage: {
+      heading: 'Confirm your address',
+      lede: 'One press, and the address is confirmed.',
+      // Why there is a button at all: the link is a GET, and a mail program scanning links makes
+      // those (`app/api/auth/verify-email/route.ts`). Said as what happens, not as the reason.
+      standfirst:
+        'A link from the email opens this page, and keeps it open on this device for fifteen minutes. Opening the link confirms nothing: the address is confirmed when this page’s button is pressed.',
+      instructions: 'The address is the one the email was sent to.',
+      submit: 'Confirm the address',
+      noLink: {
+        before:
+          'There is no confirmation open on this device. The link in the email opens one for fifteen minutes; open it again, or ',
+        link: 'ask for a new link',
+        after: ' if it has stopped working.',
+      },
+      spent: {
+        before: 'Opening that link again would end the same way. ',
+        link: 'Ask for a new link',
+        after: ', and confirm the address with it.',
+      },
+      withdrawn: {
+        before:
+          'Pressing the button again cannot fix the problem described above, so there is none here. When it has cleared, ',
+        link: 'try again',
+        after: '.',
+      },
+      noAccounts: 'This site has no accounts, so there is no address to confirm.',
+    },
+    // `/login/reset` and `/login/confirm` alike; `incomplete` and `weak-password` only on the first.
+    linkProblems: {
+      incomplete: {
+        title: 'A new password is needed.',
+        detail: 'Type the password the account should have from now on.',
+      },
+      // `registrationProblems['weak-password']`'s rules, in `passwordRules`' words — and the
+      // link is not spent by a refused password (the probe, §2), which is worth saying.
+      'weak-password': {
+        title: 'The identity service will not accept that password.',
+        detail:
+          'It asks for eight to a hundred characters, including an upper case and a lower case letter from A to Z, a digit, and one character that is none of those. Nothing was changed, and the link still works; choose another.',
+      },
+      'link-invalid': {
+        title: 'That link no longer works.',
+        detail: 'A link works once, and not for ever. Nothing was changed; a new link is one step away.',
+      },
+      'link-lapsed': {
+        title: 'That took longer than this page holds the link.',
+        detail:
+          'This page holds the link from the email for fifteen minutes, and nothing was changed. Open the link again — opening it does not use it up — and carry on from there.',
+      },
+      'rate-limited': {
+        title: 'Too many attempts have been made recently.',
+        detail:
+          'The identity service is refusing new ones for a minute or so, and nothing was changed. The limit counts an address rather than an account, so you can meet it on your first attempt — someone else on the same network may have spent it.',
+      },
+      unavailable: {
+        title: 'The identity service could not be reached.',
+        detail:
+          'This is our side, not yours: nothing was changed, and the link is not used up. Try again in a few minutes.',
+      },
+      refused: {
+        title: 'The identity service refused that.',
+        detail:
+          'It did not say anything this page knows how to explain, and nothing was changed. Try once more, or ask for a new link.',
+      },
+      'not-configured': {
+        title: 'This site has no accounts.',
+        detail:
+          'There is nothing here a link could open, and nothing else needs an account: the frames and the lab work without one.',
+      },
     },
     registerPage: {
       heading: 'Create an account',
@@ -1766,6 +2069,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     emailAddress: 'Adres e-mail',
     password: 'Hasło',
     backToReader: 'Wróć do czytania',
+    // `secondFactorPage.backToSignIn`'s words, because it is the same link.
+    backToSignIn: 'Wróć do logowania',
     // `renderError.toPrograms`' words, because it is the same link.
     openPrograms: 'Przejdź do programów',
     // The address first, as Polish names the thing it is talking about, and `prosisz` in the
@@ -1794,6 +2099,13 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         link: 'Załóż je',
         after:
           ' — wystarczy adres e-mail i hasło, a potrzebne jest tylko do przenoszenia pozycji w lekturze między urządzeniami.',
+      },
+      // In the present tense, as Polish sign-in pages ask it: no past tense to pick a gender.
+      forgotPassword: 'Nie pamiętasz hasła?',
+      resend: {
+        before: 'Jeśli adres konta nie został jeszcze potwierdzony, ',
+        link: 'wyślij ponownie link potwierdzający',
+        after: '.',
       },
       noAccounts: 'Tutaj nie ma kont, więc nie ma się do czego logować.',
       backToWhereYouWere: 'Wróć do poprzedniej strony',
@@ -1873,6 +2185,19 @@ export const TABLE: Readonly<Record<string, Strings>> = {
           'Nie ma się do czego logować, a nic innego nie wymaga konta: ramki i ćwiczenia komputerowe działają bez niego.',
       },
     },
+    // `trzeba będzie`, impersonal, for the English "will have to" — which says what happens
+    // without saying whose device it is.
+    signInNotices: {
+      'password-reset': {
+        title: 'Hasło zostało zmienione.',
+        detail:
+          'Zaloguj się poniżej nowym hasłem. Wszędzie tam, gdzie konto było zalogowane, trzeba będzie zalogować się ponownie — już nowym hasłem.',
+      },
+      'email-verified': {
+        title: 'Adres został potwierdzony.',
+        detail: 'Zaloguj się poniżej tym adresem i hasłem podanym przy zakładaniu konta.',
+      },
+    },
     secondFactorPage: {
       heading: 'Twój kod',
       lede: 'Jeszcze jeden krok.',
@@ -1895,6 +2220,188 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       lostBothReading:
         'Konto jest potrzebne tylko do tego, żeby pozycja w lekturze przechodziła z tobą między urządzeniami, więc bez dostępu do konta nadal masz całą książkę i wszystkie ćwiczenia komputerowe.',
       backToSignIn: 'Wróć do logowania',
+    },
+    // Impersonal where the English says what the reader did (`podanego przy zakładaniu konta`),
+    // imperative where it tells them what to do — ADR-0016's rule, as above.
+    forgotPage: {
+      heading: 'Resetowanie hasła',
+      lede: 'Zapomnianego hasła się nie odzyskuje. Ustawia się nowe.',
+      standfirst:
+        'W międzyczasie nic, co czytasz, nie wymaga konta: każda ramka i ćwiczenia komputerowe działają bez niego, a ta przeglądarka nadal wie, gdzie jesteś.',
+      instructions:
+        'Wpisz adres, pod którym założono konto, a zostanie na niego wysłany link do ustawienia nowego hasła.',
+      submit: 'Wyślij link',
+      sent: {
+        title: 'Jeśli pod tym adresem jest konto, jest już do niego w drodze link.',
+        detail:
+          'Otwórz wiadomość i kliknij zawarty w niej link, żeby ustawić nowe hasło. Po kilku minutach nic nie przyszło? Zajrzyj do folderu ze spamem i sprawdź, czy w adresie nie ma literówki.',
+      },
+      sentNext: {
+        before: 'Link działa jeden raz. Jeśli ten nie dotrze albo przestanie działać, ',
+        link: 'poproś o kolejny',
+        after: '.',
+      },
+      // `signInPage.withdrawn`'s words for "start again from a fresh page".
+      withdrawn: {
+        before:
+          'Ponowne wysłanie adresu nie rozwiąże opisanego wyżej problemu, więc nie ma tu formularza. Gdy problem minie, ',
+        link: 'zacznij od nowa',
+        after: ' na świeżej stronie.',
+      },
+      noEmail:
+        'Ta witryna nie wysyła e-maili, więc nie może wysłać linku do ustawienia nowego hasła i zapomnianego hasła nie da się tu zastąpić nowym.',
+      noAccounts: 'Tutaj nie ma kont, więc nie ma hasła do zresetowania.',
+    },
+    resendPage: {
+      heading: 'Nowy link potwierdzający',
+      lede: 'Logowanie czeka, aż adres zostanie potwierdzony.',
+      standfirst:
+        'W międzyczasie nic, co czytasz, nie wymaga konta: każda ramka i ćwiczenia komputerowe działają bez niego, a ta przeglądarka nadal wie, gdzie jesteś.',
+      instructions:
+        'Wpisz adres, pod którym założono konto, a zostanie na niego wysłany nowy link do potwierdzenia. Link wysłany wcześniej też nadal działa, dopóki nie zostanie użyty.',
+      submit: 'Wyślij nowy link',
+      sent: {
+        title: 'Jeśli ten adres czeka na potwierdzenie, jest już do niego w drodze nowy link.',
+        detail:
+          'Otwórz wiadomość i kliknij zawarty w niej link, a potem zaloguj się. Po kilku minutach nic nie przyszło? Zajrzyj do folderu ze spamem i sprawdź, czy w adresie nie ma literówki.',
+      },
+      sentNext: { before: 'Jeśli nie dotrze, ', link: 'poproś o kolejny', after: '.' },
+      withdrawn: {
+        before:
+          'Ponowne wysłanie adresu nie rozwiąże opisanego wyżej problemu, więc nie ma tu formularza. Gdy problem minie, ',
+        link: 'zacznij od nowa',
+        after: ' na świeżej stronie.',
+      },
+      noEmail: 'Ta witryna nie wysyła e-maili, więc nie może stąd wysłać linku potwierdzającego.',
+      noAccounts: 'Tutaj nie ma kont, więc nie ma adresu do potwierdzenia.',
+    },
+    linkRequestProblems: {
+      incomplete: {
+        title: 'Potrzebny jest adres.',
+        detail: 'Wpisz adres e-mail podany przy zakładaniu konta.',
+      },
+      'invalid-email': {
+        title: 'Ten adres nie został przyjęty jako adres e-mail.',
+        detail: 'Sprawdź, czy nie ma w nim literówki — brakującej @, zbędnej spacji — i wyślij ponownie.',
+      },
+      'no-password': {
+        title: 'To konto nie ma hasła, które można by zastąpić.',
+        detail: 'Zostało założone w innym serwisie i loguje się przez niego, więc żaden link nie został wysłany.',
+      },
+      'rate-limited': {
+        title: 'Ostatnio podjęto zbyt wiele prób.',
+        detail:
+          'Serwis tożsamości przez mniej więcej minutę odrzuca nowe i nic nie zostało wysłane. Limit dotyczy adresu, a nie konta, więc można na niego trafić już przy pierwszej próbie — mógł go wyczerpać ktoś inny w tej samej sieci.',
+      },
+      unavailable: {
+        title: 'Nie udało się połączyć z serwisem tożsamości.',
+        detail:
+          'To problem po naszej stronie, nie twojej, i nic nie zostało wysłane. Czytanie nie wymaga konta i działa bez zmian; spróbuj ponownie za kilka minut.',
+      },
+      'no-email': {
+        title: 'Ta witryna nie wysyła e-maili.',
+        detail: 'Dlatego nie da się stąd wysłać żadnego linku. Czytanie nie wymaga konta i działa bez zmian.',
+      },
+      'not-configured': {
+        title: 'Tutaj nie ma kont.',
+        detail:
+          'Nie ma po co wysyłać linku, a nic innego nie wymaga konta: ramki i ćwiczenia komputerowe działają bez niego.',
+      },
+    },
+    // `piętnaście minut` is `EMAILED_LINK_LIFETIME_SECONDS`, as the English says it.
+    resetPage: {
+      heading: 'Ustaw nowe hasło',
+      lede: 'Został jeden krok: nowe hasło.',
+      standfirst:
+        'Link z wiadomości otwiera tę stronę i utrzymuje ją otwartą na tym urządzeniu przez piętnaście minut. Po zmianie hasła wszędzie tam, gdzie konto było zalogowane, trzeba będzie zalogować się ponownie.',
+      instructions: 'Chodzi o konto, na którego adres przyszła wiadomość.',
+      passwordLabel: 'Nowe hasło',
+      submit: 'Zmień hasło',
+      noLink: {
+        before:
+          'Na tym urządzeniu nie jest otwarte żadne resetowanie hasła. Link z wiadomości otwiera je na piętnaście minut; otwórz go ponownie albo ',
+        link: 'poproś o nowy link',
+        after: ', jeśli przestał działać.',
+      },
+      // `noLink`'s `poproś o nowy link`, as the English repeats its own words.
+      spent: {
+        before: 'Ponowne otwarcie tego linku skończyłoby się tak samo. ',
+        link: 'Poproś o nowy link',
+        after: ' i ustaw nowe hasło za jego pomocą.',
+      },
+      withdrawn: {
+        before:
+          'Ponowny wybór hasła nie rozwiąże opisanego wyżej problemu, więc nie ma tu formularza. Gdy problem minie, ',
+        link: 'spróbuj ponownie',
+        after: '.',
+      },
+      noAccounts: 'Tutaj nie ma kont, więc nie ma hasła do zmiany.',
+    },
+    confirmPage: {
+      heading: 'Potwierdzenie adresu',
+      lede: 'Jedno naciśnięcie i adres jest potwierdzony.',
+      standfirst:
+        'Link z wiadomości otwiera tę stronę i utrzymuje ją otwartą na tym urządzeniu przez piętnaście minut. Samo otwarcie linku niczego nie potwierdza: adres zostaje potwierdzony po naciśnięciu przycisku na tej stronie.',
+      instructions: 'Chodzi o adres, na który przyszła wiadomość.',
+      submit: 'Potwierdź adres',
+      noLink: {
+        before:
+          'Na tym urządzeniu nie jest otwarte żadne potwierdzanie adresu. Link z wiadomości otwiera je na piętnaście minut; otwórz go ponownie albo ',
+        link: 'poproś o nowy link',
+        after: ', jeśli przestał działać.',
+      },
+      spent: {
+        before: 'Ponowne otwarcie tego linku skończyłoby się tak samo. ',
+        link: 'Poproś o nowy link',
+        after: ' i potwierdź adres za jego pomocą.',
+      },
+      withdrawn: {
+        before:
+          'Ponowne naciśnięcie przycisku nie rozwiąże opisanego wyżej problemu, więc go tu nie ma. Gdy problem minie, ',
+        link: 'spróbuj ponownie',
+        after: '.',
+      },
+      noAccounts: 'Tutaj nie ma kont, więc nie ma adresu do potwierdzenia.',
+    },
+    linkProblems: {
+      incomplete: {
+        title: 'Potrzebne jest nowe hasło.',
+        detail: 'Wpisz hasło, które konto ma mieć od teraz.',
+      },
+      'weak-password': {
+        title: 'Serwis tożsamości nie przyjmie tego hasła.',
+        detail:
+          'Wymaga od ośmiu do stu znaków, w tym wielkiej i małej litery od A do Z, cyfry i jednego znaku, który nie jest żadnym z nich. Nic nie zostało zmienione, a link nadal działa; wybierz inne hasło.',
+      },
+      'link-invalid': {
+        title: 'Ten link już nie działa.',
+        detail: 'Link działa jeden raz i nie bez końca. Nic nie zostało zmienione; nowy link jest o krok stąd.',
+      },
+      'link-lapsed': {
+        title: 'Minęło więcej czasu, niż ta strona przechowuje link.',
+        detail:
+          'Ta strona przechowuje link z wiadomości przez piętnaście minut i nic nie zostało zmienione. Otwórz link ponownie — samo otwarcie go nie zużywa — i kontynuuj.',
+      },
+      'rate-limited': {
+        title: 'Ostatnio podjęto zbyt wiele prób.',
+        detail:
+          'Serwis tożsamości przez mniej więcej minutę odrzuca nowe i nic nie zostało zmienione. Limit dotyczy adresu, a nie konta, więc można na niego trafić już przy pierwszej próbie — mógł go wyczerpać ktoś inny w tej samej sieci.',
+      },
+      unavailable: {
+        title: 'Nie udało się połączyć z serwisem tożsamości.',
+        detail:
+          'To problem po naszej stronie, nie twojej: nic nie zostało zmienione, a link nie został zużyty. Spróbuj ponownie za kilka minut.',
+      },
+      refused: {
+        title: 'Serwis tożsamości tego nie przyjął.',
+        detail:
+          'Nie podał powodu, który ta strona umiałaby wyjaśnić, i nic nie zostało zmienione. Spróbuj jeszcze raz albo poproś o nowy link.',
+      },
+      'not-configured': {
+        title: 'Tutaj nie ma kont.',
+        detail:
+          'Nie ma tu nic, co link mógłby otworzyć, a nic innego nie wymaga konta: ramki i ćwiczenia komputerowe działają bez niego.',
+      },
     },
     registerPage: {
       heading: 'Załóż konto',
@@ -2394,11 +2901,19 @@ export interface Chrome {
   readonly emailAddress: string;
   readonly password: string;
   readonly backToReader: string;
+  readonly backToSignIn: string;
   readonly openPrograms: string;
   readonly askedPrivate: Around;
   readonly signInPage: SignInPageStrings;
   readonly signInProblems: Readonly<Record<SignInProblemCode, Explained>>;
+  readonly signInNotices: Readonly<Record<SignInNoticeCode, Explained>>;
   readonly secondFactorPage: SecondFactorPageStrings;
+  readonly forgotPage: LinkRequestPageStrings;
+  readonly resendPage: LinkRequestPageStrings;
+  readonly linkRequestProblems: Readonly<Record<LinkRequestProblemCode, Explained>>;
+  readonly resetPage: ResetPageStrings;
+  readonly confirmPage: LinkPageStrings;
+  readonly linkProblems: Readonly<Record<LinkProblemCode, Explained>>;
   readonly registerPage: RegisterPageStrings;
   readonly registrationProblems: Readonly<Record<RegistrationProblemCode, Explained>>;
   readonly registrationNotices: Readonly<Record<RegistrationNoticeCode, Explained>>;

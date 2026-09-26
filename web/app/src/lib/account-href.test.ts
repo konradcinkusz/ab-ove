@@ -9,7 +9,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { registerHref, secondFactorHref, signInHref } from './account-href.ts';
+import {
+  confirmAddressHref,
+  forgotPasswordHref,
+  registerHref,
+  resendConfirmationHref,
+  resetPasswordHref,
+  secondFactorHref,
+  signInHref,
+} from './account-href.ts';
 
 test('nothing to carry is the bare page, with no empty query string on the end', () => {
   assert.equal(signInHref(), '/login');
@@ -48,4 +56,23 @@ test('the code screen keeps the destination, which its Start again used to drop'
     signInHref({ redirect: '/instrument', edition: 'pl' }),
     '/login?redirect=%2Finstrument&lang=pl',
   );
+});
+
+/*
+ * THE WAY BACK INTO AN ACCOUNT (issue #170): four pages under `/login`, each carrying the edition,
+ * and the two that ask for a link carrying where the reader was going as well. None of them has
+ * anything to carry about the account — the address and the token never go into a URL this app
+ * builds — so the builder has no parameter for either.
+ */
+test('the pages that bring an account back carry the edition, and nothing about the account', () => {
+  assert.equal(
+    forgotPasswordHref({ redirect: '/account', edition: 'pl' }),
+    '/login/forgot?redirect=%2Faccount&lang=pl',
+  );
+  assert.equal(resendConfirmationHref({ notice: 'sent', edition: 'en' }), '/login/resend?notice=sent&lang=en');
+  assert.equal(resetPasswordHref({ error: 'weak-password', edition: 'pl' }), '/login/reset?error=weak-password&lang=pl');
+  assert.equal(confirmAddressHref({ edition: 'en' }), '/login/confirm?lang=en');
+  assert.equal(confirmAddressHref(), '/login/confirm');
+  // Where each way ends: the sign-in page, with its notice first, as a code comes first.
+  assert.equal(signInHref({ notice: 'password-reset', edition: 'en' }), '/login?notice=password-reset&lang=en');
 });

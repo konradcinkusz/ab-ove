@@ -53,11 +53,20 @@
  *
  * A ROUTE THAT IS NOT authservice's SAYS SO WHERE IT IS, in a banner over the handler.
  * `GET /legal/…` is such a route: the host the deployment publishes its Terms and Privacy
- * Policy on, because authservice publishes none (#141).
+ * Policy on, because authservice publishes none (#141). `GET /__outbox` is another: the
+ * reader's mail, where the links the four recovery endpoints "send" can be followed (#170).
+ *
+ * THE WAY BACK INTO AN ACCOUNT MAKES IT KEEP MORE (#170): a password a reset changed, which
+ * address is still waiting to be confirmed, and the links it has sent — in memory, per
+ * process, for registration's reason above. The four endpoints answer as the probe captured
+ * the pinned authservice answering (docs/architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md
+ * §2), and where the probe measured something about their state — a reset spends every earlier
+ * reset link; a new confirmation link leaves the earlier one working; an unconfirmed account's
+ * right password is refused as a wrong one — this process does the same.
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { createSign, generateKeyPairSync, randomUUID } from 'node:crypto';
+import { createSign, generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
 
 import { ACCOUNTS, type FixtureAccount } from './accounts.mts';
 
@@ -187,6 +196,129 @@ function challengeTokenFor(account: FixtureAccount) {
  * exactly that reason. It makes the single-use property real rather than described.
  */
 const spentRecoveryCodes = new Set<string>();
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * THE WAY BACK INTO AN ACCOUNT (#170): what this process remembers for it.
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ */
+
+/**
+ * `FrontendBaseUrl`, read under the SAME NAME authservice reads it by, and defaulting the way
+ * v0.3.1 does in effect: its `appsettings.json` sets the key to `""`, which the code's
+ * `?? "http://localhost:3000"` never replaces, so an unset base gives RELATIVE links — measured
+ * in the probe (§3). `playwright.config.ts` sets it to the identity deployment's address.
+ */
+const FRONTEND_BASE_URL = process.env.FrontendBaseUrl ?? '';
+
+/** The password each account has now, where a reset has changed it from the fixture's. */
+const passwords = new Map<string, string>();
+const passwordOf = (account: FixtureAccount): string => passwords.get(account.id) ?? account.password;
+
+/**
+ * Accounts waiting for their address to be confirmed. None of the fixture's own is: an account
+ * joins this set by registering under `UNCONFIRMED_DOMAIN` (see `POST /register`).
+ */
+const unconfirmed = new Set<string>();
+
+/**
+ * A FIXTURE CONVENTION, NOT authservice's: an address at this domain registers the way it would
+ * on an instance that can send email — 202, no tokens, and a confirmation email — while every
+ * other address registers the way the AppHost's instance does, with tokens. It is how a spec
+ * gets an unconfirmed account of its own without the rest of the suite changing behaviour.
+ */
+const UNCONFIRMED_DOMAIN = '@unconfirmed.example.test';
+
+/**
+ * Identity's security stamp, reduced to what the probe measured of it: a reset changes it, and
+ * every reset link issued before — the one just used included — then answers `Invalid token.`
+ */
+const stamps = new Map<string, number>();
+const stampOf = (id: string): number => stamps.get(id) ?? 0;
+
+const resetLinks = new Map<string, { readonly id: string; readonly stamp: number }>();
+/** Confirmation tokens stay good after a newer one is sent — measured in the probe (§2). */
+const confirmationLinks = new Map<string, string>();
+
+/**
+ * An Identity token is base64 of a data-protection payload, so it carries `+`, `/` and `=`: this
+ * one does too, so a web app that decoded the link's query wrongly — a `+` read as a space — is
+ * caught by the first reset that fails.
+ */
+const identityToken = (): string => randomBytes(64).toString('base64');
+
+interface Sent {
+  readonly to: string;
+  readonly subject: string;
+  /** The link's text in the email — `SendGridEmailService`'s. */
+  readonly label: string;
+  readonly link: string;
+}
+
+/** Everything "sent", newest last. `GET /__outbox` shows an address its own. */
+const outbox: Sent[] = [];
+
+/**
+ * The link, built as `AuthController` builds it: a base, a fixed path, and both values escaped
+ * (`Uri.EscapeDataString` there; `encodeURIComponent` escapes the same characters of a base64
+ * token and an address).
+ */
+const emailLink = (path: string, token: string, email: string): string =>
+  `${FRONTEND_BASE_URL}${path}?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+
+function sendReset(account: FixtureAccount): void {
+  const token = identityToken();
+  resetLinks.set(token, { id: account.id, stamp: stampOf(account.id) });
+  outbox.push({
+    to: account.email,
+    subject: 'Reset your password',
+    label: 'Reset Password',
+    link: emailLink('/reset-password', token, account.email),
+  });
+}
+
+function sendConfirmation(account: FixtureAccount): void {
+  const token = identityToken();
+  confirmationLinks.set(token, account.id);
+  outbox.push({
+    to: account.email,
+    subject: 'Verify your email address',
+    label: 'Verify email address',
+    link: emailLink('/verify-email', token, account.email),
+  });
+}
+
+/** `UserManager.FindByEmailAsync`: case-insensitive, through Identity's normalised address. */
+const accountByEmail = (email: string): FixtureAccount | undefined =>
+  accounts.find((candidate) => candidate.email.toLowerCase() === email.toLowerCase());
+
+/**
+ * `[Required]` and `[EmailAddress]` as .NET evaluates them — `EmailAddressAttribute` asks for one
+ * `@`, neither first nor last — and `[StringLength]` where the request declares one. The
+ * messages are the requests' own `ErrorMessage`s.
+ */
+function emailRefusals(value: unknown, maxLength: number | null): string[] {
+  if (typeof value !== 'string' || value.trim() === '') return ['Email is required'];
+  const refused: string[] = [];
+  const at = value.indexOf('@');
+  if (at <= 0 || at === value.length - 1 || at !== value.lastIndexOf('@')) refused.push('Invalid email format');
+  if (maxLength !== null && value.length > maxLength) refused.push(`Email cannot exceed ${maxLength} characters`);
+  return refused;
+}
+
+/** Identity's password policy, in `IdentityErrorDescriber`'s sentences — `POST /register`'s rules. */
+function passwordPolicyRefusals(password: string): string[] {
+  return [
+    /[a-z]/.test(password) ? null : "Passwords must have at least one lowercase ('a'-'z').",
+    /[A-Z]/.test(password) ? null : "Passwords must have at least one uppercase ('A'-'Z').",
+    /[0-9]/.test(password) ? null : "Passwords must have at least one digit ('0'-'9').",
+    /[^a-zA-Z0-9]/.test(password) ? null : 'Passwords must have at least one non alphanumeric character.',
+  ].filter((entry): entry is string => entry !== null);
+}
+
+/** HTML-escaped, for the outbox page. */
+const escapeHtml = (text: string): string =>
+  text.replace(/[&<>"']/g, (character) => `&#${character.charCodeAt(0)};`);
 
 const json = (response: ServerResponse, status: number, body: unknown) => {
   const encoded = JSON.stringify(body);
@@ -403,6 +535,23 @@ const server = createServer(async (request, response) => {
     };
     accounts.push(account);
 
+    /*
+     * 202 and a confirmation email, as an instance that CAN send email answers — for an address
+     * at `UNCONFIRMED_DOMAIN` only, the fixture's convention (see there). The body is
+     * `RegistrationPendingVerificationResponse`, and no token: an unconfirmed address is not yet
+     * proof of anything, upstream's own comment says.
+     */
+    if (email.toLowerCase().endsWith(UNCONFIRMED_DOMAIN)) {
+      unconfirmed.add(account.id);
+      sendConfirmation(account);
+      return json(response, 202, {
+        userId: account.id,
+        email,
+        message: 'Account created. Check your email for a verification link before signing in.',
+        emailVerificationRequired: true,
+      });
+    }
+
     // 200 with tokens, which is what a deployment that cannot send verification email
     // answers — and the one the AppHost produces, since it configures no mail provider.
     return json(response, 200, {
@@ -426,7 +575,15 @@ const server = createServer(async (request, response) => {
     // The status and the body shape are `AuthController.Login`'s. It answers 401 with this
     // message for both an unknown email and a wrong password — deliberately, so the reply
     // does not say which — and the web app's own tests pin that separately.
-    if (!account || body.password !== account.password) {
+    //
+    // THE PASSWORD IS THE ONE THE ACCOUNT HAS NOW, which a reset may have changed (#170).
+    //
+    // AND AN UNCONFIRMED ACCOUNT'S RIGHT PASSWORD IS REFUSED THE SAME WAY — not with the 403
+    // `emailVerificationRequired` `Login`'s source shows. Measured in the probe (§5): with
+    // confirmation required, Identity's own `RequireConfirmedEmail` refuses the sign-in before
+    // the controller's check is reached. This is the answer the web app's way back has to
+    // work under, so it is the one this fixture gives.
+    if (!account || body.password !== passwordOf(account) || unconfirmed.has(account.id)) {
       return json(response, 401, { error: 'Invalid email or password' });
     }
 
@@ -501,6 +658,141 @@ const server = createServer(async (request, response) => {
       expiresIn: 3600,
       tokenType: 'Bearer',
     });
+  }
+
+  /*
+   * ══════════════════════════════════════════════════════════════════════════════════
+   * THE WAY BACK INTO AN ACCOUNT (#170): `AuthController`'s four recovery endpoints, each
+   * in its own order of checks and with the answers the probe captured (§2). The annotation
+   * failures are `[ApiController]`'s ValidationProblemDetails, answered before the action
+   * runs — which is why a malformed address IS told so on `forgot-password`, whose own code
+   * would have answered 200.
+   * ══════════════════════════════════════════════════════════════════════════════════
+   */
+  const recovery = /^\/api\/v1\/auth\/(forgot-password|reset-password|resend-verification|verify-email)$/.exec(
+    url.pathname,
+  );
+  if (request.method === 'POST' && recovery) {
+    let body: { email?: unknown; token?: unknown; newPassword?: unknown };
+    try {
+      body = JSON.parse(await readBody(request)) as typeof body;
+    } catch {
+      return json(response, 400, { error: 'Invalid request' });
+    }
+
+    const invalid = (fields: Record<string, string[]>) =>
+      json(response, 400, { title: 'One or more validation errors occurred.', status: 400, errors: fields });
+    const endpoint = recovery[1];
+
+    /*
+     * `ForgotPassword` and `ResendVerification`: the same answer for every address the
+     * annotations let through — with an account or without, confirmed or not — so the web app
+     * has nothing to tell apart. `ForgotPasswordRequest` bounds the address at 256 characters;
+     * `ResendVerificationRequest` does not.
+     */
+    if (endpoint === 'forgot-password' || endpoint === 'resend-verification') {
+      const refused = emailRefusals(body.email, endpoint === 'forgot-password' ? 256 : null);
+      if (refused.length > 0) return invalid({ Email: refused });
+      const account = accountByEmail((body.email as string).trim());
+
+      if (endpoint === 'forgot-password') {
+        if (account) sendReset(account);
+        return json(response, 200, {
+          message: 'If an account with that email exists, a password reset link has been sent.',
+          isOAuthOnly: false,
+        });
+      }
+
+      if (account && unconfirmed.has(account.id)) sendConfirmation(account);
+      return json(response, 200, { message: 'If that address needs verification, a new link has been sent.' });
+    }
+
+    const fields: Record<string, string[]> = {};
+    const emailRefused = emailRefusals(body.email, endpoint === 'reset-password' ? 256 : null);
+    if (emailRefused.length > 0) fields.Email = emailRefused;
+    if (typeof body.token !== 'string' || body.token.trim() === '') {
+      fields.Token = [endpoint === 'reset-password' ? 'Reset token is required' : 'Verification token is required'];
+    }
+
+    /*
+     * `ResetPassword`: the annotations, then an unknown address, then the token — Identity's
+     * `ResetPasswordAsync` verifies it BEFORE it applies the policy, so a weak password with a
+     * spent link is told about the link — and only then the policy, whose refusal leaves the
+     * link unspent (measured, the probe §2). Success changes the stamp, which spends every
+     * reset link issued before it.
+     */
+    if (endpoint === 'reset-password') {
+      const newPassword = typeof body.newPassword === 'string' ? body.newPassword : '';
+      if (newPassword === '') fields.NewPassword = ['New password is required'];
+      else if (newPassword.length < 8 || newPassword.length > 100) {
+        fields.NewPassword = ['Password must be between 8 and 100 characters'];
+      }
+      if (Object.keys(fields).length > 0) return invalid(fields);
+
+      const account = accountByEmail((body.email as string).trim());
+      if (!account) return json(response, 400, { errors: ['Invalid or expired reset token.'] });
+
+      const issued = resetLinks.get(body.token as string);
+      if (!issued || issued.id !== account.id || issued.stamp !== stampOf(account.id)) {
+        return json(response, 400, { errors: ['Invalid token.'] });
+      }
+
+      const policy = passwordPolicyRefusals(newPassword);
+      if (policy.length > 0) return json(response, 400, { errors: policy });
+
+      passwords.set(account.id, newPassword);
+      stamps.set(account.id, stampOf(account.id) + 1);
+      return json(response, 200, {
+        message: 'Password has been reset successfully. You can now sign in with your new password.',
+      });
+    }
+
+    /*
+     * `VerifyEmail`: the annotations, then one refusal — the SINGULAR `error` — for an unknown
+     * address and a wrong token alike, so it is not an account-existence oracle; an address
+     * already confirmed is a success, the second time as the first.
+     */
+    if (Object.keys(fields).length > 0) return invalid(fields);
+    const account = accountByEmail((body.email as string).trim());
+    if (!account) return json(response, 400, { error: 'Invalid or expired verification token.' });
+    if (!unconfirmed.has(account.id)) return json(response, 200, { message: 'Email address is already verified.' });
+    if (confirmationLinks.get(body.token as string) !== account.id) {
+      return json(response, 400, { error: 'Invalid or expired verification token.' });
+    }
+    unconfirmed.delete(account.id);
+    return json(response, 200, { message: 'Email address verified. You can now sign in.' });
+  }
+
+  /*
+   * ══════════════════════════════════════════════════════════════════════════════════
+   * NOT authservice's. THE READER'S MAIL, PLAYED BY THIS PROCESS (#170).
+   *
+   * What authservice would hand SendGrid, shown as a page with the email's own link on it —
+   * `GET /__outbox?to=<address>`, newest first. A spec follows the link by CLICKING it here,
+   * which matters: opened from this page the link is a navigation ANOTHER SITE started, as it
+   * is from a real mail client, and the cookie the web app's landing sets has to survive that
+   * (`emailed-link-cookie.ts` says why it is `SameSite=Lax`). `page.goto` on the link would be
+   * a navigation the reader typed, which no browser treats as cross-site. For it to be another
+   * site, the spec opens this page by a different host name than the web app's — sites are told
+   * apart by host, never by port.
+   * ══════════════════════════════════════════════════════════════════════════════════
+   */
+  if (request.method === 'GET' && url.pathname === '/__outbox') {
+    const to = (url.searchParams.get('to') ?? '').toLowerCase();
+    const mine = outbox.filter((sent) => sent.to.toLowerCase() === to).reverse();
+    const items = mine
+      .map((sent) => `<li><p>${escapeHtml(sent.subject)}</p><p><a href="${escapeHtml(sent.link)}">${escapeHtml(sent.label)}</a></p></li>`)
+      .join('');
+    const page =
+      '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Outbox — a fixture</title></head><body>' +
+      '<h1>Outbox</h1><p>A fixture of the acceptance suite, not any mail provider.</p>' +
+      `<ul>${items}</ul></body></html>`;
+    response.writeHead(200, {
+      'content-type': 'text/html; charset=utf-8',
+      'content-length': Buffer.byteLength(page),
+      'cache-control': 'no-store',
+    });
+    return response.end(page);
   }
 
   json(response, 404, { error: 'Not found' });
