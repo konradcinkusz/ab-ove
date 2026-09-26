@@ -66,6 +66,22 @@ written against it would pass by having nothing to leak.
 Watched failing: making `render()` emit the unit's exercise answers turns that test red and
 only that test.
 
+### The structured half is a second way out, and the walks read it too
+
+Every result that is not an error carries its data as `structuredContent` (§3), and "the
+answer to step *k* lives only in step *k + 1*" has to hold there as it holds in the text.
+It holds by construction: no field of the data is read from an answer's words, and
+`answersStep` says only that a step opens with an answer. It is also asserted. The leak walks
+read every string of both halves, value by value rather than through a serialisation that
+would escape a backslash, and one of them walks a three-program track whose answers name
+their program. At every place in every program it asks every tool about every program, and
+checks that no step shown in the data lies past the furthest.
+
+Watched failing: carrying the next step's answer in a step's data turns the leak walks red,
+and the output-schema validation in `server.test.ts` with them. Carrying the next program's
+answer in a finished program's `finished.next` turns the three-program walk red and leaves
+the single-program walks green, which is why that walk crosses programs at all.
+
 ### Why this is not the DOM assertion wearing a new hat
 
 The acceptance suite asserts the answer is absent **from the DOM**. This transport has no
@@ -129,7 +145,8 @@ have one, which is the website's default (ADR-0052). `language` gives the other 
 `all: true` names every program. The `read` prompt's completions list every id regardless,
 and a `read` prompt given an edition and no program asks for the list in that edition.
 `tools.test.ts` holds a new reader's list, on a track the size of the book, to 1.5 KiB with
-the in-memory note included.
+the in-memory note included, and its structured half to 2 KiB: the data names the programs
+the text names and folds what the text folds.
 
 **The refusal is a refusal and not an error** — `refused`, not `problem`, on `reveal.ts`'s
 own reasoning about `not-reached` — and it names the program that opens this one, says one
@@ -230,9 +247,35 @@ a JSON answer that is not an object is `refused` rather than a `TypeError` out o
 `handle()`. The gate's refusals are untouched. Anything else `handle()` cannot name still
 throws, because a sentence would dress a defect in this package up as the deployment's.
 
-**A place kept in memory is said in the results.** `server.ts` warned on stderr, which no
-reader of a host sees; `list_programs` and `open_program` now carry the same sentence, so
-the reader learns it before losing their place rather than by losing it.
+**A place kept in memory is said in the results, once.** `server.ts` warned on stderr, which
+no reader of a host sees, so the results carry the same sentence, and the reader learns it
+before losing their place rather than by losing it. It used to end every `list_programs`
+and `open_program` result, so a reader heard it at each call and at every re-check of the
+list. It now ends the first result of a session that is not an error — an error's text is a
+fix the model acts on, and a note spent there may never be relayed — and every result
+carries `placeIsEphemeral` in its data. The session is the server's, one per connection
+over stdio.
+
+**Every result carries the same thing as data** (#164). A result that is not an error has a
+`structuredContent` beside its text, described by the tool's `outputSchema`, so an agent
+reads fields rather than prose. A step is `{ track, unit, step, total, asks, language,
+answersStep? }`, which gives the number `submit_answer` names and says whether the step asks.
+The list is `programs`, one entry for each program its text names, with `open`, `place` and,
+on a shut one, `after`. A refusal is `refusal`, with its `kind`. The end of a program is
+`finished`, and the edition question is `question`. The text is unchanged for a host that
+reads only text. The schemas use only keywords that draft-07 and 2020-12 read alike, since
+the spec assumes 2020-12 and the SDK's own client validates with Ajv's draft-07. A test
+refuses any other keyword, because Ajv's default skips one it does not know, misspelt or
+not.
+
+**The words travel in the data as well, and that is not decoration.** Claude Code's
+documentation, under *Return structured data*, says that when a result carries
+`structuredContent`, the model receives the JSON and not the text blocks, which "are assumed
+to duplicate the structured data" (read on 2026-09-25). That is the host the package README
+installs the server into. So every result's
+data carries its words as `text`, word for word, and without them a reader there would be
+told a step's number and none of its words. A host that forwards both halves reads the words
+twice: the cheaper failure. An error carries its text alone, and every host forwards that.
 
 **Every tool carries its annotations, and there is a prompt.** A host that has not been
 told a tool is read-only asks the reader's permission for it, so a re-read cost a prompt
@@ -408,7 +451,9 @@ pnpm --dir web -r test
 The unit tier needs no network, no database and no deployment: the gate is pure functions
 and the tool surface runs against the committed fixture through an in-memory cursor (P13 —
 test at the layer with the logic), and `server.test.ts` drives the protocol itself —
-tools, annotations, the prompt, completions — over `InMemoryTransport`. The fixture is **injected**, not fetched — `Deps.bundles`
+tools, annotations, output schemas, the prompt, completions — over `InMemoryTransport`. It
+validates every result it receives against its tool's output schema, with the validator the
+SDK's own client uses. The fixture is **injected**, not fetched — `Deps.bundles`
 is a `BundleSource`, because `bundleFor()` deliberately never serves a fixture and throws
 when the compiled bundle has not been fetched. `bash scripts/fetch-book-content.sh` is what
 the running server needs; the tests do not.
@@ -423,7 +468,8 @@ The launcher is plain JavaScript that checks for Node 22.18 before importing the
 TypeScript server, because the Node that cannot strip types cannot be told so by a file it
 cannot parse; `web/mcp/README.md` has the host configuration. With neither
 `AB_OVO_API_URL` nor `AB_OVO_READER_TOKEN` set it keeps the reader's place in memory and
-says so — on stderr, and in every result that shows a place.
+says so — on stderr, in the text of the session's first result, and in the data of every
+result.
 
 **It can be started from any working directory**, which is what a host does. The book is
 looked for in the server's own checkout, not relative to where the process was started:

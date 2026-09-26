@@ -12,7 +12,10 @@
  * The low-level `Server` is used rather than `McpServer` because TOOLS already carries JSON
  * Schema — the same dialect the content bundle is validated with — and the high-level
  * helper would want those schemas re-expressed in zod. Two spellings of one input contract
- * is the divergence this estate keeps paying to avoid.
+ * is the divergence this estate keeps paying to avoid. The same holds for the output
+ * contract (#164), with one thing given up: `McpServer` checks a result against its tool's
+ * `outputSchema` before sending it, and `Server` does not. `server.test.ts` does, with the
+ * validator the SDK's own client uses.
  */
 import { realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -33,7 +36,7 @@ import { liveBundles } from './content.ts';
 import type { BundleSource } from './content.ts';
 import { PROMPTS, completeArgument, promptMessages } from './prompts.ts';
 import { SERVER_INSTRUCTIONS, TOOLS, handle } from './tools.ts';
-import type { EditionOffered, EditionOutcome, ElicitOutcome } from './tools.ts';
+import type { EditionOffered, EditionOutcome, ElicitOutcome, Session } from './tools.ts';
 
 export interface ServerOptions {
   /** Where the content comes from; the live loader unless a test injects the fixture. */
@@ -140,6 +143,10 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
       title: tool.title,
       description: tool.description,
       inputSchema: tool.inputSchema,
+      // What every result that is not an error carries as data beside its text (#164).
+      // Declared, a client may hold the server to it: the SDK's own client validates each
+      // result against it, and refuses one that has none.
+      outputSchema: tool.outputSchema,
       // Read-only, idempotent, closed-world: what a host reads to stop asking the reader's
       // permission for a re-read. tools.ts says which is which and why.
       annotations: tool.annotations,
@@ -168,6 +175,10 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
     return { completion: { values: [...values], total: values.length, hasMore: false } };
   });
 
+  // What this session has said already: one per server, so one per connection over stdio.
+  // The in-memory note is said once per session, and this is where "once" is kept (#164).
+  const session: Session = { ephemeralNoteSaid: false };
+
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const result = await handle(
       request.params.name,
@@ -177,14 +188,15 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
         bundles: bundles(),
         elicit: elicitAnswer,
         chooseEdition,
+        session,
         ...(options.placeIsEphemeral ? { placeIsEphemeral: true } : {}),
       },
     );
 
-    return {
-      content: [{ type: 'text' as const, text: result.text }],
-      ...(result.isError ? { isError: true } : {}),
-    };
+    const content = [{ type: 'text' as const, text: result.text }];
+    // An error is its text alone; anything else carries the same result as data, words and
+    // all, because a host may give its model only this half (tools.ts says which host).
+    return result.isError ? { content, isError: true } : { content, structuredContent: { ...result.structured } };
   });
 
   return server;
@@ -197,9 +209,9 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
  * stderr rather than degrading quietly: a reader whose place is forgotten at every restart
  * has lost the one thing an account buys, and finding that out by losing their place is
  * the worst available way to be told (P8 — degrade visibly). Stderr reaches whoever runs
- * the server; the `ephemeral` flag reaches the READER, through the results `tools.ts`
- * appends the same fact to — because an MCP host shows a reader the results and never the
- * log.
+ * the server; the `ephemeral` flag reaches the READER, through the results — `tools.ts`
+ * says it in the text of the first one and as data on every one — because an MCP host
+ * shows a reader the results and never the log.
  */
 export function storeFromEnvironment(env: NodeJS.ProcessEnv): {
   readonly store: CursorStore;
