@@ -20,6 +20,7 @@ import {
 } from '@/lib/sheet/strokes';
 
 import { Pencil } from './icons.tsx';
+import { fitToDevice, paintSketch } from './sketch-paint.ts';
 import { TwoStepLabel } from './two-step-label.tsx';
 import { TwoStepStatus } from './two-step-status.tsx';
 import { useTwoStep } from './use-two-step.ts';
@@ -159,85 +160,27 @@ export function Sketch({
   }
 
   /**
-   * Paint everything, every time.
-   *
-   * A partial redraw — appending the newest segment only — is the obvious optimisation and
-   * it is wrong here twice over: `Undo` and a background change both need the whole surface
-   * anyway, and a stroke drawn incrementally at a device-pixel ratio that is not a whole
-   * number leaves seams where the segments meet. A few hundred lines is well under a frame.
+   * Paint everything, every time — the strokes kept and the one being drawn — with the painter
+   * the next frame's reveal uses too, so a drawing comes back as it was drawn
+   * (`sketch-paint.ts`, which says why nothing less than the whole surface is repainted).
    */
   const paint = useCallback(() => {
     const element = canvas.current;
-    const context = element?.getContext('2d');
-    if (!element || !context) return;
-
-    // `currentColor` is resolved here rather than declared in CSS, because a canvas has no
-    // cascade: this is what makes the ink follow the theme and the reader's own contrast
-    // settings instead of being a hard-coded near-black that vanishes on a dark page.
-    const ink = getComputedStyle(element).color;
-    const ratio = element.width / SKETCH_WIDTH;
-
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    context.clearRect(0, 0, SKETCH_WIDTH, SKETCH_HEIGHT);
-
-    if (background !== 'none') {
-      context.save();
-      context.strokeStyle = ink;
-      context.globalAlpha = 0.18;
-      context.lineWidth = 1;
-      if (background === 'grid') {
-        for (let x = 0; x <= SKETCH_WIDTH; x += 40) line(context, x, 0, x, SKETCH_HEIGHT);
-        for (let y = 0; y <= SKETCH_HEIGHT; y += 40) line(context, 0, y, SKETCH_WIDTH, y);
-      } else {
-        context.globalAlpha = 0.4;
-        context.lineWidth = 1.5;
-        line(context, 0, SKETCH_HEIGHT / 2, SKETCH_WIDTH, SKETCH_HEIGHT / 2);
-        line(context, SKETCH_WIDTH / 2, 0, SKETCH_WIDTH / 2, SKETCH_HEIGHT);
-      }
-      context.restore();
-    }
-
-    context.strokeStyle = ink;
-    context.lineWidth = 2;
-    context.lineCap = 'round';
-    context.lineJoin = 'round';
-
-    const all = drawing.current ? [...strokes.current, drawing.current] : strokes.current;
-    for (const stroke of all) {
-      if (stroke.length === 0) continue;
-      context.beginPath();
-      // A single point is a dot — a decimal point, a marked value — and `stroke()` on a
-      // zero-length path draws nothing, so it is given a length of nothing and a round cap.
-      if (stroke.length === 1) {
-        context.moveTo(stroke[0]!.x, stroke[0]!.y);
-        context.lineTo(stroke[0]!.x, stroke[0]!.y);
-      } else {
-        context.moveTo(stroke[0]!.x, stroke[0]!.y);
-        for (let i = 1; i < stroke.length; i += 1) context.lineTo(stroke[i]!.x, stroke[i]!.y);
-      }
-      context.stroke();
-    }
+    if (!element) return;
+    paintSketch(
+      element,
+      drawing.current ? [...strokes.current, drawing.current] : strokes.current,
+      background,
+    );
   }, [background]);
 
-  /**
-   * Size the backing store to the device's pixels and repaint.
-   *
-   * A canvas has two sizes — the CSS box and the bitmap behind it — and leaving the second
-   * at its default 300×150 is why a hand-drawn line on a canvas so often looks like it was
-   * drawn through frosted glass. The ratio is capped at 2: beyond that the bitmap is four
-   * times the memory for a difference nobody can see on a 2 px pen.
-   */
+  /** Size the backing store to the device's pixels and repaint (`fitToDevice` says why). */
   useEffect(() => {
     const element = canvas.current;
     if (!element) return;
 
     const resize = (): void => {
-      const ratio = Math.min(window.devicePixelRatio || 1, 2);
-      const width = Math.round(SKETCH_WIDTH * ratio);
-      if (element.width === width) return;
-      element.width = width;
-      element.height = Math.round(SKETCH_HEIGHT * ratio);
-      paint();
+      if (fitToDevice(element)) paint();
     };
 
     resize();
@@ -502,11 +445,4 @@ export function Sketch({
       </div>
     </details>
   );
-}
-
-function line(context: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number): void {
-  context.beginPath();
-  context.moveTo(x1, y1);
-  context.lineTo(x2, y2);
-  context.stroke();
 }

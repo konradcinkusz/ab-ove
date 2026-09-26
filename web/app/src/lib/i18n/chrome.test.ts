@@ -115,6 +115,20 @@ test('a version of the book is a version: on a screen, "edition" is the language
   }
 });
 
+test('the reveal’s offer says what the frame before holds, and which frame that was (#168)', () => {
+  // Three different things to offer, so three different sentences — one that said "working
+  // and sketch" over a pad alone would promise a drawing that is not there — and each names
+  // the frame, because the frame it is read on can hold a pad and a sketch of its own.
+  for (const language of CHROME_LANGUAGES) {
+    const chrome = chromeFor(language);
+    const said = (['working', 'sketch', 'both'] as const).map((kept) => chrome.showMyWork(7, kept));
+    assert.equal(new Set(said).size, said.length, `${language} offers two different things in the same words`);
+    for (const sentence of said) {
+      assert.match(sentence, /\b7\b/, `${language} "${sentence}" does not say which frame it is about`);
+    }
+  }
+});
+
 test('a language is named in its own language', () => {
   assert.equal(endonym('en'), 'English');
   assert.equal(endonym('pl'), 'polski');

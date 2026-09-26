@@ -20,6 +20,7 @@ import {
   clearAllSheets,
   clearSheet,
   hasAnySheet,
+  keptOn,
   keyOf,
   patchSheet,
   readSheet,
@@ -91,6 +92,23 @@ test('anything else in the key reads as nothing, per key rather than per browser
   // otherwise valid, so a reader must not get a number where a component expects a string.
   const typed = slotOf({ [keyOf(FRAME)]: '{"v":1,"tag":"x","answer":7,"working":null}' });
   assert.equal(readSheet(typed, FRAME), undefined);
+});
+
+test('what the reveal may offer is what the sheet holds beside its answer, and only that', () => {
+  // The next frame's offer (#168) names what is there, so a label can never promise a sketch
+  // that is not: the pad's lines, the sketch's flag, both — and nothing for a frame the reader
+  // wrote only an answer on, whose line `You wrote` already shows.
+  const blank: Sheet = { tag: 'dev-abc', answer: '', working: '' };
+  assert.equal(keptOn(undefined), undefined);
+  assert.equal(keptOn(blank), undefined);
+  assert.equal(keptOn({ ...blank, answer: '32' }), undefined);
+  assert.equal(keptOn({ ...blank, working: '2^5' }), 'working');
+  assert.equal(keptOn({ ...blank, hasSketch: true }), 'sketch');
+  assert.equal(keptOn({ ...blank, working: '2^5', hasSketch: true }), 'both');
+  // A pad the reader emptied to spaces and newlines has nothing on it to show.
+  assert.equal(keptOn({ ...blank, working: ' \n\t\n ' }), undefined);
+  // And a background chosen for a sketch never drawn is not a sketch.
+  assert.equal(keptOn({ ...blank, background: 'grid' }), undefined);
 });
 
 test('a paste cannot fill a reader’s quota', () => {

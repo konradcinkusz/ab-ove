@@ -74,6 +74,11 @@ what the book says. That comparison is the teaching** — nothing grades it, no 
 and no language model is consulted
 ([ADR-0010](../adr/0010-no-language-model-in-the-loop.md)).
 
+If you worked something out in the pad, or drew it, the answer box offers that too — *Show my
+working (frame 3)*, *Show my sketch (frame 3)*, or both at once — so you compare everything
+you did, not only the line you typed. Like the rest of what you write, it is read from your
+browser and goes nowhere else.
+
 Where the book's whole answer is a single number, the application may say *matches the book*.
 It never says anything else. In particular it never says *wrong*: it does not know what you
 meant, and a machine that guessed would be worse than one that stays quiet.

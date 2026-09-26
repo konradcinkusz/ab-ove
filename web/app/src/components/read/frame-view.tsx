@@ -18,6 +18,7 @@ import styles from './frame-view.module.css';
 import { ArrowLeft, ArrowRight, ChevronUp, List } from './icons.tsx';
 import { PendingLabel } from './pending-label.tsx';
 import { PROGRAM_MAP_ID } from './popover.ts';
+import { PreviousWork } from './previous-work.tsx';
 import { ProgramGate } from './program-gate.tsx';
 import { ProgramMap } from './program-map.tsx';
 import { FRAME_ANSWER_ID, FRAME_HEADING_ID, FRAME_ID } from './reading-focus.ts';
@@ -380,6 +381,31 @@ export function FrameView({
               youWrote={chrome.youWrote}
             />
           </div>
+        ) : null}
+
+        {step.answer ? (
+          /*
+            AND UNDER IT, WHAT THE READER WORKED OUT ON THAT FRAME (#168) — the pad's lines and
+            the sketch, behind one closed button, when this browser holds either. The box's last
+            row to the eye and its sibling here, so the heading's description stays the book's
+            answer and the reader's line (#159); `previous-work.tsx` has the rest, and why its
+            arrival moves nothing. The words are built here, because a function cannot cross
+            into a Client Component.
+          */
+          <PreviousWork
+            labels={{
+              working: chrome.showMyWork(step.n - 1, 'working'),
+              sketch: chrome.showMyWork(step.n - 1, 'sketch'),
+              both: chrome.showMyWork(step.n - 1, 'both'),
+            }}
+            language={chrome.language}
+            n={step.n}
+            sketchCaption={chrome.yourSketch}
+            sketchNotKept={chrome.sketchNotKept}
+            track={track}
+            unit={unitId}
+            workingCaption={chrome.workingLabel}
+          />
         ) : null}
 
         <div className={styles.body}>

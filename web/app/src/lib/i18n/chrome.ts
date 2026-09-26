@@ -498,6 +498,28 @@ interface Strings {
   readonly youWrote: string;
   /** The one thing the machine ever says about an answer, and only when it is certain. */
   readonly matchesBook: string;
+  /**
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * ON THE REVEAL, THE WAY TO WHAT THE READER WORKED OUT ON THE FRAME IT ANSWERS (#168).
+   *
+   * `youWrote` puts the reader's line beside the book's answer; this opens the rest of what
+   * they wrote there — the pad's lines, the sketch — and says which it holds (`keptOn` in
+   * `lib/sheet/store.ts`), so it never offers a sketch that is not there. It names the
+   * frame, because the frame it is on may have a pad and a sketch of its own further down,
+   * and `Show my working` alone would read as those. `Show my sketch` is the pane's own
+   * wording for a frame that holds a drawing (ADR-0059), kept rather than rephrased.
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  readonly showMyWork: (n: number, kept: 'working' | 'sketch' | 'both') => string;
+  /** Over the drawing that offer shows again, as `workingLabel` is over the pad's lines. */
+  readonly yourSketch: string;
+  /**
+   * In the drawing's place when this browser holds the flag saying one was drawn and not the
+   * strokes — a database refused (a private window, storage switched off) or cleared since
+   * (`lib/sheet/sketch-store.ts`). It says what is true rather than drawing an empty box
+   * under words that promised a sketch.
+   */
+  readonly sketchNotKept: string;
   /** Under a locked line, saying why it cannot be edited. */
   readonly writtenBefore: string;
   /**
@@ -935,6 +957,14 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     writeItDown: 'Write it down before you read on',
     youWrote: 'You wrote',
     matchesBook: 'Matches the book',
+    showMyWork: (n, kept) =>
+      kept === 'working'
+        ? `Show my working (frame ${n})`
+        : kept === 'sketch'
+          ? `Show my sketch (frame ${n})`
+          : `Show my working and sketch (frame ${n})`,
+    yourSketch: 'Your sketch',
+    sketchNotKept: 'This browser did not keep the sketch.',
     writtenBefore: 'written before the reveal',
     earlierEdition: 'written for an earlier version of the book',
     clearAnswer: 'Clear my answer',
@@ -1184,6 +1214,18 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     // supplies the colon.
     youWrote: 'Twoja odpowiedź',
     matchesBook: 'Tak jak w książce',
+    // The nouns the panes already use — `obliczenia` is `workingLabel`'s and `mój szkic` is
+    // `showMySketch`'s — so the reveal does not name the reader's work a second way; `ramka`
+    // in the nominative, as `frameNumbered` has it. `Pokaż` is imperative and `moje` agrees
+    // with the noun, so nothing here picks a gender for the reader (ADR-0016).
+    showMyWork: (n, kept) =>
+      kept === 'working'
+        ? `Pokaż moje obliczenia (ramka ${n})`
+        : kept === 'sketch'
+          ? `Pokaż mój szkic (ramka ${n})`
+          : `Pokaż moje obliczenia i szkic (ramka ${n})`,
+    yourSketch: 'Twój szkic',
+    sketchNotKept: 'Ta przeglądarka nie zachowała szkicu.',
     writtenBefore: 'zapisane przed odsłonięciem',
     earlierEdition: 'zapisane przy wcześniejszej wersji książki',
     clearAnswer: 'Wyczyść moją odpowiedź',
@@ -1445,6 +1487,9 @@ export interface Chrome {
   readonly writeItDown: string;
   readonly youWrote: string;
   readonly matchesBook: string;
+  readonly showMyWork: (n: number, kept: 'working' | 'sketch' | 'both') => string;
+  readonly yourSketch: string;
+  readonly sketchNotKept: string;
   readonly writtenBefore: string;
   readonly earlierEdition: string;
   readonly clearAnswer: string;
