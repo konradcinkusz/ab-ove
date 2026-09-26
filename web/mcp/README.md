@@ -89,8 +89,10 @@ place and never destroy one, and calling either again changes nothing more.
 With `AB_OVO_API_URL` and `AB_OVO_READER_TOKEN` set, the reader's place is kept in
 `ReaderProgress` through `AbOvo.Api` — the same row the reading surface writes, so a
 program opened here resumes where the browser left it. With either missing it is kept in
-memory and forgotten at restart. The process says so on stderr, and **every result that
-shows a place says so too**, because a reader of an MCP host sees results and never the log.
+memory and forgotten at restart. The process says so on stderr, and **the first result of a
+session says so too**, because a reader of an MCP host sees results and never the log. It
+is said once, at the end of the first result that is not an error, and the data of every
+result that is not an error carries it as `placeIsEphemeral`.
 
 When the place cannot be reached, the call answers with a result, not a protocol error. It
 says that nothing is lost, because the place is on the account. A write that failed may
@@ -145,6 +147,31 @@ prompt, `read`, whose `program` argument completes.
 Only `submit_answer` moves the reader forward, and on a step that asks for one it requires
 the reader's own answer as free text. Nothing grades it: the next step opens with the book's
 answer and the comparison is the reader's to make (ADR-0010).
+
+## What a result carries
+
+Every result is text, and a host that reads only text shows it as it always has. A result
+that is not an error also carries the same thing as data — MCP `structuredContent`, which
+each tool describes in its `outputSchema` — so an agent reads fields rather than prose:
+
+- **a step**, as `step`: `{ track, unit, step, total, asks, language, answersStep? }`. The
+  number is what `submit_answer` names, `asks` says whether it needs the reader's answer,
+  and `answersStep` is there when the step opens with the book's answer to the one before;
+- **the list**, as `programs`: `{ track, id, title, total, open, place, after? }` for each
+  program the text names, and `folded` when a run of shut programs was left out, as it is
+  from the text;
+- **a refusal**, as `refusal`, with its `kind`: `not-open` with `after`, the program that
+  opens it, `not-reached`, `already-answered` or `declined`;
+- **the end of a program**, as `finished`, with the `next` program;
+- **the edition question**, as `question`, with the editions `offered`.
+
+**The words are in the data too**, as `text`. Claude Code gives its model the data and not
+the text beside it when a result carries both; without `text`, a reader there would get a
+step's number and none of its words. A host that forwards both reads the words twice. An
+error carries its text alone, so every host forwards it as before.
+
+**The data carries no answer.** `answersStep` says that a step opens with one; the answer
+itself is only in the words, in the step after the one it answers, where the gate put it.
 
 ## Tests
 

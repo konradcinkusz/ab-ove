@@ -11,6 +11,7 @@ import {
   TOOLS,
   handle,
 } from './tools.ts';
+import type { ToolResult } from './tools.ts';
 
 const TRACK = 'math-for-ai-engineers';
 const UNIT = 'P01';
@@ -62,22 +63,41 @@ function everyAnswerInTheBundle(): { label: string; text: string }[] {
 }
 
 /**
- * Run the whole tool surface without moving the reader, and return everything it said.
- * The two calls that LOOK like they might move — a resume with no edition named, and a
- * retried submit for the step before this one — are here because each renders a step,
- * and the step each renders must be the reader's own.
+ * Every string a result carries: its text, and every string anywhere in its structured half.
+ *
+ * READ AS STRINGS, NOT AS SERIALISED JSON (#164). `JSON.stringify` escapes a backslash and
+ * a quotation mark, so an answer written in TeX would be spelled differently inside the
+ * serialisation than in the bundle, and a search of the serialisation would find nothing
+ * while the answer sat in a field. Walking the values finds it as written.
+ */
+function wordsOf(result: ToolResult): string {
+  const found: string[] = [result.text];
+  const walk = (value: unknown): void => {
+    if (typeof value === 'string') found.push(value);
+    else if (Array.isArray(value)) value.forEach(walk);
+    else if (typeof value === 'object' && value !== null) Object.values(value).forEach(walk);
+  };
+  walk(result.structured);
+  return found.join('\n');
+}
+
+/**
+ * Run the whole tool surface without moving the reader, and return everything it said —
+ * in the text and in the structured half. The two calls that LOOK like they might move — a
+ * resume with no edition named, and a retried submit for the step before this one — are
+ * here because each renders a step, and the step each renders must be the reader's own.
  */
 async function everythingSaid(d: ReturnType<typeof deps>): Promise<string> {
   const said: string[] = [];
-  said.push((await handle('list_programs', {}, d)).text);
-  said.push((await handle('open_program', { unit: UNIT }, d)).text);
-  said.push((await handle('current_step', { track: TRACK, unit: UNIT }, d)).text);
+  said.push(wordsOf(await handle('list_programs', {}, d)));
+  said.push(wordsOf(await handle('open_program', { unit: UNIT }, d)));
+  said.push(wordsOf(await handle('current_step', { track: TRACK, unit: UNIT }, d)));
   for (let n = 1; n <= program().steps.length + 2; n += 1) {
-    said.push((await handle('review_step', { track: TRACK, unit: UNIT, step: n }, d)).text);
+    said.push(wordsOf(await handle('review_step', { track: TRACK, unit: UNIT, step: n }, d)));
   }
   const here = await d.cursors.read(TRACK, UNIT);
   if (here && here.step > 1) {
-    said.push((await handle('submit_answer', { unit: UNIT, step: here.step - 1, answer: 'again' }, d)).text);
+    said.push(wordsOf(await handle('submit_answer', { unit: UNIT, step: here.step - 1, answer: 'again' }, d)));
   }
   return said.join('\n');
 }
@@ -98,6 +118,50 @@ test('every tool declares a name, a description, an object schema and its annota
     assert.equal(tool.annotations.destructiveHint, false, tool.name);
     assert.equal(tool.annotations.openWorldHint, false, tool.name);
     assert.equal(tool.annotations.readOnlyHint, !['open_program', 'submit_answer'].includes(tool.name), tool.name);
+  }
+});
+
+/** The keywords `tools.ts` allows itself in an output schema: those draft-07 and 2020-12 read alike. */
+const OUTPUT_KEYWORDS = new Set([
+  'type',
+  'properties',
+  'required',
+  'items',
+  'enum',
+  'minimum',
+  'additionalProperties',
+  'description',
+]);
+
+test('every tool declares an output schema: an object, closed, carrying its words, in keywords every validator reads', () => {
+  // #164. The spec reads an outputSchema as 2020-12 and the SDK's client validates with
+  // draft-07; a keyword outside the few both read alike — or a misspelt one, which Ajv's
+  // default quietly skips — would be a rule that holds nowhere. `@ab-ovo/web-kit`'s
+  // validator refuses an unknown keyword for the same reason.
+  const unread = (schema: unknown, path: string): string[] => {
+    if (typeof schema !== 'object' || schema === null) return [];
+    const found: string[] = [];
+    for (const [keyword, value] of Object.entries(schema)) {
+      if (!OUTPUT_KEYWORDS.has(keyword)) found.push(`${path}.${keyword}`);
+      if (keyword === 'properties') {
+        for (const [name, property] of Object.entries(value as object)) found.push(...unread(property, `${path}.${name}`));
+      } else if (keyword === 'items') {
+        found.push(...unread(value, `${path}[]`));
+      }
+    }
+    return found;
+  };
+
+  for (const tool of TOOLS) {
+    const schema = tool.outputSchema as {
+      type: string;
+      required: string[];
+      additionalProperties: boolean;
+    };
+    assert.equal(schema.type, 'object', tool.name);
+    assert.equal(schema.additionalProperties, false, `${tool.name} admits members it does not declare`);
+    assert.ok(schema.required.includes('text'), `${tool.name}: a host that reads only the data would get no words`);
+    assert.deepEqual(unread(schema, tool.name), [], `${tool.name} uses a keyword a validator may skip`);
   }
 });
 
@@ -140,10 +204,10 @@ test('no tool says an unreached answer, at any point in the program', async () =
       );
       assert.ok(!moved.isError, moved.text);
       // The move's own result renders the step just reached, whose opening answers the
-      // step just left — and nothing beyond it.
+      // step just left — and nothing beyond it, in either half.
       for (const answer of answers()) {
         if (answer.n > furthest + 1) {
-          assert.ok(!moved.text.includes(answer.text), `submitting step ${furthest} said the answer opening step ${answer.n}`);
+          assert.ok(!wordsOf(moved).includes(answer.text), `submitting step ${furthest} said the answer opening step ${answer.n}`);
         }
       }
     }
@@ -175,6 +239,109 @@ test('no quiz or exercise answer is ever emitted, at any cursor', async () => {
       await handle('submit_answer', { track: TRACK, unit: UNIT, step: furthest, answer: 'the reader wrote this' }, d);
     }
   }
+});
+
+/**
+ * A track of programs that share no answer. `sequence()` and `wholeBook()` below copy the
+ * fixture's one unit, so every program there carries the same answers, and an answer leaked
+ * from one program would read as a line legitimately shown from another. Here every answer
+ * — a step's, a route's, an exercise's, in each edition — ends with its program's id.
+ */
+function distinctBook(ids: readonly string[]): BundleSource {
+  const bundle = BUNDLES.for(TRACK)!;
+  const bare: { -readonly [K in keyof Unit]?: Unit[K] } = { ...bundle.units[0]! };
+  delete bare.part;
+  const unit = bare as Unit;
+  const mark = (text: Text, id: string): Text =>
+    Object.fromEntries(Object.entries(text).map(([language, words]) => [language, `${words} (${id})`]));
+  const book: Bundle = {
+    ...bundle,
+    units: ids.map((id) => ({
+      ...unit,
+      id,
+      steps: unit.steps.map((step) => (step.answer ? { ...step, answer: mark(step.answer, id) } : step)),
+      routes: unit.routes?.map((route) => (route.answer ? { ...route, answer: mark(route.answer, id) } : route)),
+      exercises: unit.exercises?.map((exercise) => ({ ...exercise, answer: mark(exercise.answer, id) })),
+    })),
+  };
+  return { for: (id) => (id === TRACK ? book : undefined), all: () => [book] };
+}
+
+test('no answer is said before its step, in the text or in the data, at any place in any program', async () => {
+  /*
+    #164: the structured half is a second way out of this package, and "the answer to step
+    k lives only in step k + 1" has to hold for it as it holds for the text. So the walk
+    reads every string of both halves (`wordsOf`), and it walks every place in every program
+    of a three-program track, with every tool asked about every program at each place —
+    open ones, finished ones, and ones not opened yet — because a leak across programs is
+    one a single-program walk cannot see.
+  */
+  const book = distinctBook(['F01', 'F02', 'F03']);
+  const units = book.all()[0]!.units;
+  const session = { ephemeralNoteSaid: false };
+  const d = { cursors: new MemoryCursorStore(), bundles: book, placeIsEphemeral: true, session };
+
+  /** Everything every tool says about every program at the present places, without moving anybody. */
+  const askEverything = async (): Promise<ToolResult[]> => {
+    const results = [await handle('list_programs', {}, d), await handle('list_programs', { all: true }, d)];
+    for (const program of units) {
+      const here = await d.cursors.read(TRACK, program.id);
+      if (here) {
+        // A resume writes the place it read, and a retry for the step before is refused.
+        results.push(await handle('open_program', { unit: program.id }, d));
+        if (here.step > 1) {
+          results.push(await handle('submit_answer', { unit: program.id, step: here.step - 1, answer: 'again' }, d));
+        }
+      }
+      results.push(await handle('current_step', { unit: program.id }, d));
+      for (let n = 1; n <= program.steps.length + 1; n += 1) {
+        results.push(await handle('review_step', { unit: program.id, step: n }, d));
+      }
+    }
+    return results;
+  };
+
+  const check = async (results: readonly ToolResult[], where: string): Promise<void> => {
+    const furthest = new Map((await d.cursors.readAll()).map((cursor) => [cursor.unit, cursor.step]));
+    const said = results.map(wordsOf).join('\n');
+    const never = (words: string, what: string): void => assert.ok(!said.includes(words), `${where}: ${what} was said`);
+    for (const program of units) {
+      const reached = furthest.get(program.id) ?? 0;
+      for (const step of program.steps) {
+        for (const words of step.answer && step.n > reached ? Object.values(step.answer) : []) {
+          never(words, `the answer opening ${program.id} step ${step.n}, the furthest there being ${reached},`);
+        }
+      }
+      for (const route of program.routes ?? []) {
+        for (const words of Object.values(route.answer ?? {})) never(words, `a ${program.id} quiz answer`);
+      }
+      for (const exercise of program.exercises ?? []) {
+        for (const words of Object.values(exercise.answer)) never(words, `a ${program.id} exercise answer`);
+      }
+    }
+    // The data's own claims about where a step is: never past the furthest, and a step
+    // that opens with an answer answers the one before it and no other. And its words are
+    // the text's, word for word, so the halves cannot drift apart.
+    for (const result of results) {
+      if (result.structured) assert.equal(result.structured.text, result.text, where);
+      const shown = result.structured?.step;
+      if (!shown) continue;
+      const reached = furthest.get(shown.unit) ?? 0;
+      assert.ok(shown.step <= reached, `${where}: ${shown.unit} step ${shown.step} was shown past the furthest`);
+      if (shown.answersStep !== undefined) assert.equal(shown.answersStep, shown.step - 1, where);
+    }
+  };
+
+  let moves: ToolResult[] = [];
+  for (const program of units) {
+    moves.push(await handle('open_program', { unit: program.id, language: LANG }, d));
+    for (let n = 1; n <= program.steps.length; n += 1) {
+      await check([...moves, ...(await askEverything())], `${program.id} at step ${n}`);
+      // The last submit is the hand-off, which moves nobody and is checked with the rest.
+      moves = [await handle('submit_answer', { unit: program.id, step: n, answer: 'the reader wrote this' }, d)];
+    }
+  }
+  await check([...moves, ...(await askEverything())], 'every program finished');
 });
 
 test('the fixture opens with a step that asks nothing and follows it with one that does', () => {
@@ -402,12 +569,17 @@ test('finishing the program is a hand-off, not an error and not a dead end', asy
   // ending on nothing.
   assert.match(last.text, /last program in the track/);
   assert.equal((await d.cursors.read(TRACK, UNIT))?.step, total, 'finishing moved the cursor');
+  // As data (#164): finished, and no step shown, because the text shows none.
+  assert.deepEqual(last.structured?.finished, { unit: UNIT, total });
+  assert.equal(last.structured?.step, undefined);
 
   // Reopening a finished program shows the last step and the same hand-off.
   const reopened = await handle('open_program', { unit: UNIT }, d);
   assert.ok(!reopened.isError);
   assert.match(reopened.text, /step \d+ of \d+/);
   assert.match(reopened.text, /finished — all \d+ steps worked/);
+  assert.equal(reopened.structured?.step?.step, total);
+  assert.deepEqual(reopened.structured?.finished, { unit: UNIT, total });
 
   // And the list says so.
   assert.match((await handle('list_programs', {}, d)).text, new RegExp(`P01 · .* — finished \\(${total} steps\\)`));
@@ -430,6 +602,7 @@ test('the hand-off names the next program and the call that opens it', async () 
   const last = await handle('submit_answer', { unit: UNIT, step: total, answer: 'x' }, d);
   assert.match(last.text, /\*\*Next program:\*\* P02 · The second program/);
   assert.match(last.text, /open_program with unit "P02" \(edition "en"\)/);
+  assert.deepEqual(last.structured?.finished, { unit: UNIT, total, next: { unit: 'P02', title: 'The second program' } });
 
   // The next program's answers are as absent from the hand-off as this one's.
   for (const step of two.units[1]!.steps) {
@@ -609,20 +782,46 @@ test("the gate's refusals are untouched: a shut program is still an ordinary res
   assert.match(asked.text, /"F02" is not open/);
 });
 
-test('a place kept in memory is said in the results, and only then', async () => {
-  const ephemeral = { ...deps(), placeIsEphemeral: true };
-  const listed = await handle('list_programs', {}, ephemeral);
-  assert.ok(listed.text.endsWith(EPHEMERAL_NOTE));
-  const opened = await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, ephemeral);
-  assert.ok(opened.text.endsWith(EPHEMERAL_NOTE));
+test('a place kept in memory is said once per session in the text, on every result as data, and only then', async () => {
+  // #164: it used to end every list and every opening — twice before a reader's first step,
+  // and again at every re-check of the list.
+  const ephemeral = { ...deps(), placeIsEphemeral: true, session: { ephemeralNoteSaid: false } };
 
+  // An error does not spend it: its text is a fix the model acts on, not a line it relays.
+  const unopened = await handle('current_step', { unit: UNIT }, ephemeral);
+  assert.ok(unopened.isError);
+  assert.ok(!unopened.text.includes(EPHEMERAL_NOTE));
+
+  const listed = await handle('list_programs', {}, ephemeral);
+  assert.ok(listed.text.endsWith(EPHEMERAL_NOTE), 'the first result that is not an error says it');
+  assert.equal(listed.structured?.text, listed.text, 'and so do its words in the data');
+
+  const later = [
+    await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, ephemeral),
+    await handle('current_step', { unit: UNIT }, ephemeral),
+    await handle('list_programs', {}, ephemeral),
+  ];
+  for (const result of later) assert.ok(!result.text.includes(EPHEMERAL_NOTE), `said twice in a session: ${result.text}`);
+  for (const result of [listed, ...later]) assert.equal(result.structured?.placeIsEphemeral, true, result.text);
+
+  // A new session is told again; with none to remember it, every result says it — told
+  // too often rather than too late.
+  const renewed = { ...ephemeral, session: { ephemeralNoteSaid: false } };
+  assert.ok((await handle('list_programs', {}, renewed)).text.endsWith(EPHEMERAL_NOTE));
+  const forgetful = { ...deps(), placeIsEphemeral: true };
+  for (const name of ['list_programs', 'list_programs']) {
+    assert.ok((await handle(name, {}, forgetful)).text.endsWith(EPHEMERAL_NOTE));
+  }
+
+  // A place that is kept is said in neither half.
   const durable = deps();
-  assert.ok(!(await handle('list_programs', {}, durable)).text.includes(EPHEMERAL_NOTE));
-  assert.ok(
-    !(await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, durable)).text.includes(
-      EPHEMERAL_NOTE,
-    ),
-  );
+  for (const result of [
+    await handle('list_programs', {}, durable),
+    await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, durable),
+  ]) {
+    assert.ok(!result.text.includes(EPHEMERAL_NOTE));
+    assert.equal(result.structured?.placeIsEphemeral, undefined);
+  }
 });
 
 test('a program that was never opened says so rather than starting one', async () => {
@@ -845,6 +1044,86 @@ test('every rendered step opens with where it is: program, title, section, posit
   assert.match(third.text, /The book's answer to step 2/, 'the banner names the step it answers');
 });
 
+test('every step shown says where it is as data too: its number, its length, whether it asks, its edition', async () => {
+  // #164: an agent used to read the number submit_answer needs out of "step 1 of 45", and
+  // whether a step asks out of its closing sentence.
+  const d = deps();
+  const unit = program();
+  const opened = await handle('open_program', { unit: UNIT, language: LANG }, d);
+  assert.deepEqual(opened.structured?.step, { track: TRACK, unit: UNIT, step: 1, total: 4, asks: false, language: LANG });
+
+  for (const step of unit.steps.slice(1)) {
+    const moved = await handle('submit_answer', { unit: UNIT, step: step.n - 1, answer: 'x' }, d);
+    assert.deepEqual(moved.structured?.step, {
+      track: TRACK,
+      unit: UNIT,
+      step: step.n,
+      total: unit.steps.length,
+      asks: step.cue === true,
+      language: LANG,
+      ...(step.answer ? { answersStep: step.n - 1 } : {}),
+    });
+    // The data and the words describe one step: its place line, and its banner exactly when
+    // the data says it opens with an answer.
+    assert.ok(moved.text.includes(`· step ${step.n} of ${unit.steps.length}`), moved.text);
+    assert.equal(moved.text.includes(`The book's answer to step ${step.n - 1} `), step.answer !== undefined, moved.text);
+  }
+
+  // A re-read says which step it shows, and a switch which edition.
+  assert.equal((await handle('review_step', { unit: UNIT, step: 2 }, d)).structured?.step?.step, 2);
+  assert.equal((await handle('open_program', { unit: UNIT, language: 'pl' }, d)).structured?.step?.language, 'pl');
+});
+
+test('a refusal carries its kind as data, with the step the reader is on when its text shows it', async () => {
+  const { bundles } = sequence();
+  const d = { cursors: new MemoryCursorStore(), bundles };
+
+  // The reading order: what opens the program is a field, not a sentence to parse.
+  const shut = await handle('open_program', { unit: 'F02' }, d);
+  assert.deepEqual(shut.structured?.refusal, { kind: 'not-open', unit: 'F02', after: 'F01' });
+  assert.equal(shut.structured?.step, undefined, 'a refusal that shows no step names none');
+  for (const name of ['current_step', 'review_step', 'submit_answer']) {
+    assert.equal((await handle(name, { unit: 'F02', step: 1 }, d)).structured?.refusal?.kind, 'not-open', name);
+  }
+
+  await handle('open_program', { unit: 'F01', language: LANG }, d);
+  const ahead = await handle('review_step', { unit: 'F01', step: 3 }, d);
+  assert.deepEqual(ahead.structured?.refusal, { kind: 'not-reached', requested: 3, furthest: 1 });
+
+  // A retried submit, and one ahead of the reader: nothing recorded, and where they are.
+  await handle('submit_answer', { unit: 'F01', step: 1 }, d);
+  const again = await handle('submit_answer', { unit: 'F01', step: 1, answer: 'x' }, d);
+  assert.deepEqual(again.structured?.refusal, { kind: 'already-answered', requested: 1 });
+  assert.equal(again.structured?.step?.step, 2);
+  const early = await handle('submit_answer', { unit: 'F01', step: 3, answer: 'x' }, d);
+  assert.deepEqual(early.structured?.refusal, { kind: 'not-reached', requested: 3, furthest: 2 });
+  assert.equal(early.structured?.step?.step, 2);
+
+  const declining = { ...d, elicit: async () => ({ kind: 'declined' as const }) };
+  assert.deepEqual((await handle('submit_answer', { unit: 'F01', step: 2, answer: 'x' }, declining)).structured?.refusal, {
+    kind: 'declined',
+  });
+
+  // An error is its text alone: it names what to fix, and with no data every host forwards it.
+  const nothing = await handle('review_step', { unit: 'F01', step: 900 }, d);
+  assert.ok(nothing.isError);
+  assert.equal(nothing.structured, undefined);
+});
+
+test('the edition question carries the editions as data, and whether the reader already declined it', async () => {
+  const asked = await handle('open_program', { unit: UNIT }, deps());
+  assert.deepEqual(asked.structured?.question, {
+    kind: 'edition',
+    offered: [
+      { language: 'en', title: 'Mathematics from Zero for the AI Engineer' },
+      { language: 'pl', title: 'Matematyka od zera dla inżyniera AI' },
+    ],
+    declined: false,
+  });
+  const declining = { ...deps(), chooseEdition: async () => ({ kind: 'declined' as const }) };
+  assert.equal((await handle('open_program', { unit: UNIT }, declining)).structured?.question?.declined, true);
+});
+
 test("list_programs names the programs in one edition: English until the reader has one, then theirs", async () => {
   const d = deps();
 
@@ -885,14 +1164,25 @@ function wholeBook(): BundleSource {
 /** What a new reader's list is allowed to cost: 1.5 KiB, the ephemeral note included. */
 const LIST_BUDGET_BYTES = 1536;
 
+/**
+ * What the same list may cost a host that reads only its structured half (#164): the same
+ * words, and half a KiB for the programs they name. Measured at 1378 bytes on 2026-09-26.
+ */
+const LIST_DATA_BUDGET_BYTES = LIST_BUDGET_BYTES + 512;
+
 test('for a new reader, list_programs fits its budget and still names the open program and the next', async () => {
   // #145: measured on 2026-09-24 at about 7 KB — every unopened program in both editions,
   // and "SHUT, opens after …" once per shut program — paid again at every re-check.
   const d = { cursors: new MemoryCursorStore(), bundles: wholeBook(), placeIsEphemeral: true };
-  const listed = (await handle('list_programs', {}, d)).text;
+  const result = await handle('list_programs', {}, d);
+  const listed = result.text;
 
   const bytes = Buffer.byteLength(listed);
   assert.ok(bytes <= LIST_BUDGET_BYTES, `a new reader's list is ${bytes} bytes, over ${LIST_BUDGET_BYTES}`);
+  // Claude Code gives its model the data and not the text (tools.ts). The data folds what the
+  // text folds, or that host would pay for forty-seven programs again.
+  const data = Buffer.byteLength(JSON.stringify(result.structured));
+  assert.ok(data <= LIST_DATA_BUDGET_BYTES, `a new reader's list is ${data} bytes as data, over ${LIST_DATA_BUDGET_BYTES}`);
   assert.match(listed, /F01 · How a computer stores a number — 4 steps — open to the reader now/);
   assert.match(listed, /F02 · How a computer stores a number — 4 steps — SHUT, opens after F01/);
   // The rest, folded, one line per group — and the grouping kept.
@@ -929,6 +1219,41 @@ test('list_programs with all: true names every program, the folded ones too', as
 
   const list = TOOLS.find((tool) => tool.name === 'list_programs')!;
   assert.deepEqual(Object.keys((list.inputSchema as { properties: object }).properties).sort(), ['all', 'language']);
+});
+
+test('the list names as data the programs its text names: open or not, where the reader is, what opens it', async () => {
+  // #164: whether a program is open, and how far the reader has got, used to be prose.
+  const d = { cursors: new MemoryCursorStore(), bundles: wholeBook() };
+  const title = say(program().titles, LANG);
+
+  const fresh = await handle('list_programs', {}, d);
+  assert.deepEqual(fresh.structured?.programs, [
+    { track: TRACK, id: 'F01', title, total: 4, open: true, place: null },
+    { track: TRACK, id: 'F02', title, total: 4, open: false, place: null, after: 'F01' },
+  ]);
+  assert.equal(fresh.structured?.folded, true, 'the data says the rest was folded, as the text does');
+
+  await handle('open_program', { unit: 'F01', language: LANG }, d);
+  await handle('submit_answer', { unit: 'F01', step: 1 }, d);
+  const later = await handle('list_programs', {}, d);
+  assert.deepEqual(
+    later.structured?.programs?.map((entry) => [entry.id, entry.open, entry.place, entry.after]),
+    [
+      ['F01', true, 2, undefined],
+      ['F02', true, null, undefined],
+      ['F03', false, null, 'F02'],
+    ],
+  );
+
+  // What the data names, the text names, and all: true names every program in both.
+  const every = await handle('list_programs', { all: true }, d);
+  assert.equal(every.structured?.programs?.length, 47);
+  assert.equal(every.structured?.folded, false);
+  for (const result of [fresh, later, every]) {
+    for (const entry of result.structured?.programs ?? []) {
+      assert.ok(result.text.includes(`${entry.id} · ${title}`), entry.id);
+    }
+  }
 });
 
 test('list_programs divides the book the way the index does', async () => {
