@@ -1047,7 +1047,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       reportTitle: 'Jeśli zgłaszasz ten błąd',
       reference: 'identyfikator',
     },
-    // `unavailableTitle`'s server, in the present tense; impersonal, like `nothingLost`.
+    // `unavailableTitle`'s server in the present tense, then `tryLater` as it stands. The first
+    // sentence is impersonal and the second an imperative, so neither picks a gender for the
+    // reader (`nothingLost`'s reason).
     readingUnavailable:
       'Serwer książki nie odpowiada, więc żaden program się teraz nie otworzy. Spróbuj ponownie za chwilę.',
     notReachedHeading: 'Jeszcze nie tutaj',

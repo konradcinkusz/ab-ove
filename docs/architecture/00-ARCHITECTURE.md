@@ -613,7 +613,7 @@ amended on 2026-09-25 by
 ### 2026-09-25 — The index and `/courses` list the programs from the bundle compiled into the app
 
 **What.** [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)'s
-Decision makes every read of a program a live call to `AbOvo.Api`. Two pages that name the
+Decision makes every read of a program a live call to `AbOvo.Api`. The pages that list the
 programs do not make one: the index (`web/app/src/app/page.tsx`) and `/courses`
 (`web/app/src/app/courses/page.tsx`) render every title, part, frame count and section count
 from `@ab-ovo/web-kit`'s `allBundles()`, the compiled bundle built into the web app, and the

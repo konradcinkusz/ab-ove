@@ -18,7 +18,7 @@ import { LANGUAGE_COOKIE, isLanguageTag } from '@/lib/language/store';
  * page a reader uses to choose a course renders with no account and with the API down, as the
  * index does. That is a recorded deviation from ADR-0060, which made every read of a program a
  * live call to `AbOvo.Api`: issue #158 moved a program's contents and summary onto the API and
- * left the two pages that list the book where they are, and the deviation register in
+ * left the pages that list the book where they are, and the deviation register in
  * `docs/architecture/00-ARCHITECTURE.md` says why and what ends it. This page says nothing
  * about the API being down; the index it leads to does. It is rendered per request for the
  * reason the index is — `searchParams` is a request-time API in Next 16 — and the property

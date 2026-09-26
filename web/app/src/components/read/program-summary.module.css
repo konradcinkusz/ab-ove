@@ -55,8 +55,10 @@
  * word or two of a typical title at either width (measured at 1280 and 360 px), which is the
  * tooltip-only title again by another route. Two lines show the whole of a typical title on
  * a desktop and its opening on a phone; the words above it stay whole, and the tooltip keeps
- * the rest for the pointer. The bar is a line taller on this screen alone, which ends a
- * program and has no frame for it to cover.
+ * the rest for the pointer. The bar is taller on this screen alone, by every line the cell
+ * wraps to: the title's second, and on a phone the words above it can take two lines as well
+ * (`Następny program` does at 360 px). This screen ends a program and has no frame for the
+ * taller bar to cover.
  */
 .onward {
   display: flex;

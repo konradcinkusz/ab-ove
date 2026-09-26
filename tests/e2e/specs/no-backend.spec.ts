@@ -37,9 +37,11 @@ import { served, track } from './support/bundle.ts';
  * and it reproduces the reader's experience rather than the server's: a dead network, a
  * blocked request, a deployment with nothing behind it, all arriving as the same thing.
  *
- * Each test asserts three separate properties, because any one of them alone would be
- * satisfied by a broken page: the product's own content is fully there, the panel says
- * which fault it was, and the page threw nothing on the way.
+ * The test that renders the whole of `/about` asserts three separate properties, because any
+ * one of them alone would be satisfied by a broken page: the product's own content is fully
+ * there, the panel says which fault it was, and the page threw nothing on the way. The
+ * index's tests make the same kind of claim about `/`: the programs and a link into one, the
+ * line above them speaking only when the server does not answer, and nothing thrown.
  */
 
 /*

@@ -102,8 +102,9 @@ public sealed record ReturnIndex(
 /// concluded — the book's own rule is that a label may name the skill and may not carry the
 /// finding — so serving it to a reader three steps into a program printed the program's
 /// conclusions before they were reached. The MCP server shows the same block only after the
-/// last step; this is that rule, kept once, for every client. <see cref="Furthest"/> is the
-/// reader's cursor, as on a step.
+/// last step, by its own copy of the gate (<c>web/mcp</c>'s <c>reveal.ts</c>) until #171 makes
+/// it a client of these endpoints; this is that rule in the API, for every client that asks it
+/// for the index. <see cref="Furthest"/> is the reader's cursor, as on a step.
 /// </para>
 /// </summary>
 public sealed record ReturnIndexResponse(

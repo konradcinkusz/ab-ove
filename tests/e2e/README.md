@@ -220,8 +220,8 @@ reader experiences. Four faults are covered separately because the product says 
 different things about them: an aborted request, the proxy's 503 (nothing answered), the
 proxy's 504 (something answered too slowly, e.g. cold-starting), and an unexpected 500.
 
-Each test asserts three properties, because any one alone would be satisfied by a broken
-page:
+The test that renders the whole of `/about` with the API cut off asserts three properties,
+because any one alone would be satisfied by a broken page:
 
 - **the product is intact** — the heading, the anti-goal, the four loop steps, the four
   phases, asserted element by element exactly as journey 1 asserts them with a backend
@@ -232,10 +232,15 @@ page:
   throws during render leaves the server-rendered HTML on screen, so the first two assertions
   can both pass against a page that crashed.
 
-The last test asserts the landing page does not redirect to sign-in when there is no session
-and no identity service. The middleware is private-by-default and opts routes out one at a
-time, so `/` being public is a list entry somebody wrote; if it ever falls out of that list,
-the symptom is a redirect to a page a deployment without an identity service cannot serve.
+The index's tests make the same kind of claim about `/`: the programs are there and one of them
+is a link into a program, the line above them speaks only when the book's server does not
+answer, and the page threw nothing.
+
+Neither the landing page nor `/about` may redirect to sign-in when there is no session and no
+identity service, and the file asserts both. The middleware is private-by-default and opts
+routes out one at a time, so `/` being public is a list entry somebody wrote; if it ever falls
+out of that list, the symptom is a redirect to a page a deployment without an identity service
+cannot serve.
 
 ### 5. The Lab P1 pane — `specs/lab-p01.spec.ts`
 

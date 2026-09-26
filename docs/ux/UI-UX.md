@@ -27,7 +27,7 @@ any account.
 
 | Route | What it is | Needs |
 | --- | --- | --- |
-| `/` | the landing page: every program as a tile, in the book's own runs, in the reader's edition, and the narrowing to one course | nothing to render — it reads the compiled bundle, a recorded deviation; as it loads, its own components ask the API, from the browser, only to say when no program will open |
+| `/` | the landing page: every program as a tile, in the book's own runs, in the reader's edition, and the narrowing to one course | nothing to render — it reads the compiled bundle, a recorded deviation; once it is up, the browser asks the API, through this origin's proxy, whether a program would open, and each open tile's link, prefetched, has this app's server ask it for that program's contents |
 | `/courses` | the courses this deployment carries, each with its length and its editions, and the way into one ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) | nothing — it reads the compiled bundle, a recorded deviation |
 | `/about` | what the product is, the anti-goal, the loop, the integration panel | nothing |
 | `/read/<track>/<unit>/<lang>` | a program's contents: its headings, those past the reader's furthest frame locked, and the filled way in — frame 1, or the reader's own place | the API, and no account |
@@ -100,6 +100,11 @@ this origin's proxy, with the question a program's contents would ask
 (`components/programs/reading-unavailable.tsx`): the first paint never waits on the API, and
 while the API answers the line is empty and has no box, so nothing on the page moves.
 `specs/no-backend.spec.ts` holds both halves.
+
+That line is not the index's only cost to the API. Next prefetches a link as it comes into
+view, and an open tile links to a program's contents, which come from the API since #158: so
+each open tile on screen has this app's server render that page, and make its calls to the
+API, before the reader has pressed anything.
 
 **It used to be the product's argument and is now the programs**
 ([ADR-0036](../adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). The
