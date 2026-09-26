@@ -1,18 +1,19 @@
 /**
- * One frame's calls to the content API — that they leave together, and that the page reads
- * their answers as it did when they left one after another (issue #160).
+ * One frame's calls to the content API — that they leave together, that the tab's title
+ * asks for the program's pair and never the step, and that the page reads the answers as it
+ * did when they left one after another (issue #160).
  *
  * P13 / TESTING-STRATEGY.md §3 — "the calls overlap" is not something a browser can see: they
  * are made by the Next server, and a spec sees only how long the page took, which is a
- * statement about one machine. It is a fact about the order in which `fetchFrame` calls its
- * `fetchImpl`, and that is asserted here, where a fake can hold every answer back and count
- * what was asked for in the meantime.
+ * statement about one machine. It is a fact about the order in which `fetchProgram` and
+ * `fetchFrame` call their `fetchImpl`, and that is asserted here, where a fake can hold every
+ * answer back and count what was asked for in the meantime.
  */
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
 
 import type { FetchLike } from './content.ts';
-import { fetchFrame, type FrameAddress } from './frame.ts';
+import { fetchFrame, fetchProgram, frameNumberOf, type FrameAddress } from './frame.ts';
 
 const CONFIGURED = 'http://127.0.0.1:8180';
 
@@ -74,33 +75,95 @@ afterEach(() => {
   else process.env.AB_OVO_API_URL = wasConfigured;
 });
 
-test('the track, the program and the step are all asked for before any of them has answered', async () => {
-  /*
-    Every answer is HELD until the test lets it go. Calls made one after another would reach
-    this fake one at a time — the second only once the first had answered — so with nothing
-    answered yet, a sequence has asked for exactly one thing. The frame page did exactly that
-    until #160, three round trips end to end.
-  */
+/**
+ * A healthy API that answers nothing until the test lets it go. Calls made one after another
+ * would reach it one at a time — the second only once the first had answered — so with
+ * nothing answered yet, a sequence has asked for exactly one thing. The frame page did exactly
+ * that until #160, three round trips end to end.
+ */
+function heldApi(): { asked: Resource[]; fetch: FetchLike; release: () => void } {
   const asked: Resource[] = [];
   const held: (() => void)[] = [];
   const healthy = api();
-  const fetch: FetchLike = (input, init) => {
-    asked.push(resourceOf(input));
-    return new Promise((resolve) => {
-      held.push(() => resolve(healthy.fetch(input, init)));
-    });
+  return {
+    asked,
+    fetch: (input, init) => {
+      asked.push(resourceOf(input));
+      return new Promise((resolve) => {
+        held.push(() => resolve(healthy.fetch(input, init)));
+      });
+    },
+    release: () => {
+      for (const letGo of held.splice(0)) letGo();
+    },
   };
+}
 
-  const frame = fetchFrame(ADDRESS, {}, fetch);
-  // Long enough for any call that does not wait on an answer to have been made.
-  await new Promise((resolve) => setImmediate(resolve));
+/** Long enough for any call that does not wait on an answer to have been made. */
+const settle = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
-  assert.deepEqual([...asked].sort(), ['step', 'track', 'unit'], 'a call waited for another one to answer');
+test('the track, the program and the step are all asked for before any of them has answered', async () => {
+  const calls = heldApi();
 
-  for (const release of held) release();
+  const frame = fetchFrame(ADDRESS, {}, calls.fetch);
+  await settle();
+
+  assert.deepEqual(
+    [...calls.asked].sort(),
+    ['step', 'track', 'unit'],
+    'a call waited for another one to answer',
+  );
+
+  calls.release();
   const outcome = await frame;
   assert.equal(outcome.kind, 'ok');
-  assert.equal(asked.length, 3, 'something was asked for twice');
+  assert.equal(calls.asked.length, 3, 'something was asked for twice');
+});
+
+test('the tab’s title asks for the track and the program together, and never for the step', async () => {
+  /*
+    `generateMetadata` is `fetchProgram` and nothing else, and it also runs for a prefetched
+    head, where the page does not. So the gated read is not among its calls — which it was
+    while the title shared the frame's three — and neither of its two waits on the other.
+  */
+  const calls = heldApi();
+
+  const program = fetchProgram(ADDRESS, {}, calls.fetch);
+  await settle();
+
+  assert.deepEqual(
+    [...calls.asked].sort(),
+    ['track', 'unit'],
+    'one of the pair waited for the other, or the step was asked for',
+  );
+
+  calls.release();
+  assert.equal((await program).kind, 'ok');
+  assert.deepEqual([...calls.asked].sort(), ['track', 'unit']);
+});
+
+test('a pair already on its way is shared, and the step leaves beside it rather than after it', async () => {
+  /*
+    The frame page's shape: the title has asked for the program's pair, and the page hands
+    that same pair to `fetchFrame`. The page adds its step and nothing else — the pair is not
+    asked for twice, and the step does not wait for the pair to answer.
+  */
+  const calls = heldApi();
+  const program = fetchProgram(ADDRESS, {}, calls.fetch);
+
+  const frame = fetchFrame(ADDRESS, {}, calls.fetch, program);
+  await settle();
+
+  assert.deepEqual(
+    [...calls.asked].sort(),
+    ['step', 'track', 'unit'],
+    'the step waited for the pair, or the pair was asked for again',
+  );
+
+  calls.release();
+  const outcome = await frame;
+  assert.equal(outcome.kind, 'ok');
+  assert.equal(calls.asked.length, 3, 'something was asked for twice');
 });
 
 test('a frame is the track, the program and the step, with the edition and the number the address named', async () => {
@@ -156,8 +219,10 @@ const ORDER: readonly {
 
 for (const row of ORDER) {
   test(`${row.why} is answered ${row.kind}, as it was when the calls were made in turn`, async () => {
-    const outcome = await fetchFrame({ ...ADDRESS, ...row.address }, {}, api(row.script).fetch);
-    assert.equal(outcome.kind, row.kind);
+    const address = { ...ADDRESS, ...row.address };
+    // The title reads the pair alone and the page the whole frame; both must say the same.
+    assert.equal((await fetchProgram(address, {}, api(row.script).fetch)).kind, row.kind);
+    assert.equal((await fetchFrame(address, {}, api(row.script).fetch)).kind, row.kind);
   });
 }
 
@@ -166,6 +231,7 @@ for (const step of ['0', '-1', '1.5', 'two', '']) {
     const calls = api();
     const outcome = await fetchFrame({ ...ADDRESS, step }, {}, calls.fetch);
 
+    assert.equal(frameNumberOf(step), undefined);
     assert.equal(outcome.kind, 'not-found');
     assert.equal(
       calls.asked.includes('step'),

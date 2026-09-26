@@ -11,12 +11,14 @@ import { walkTo } from './support/walk.ts';
  *
  * ──────────────────────────────────────────────────────────────────────────────────────────
  * ISSUE #160, MEASURED BEFORE IT WAS FIXED. Every frame is rendered by the Next server from
- * live calls to `AbOvo.Api` (ADR-0060), and nothing on the reading surface is prefetched
- * (ADR-0014), so every move between frames waits on the server. Only `Next` showed it:
- * `Previous`, a heading chosen in the program map and *Go to frame* looked exactly as they had
- * until the next frame replaced the page, and on a slow server that is a press that seems to
- * do nothing. The frame stays on screen while the next one comes — that is what makes the
- * pager stand still (ADR-0063) — so the control that was pressed is where the wait is said.
+ * live calls to `AbOvo.Api` (ADR-0060), and no frame is there before the press asks for it —
+ * a frame's links to other frames are not prefetched (ADR-0014), and a dynamic page's
+ * prefetch would not be kept if they were — so every move between frames waits on the
+ * server. Only `Next` showed it: `Previous`, clicked or pressed as `←`, a heading chosen in
+ * the program map and *Go to frame* looked exactly as they had until the next frame replaced
+ * the page, and on a slow server that is a press that seems to do nothing. The frame stays on
+ * screen while the next one comes — that is what makes the pager stand still (ADR-0063) — so
+ * the control that was pressed is where the wait is said.
  * ──────────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────────
@@ -106,58 +108,86 @@ async function open(page: Page, n: number): Promise<void> {
   await expect(page.locator('[data-frame-keys="on"]')).toHaveCount(1);
 }
 
+/**
+ * One move back from frame `n`, made by `press` while every call this reader makes to the API
+ * is held, and what the page must show from the press until the frame before has arrived.
+ */
+async function goBackWhileHeld(page: Page, n: number, press: () => Promise<void>): Promise<void> {
+  const reader = await readerIdOf(page.context());
+
+  // The flag is there before anything is pending — it is how the stylesheet and a screen
+  // reader tell the two states apart — and it says so.
+  const label = previous(page).locator('[data-pending]');
+  await expect(label).toHaveAttribute('data-pending', 'no');
+  const pagerAt = await boxOf(pager(page));
+  const previousAt = await boxOf(previous(page));
+
+  await slow(reader, HOLD_MS);
+  await press();
+
+  // THE PRESS WAS TAKEN: the flag, what it says to a screen reader, and what it shows — the
+  // cursor, and the arrow leaning the way the reader is going.
+  await expect(label, 'Previous showed nothing while its frame was on its way').toHaveAttribute(
+    'data-pending',
+    'yes',
+  );
+  await expect(label).toHaveAttribute('aria-busy', 'true');
+  await expect(previous(page)).toHaveCSS('cursor', 'progress');
+  await expect(previous(page).locator('svg')).not.toHaveCSS('animation-name', 'none');
+
+  // ON THE FRAME IT WAS PRESSED ON, which is still here, under a pager that has not moved.
+  // One-shot, and deliberately: "not yet" is a statement about this moment, and a polling
+  // assertion would wait for the moment to pass.
+  expect(page.url(), 'the frame left before the one it asked for had arrived').toContain(at(n));
+  expect(await boxOf(pager(page)), 'the pager moved while the frame was on its way').toEqual(pagerAt);
+  expect(await boxOf(previous(page)), 'Previous moved while its frame was on its way').toEqual(
+    previousAt,
+  );
+
+  // And then the frame arrives, the wait ends, and the pager is where it was.
+  await expect(page).toHaveURL(new RegExp(`${at(n - 1)}$`));
+  await expect(page.locator('body')).toContainText(uniqueProbeIn(unit, n - 1, 'en'));
+  await expect(label, 'Previous still says it is waiting on a frame that arrived').toHaveAttribute(
+    'data-pending',
+    'no',
+  );
+  await expect(previous(page)).not.toHaveCSS('cursor', 'progress');
+  expect(await boxOf(pager(page)), 'the pager moved when the frame arrived').toEqual(pagerAt);
+
+  await restore(reader);
+}
+
 test.describe('a frame on its way', () => {
   test.skip(!FAULT, NEEDS_FAULT);
 
-  test('Previous says it was pressed while the book’s server works, and the pager does not move @smoke', async ({
+  test('Previous says it was pressed while the book’s server works, and the pager does not move @core', async ({
     page,
   }) => {
     const pageErrors = collectPageErrors(page);
     const n = 3;
     await walkTo(page, unitId, 'en', n);
     await open(page, n);
-    const reader = await readerIdOf(page.context());
 
-    // The flag is there before anything is pending — it is how the stylesheet and a screen
-    // reader tell the two states apart — and it says so.
-    const label = previous(page).locator('[data-pending]');
-    await expect(label).toHaveAttribute('data-pending', 'no');
-    const pagerAt = await boxOf(pager(page));
-    const previousAt = await boxOf(previous(page));
+    await goBackWhileHeld(page, n, () => previous(page).click());
 
-    await slow(reader, HOLD_MS);
-    await previous(page).click();
+    expect(pageErrors, describePageErrors(pageErrors)).toEqual([]);
+  });
 
-    // THE PRESS WAS TAKEN: the flag, what it says to a screen reader, and what it shows — the
-    // cursor, and the arrow leaning the way the reader is going.
-    await expect(label, 'Previous showed nothing while its frame was on its way').toHaveAttribute(
-      'data-pending',
-      'yes',
-    );
-    await expect(label).toHaveAttribute('aria-busy', 'true');
-    await expect(previous(page)).toHaveCSS('cursor', 'progress');
-    await expect(previous(page).locator('svg')).not.toHaveCSS('animation-name', 'none');
+  test('`←` says the same on Previous, because it presses Previous rather than going by itself @core', async ({
+    page,
+  }) => {
+    /*
+      `←` pushed the address itself, outside the link, so the link had no wait to report and
+      the page showed nothing until the frame arrived. It presses the pager's own `Previous`
+      now (`frame-keys.tsx`), as `→` presses `Next` — so the key's wait is the button's.
+    */
+    const pageErrors = collectPageErrors(page);
+    const n = 3;
+    await walkTo(page, unitId, 'en', n);
+    await open(page, n);
 
-    // ON THE FRAME IT WAS PRESSED ON, which is still here, under a pager that has not moved.
-    // One-shot, and deliberately: "not yet" is a statement about this moment, and a polling
-    // assertion would wait for the moment to pass.
-    expect(page.url(), 'the frame left before the one it asked for had arrived').toContain(at(n));
-    expect(await boxOf(pager(page)), 'the pager moved while the frame was on its way').toEqual(pagerAt);
-    expect(await boxOf(previous(page)), 'Previous moved while its frame was on its way').toEqual(
-      previousAt,
-    );
+    await goBackWhileHeld(page, n, () => page.keyboard.press('ArrowLeft'));
 
-    // And then the frame arrives, the wait ends, and the pager is where it was.
-    await expect(page).toHaveURL(new RegExp(`${at(n - 1)}$`));
-    await expect(page.locator('body')).toContainText(uniqueProbeIn(unit, n - 1, 'en'));
-    await expect(label, 'Previous still says it is waiting on a frame that arrived').toHaveAttribute(
-      'data-pending',
-      'no',
-    );
-    await expect(previous(page)).not.toHaveCSS('cursor', 'progress');
-    expect(await boxOf(pager(page)), 'the pager moved when the frame arrived').toEqual(pagerAt);
-
-    await restore(reader);
     expect(pageErrors, describePageErrors(pageErrors)).toEqual([]);
   });
 

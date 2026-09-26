@@ -101,6 +101,13 @@ export function ProgramMap({
     lang?: string,
   ): React.JSX.Element => {
     const reachable = isReachable(from, furthest);
+    /*
+      THE TITLE IS ONE BOX IN EVERY STATE. `.rowTitle` is a flex row, and a title with maths
+      in it is several nodes (`RichInline` returns a fragment), which a flex row lays out as
+      separate items a gap apart — and, when the title wraps, as columns. A linked title is
+      one box already, `PendingLabel`'s (#160); the current and the locked titles get the same,
+      so a heading reads the same whichever state it is in.
+    */
     return (
       <li
         className={isCurrent ? `${styles.row} ${styles.current}` : reachable ? styles.row : `${styles.row} ${styles.locked}`}
@@ -109,7 +116,7 @@ export function ProgramMap({
       >
         {isCurrent ? (
           <span aria-current="true" className={styles.rowTitle}>
-            {title}
+            <span>{title}</span>
           </span>
         ) : reachable ? (
           <Link className={styles.rowTitle} href={`${base}/${from}`} prefetch={false}>
@@ -117,7 +124,7 @@ export function ProgramMap({
           </Link>
         ) : (
           <span className={styles.rowTitle}>
-            {title}
+            <span>{title}</span>
             <span className={styles.lockNote} lang={chrome.language}>
               <Lock className={styles.lockIcon} /> {chrome.lockedSection}
             </span>

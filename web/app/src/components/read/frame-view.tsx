@@ -186,11 +186,11 @@ export function FrameView({
                 (`pending-label.tsx`).
 
                 `prefetch={false}` BECAUSE THE PREFETCH WAS ALL COST. Next prefetched this link
-                on every frame — the frame before, rendered in full, with its calls to the API
-                (measured on 2026-09-25) — and a dynamic page's prefetch is not kept, so the
-                press asked the server again anyway. Nothing prefetched also means nothing lets
-                the press skip its pending state, which `useLinkStatus` does for a route Next
-                already holds.
+                on every frame — the head of the frame before, which is its `generateMetadata`
+                and that function's calls to the API (measured on 2026-09-25) — and a dynamic
+                page's prefetch is not kept, so the press asked the server again anyway.
+                Nothing prefetched also means nothing lets the press skip its pending state,
+                which `useLinkStatus` does for a route Next already holds.
               */
               <Link
                 className={foot.pagerButton}

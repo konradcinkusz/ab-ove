@@ -168,10 +168,20 @@ export function FrameKeys({ base, last, after }: FrameKeysProps): null {
       event.preventDefault();
 
       if (step < 0) {
-        // Backward is always a re-read of a step the reader has already unlocked — never a
-        // reveal, so a plain navigation is correct and the gate (this destination page's own
-        // GET) is what would refuse it if it somehow were not.
-        router.push(`${base}/${to}`);
+        /*
+          BACKWARD PRESSES THE PAGER'S `Previous`, AS FORWARD PRESSES ITS `Next` BELOW (#160).
+          It pushed the address itself, outside the link, so `useLinkStatus` had nothing to
+          report: while the server worked, `←` changed nothing on the page where a click on the
+          button beside it showed the wait. A click on that link gives the key the button's
+          pending state from the one place it is written (`pending-label.tsx`).
+
+          Backward is always a re-read of a step the reader has already unlocked — never a
+          reveal, so a plain navigation is correct and the gate (this destination page's own
+          GET) is what would refuse it if it somehow were not. That is why the push is still
+          here, for a pager with no link to exactly that frame.
+        */
+        const back = `${base}/${to}`;
+        if (!pressPagerLink(back)) router.push(back);
         return;
       }
 
@@ -198,4 +208,21 @@ export function FrameKeys({ base, last, after }: FrameKeysProps): null {
   }, [base, last, after, router]);
 
   return null;
+}
+
+/**
+ * Press the pinned pager's own link to `href`, if it has one, and say whether it did — the
+ * key and the click then take one path, and the key shows what the button shows while its
+ * page is on its way (#160). The pager's link and no other: the program map links some of
+ * the same frames, but the key stands for the pager's button, so that is where its wait is
+ * shown. Matched on the whole `href`, so no link to anywhere else is ever pressed.
+ */
+function pressPagerLink(href: string): boolean {
+  for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-pager] a[href]')) {
+    if (link.getAttribute('href') === href) {
+      link.click();
+      return true;
+    }
+  }
+  return false;
 }

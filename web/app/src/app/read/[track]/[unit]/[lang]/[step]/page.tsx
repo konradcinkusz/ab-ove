@@ -11,7 +11,8 @@ import { NotReached } from '@/components/read/not-reached';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { contentUnavailable } from '@/lib/read/render-failure';
 import { READER_ID_COOKIE } from '@/lib/reader-cookie';
-import { fetchFrame, type FrameOutcome } from '@/lib/server/frame';
+import type { ReaderIdentity } from '@/lib/server/content';
+import { fetchFrame, fetchProgram, frameNumberOf, type ProgramFetch } from '@/lib/server/frame';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/session-cookies';
 import type { TrackContent } from '@/lib/content/wire';
 
@@ -42,13 +43,22 @@ interface RouteParams {
   readonly step: string;
 }
 
+/** Who is asking: a signed-in reader's bearer, or an anonymous one's cursor cookie (ADR-0061). */
+async function readerIdentity(): Promise<ReaderIdentity> {
+  const store = await cookies();
+  return {
+    bearer: store.get(ACCESS_TOKEN_COOKIE)?.value,
+    readerId: store.get(READER_ID_COOKIE)?.value,
+  };
+}
+
 /**
- * The frame at this address — the track, the program and the gated step, asked for together
- * (`lib/server/frame.ts`, issue #160) — shared by the page and `generateMetadata`, so the
- * title can never describe a different program from the body.
+ * The track and the program at this address, asked for together (`lib/server/frame.ts`,
+ * issue #160) — shared by `generateMetadata` and the page, so the title can never describe a
+ * different program from the body.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────────
- * ONE SET OF CALLS PER REQUEST, AND THE KEY IS FOUR STRINGS, NOT THE ROUTE'S PARAMS OBJECT.
+ * ONE PAIR OF CALLS PER REQUEST, AND THE KEY IS THREE STRINGS, NOT THE ROUTE'S PARAMS OBJECT.
  *
  * Next runs `generateMetadata` and the page as separate calls within one request, and
  * `cache()` is React's request-scoped memo that makes two such calls one. It compares its
@@ -56,26 +66,22 @@ interface RouteParams {
  * objects — so the version of this that took `params` whole never once hit its cache.
  * Measured on 2026-09-25 through a pass-through that held every call to `AbOvo.Api` 300 ms:
  * one frame cost FIVE calls in THREE rounds — the track twice, then the program twice, then
- * the step — about 930 ms before anything could render. The same measurement now shows three
- * calls leaving together and back in about 310 ms. Strings compare by value, so the four
- * segments are the key, and anything added to it must be a primitive for the same reason.
+ * the step — about 930 ms before anything could render. It costs three calls now, leaving
+ * together: this pair, shared, and the page's step beside it (`fetchFrame`). Strings compare
+ * by value, so the segments are the key, and anything added to it must be a primitive for
+ * the same reason.
  *
- * `generateMetadata` waits on the step's call too, and it is not a second call: it is the
- * page's, shared. Nothing of the step reaches the title, which is built from the program's
- * name and count alone, as it always was.
+ * THE STEP IS NOT IN IT. The title does not need it, and `generateMetadata` also runs where
+ * the page does not: Next prefetches the head of a frame a link points at, unless the link
+ * opts out, and the head is `generateMetadata`, which asks for this pair and nothing else.
+ * With the step in here each of those prefetches made the gated read too, for a page nobody
+ * had opened. Measured on 2026-09-26, the same way: a prefetched frame link on the contents
+ * page asks for the track and the program, and not the step.
  * ──────────────────────────────────────────────────────────────────────────────────────────
  */
-const frameAt = cache(
-  async (track: string, unit: string, lang: string, step: string): Promise<FrameOutcome> => {
-    const store = await cookies();
-    return fetchFrame(
-      { track, unit, lang, step },
-      {
-        bearer: store.get(ACCESS_TOKEN_COOKIE)?.value,
-        readerId: store.get(READER_ID_COOKIE)?.value,
-      },
-    );
-  },
+const programAt = cache(
+  async (track: string, unit: string, lang: string): Promise<ProgramFetch> =>
+    fetchProgram({ track, unit, lang }, await readerIdentity()),
 );
 
 /**
@@ -96,9 +102,8 @@ export async function generateMetadata({
   params: Promise<RouteParams>;
 }): Promise<Metadata> {
   const { track, unit, lang, step: segment } = await params;
-  const frame = await frameAt(track, unit, lang, segment);
-  const step = Number(segment);
-  const numbered = Number.isInteger(step) && step >= 1;
+  const program = await programAt(track, unit, lang);
+  const n = frameNumberOf(segment);
 
   /*
    * THE SERVER DID NOT ANSWER, SO NOTHING IS KNOWN ABOUT THIS ADDRESS — and the title says
@@ -108,20 +113,20 @@ export async function generateMetadata({
    * safe to repeat, in the edition the address asks for (English where there are no words
    * for it); the program's title came from the server that did not answer, so it is not.
    */
-  if (frame.kind === 'unavailable') {
-    return { title: numbered ? `${chromeFor(lang).frameNumbered(step)} — ab-ovo` : 'ab-ovo' };
+  if (program.kind === 'unavailable') {
+    return { title: n === undefined ? 'ab-ovo' : `${chromeFor(lang).frameNumbered(n)} — ab-ovo` };
   }
-  if (frame.kind === 'not-found' || frame.n > frame.unit.stepCount) {
+  if (program.kind === 'not-found' || n === undefined || n > program.unit.stepCount) {
     return { title: 'Not found — ab-ovo' };
   }
 
-  const chrome = chromeFor(frame.language);
+  const chrome = chromeFor(program.language);
   return {
-    title: `${chrome.frameNumbered(frame.n)} — ${say(frame.unit.titles, frame.language)} — ab-ovo`,
+    title: `${chrome.frameNumbered(n)} — ${say(program.unit.titles, program.language)} — ab-ovo`,
     // Deliberately not the body: a description is served to crawlers and to link previews,
     // and a frame's body is the question. The answer is already structurally absent; the
     // question does not need to be handed out either.
-    description: `${chrome.frameNumbered(frame.n)} ${chrome.ofTotal(frame.unit.stepCount)}.`,
+    description: `${chrome.frameNumbered(n)} ${chrome.ofTotal(program.unit.stepCount)}.`,
   };
 }
 
@@ -131,7 +136,15 @@ export default async function FramePage({
   params: Promise<RouteParams>;
 }): Promise<React.JSX.Element> {
   const { track, unit: unitId, lang, step: segment } = await params;
-  const frame = await frameAt(track, unitId, lang, segment);
+  // The pair the title asked for (or asks for it now), and the step beside it: all three on
+  // their way before either half is awaited (`fetchFrame`).
+  const program = programAt(track, unitId, lang);
+  const frame = await fetchFrame(
+    { track, unit: unitId, lang, step: segment },
+    await readerIdentity(),
+    fetch,
+    program,
+  );
 
   if (frame.kind === 'unavailable') {
     // Caught by `app/error.tsx` — a deployment fault (the content API could not be

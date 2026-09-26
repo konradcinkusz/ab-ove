@@ -63,7 +63,7 @@ was first written with.
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
 | `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload |
 | `focus-ring.spec.ts` | the controls that showed focus by a colour or a brightness wear the shared ring, in light, dark and forced colours |
-| `frame-loading.spec.ts` | a frame on its way says so where the reader pressed — `Previous`, or the program map's door — while the API is held back for that one reader, and the pager does not move (#160) |
+| `frame-loading.spec.ts` | a frame on its way says so where the reader pressed — `Previous`, clicked or pressed as `←`, or the program map's door — while the API is held back for that one reader, and the pager does not move (#160) |
 | `frame-view.spec.ts` | the answer is absent before the reveal, asserted in both directions and both editions |
 | `gate.spec.ts` | the book is entered at the beginning: a program opens when the one before it has |
 | `hydration.spec.ts` | every page hydrates — the one defect that leaves no trace on screen |
