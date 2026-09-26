@@ -17,9 +17,10 @@ import { backendCandidates } from './backends.ts';
  * the web half of the deviation-register row "`PUT` … can still name a step it did not earn".
  *
  * It hears of it from `AbOvo.Api` now. `POST /api/v1/progress/adopt` takes the steps of the
- * anonymous cursor's rows — which only the reveal's own `POST …/advance` ever moved — into the
- * account, the furthest frame winning, and leaves the anonymous rows as they were. What this
- * module sends is two identities and no step.
+ * anonymous cursor's rows — steps the gate raised through `POST …/advance`, since no write lets
+ * a caller name one — into the account, the furthest frame winning, and leaves the anonymous
+ * rows as they were until the reader forgets them (ADR-0068 §5). What this module sends is two
+ * identities and no step.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * AT SIGN-IN, FROM THIS ORIGIN'S SERVER, because that is the one moment it holds both: the

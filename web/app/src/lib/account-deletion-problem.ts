@@ -26,6 +26,12 @@ import type { Chrome } from './i18n/chrome.ts';
 export const DELETION_PROBLEMS = [
   /** The typed word was not a confirmation. Nothing was attempted. */
   'confirm',
+  /**
+   * The password refusals come from the identity service, and they come LAST: what the
+   * account had stored in `AbOvo.Api` was removed first, by ADR-0021's order, and the account
+   * was not. Since ADR-0068 nothing sends that back, so the account keeps no reading position,
+   * and the sentences for these codes say so (`account-deletion-problem.test.ts` holds them).
+   */
   'password-required',
   'password-rejected',
   /** The session ended between opening the page and confirming. */

@@ -3,6 +3,7 @@ import { expect, test, type Browser, type Page } from '@playwright/test';
 import { TWO_FACTOR, type FixtureAccount } from '../fixtures/accounts.mts';
 
 import { track } from './support/bundle.ts';
+import { forgetWhereIAm } from './support/forget.ts';
 import { freshEmail, GOOD_PASSWORD, register } from './support/register.ts';
 import { reveal } from './support/reveal.ts';
 import { signIn, type Credentials } from './support/sign-in.ts';
@@ -33,6 +34,11 @@ import { walkTo } from './support/walk.ts';
  * EACH WAY A SESSION BEGINS ON THIS SITE IS A TEST: a password, a password and a second factor,
  * and a new account. `establishSession` adopts for every one of them, and a way in that did not
  * would leave its reader refused what they had read.
+ *
+ * AND WHAT THE READER FORGOT IS NOT ADOPTED BACK (ADR-0068 §5). Adoption copies the cursor at
+ * every sign-in, so *Forget where I am* has to reach the cursor as well as this browser and the
+ * account, or the next sign-in undoes it: the second block below reads, forgets — with no
+ * account, and with one — signs in, and finds nothing.
  *
  * NOTHING IS STUBBED but the identity service, which is this project's fixture: the API, the
  * gate and the adoption are the real ones, so these run only where `playwright.config.ts`
@@ -132,13 +138,91 @@ async function signInWithSecondFactor(page: Page, account: FixtureAccount): Prom
   await Promise.all([page.waitForURL(THE_INDEX), page.click('button[type="submit"]')]);
 }
 
-/** Every place the signed-in account holds, forgotten — the one teardown the API offers. */
+/**
+ * Every place the signed-in account holds, forgotten — and this browser's anonymous cursor with
+ * them, since the proxy sends the cursor's header too (ADR-0068 §5). The teardown the API offers.
+ */
 const emptyTheAccount = (page: Page) =>
   page.evaluate(() =>
     fetch('/api/proxy/api/v1/progress', { method: 'DELETE', credentials: 'same-origin' }).then(
       (response) => response.status,
     ),
   );
+
+/**
+ * How far the gate will serve this browser in the program — the contents' own `furthest`, from
+ * the cursor `ReaderIdentity.Resolve` picks: the account's while signed in, the anonymous one
+ * otherwise. A cursor with no place in the program is at its first frame.
+ */
+const cursorStep = (page: Page) =>
+  page.evaluate(async (path) => {
+    const response = await fetch(path, { cache: 'no-store', credentials: 'same-origin' });
+    if (!response.ok) return `status ${response.status}`;
+    return ((await response.json()) as { furthest?: number }).furthest ?? null;
+  }, `/api/proxy/api/v1/content/${track}/${UNIT}`);
+
+/** This browser's own record of the program: ADR-0060's resume hint, in `localStorage`. */
+const storedStep = (page: Page) =>
+  page.evaluate(
+    ([key, program]) => {
+      const raw = window.localStorage.getItem(key!);
+      if (!raw) return null;
+      const record = JSON.parse(raw) as { positions?: Record<string, { step?: number }> };
+      return record.positions?.[program!]?.step ?? null;
+    },
+    ['ab-ovo:progress:v1', `${track}/${UNIT}`] as const,
+  );
+
+/** The sync's notice — *You had read … elsewhere. The furthest frame wins.* — by its rule. */
+const elsewhereNotice = (page: Page) =>
+  page.getByRole('status').filter({ hasText: 'The furthest frame wins.' });
+
+/** Signing out as the account control does: the BFF clears the session cookies and no other. */
+const signOut = (page: Page) =>
+  page.evaluate(() =>
+    fetch('/api/auth/session', { method: 'DELETE', credentials: 'same-origin' }).then(
+      (response) => response.status,
+    ),
+  );
+
+/** The pulls this page's sync makes — `GET /progress`, answered — counted from now on. */
+function countPulls(page: Page): { readonly count: number } {
+  let count = 0;
+  page.on('response', (response) => {
+    if (
+      response.request().method() === 'GET' &&
+      new URL(response.url()).pathname === '/api/proxy/api/v1/progress' &&
+      response.ok()
+    ) {
+      count += 1;
+    }
+  });
+  return {
+    get count() {
+      return count;
+    },
+  };
+}
+
+/**
+ * A whole sync cycle that started after this line, and ended: cycles never overlap (`sync()` in
+ * `lib/progress/sync.ts`), so two more pulls mean the cycle that made the first — and anything it
+ * had to tell the reader — is over. `sync.spec.ts`'s `twoCyclesFromNow`, against the real account.
+ * An absence has no event to wait for; this is the event after which a notice that was coming
+ * would have come.
+ */
+async function aWholeSyncFromNow(page: Page, pulls: { readonly count: number }): Promise<void> {
+  const from = pulls.count;
+  await expect
+    .poll(
+      async () => {
+        await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+        return pulls.count;
+      },
+      { message: 'the sync did not run twice', timeout: 15_000 },
+    )
+    .toBeGreaterThanOrEqual(from + 2);
+}
 
 test.describe('signing in, the account adopts the place read without one', () => {
   test.beforeEach(() => {
@@ -217,5 +301,116 @@ test.describe('signing in, the account adopts the place read without one', () =>
       .toBe(N);
     await servedAt(page, N);
     expect(sent, 'the browser sent the account a place').toEqual([]);
+  });
+});
+
+/**
+ * WHAT THE READER FORGOT STAYS FORGOTTEN — ADR-0068 §5.
+ *
+ * Adoption copies the anonymous cursor into the account at every sign-in. On the first version
+ * of this change *Forget where I am* cleared this browser and the account and left the cursor,
+ * and both orders below were reproduced against it: the account was back at frame N after the
+ * next sign-in, the browser's record with it, and the notice said *You had read F01 to frame 4
+ * elsewhere* about a place the reader had asked to be forgotten. On a shared browser the next
+ * account signed in there would have taken it too. A forget reaches the cursor now, so each test
+ * reads, forgets, signs in, lets a whole sync run, and finds nothing — on the account, in this
+ * browser, or on the screen.
+ */
+test.describe('a forget reaches the place read without an account, and no sign-in brings it back', () => {
+  test.beforeEach(() => {
+    test.skip(!API, NEEDS_API);
+  });
+
+  test('forgotten with no account, then an account made: it starts with nothing @identity', async ({
+    page,
+  }) => {
+    await readTo(page, N);
+    expect(await cursorStep(page), 'the reading never reached the cursor').toBe(N);
+
+    await page.goto('/');
+    await forgetWhereIAm(page);
+    await expect
+      .poll(() => cursorStep(page), { message: 'the forget left the place read without an account' })
+      .toBe(1);
+
+    const pulls = countPulls(page);
+    await page.goto('/register');
+    await register(page, freshEmail(), GOOD_PASSWORD, THE_INDEX);
+    await aWholeSyncFromNow(page, pulls);
+
+    expect(await accountStep(page), 'the new account adopted a forgotten place').toBeNull();
+    expect(await storedStep(page), 'the forgotten place came back to this browser').toBeNull();
+    await expect(elsewhereNotice(page), 'a forgotten place was told as read elsewhere').toHaveCount(0);
+  });
+
+  test('forgotten with an account, then signed out and in again: nothing comes back @identity', async ({
+    page,
+  }) => {
+    const account = { email: freshEmail(), password: GOOD_PASSWORD };
+    await readTo(page, N);
+    await page.goto('/register');
+    await register(page, account.email, account.password, THE_INDEX);
+    await expect
+      .poll(() => accountStep(page), { message: 'the new account never took the place read without it' })
+      .toBe(N);
+
+    await page.goto('/');
+    await forgetWhereIAm(page);
+    await expect
+      .poll(() => accountStep(page), { message: 'the forget never reached the account' })
+      .toBeNull();
+
+    // Signed out, the gate asks the anonymous cursor, and the same forget reached it: the proxy
+    // sent its header beside the bearer, and the account's DELETE took both.
+    expect(await signOut(page)).toBe(204);
+    await expect
+      .poll(() => cursorStep(page), { message: 'the forget left the place read without an account' })
+      .toBe(1);
+
+    const pulls = countPulls(page);
+    await page.goto('/login');
+    await signIn(page, account, THE_INDEX);
+    await aWholeSyncFromNow(page, pulls);
+
+    expect(await accountStep(page), 'signing in again adopted a forgotten place').toBeNull();
+    expect(await storedStep(page), 'the forgotten place came back to this browser').toBeNull();
+    await expect(elsewhereNotice(page), 'a forgotten place was told as read elsewhere').toHaveCount(0);
+  });
+
+  /**
+   * The forget is owed until the cursor has it, and it is paid at the next sync signed in or
+   * not: the adoption at the next sign-in happens on the server, where the marker `sync.ts`
+   * leaves in this browser cannot stop it. The first attempt is cut off at the network, as a
+   * reader on a train loses it.
+   */
+  test('a forget that could not reach the cursor is finished before the next sign-in @identity', async ({
+    page,
+  }) => {
+    await readTo(page, N);
+    await page.goto('/');
+
+    let cutOff = 0;
+    await page.route('**/api/proxy/api/v1/progress/anonymous', (route) => {
+      if (cutOff > 0) return route.continue();
+      cutOff += 1;
+      return route.abort();
+    });
+
+    await forgetWhereIAm(page);
+    await expect
+      .poll(() => cutOff, { message: 'the forget never asked the API to forget the cursor' })
+      .toBe(1);
+
+    await page.goto('/register');
+    await expect
+      .poll(() => cursorStep(page), { message: 'the owed forget was not paid before signing in' })
+      .toBe(1);
+
+    const pulls = countPulls(page);
+    await register(page, freshEmail(), GOOD_PASSWORD, THE_INDEX);
+    await aWholeSyncFromNow(page, pulls);
+
+    expect(await accountStep(page), 'the new account adopted a forgotten place').toBeNull();
+    await expect(elsewhereNotice(page), 'a forgotten place was told as read elsewhere').toHaveCount(0);
   });
 });

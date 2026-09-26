@@ -63,8 +63,8 @@ test('the account is further ahead, so it wins and the reader is told', () => {
 /**
  * ADR-0068's decision about a place only this browser holds. It used to be sent — frame 40
  * here and 12 on the account pushed 40 — and that push was a step no gate had seen earned. It
- * stays here now, as the resume hint ADR-0060 made this record, and the account learns a
- * place only from the API's own writes.
+ * stays here now, as the resume hint ADR-0060 made this record: the browser sends the account
+ * no place, and what this app puts on it comes from the API's own writes.
  */
 test('this machine is further ahead, so it keeps its place here, and nothing is sent', () => {
   const result = reconcile(local({ [`${TRACK}/P01`]: { language: 'en', step: 40 } }), [row('P01', 12, 'pl')]);
@@ -122,8 +122,8 @@ test('a reader who went back is not raised', () => {
 // ── Convergence, as a property rather than an example ───────────────────────────────────
 
 test('two machines converge on the account whatever order they sync in', () => {
-  // The phone read to 40 signed in, so its reveals raised the account to 40: the account
-  // learns a place from the API's own writes (ADR-0068). The laptop stopped at 12.
+  // The phone read to 40 signed in, so its reveals raised the account to 40 — the API's own
+  // writes, not anything a browser sent (ADR-0068). The laptop stopped at 12.
   const phone = local({ [`${TRACK}/P01`]: { language: 'pl', step: 40 } }, 'P01');
   const laptop = local({ [`${TRACK}/P01`]: { language: 'en', step: 12 } }, 'P01');
   const account = [row('P01', 40, 'pl')];

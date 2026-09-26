@@ -9,11 +9,15 @@ tie, the pointer and the sentence *the furthest frame wins* are unchanged.
 
 Amended on 2026-09-26 by
 [ADR-0068](0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)
-(#176): the browser sends the account no place. The account learns one only from `AbOvo.Api`'s
-own writes — a signed-in reveal, and the adoption of the places read without an account when a
-session begins — and applies this rule there. Where this record says the browser pushes, and
-where the amendment below names `settle`, that is what the browser did until then. The rule, the
-tie, the pointer, the notice and the forget are unchanged.
+(#176): the browser sends the account no place. What the web app puts on the account comes from
+`AbOvo.Api`'s own writes — a signed-in reveal, and the adoption of the places read without an
+account when a session begins — and the API applies this rule there. `web/mcp` still raises the
+account through `PUT` until #171, which is the deviation register's row in
+[`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md#deviation-register). Where this record
+says the browser pushes, and where the amendment below names `settle`, that is what the browser
+did until then. The forget reaches the anonymous cursor this browser reads under as well, because
+adoption would copy it back into the account (ADR-0068 §5). The rule, the tie, the pointer and
+the notice are unchanged.
 
 ## Context
 
@@ -105,6 +109,13 @@ is worse than no control. The local record goes immediately — it is the reader
 it always works — and a marker in its own key records that the account has not been told yet.
 **While that marker is set the sync will not pull**: it retries the `DELETE` and does nothing
 else. The resurrection is therefore unreachable rather than unlikely.
+
+> Since 2026-09-26 the API holds another copy away from the browser: the anonymous cursor the
+> browser reads under, which the account adopts at every sign-in. The forget reaches it too, and
+> a forget still owed is retried whether or not the reader is signed in, because that adoption
+> happens on the server, where the marker cannot stop it
+> ([ADR-0068](0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)
+> §5).
 
 This also answers the question [`resume.tsx`](../../web/app/src/components/read/resume.tsx)
 left open: the argument for having no confirmation on that control was "what is destroyed is

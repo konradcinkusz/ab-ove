@@ -30,10 +30,12 @@ namespace AbOvo.Api.Endpoints;
 /// is an endpoint whose authorization is a parameter.
 /// </para>
 /// <para>
-/// Adoption (<c>POST /progress/adopt</c>) is the one call that reads a SECOND reader's rows,
-/// and the second reader is named the same way the first is — by what the request carries,
-/// here the anonymous cursor's header (ADR-0061), and never by a route or a body. It writes
-/// only the caller's own rows (ADR-0068).
+/// A SECOND READER IS NAMED THE WAY THE FIRST IS: by what the request carries, and never by a
+/// route or a body. Adoption (<c>POST /progress/adopt</c>) and the forget
+/// (<c>DELETE /progress</c>) act on the anonymous cursor the request's header names
+/// (ADR-0061) as well as on the account, each reader in a query of its own pinned by its own
+/// equality (ADR-0068). A row is added or raised for the caller's account and for no other
+/// reader; the cursor's rows are read, or removed when the reader asks to be forgotten.
 /// </para>
 /// </summary>
 public static class ProgressEndpoints
@@ -82,8 +84,8 @@ public static class ProgressEndpoints
          * (subject only to "does not lower it"), which is exactly what a caller could use to
          * skip the reveal gate `GET/POST .../content/**` now enforces — see the 2026-09-21
          * deviation register row in docs/architecture/00-ARCHITECTURE.md for why this is not
-         * closed here (it would break the one caller that still raises Step through it,
-         * web/mcp, until #171 moves it to `POST .../advance`) and what retires it. web/app's
+         * closed here (it would break web/mcp, which still raises Step through it until #171
+         * moves it to `POST .../advance`) and what retires it. web/app's
          * sync no longer calls it at all: a place read without an account reaches the account
          * through adoption at sign-in, below, and nothing else the browser holds does
          * (ADR-0068).
@@ -178,12 +180,37 @@ public static class ProgressEndpoints
                     .ToListAsync(cancellationToken);
 
                 db.ReaderProgress.RemoveRange(rows);
+
+                /*
+                 * AND THE ANONYMOUS CURSOR THE REQUEST CARRIES — ADR-0068 §5, issue #176.
+                 *
+                 * Adoption copies that cursor into the account at every sign-in, so a forget
+                 * that left it behind would be undone by the next one — and told to the reader
+                 * as reading done elsewhere. `web/app`'s proxy sends the cursor's header beside
+                 * the bearer, so the forget a signed-in reader presses reaches both here, in
+                 * one SaveChanges. Its own query, pinned by its own equality
+                 * (`ReaderScopedQueries`, ADR-0020): two readers are two queries, never a set.
+                 *
+                 * A request with no header — account deletion's, made from web/app's own server
+                 * (`account-deletion.ts`) — leaves the cursor alone, as that deletion leaves the
+                 * browser's own record alone (ADR-0021).
+                 */
+                var anonymous = ReaderIdentity.Anonymous(http);
+                if (anonymous is not null)
+                {
+                    var theirs = await db.ReaderProgress
+                        .Where(p => p.Subject == anonymous)
+                        .ToListAsync(cancellationToken);
+
+                    db.ReaderProgress.RemoveRange(theirs);
+                }
+
                 await db.SaveChangesAsync(cancellationToken);
 
                 return Results.NoContent();
             })
             .WithName(EndpointNames.DeleteProgress)
-            .WithSummary("Forget every record of where this reader got to.")
+            .WithSummary("Forget every record of where this reader got to: the account's, and the anonymous cursor's the request carries.")
             .Produces(StatusCodes.Status204NoContent);
 
         /*
@@ -194,9 +221,9 @@ public static class ProgressEndpoints
          * is how the account learns that place: `web/app` calls it from its own server as a
          * session begins, with the bearer it has just been handed and the reader-id cookie the
          * browser already held. No step arrives from the caller. Every step adopted here was
-         * earned through the reveal gate, because `POST .../advance` is the only write that
-         * moves an anonymous row — which is what lets web/app's sync stop raising a step
-         * through the `PUT` above.
+         * earned through the reveal gate: an anonymous row's step is the gate's to raise
+         * (`POST .../advance`), and no write lets a caller name one — which is what lets
+         * web/app's sync stop raising a step through the `PUT` above.
          *
          * Per program the furthest frame wins and its edition travels with it, and a tie keeps
          * the account's copy whole: ADR-0019, exactly as the `PUT` above and the browser's
@@ -204,6 +231,7 @@ public static class ProgressEndpoints
          * more claim over the cookie's place than signing out does (ADR-0061), so a reader who
          * signs out again still reads what they read without an account, a second adoption
          * changes nothing, and a sign-in whose adoption failed is repaired by the next one.
+         * They go when the reader forgets them — the `DELETE` above, or the anonymous one below.
          *
          * Two reads, each pinned to one Subject by an equality (`ReaderScopedQueries`,
          * ADR-0020): the account the token names, and the anonymous reader the header names.
@@ -294,6 +322,50 @@ public static class ProgressEndpoints
     }
 
     /// <summary>
+    /// The forget of a reader with NO account — ADR-0068 §5, issue #176. Mapped on the
+    /// anonymous, rate-limited group (<c>openWriteApi</c> in <c>Program.cs</c>), because the
+    /// reader it is for has no bearer to put in front of <c>authApi</c>, whose
+    /// <c>DELETE /progress</c> answers them 401.
+    /// <para>
+    /// It removes the rows of the anonymous cursor the header names and nothing else: no
+    /// route or body names a reader, and an account's rows are <c>authApi</c>'s to remove
+    /// even when the request carries a bearer. Holding the id is the whole of the cursor's
+    /// credential (ADR-0061), so its holder may forget it as they may advance it.
+    /// </para>
+    /// <para>
+    /// Without it, a reader who read without an account and pressed Forget kept their place on
+    /// the server, and the account they made next adopted it back.
+    /// </para>
+    /// </summary>
+    public static RouteGroupBuilder MapAnonymousProgressEndpoints(this RouteGroupBuilder openWriteApi)
+    {
+        openWriteApi.MapDelete("/progress/anonymous", async (
+                HttpContext http,
+                [FromServices] AbOvoDbContext db,
+                CancellationToken cancellationToken) =>
+            {
+                var anonymous = ReaderIdentity.Anonymous(http);
+                if (anonymous is null) return NoAnonymousReader();
+
+                // Loaded and removed, for the reason the account's `DELETE` gives above; pinned
+                // to the one Subject by an equality (`ReaderScopedQueries`, ADR-0020).
+                var rows = await db.ReaderProgress
+                    .Where(p => p.Subject == anonymous)
+                    .ToListAsync(cancellationToken);
+
+                db.ReaderProgress.RemoveRange(rows);
+                await db.SaveChangesAsync(cancellationToken);
+
+                return Results.NoContent();
+            })
+            .WithName(EndpointNames.DeleteAnonymousProgress)
+            .WithSummary("Forget every place of the anonymous reader the request carries. Needs no account.")
+            .Produces(StatusCodes.Status204NoContent);
+
+        return openWriteApi;
+    }
+
+    /// <summary>
     /// A token that authenticated and carries no subject. Not a 401 — the caller's
     /// credentials were accepted — and not a 500, because nothing failed here: it is a token
     /// this service cannot file anything under, which is a fault in what issued it.
@@ -304,12 +376,13 @@ public static class ProgressEndpoints
         statusCode: StatusCodes.Status403Forbidden);
 
     /// <summary>
-    /// An adoption that names no anonymous reader, or names one in a shape no reader id has.
-    /// A 400 rather than an empty success: the caller asked to adopt a cursor and sent nothing
-    /// that identifies one, which is a fault in the request and not "nothing to adopt".
+    /// A call about the anonymous cursor — an adoption, or the anonymous forget — that names no
+    /// anonymous reader, or names one in a shape no reader id has. A 400 rather than an empty
+    /// success: the caller asked about a cursor and sent nothing that identifies one, which is
+    /// a fault in the request and not "nothing to adopt" or "nothing to forget".
     /// </summary>
     private static IResult NoAnonymousReader() => Results.Problem(
         title: "No anonymous reader.",
-        detail: "Adoption takes the places of the anonymous reader the X-Ab-Ovo-Reader-Id header names, and this call carries no such header.",
+        detail: "This call acts on the anonymous reader the X-Ab-Ovo-Reader-Id header names, and it carries no such header, or none shaped like a reader id.",
         statusCode: StatusCodes.Status400BadRequest);
 }

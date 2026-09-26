@@ -560,7 +560,7 @@ cross-device sync endpoint — still accepts and stores whatever `step` a caller
 only to "does not lower it". A caller could name step 48 directly and then `GET` it, having
 answered nothing.
 
-**Reason.** Closing it now would break the one caller that still legitimately raises `Step`
+**Reason.** Closing it now would break a caller that still legitimately raises `Step`
 through it:
 
 - `web/mcp` (TypeScript) computes its own advance client-side against its own copy of the
@@ -569,7 +569,7 @@ through it:
   to raise `Step` today would silently stop the current MCP server from remembering a
   reader's place.
 
-`web/app`'s sync (`web/app/src/lib/progress/sync.ts`) was the second caller, and no longer
+`web/app`'s sync (`web/app/src/lib/progress/sync.ts`) was another caller, and no longer
 raises anything: it sent the browser's own furthest frame through `PUT` (frame 40 in the
 browser and frame 12 on the account sent 40) until
 [ADR-0068](../adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)

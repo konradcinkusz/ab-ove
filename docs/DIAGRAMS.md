@@ -319,8 +319,9 @@ it is what makes a per-reader score unbuildable
 %% already folded into a rate, and why the deletion screen says so (ADR-0021).
 
 %% NOTHING A READER WRITES ON A FRAME IS STORED ANYWHERE BUT THEIR OWN BROWSER (ADR-0039).
-%% The worksheet, the pad and the canvas are local; so is consent (ADR-0022) and so is
-%% position until an account synchronises it.
+%% The worksheet, the pad and the canvas are local, and so is consent (ADR-0022). Position is
+%% not: the API keeps it under the reader's cookie or account (ADR-0060, ADR-0061), and the
+%% browser keeps a copy as a resume hint that it never sends (ADR-0068).
 
 flowchart TD
   subgraph browser["The reader's own browser - the default, and enough"]
@@ -341,7 +342,7 @@ flowchart TD
   RULE2["BundlePinnedQueries<br/>a query that spans<br/>bundle tags is refused"]
   RULE3["Closed column lists<br/>an outcome, a duration or<br/>a count of attempts<br/>breaks the build"]
 
-  LOCAL -.->|"only with an account"| RP
+  RP -.->|"copied to the browser, with an account"| LOCAL
   LOCAL -.->|"only with an account"| RPF
   LOCAL -.->|"only with consent"| FO
 
@@ -559,9 +560,12 @@ The reading surface shows position and never progress
 ([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md)). An account
 buys exactly one thing: the same place on a second machine. Furthest frame wins
 ([ADR-0019](adr/0019-furthest-frame-wins.md)) — a reconciliation that moved a reader backwards
-would lose reading they did. The account learns a place only from the API's own writes — a
-reveal, and the places read without an account, adopted at sign-in — and the browser sends it
-none ([ADR-0068](adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)).
+would lose reading they did. The browser sends the account no place: what the web app puts on
+it comes from the API's own writes — a reveal, and the places read without an account, adopted
+at sign-in — and a forget reaches the place under the cookie as well as the browser's and the
+account's ([ADR-0068](adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)).
+Until #171, `web/mcp` still raises the account through `PUT`, which is a row in the
+[deviation register](architecture/00-ARCHITECTURE.md#deviation-register).
 
 ```mermaid
 %% Where the reader is: position, which is not progress, and which machine holds it.
@@ -571,10 +575,12 @@ none ([ADR-0068](adr/0068-the-account-adopts-the-places-read-without-it-at-sign-
 %% book of 47 programs is a number about the reader, and this product does not make those.
 %% The pager says which frame of how many, and opens the map of the program (ADR-0063).
 
-%% THE ACCOUNT LEARNS A PLACE ONLY FROM THE API'S OWN WRITES (ADR-0068). A reveal moves the
-%% cursor the reader reads under, and signing in adopts the places read without an account.
-%% The browser's copy is a resume hint (ADR-0060) and sends the account nothing. An account
-%% buys one thing: the same place on a second machine.
+%% THE BROWSER SENDS THE ACCOUNT NO PLACE (ADR-0068). What the web app puts on the account
+%% comes from the API's own writes: a reveal moves the cursor the reader reads under, and
+%% signing in adopts the places read without an account. The browser's copy is a resume hint
+%% (ADR-0060). Until #171, web/mcp still raises the account through PUT, which is a row in the
+%% deviation register. A forget reaches the cookie's place as well as the browser's and the
+%% account's. An account buys one thing: the same place on a second machine.
 
 %% FURTHEST FRAME WINS (ADR-0019). Two machines that disagree are not a conflict to resolve
 %% with a timestamp: the reader has read up to the furthest of the two, and a reconciliation
@@ -608,7 +614,7 @@ flowchart LR
   RECON --> LA
   RECON --> LB
 
-  NOACC(["No account:<br/>the API keeps the place under a cookie,<br/>and an account adopts it at sign-in"])
+  NOACC(["No account:<br/>the API keeps the place under a cookie,<br/>an account adopts it at sign-in,<br/>and a forget removes it"])
   LA -.-> NOACC
 ```
 

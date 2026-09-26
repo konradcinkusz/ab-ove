@@ -58,7 +58,7 @@ was first written with.
 | `accessibility.spec.ts` | every screen holds WCAG 2.2 A and AA as far as axe-core can decide — both schemes, each panel open, 360 px, the forms behind an account, and a legal document |
 | `account-deletion.spec.ts` | closing an account, and everything about it that needs no account |
 | `account-overview.spec.ts` | opening one's own account: whose it is, the place it holds in each program, and the ways out — sign-out and the deletion screen |
-| `adopt-at-sign-in.spec.ts` | reading without an account and then signing in — with a password, with a second factor, or by making an account — leaves the account at the frame read, with no step sent from the browser, and the place read without an account still there after signing out (ADR-0068) |
+| `adopt-at-sign-in.spec.ts` | reading without an account and then signing in — with a password, with a second factor, or by making an account — leaves the account at the frame read, with no step sent from the browser, and the place read without an account still there after signing out; and a forget — with no account, with one, or cut off once — that no later sign-in brings back (ADR-0068) |
 | `app-icon.spec.ts` | the tab shows the mark, served by this origin to a reader with no account, and `theme-color` is the paper in each scheme |
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
 | `consent.spec.ts` | being asked once whether answers may be counted, focus landing on the answer given, and being left alone |
@@ -798,9 +798,10 @@ named here rather than left to drift into being false.** `specs/bearer-hop.spec.
 progress rows to a real `AbOvo.Api`, because a hop that carries nothing proves nothing. Two
 consequences, both taken deliberately:
 
-- **It cleans up after itself.** The service offers exactly one teardown — `DELETE /progress`
-  forgets every row for the caller's own subject — and the file calls it before and after the
-  tests that write, so a crashed earlier run cannot decide what "the furthest frame" is.
+- **It cleans up after itself.** The service's teardown for an account is `DELETE /progress`,
+  which forgets every row for the caller's own subject — and, since ADR-0068 §5, those of the
+  anonymous cursor the request carries — and the file calls it before and after the tests that
+  write, so a crashed earlier run cannot decide what "the furthest frame" is.
 - **It is the one file in `specs/` that is not `fullyParallel`-safe by construction**, and it
   says so at its own `test.describe.configure({ mode: 'serial' })`. The fixture's accounts
   exist for claim shapes rather than for scenarios, so these tests share one account, and the

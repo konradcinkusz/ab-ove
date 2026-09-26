@@ -161,6 +161,18 @@ public sealed class ProgressIsNotEvidenceTests
         using var adopted = await adopting.PostAsync("/api/v1/progress/adopt", content: null, token);
         Assert.True(adopted.IsSuccessStatusCode, $"the adoption was refused: {adopted.StatusCode}");
 
+        // And the forget that reaches the cursor as well (ADR-0068 §5): the account's, carrying
+        // the cursor's header, and the anonymous one — each reader in a query of its own.
+        using var forgettingBoth = await adopting.DeleteAsync("/api/v1/progress", token);
+        Assert.True(forgettingBoth.IsSuccessStatusCode, $"the forget was refused: {forgettingBoth.StatusCode}");
+
+        using var anonymous = factory.CreateClient();
+        anonymous.DefaultRequestHeaders.Add(Extensions.ReaderIdentity.HeaderName, readerId.ToString());
+        using var forgettingCursor = await anonymous.DeleteAsync("/api/v1/progress/anonymous", token);
+        Assert.True(
+            forgettingCursor.IsSuccessStatusCode,
+            $"the anonymous forget was refused: {forgettingCursor.StatusCode}");
+
         // And the preference group's three, for the same reason: a rule written slightly too
         // tightly takes a whole feature down rather than one query.
         using var chose = await client.PutAsJsonAsync(

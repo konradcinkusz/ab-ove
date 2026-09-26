@@ -179,8 +179,10 @@ async function subjectOf(page: Page): Promise<string | null> {
  * It also runs BEFORE each of them: a row left by a crashed earlier run would otherwise
  * decide what "the furthest frame" is, and the failure would read as a merge defect.
  *
- * `DELETE /progress` removes every row for the caller's own subject and nothing else — it
- * cannot reach another reader's, because there is no route on that service that takes one.
+ * `DELETE /progress` removes every row for the caller's own subject, and those of the anonymous
+ * cursor the request carries — the proxy sends this browser's beside the bearer (ADR-0068 §5) —
+ * and nothing else: it cannot reach another reader's, because no route or body on that service
+ * names one.
  */
 async function emptyTheAccount(page: Page): Promise<void> {
   await throughProxy(page, PROGRESS, { method: 'DELETE' });

@@ -4,6 +4,7 @@ using System.Text.Json;
 using AbOvo.Api.Extensions;
 using AbOvo.Api.Persistence;
 using AbOvo.Contracts;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,16 +13,22 @@ namespace AbOvo.Api.Tests;
 /// <summary>
 /// Adoption at sign-in — ADR-0068, issue #176: the account takes the places of the anonymous
 /// reader the browser was, the furthest frame winning, and the anonymous places stay where
-/// they were.
+/// they were until the reader forgets them.
 ///
 /// <para>
 /// WHY THESE ARE THE TESTS THE CHANGE IS ABOUT. `web/app`'s sync used to raise the account
 /// through <c>PUT</c> from a number the browser chose — frame 40 in this browser and frame 12
 /// on the account pushed 40 — and that push was how an account learned a place read without
-/// one. The sync sends nothing now, so this endpoint is the only way, and what is asserted is
-/// the rule it applies (in both directions, and on a tie), whose rows it may touch (only the
-/// caller's own, and only from the cursor the request carries), what it leaves behind, and the
-/// whole point of it: a frame read anonymously is served to the account afterwards.
+/// one. The sync sends nothing now, so for the web app this endpoint is how, and what is
+/// asserted is the rule it applies (in both directions, and on a tie), whose rows it may touch
+/// (only the caller's own, and only from the cursor the request carries), what it leaves
+/// behind, and the whole point of it: a frame read anonymously is served to the account
+/// afterwards.
+/// </para>
+/// <para>
+/// AND THE FORGET THAT HAS TO REACH THE CURSOR (ADR-0068 §5). Because adoption copies the
+/// cursor at every sign-in, a forget that left the cursor behind was undone by the next one;
+/// the last block asserts what each of the two forgets removes, and what neither may.
 /// </para>
 /// </summary>
 public sealed class ProgressAdoptionTests
@@ -31,6 +38,8 @@ public sealed class ProgressAdoptionTests
     private const string Account = "11111111-2222-3333-4444-555555555555";
     private const string OtherAccount = "99999999-8888-7777-6666-555555555555";
     private const string Adopt = "/api/v1/progress/adopt";
+    private const string Forget = "/api/v1/progress";
+    private const string ForgetAnonymously = "/api/v1/progress/anonymous";
 
     /// <summary>When every seeded row was last written — before the factory's own clock.</summary>
     private static readonly DateTimeOffset Then = new(2025, 6, 1, 12, 0, 0, TimeSpan.Zero);
@@ -39,7 +48,7 @@ public sealed class ProgressAdoptionTests
 
     /// <summary>A row the test owns, written straight to the store — pinned by its own Subject.</summary>
     private static async Task Place(
-        SignedInApiFactory factory, string subject, string unit, int step, string language = "en")
+        WebApplicationFactory<Program> factory, string subject, string unit, int step, string language = "en")
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AbOvoDbContext>();
@@ -56,7 +65,8 @@ public sealed class ProgressAdoptionTests
     }
 
     /// <summary>One reader's rows, read the way `ReaderScopedQueries` allows: one Subject, by equality.</summary>
-    private static async Task<IReadOnlyList<ProgressRecord>> RowsOf(SignedInApiFactory factory, string subject)
+    private static async Task<IReadOnlyList<ProgressRecord>> RowsOf(
+        WebApplicationFactory<Program> factory, string subject)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AbOvoDbContext>();
@@ -303,6 +313,140 @@ public sealed class ProgressAdoptionTests
         Assert.True(served!.Ok, "the frame read without an account was refused to the account after adoption");
         Assert.Equal(3, served.Step!.N);
         Assert.Equal(3, served.Furthest);
+    }
+
+    // ── What a forget reaches ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// ADR-0068 §5, the regression it exists for, through the endpoints: a place read without
+    /// an account, adopted, and forgotten from the account, is not adopted again at the next
+    /// sign-in. Before, the account's forget left the cursor, and the next adoption put the
+    /// place back — which the browser then told the reader as reading done elsewhere.
+    /// </summary>
+    [Fact]
+    public async Task A_forgotten_place_is_not_adopted_by_the_next_sign_in()
+    {
+        using var factory = new SignedInApiFactory();
+        var readerId = Guid.NewGuid();
+        await Place(factory, AnonymousSubject(readerId), Unit, step: 4);
+
+        using var client = SignedInHolding(factory, Account, readerId);
+        Assert.Equal(4, In(await AdoptAsync(client), Unit).Step);
+
+        using var forgotten = await client.DeleteAsync(Forget, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, forgotten.StatusCode);
+
+        Assert.Empty(await AdoptAsync(client));
+    }
+
+    /// <summary>
+    /// The account's forget takes the cursor the request carries — `web/app`'s proxy sends its
+    /// header beside the bearer — and that cursor only: another reader's cursor and another
+    /// account keep every row they had.
+    /// </summary>
+    [Fact]
+    public async Task The_accounts_forget_takes_the_cursor_the_request_carries_and_no_other()
+    {
+        using var factory = new SignedInApiFactory();
+        var mine = Guid.NewGuid();
+        var somebodyElses = Guid.NewGuid();
+        await Place(factory, Account, "P01", step: 4);
+        await Place(factory, AnonymousSubject(mine), "P01", step: 4);
+        await Place(factory, AnonymousSubject(mine), "P02", step: 2);
+        await Place(factory, AnonymousSubject(somebodyElses), "P01", step: 8);
+        await Place(factory, OtherAccount, "P01", step: 1);
+
+        using var client = SignedInHolding(factory, Account, mine);
+        using var forgotten = await client.DeleteAsync(Forget, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, forgotten.StatusCode);
+        Assert.Empty(await RowsOf(factory, Account));
+        Assert.Empty(await RowsOf(factory, AnonymousSubject(mine)));
+        Assert.Equal(8, In(await RowsOf(factory, AnonymousSubject(somebodyElses)), "P01").Step);
+        Assert.Equal(1, In(await RowsOf(factory, OtherAccount), "P01").Step);
+    }
+
+    /// <summary>
+    /// Account deletion's call: `web/app`'s own server, with the bearer and no header
+    /// (`account-deletion.ts`). The cursor is this browser's, and a deletion leaves it as it
+    /// leaves the browser's own record (ADR-0021).
+    /// </summary>
+    [Fact]
+    public async Task A_forget_that_carries_no_cursor_leaves_the_anonymous_rows()
+    {
+        using var factory = new SignedInApiFactory();
+        var readerId = Guid.NewGuid();
+        await Place(factory, Account, Unit, step: 4);
+        await Place(factory, AnonymousSubject(readerId), Unit, step: 4);
+
+        using var client = factory.ClientFor(Account);
+        using var forgotten = await client.DeleteAsync(Forget, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, forgotten.StatusCode);
+        Assert.Empty(await RowsOf(factory, Account));
+        Assert.Equal(4, In(await RowsOf(factory, AnonymousSubject(readerId)), Unit).Step);
+    }
+
+    /// <summary>
+    /// A reader with no account, against the ORDINARY factory where no identity provider is
+    /// configured (P8): the account's forget answers 401, as it always has, and the anonymous
+    /// one — which needs no account — removes the cursor's rows and no other cursor's.
+    /// </summary>
+    [Fact]
+    public async Task A_reader_with_no_account_forgets_the_cursor_through_the_anonymous_forget()
+    {
+        using var factory = new ApiFactory();
+        var mine = Guid.NewGuid();
+        var somebodyElses = Guid.NewGuid();
+        await Place(factory, AnonymousSubject(mine), "P01", step: 4);
+        await Place(factory, AnonymousSubject(mine), "P02", step: 2);
+        await Place(factory, AnonymousSubject(somebodyElses), "P01", step: 8);
+
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(ReaderIdentity.HeaderName, mine.ToString());
+
+        using var refused = await client.DeleteAsync(Forget, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Unauthorized, refused.StatusCode);
+
+        using var forgotten = await client.DeleteAsync(ForgetAnonymously, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, forgotten.StatusCode);
+        Assert.Empty(await RowsOf(factory, AnonymousSubject(mine)));
+        Assert.Equal(8, In(await RowsOf(factory, AnonymousSubject(somebodyElses)), "P01").Step);
+    }
+
+    /// <summary>
+    /// The anonymous forget removes the cursor and nothing else, even when a bearer comes with
+    /// it: an account's rows are the authenticated group's to remove.
+    /// </summary>
+    [Fact]
+    public async Task The_anonymous_forget_leaves_an_account_alone()
+    {
+        using var factory = new SignedInApiFactory();
+        var readerId = Guid.NewGuid();
+        await Place(factory, Account, Unit, step: 6);
+        await Place(factory, AnonymousSubject(readerId), Unit, step: 4);
+
+        using var client = SignedInHolding(factory, Account, readerId);
+        using var forgotten = await client.DeleteAsync(ForgetAnonymously, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, forgotten.StatusCode);
+        Assert.Empty(await RowsOf(factory, AnonymousSubject(readerId)));
+        Assert.Equal(6, In(await RowsOf(factory, Account), Unit).Step);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("not-a-reader-id")]
+    [InlineData("anon:11111111-2222-3333-4444-555555555555")]
+    public async Task An_anonymous_forget_that_names_no_cursor_is_refused(string? header)
+    {
+        using var factory = new ApiFactory();
+        using var client = factory.CreateClient();
+        if (header is not null) client.DefaultRequestHeaders.Add(ReaderIdentity.HeaderName, header);
+
+        using var response = await client.DeleteAsync(ForgetAnonymously, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     /// <summary>Three frames, the least a program needs for a cursor to be somewhere other than its first or last.</summary>

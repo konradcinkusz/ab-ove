@@ -6,10 +6,12 @@
 [`docs/ux/UI-UX.md`](../ux/UI-UX.md#the-order)).
 
 It amends [ADR-0019](0019-furthest-frame-wins.md), whose rule is unchanged: the browser no
-longer sends the account a place. It takes away the reason
+longer sends the account a place, and a forget reaches the anonymous cursor as well as the
+browser and the account (§5). It takes away the reason
 [ADR-0021](0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md) gave
-first for its order, and keeps the order. It changes the Reason and the Exit of one row in
-the deviation register ([`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md)): "`PUT
+first for its order, and keeps the order; the deletion screen now says what that costs. It
+changes the Reason and the Exit of one row in the deviation register
+([`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md)): "`PUT
 /api/v1/progress/{track}/{unit}` can still name a step it did not earn".
 
 Constrained by these, and amends none of them:
@@ -39,7 +41,8 @@ Constrained by these, and amends none of them:
   anonymously to frame 40 and then signed in to an account at frame 12 would be refused frames
   13 to 40.
 - **The API already holds that place.** An anonymous reader's cursor is the `anon:<id>` rows
-  (ADR-0061), and the only write that moves one is `POST …/advance`, behind the gate.
+  (ADR-0061). Their steps are the gate's to raise, through `POST …/advance`, and no write lets
+  a caller name one.
 - **ADR-0066 named one mechanism** — at sign-in the API adopts the steps of the reader's
   `anon:<id>` rows, the furthest frame winning, and the sync then sends nothing the API does
   not already hold — and said that a place only this browser's `localStorage` holds would
@@ -73,12 +76,13 @@ Adoption copies. It never moves or deletes:
   account;
 - a second adoption changes nothing, so a sign-in whose adoption failed is repaired by the
   next one;
-- an adoption that deleted would let anyone holding a leaked id erase that reader's place.
+- the anonymous places go when the reader asks for them to go, by forgetting them (§5), and
+  not because somebody signed in.
 
 ### 3. The sync sends no place
 
 `web/app/src/lib/progress/sync.ts` pulls the account's copy, merges it in by the same rule,
-tells the reader what moved, and forgets both copies when asked. It never calls `PUT`, and it
+tells the reader what moved, and forgets every copy when asked (§5). It never calls `PUT`, and it
 sends nothing the API does not already hold. `reconcile.ts` no longer lists anything to send.
 Its `settle` went with the pushes: it put a cycle's merge back over the record as it stood
 when the cycle landed, and a cycle that sends nothing merges and writes with nothing awaited in
@@ -104,18 +108,65 @@ from:
 **Not dropped**, because the browser's merge never lowers a record (ADR-0019, as amended for
 #157), and a hint that is wrong costs a click.
 
+### 5. A forget reaches the anonymous cursor too
+
+Adoption copies the cursor at every sign-in, so a forget that cleared this browser and the
+account and left the cursor was undone by the next sign-in, and the browser then told the reader
+the place had been read elsewhere. On a shared browser the next account signed in there took it
+too. Review of this change reproduced both orders end to end: forgotten with no account and an
+account made afterwards, and forgotten on an account that signed out and in again. So *Forget
+where I am* reaches every copy the API holds of where this browser has read: the account's rows
+and the rows of the anonymous cursor this browser reads under.
+
+- **`DELETE /api/v1/progress`** (`authApi`) removes the account's rows and the rows of the
+  anonymous cursor the `X-Ab-Ovo-Reader-Id` header names, each reader in a query of its own
+  pinned by its own equality (`ReaderScopedQueries`, ADR-0020), in one `SaveChanges`. The
+  proxy sends the header beside the bearer, so a signed-in forget reaches both in one call.
+- **`DELETE /api/v1/progress/anonymous`** (`openWriteApi`: no account, rate-limited) removes
+  the rows of the cursor the header names, and nothing else, even beside a bearer. It is the
+  forget of a reader with no account, whose `DELETE` above answers 401. Holding the id is the
+  whole of the cursor's credential (ADR-0061), so its holder can forget it as they can
+  advance it.
+- **`forgetEverywhere`** (`web/app/src/lib/progress/sync.ts`) sends the first and, on a 401,
+  the second. After a 401 the account is owed nothing only when this origin says there is no
+  session, so a session whose bearer the API refused keeps the forget owed. The marker stays
+  set until the forget is paid, and a cycle pays it before it asks whether the reader is signed
+  in: the next sign-in adopts on the server, where the marker cannot stop it.
+- **Removed, not orphaned.** Replacing the `ab_ovo_rid` cookie with a new id would also stop
+  this browser adopting the cursor, and it would leave the cursor's rows under an id nobody
+  holds, for ADR-0061's retention job, which is not built, to find. A forget removes what it
+  forgets.
+- **Account deletion leaves the cursor alone.** `forgetStoredProgress`
+  (`web/app/src/lib/server/account-deletion.ts`) calls the same `DELETE` from this origin's
+  server with no header, so the cursor stays with the browser, as the browser's own record
+  does (ADR-0021).
+
+It cannot reach another browser's cursor. No request from this browser carries that cookie, so
+a place read without an account on another browser stays there, and a sign-in there adopts it
+into the account again — as that browser's `localStorage` keeps its hint until it is forgotten
+there too.
+
 ## Consequences
 
 - **The register row changes.** `web/app` no longer raises `Step` through `PUT`, so #171,
   which lands second, narrows `PUT` with its test in `AbOvo.Api.Tests` and discharges the row.
-- **A forget on one machine now stays forgotten on the account.** Before, another signed-in
-  machine's next sync sent its own copy back. That machine keeps its hint until it is
-  forgotten there too.
+- **A forget on one machine stays forgotten on the account, until another browser adopts.**
+  Before, another signed-in machine's next sync sent its own copy back. Now what brings a
+  forgotten place back to the account is a reveal, a sign-in on a browser whose own cursor
+  still holds what was read there without an account (§5), or, until #171, `web/mcp`'s `PUT`.
+  That machine keeps its hint until it is forgotten there too.
 - **One account's places no longer reach another account signed in on the same browser.** The
   push sent every place the record held further than the account, and the record keeps places
   merged in from earlier accounts. Adoption takes only the anonymous cursor's. On a shared
-  browser every account signed in there adopts that cursor's places, as every account used to
-  receive the push.
+  browser every account signed in there adopts what that cursor holds, as every account used to
+  receive the push of this browser's record; a forget empties the cursor as it empties the
+  record (§5), so a place forgotten there reaches no account.
+- **A forget still owed when a sign-in adopts costs the account the rest of its places.** If
+  every attempt to pay a forget fails until the reader signs in, the adoption copies the
+  forgotten places into the account, and the first cycle after it pays the forget with the
+  account's `DELETE`, which removes every row the account holds. A forget pressed while signed
+  in does the same, and nothing is told as read elsewhere. This was already true of a forget
+  that failed to reach the account, before this change.
 - **The race between the sync's first `PUT` and the first reveal is gone.** The sync's first
   `PUT` for a program and the first reveal's advance each found no row and inserted one, and
   the loser got a 500. `furthest-frame.spec.ts` no longer waits for it.
@@ -124,22 +175,32 @@ from:
   the account's copy of the reader's places. The browser keeps its hint, and what the reader
   read without an account is adopted again at their next sign-in. The order stands, because
   the other order's failure leaves rows nobody can remove, and the reader was deleting the
-  account. Whether it should now be reversed is a decision of its own, not taken here.
+  account. Whether it should now be reversed is a decision of its own, not taken here. The
+  reader is told: the deletion screen's password refusals, for no password and for a wrong
+  one, say that what the account had stored was removed before the password was checked and
+  cannot be put back (`problemPasswordRequired` and `problemPasswordRejected` in
+  `web/app/src/lib/i18n/chrome.ts`).
 - **A program opened on one machine and not answered there is not on the account.** Opening
   writes nothing to the API (ADR-0066 §2), so the account hears of the program at its first
   reveal. Until then another machine's program gate (ADR-0051) opens the next program one
   click later. #171's opening write is the fix, if a request per opened program is worth it.
 - **Where adoption fails at a sign-in, the gate refuses the frames read without an account**
-  until the next sign-in adopts them. The server log says so. The reader is not told, for the
-  reason ADR-0019 gives for a failed sync.
+  until the next sign-in adopts them. The server log says so. The reader is not told: the
+  gate's *Not there yet* offers the furthest frame the account holds and says nothing of why. A
+  signed-in counterpart to the signed-out hint (ADR-0019, *Amendment 2026-09-25*) would be the
+  place to say it, and is not built here. One way it fails is a race: a sign-in whose adoption
+  inserts a program's row while a first reveal of that program on another machine inserts the
+  same row answers 500, adopts nothing, and is repaired by the next sign-in.
 - **A sign-in waits for one more call to `AbOvo.Api`**, with the budgets
   `web/app/src/lib/server/content.ts` gives a page load.
 - **The anonymous rows are copied, not moved**, so ADR-0061's retention job still has to cover
-  them, as it did before.
+  them, as it did before; a forget removes them (§5).
 - **This is not a new deviation.** It changes one row's Reason and Exit and adds none.
 
-Asserted in `ProgressAdoptionTests` (the rule, whose rows move, what is left, and a frame read
-without an account served to the account after adoption), `adopt-places.test.ts` (what the
-server sends, and the ladder), `reconcile.test.ts`, and end to end in
-[`adopt-at-sign-in.spec.ts`](../../tests/e2e/specs/adopt-at-sign-in.spec.ts) and
-[`sync.spec.ts`](../../tests/e2e/specs/sync.spec.ts).
+Asserted in `ProgressAdoptionTests` (the rule, whose rows move, what is left, a frame read
+without an account served to the account after adoption, and what each forget removes and
+what neither may), `adopt-places.test.ts` (what the server sends, and the ladder),
+`reconcile.test.ts`, `account-deletion-problem.test.ts` (the refusals' sentences), and end to
+end in [`adopt-at-sign-in.spec.ts`](../../tests/e2e/specs/adopt-at-sign-in.spec.ts) (the
+adoption, and a forget with no account, with one, and cut off once, that no sign-in undoes)
+and [`sync.spec.ts`](../../tests/e2e/specs/sync.spec.ts).

@@ -319,8 +319,10 @@ ona czyni ocenę pojedynczego czytelnika nie do zbudowania
 %% wliczonego do wskaźnika, i dlatego ekran usuwania mówi to wprost (ADR-0021).
 
 %% NIC, CO CZYTELNIK PISZE NA RAMCE, NIE JEST PRZECHOWYWANE POZA JEGO PRZEGLĄDARKĄ
-%% (ADR-0039). Arkusz, notatnik i płótno są lokalne; taka jest też zgoda (ADR-0022) i takie
-%% jest miejsce w lekturze, dopóki konto go nie zsynchronizuje.
+%% (ADR-0039). Arkusz, notatnik i płótno są lokalne, taka jest też zgoda (ADR-0022). Miejsce
+%% w lekturze nie jest: API trzyma je pod ciasteczkiem czytelnika albo na jego koncie
+%% (ADR-0060, ADR-0061), a przeglądarka zachowuje kopię jako podpowiedź, gdzie wrócić, i nigdy
+%% jej nie wysyła (ADR-0068).
 
 flowchart TD
   subgraph browser["Własna przeglądarka czytelnika - domyślnie, i to wystarcza"]
@@ -341,7 +343,7 @@ flowchart TD
   RULE2["BundlePinnedQueries<br/>zapytanie przez wiele wersji<br/>paczki jest odrzucane"]
   RULE3["Zamknięte listy kolumn<br/>wynik, czas trwania albo liczba<br/>podejść psują build"]
 
-  LOCAL -.->|"tylko z kontem"| RP
+  RP -.->|"kopiowane do przeglądarki, z kontem"| LOCAL
   LOCAL -.->|"tylko z kontem"| RPF
   LOCAL -.->|"tylko za zgodą"| FO
 
@@ -561,9 +563,12 @@ Powierzchnia lektury pokazuje miejsce, nigdy postęp
 ([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md)). Konto kupuje
 dokładnie jedną rzecz: to samo miejsce na drugiej maszynie. Wygrywa najdalsza ramka
 ([ADR-0019](adr/0019-furthest-frame-wins.md)) — uzgodnienie, które cofnęłoby czytelnika,
-straciłoby lekturę, którą odbył. Konto dowiaduje się o pozycji w lekturze tylko z własnych
-zapisów API — z odsłonięcia i z pozycji przeczytanych bez konta, przejmowanych przy logowaniu —
-a przeglądarka niczego mu nie wysyła ([ADR-0068](adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)).
+straciłoby lekturę, którą odbył. Przeglądarka nie wysyła kontu żadnej pozycji w lekturze: to,
+co aplikacja webowa zapisuje na koncie, pochodzi z własnych zapisów API — z odsłonięcia i z
+pozycji przeczytanych bez konta, przejmowanych przy logowaniu — a zapomnienie sięga pozycji pod
+ciasteczkiem tak samo jak kopii w przeglądarce i na koncie ([ADR-0068](adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)).
+Do czasu #171 `web/mcp` nadal podnosi pozycję na koncie przez `PUT`, co jest wierszem w
+[rejestrze odstępstw](architecture/00-ARCHITECTURE.md#deviation-register).
 
 ```mermaid
 %% Gdzie jest czytelnik: miejsce w lekturze, które nie jest postępem, i kto je trzyma.
@@ -574,10 +579,13 @@ a przeglądarka niczego mu nie wysyła ([ADR-0068](adr/0068-the-account-adopts-t
 %% produkuje. Pasek nawigacji mówi, która to ramka z ilu, i otwiera mapę programu
 %% (ADR-0063).
 
-%% KONTO DOWIADUJE SIĘ O POZYCJI W LEKTURZE TYLKO Z WŁASNYCH ZAPISÓW API (ADR-0068).
-%% Odsłonięcie przesuwa kursor, pod którym czytelnik czyta, a zalogowanie przejmuje pozycje
-%% przeczytane bez konta. Kopia w przeglądarce jest podpowiedzią, gdzie wrócić (ADR-0060), i
-%% niczego kontu nie wysyła. Konto kupuje jedną rzecz: to samo miejsce na drugiej maszynie.
+%% PRZEGLĄDARKA NIE WYSYŁA KONTU ŻADNEJ POZYCJI W LEKTURZE (ADR-0068). To, co aplikacja
+%% webowa zapisuje na koncie, pochodzi z własnych zapisów API: odsłonięcie przesuwa kursor, pod
+%% którym czytelnik czyta, a zalogowanie przejmuje pozycje przeczytane bez konta. Kopia w
+%% przeglądarce jest podpowiedzią, gdzie wrócić (ADR-0060). Do czasu #171 web/mcp nadal podnosi
+%% pozycję na koncie przez PUT, co jest wierszem w rejestrze odstępstw. Zapomnienie sięga
+%% pozycji pod ciasteczkiem tak samo jak kopii w przeglądarce i na koncie. Konto kupuje jedną
+%% rzecz: to samo miejsce na drugiej maszynie.
 
 %% WYGRYWA NAJDALSZA RAMKA (ADR-0019). Dwie maszyny, które się nie zgadzają, to nie konflikt
 %% do rozstrzygnięcia znacznikiem czasu: czytelnik przeczytał do dalszej z dwóch, a
@@ -611,7 +619,7 @@ flowchart LR
   RECON --> LA
   RECON --> LB
 
-  NOACC(["Bez konta:<br/>API trzyma pozycję pod ciasteczkiem,<br/>a konto przejmuje ją przy logowaniu"])
+  NOACC(["Bez konta:<br/>API trzyma pozycję pod ciasteczkiem,<br/>konto przejmuje ją przy logowaniu,<br/>a zapomnienie ją usuwa"])
   LA -.-> NOACC
 ```
 

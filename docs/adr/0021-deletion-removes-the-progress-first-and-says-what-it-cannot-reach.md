@@ -5,7 +5,7 @@
 **Accepted.** Date: 2026-09-15. Its first reason for the order was taken away on 2026-09-26 by
 [ADR-0068](0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md),
 which keeps the order; the notes under the Decision and the Consequences say what a mistyped
-password costs now.
+password costs now, and the screen's password refusals say it to the reader.
 
 ## Context
 
@@ -65,7 +65,13 @@ this ordering becomes the wrong one.
 > browser keeps its own as a resume hint, and what the reader read without an account is
 > adopted again at their next sign-in. The order is kept: the other order's worst case is still
 > rows nobody can remove, and the reader was deleting the account. Whether it should now be
-> reversed is a decision of its own, which ADR-0068 does not take.
+> reversed is a decision of its own, which ADR-0068 does not take. The refusals that land in
+> this state — no password given, and a wrong one — say so on the screen, in each edition: what
+> the account had stored was removed before the password was checked, and cannot be put back.
+>
+> The same note, for the other half of "leave the reader's local progress alone" below: the
+> progress call sends no reader-id header, so the anonymous cursor this browser reads under,
+> which `AbOvo.Api`'s forget also removes when a request names it, is left with the browser.
 
 **Clear the session cookies last, and only on success.** authservice revokes only the
 _refresh_ tokens; the access token stays valid until its own `exp`, and nothing in this
@@ -101,7 +107,7 @@ account. Accepted, because the alternative is the permanent orphan above.
 
 > Since 2026-09-26 it does not come back that way (the note under the Decision above): what
 > the reader read without an account is adopted again at their next sign-in, and the rest of
-> the account's copy is gone.
+> the account's copy is gone. The refusal on the screen says that it is gone.
 
 **The screen is bilingual where `/login` is English-only, which is a deviation from that
 page's own recorded reasoning.** `/login` argues it has no language to follow and declines

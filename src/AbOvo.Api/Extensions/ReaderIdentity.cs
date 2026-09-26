@@ -53,9 +53,10 @@ public static class ReaderIdentity
     /// The anonymous reader the header names, as <c>anon:&lt;uuid&gt;</c>, WHETHER OR NOT the
     /// request also carries a bearer — or <c>null</c> when the header is absent or not shaped
     /// like one. <see cref="Resolve"/> lets a bearer win, which is right for every read and
-    /// every advance: one request, one cursor. Adoption at sign-in is the one call that needs
-    /// both at once — the account the bearer names and the anonymous cursor whose places it
-    /// takes (ADR-0068, issue #176) — so it asks for this half by name.
+    /// every advance: one request, one cursor. A call that acts on the anonymous cursor as a
+    /// cursor of its own — beside the account the bearer names, as adoption at sign-in and the
+    /// account's forget do, or with no account at all, as the anonymous forget does — asks for
+    /// this half by name (ADR-0068, issue #176).
     /// </summary>
     public static string? Anonymous(HttpContext context) =>
         context.Request.Headers.TryGetValue(HeaderName, out var values)

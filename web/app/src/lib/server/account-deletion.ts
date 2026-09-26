@@ -38,8 +38,16 @@ import { deleteAccount, type DeleteAccountOutcome, type FetchLike } from './dele
  * session AND the sync pushed that progress back. ADR-0068 took the push away, so the
  * comparison is now a lost copy against a permanent orphan rather than nothing against one.
  * The order stands on that; whether it should now be reversed is a decision of its own, and
- * ADR-0068 leaves it open rather than taking it in passing.
+ * ADR-0068 leaves it open rather than taking it in passing. What it does not leave is the
+ * reader uninformed: the password refusals are exactly this state — the account kept, its
+ * reading position gone — and their sentences say so (`problemPasswordRequired` and
+ * `problemPasswordRejected` in `lib/i18n/chrome.ts`).
  * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * NO READER-ID HEADER GOES WITH THE PROGRESS CALL, and that is what keeps the anonymous cursor
+ * this browser reads under out of a deletion: `AbOvo.Api`'s forget removes that cursor's rows
+ * too when a request names it (ADR-0068 §5), and this one does not. The cursor is the
+ * browser's, as its own record is, and the deletion leaves both (ADR-0021).
  *
  * The cookies are cleared LAST, and only on success, for the reason in `delete-account.ts`:
  * authservice revokes refresh tokens and leaves the access token to expire on its own, so

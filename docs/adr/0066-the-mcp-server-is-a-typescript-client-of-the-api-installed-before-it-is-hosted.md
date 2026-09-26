@@ -318,6 +318,11 @@ has to cover these rows too. A reader who deletes the id file leaves orphan rows
 delete, because `DELETE /api/v1/progress` needs a bearer. Clearing a cookie leaves the same
 kind of rows.
 
+> Since 2026-09-26 an anonymous cursor can be forgotten without a bearer, by whoever holds its
+> id: `DELETE /api/v1/progress/anonymous`
+> ([ADR-0068](0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)
+> §5). A deleted id file or a cleared cookie still leaves rows that nobody can name.
+
 **One file is one reader of each instance.** Two people who share an operating-system account
 are one reader. A host that runs the server in a sandbox with no lasting home loses the place
 at every start, and says so.

@@ -31,11 +31,12 @@
  * `PUT /api/v1/progress/{track}/{unit}` — frame 40 here and frame 12 on the account sent 40 —
  * and the reveal gate then served the account whatever that number said. The number was this
  * browser's own, which made this module the web half of the deviation-register row "`PUT` …
- * can still name a step it did not earn". The account now learns a place only from
+ * can still name a step it did not earn". What this app puts on the account now comes from
  * `AbOvo.Api`'s own writes: a signed-in reveal (`POST …/advance`), and, as a session begins,
  * the adoption of the places this browser read without an account
  * (`lib/server/adopt-places.ts`). So this module pulls, merges, says what moved and forgets on
- * request, and sends nothing the API does not already hold.
+ * request, and sends nothing the API does not already hold. (`web/mcp` still raises the
+ * account through `PUT` until #171 moves it to the advance; that is the register row now.)
  *
  * A place only this browser holds — past the account and past the anonymous cursor — stays
  * here as ADR-0060's resume hint: *Continue* still offers it, the gate answers for the frame
@@ -65,6 +66,12 @@ import { keyOf, read, type ProgramRef } from './store.ts';
 
 /** The BFF path. `/api/proxy` + the service's own route — see the §5 routing table. */
 const PROGRESS = '/api/proxy/api/v1/progress';
+
+/**
+ * The forget of a reader with no account (ADR-0068 §5): the anonymous cursor the proxy names
+ * from the `ab_ovo_rid` cookie, which `PROGRESS`'s `DELETE` reaches only beside a bearer.
+ */
+const ANONYMOUS_PROGRESS = '/api/proxy/api/v1/progress/anonymous';
 
 /**
  * A forget that could not reach the account, so the next pull must not undo it.
@@ -266,14 +273,42 @@ async function pull(): Promise<readonly RemoteRecord[] | null> {
   }
 }
 
+/**
+ * Every copy the API holds of where this browser has read — ADR-0068 §5.
+ *
+ * The account's rows, and the rows of the anonymous cursor this browser reads under
+ * (ADR-0061). The cursor's matter because the account ADOPTS them at every sign-in: a forget
+ * that left them would be undone by the next sign-in, told to the reader as reading done
+ * elsewhere — and, on a shared browser, adopted into whoever signed in there next.
+ *
+ * Signed in, one `DELETE` reaches both: the proxy sends the cursor's header beside the bearer,
+ * and the API forgets each. A 401 is the API taking no account from the request, and then the
+ * cursor is forgotten through the route that needs none. A 400 there is the API saying the
+ * request named no cursor: this browser holds no reader-id cookie for the proxy to send, so
+ * nothing is filed under one.
+ *
+ * After a 401 the account is owed nothing only if this origin says there is no session. It
+ * used to be enough that the API said 401; but a session this origin still vouches for, whose
+ * bearer the API refused, or one it cannot verify at the moment, has a copy on the account
+ * that this request did not reach, and clearing the marker then would let the next pull bring
+ * it back. So the forget stays owed until the session question has an answer.
+ *
+ * `keepalive`, because a reader who presses Forget and leaves at once should not take the
+ * request down with the page; the marker still covers one that never lands.
+ */
 async function deleteRemote(): Promise<boolean> {
-  const response = await call(PROGRESS, { method: 'DELETE' });
+  const response = await call(PROGRESS, { method: 'DELETE', keepalive: true });
   if (!response) return false;
-  // 401 means there is no account copy to delete, which is the outcome asked for.
-  return response.ok || response.status === 401;
+  if (response.ok) return true;
+  if (response.status !== 401) return false;
+
+  const anonymous = await call(ANONYMOUS_PROGRESS, { method: 'DELETE', keepalive: true });
+  if (!anonymous || !(anonymous.ok || anonymous.status === 400)) return false;
+
+  return (await ask()) === 'signed-out';
 }
 
-// ── The forget that has to reach two places ─────────────────────────────────────────────
+// ── The forget that has to reach every copy ─────────────────────────────────────────────
 
 const marker = (): Storage | undefined => {
   try {
@@ -302,7 +337,7 @@ const setForgetPending = (pending: boolean): void => {
 };
 
 /**
- * Forget, on this machine and on the account.
+ * Forget, on this machine, on the account, and under the anonymous cursor (ADR-0068 §5).
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * THE MARKER IS WHAT STOPS THE FORGET BEING A LIE.
@@ -314,8 +349,11 @@ const setForgetPending = (pending: boolean): void => {
  * disappear comes back an hour later.
  *
  * So the local record goes immediately, because it is theirs and clearing it always works;
- * and a marker is left saying the account has not been told yet. While that marker is set,
- * `cycle()` below will not PULL — it retries the DELETE and does nothing else.
+ * and a marker is left saying the API has not been told yet. While that marker is set,
+ * `cycle()` below will not PULL — it retries the DELETE and does nothing else — and it retries
+ * whether or not the reader is signed in, because the copy an anonymous reader's forget owes
+ * is the cursor, and the next sign-in adopts whatever the cursor still holds, on the server,
+ * where this marker cannot stop it.
  *
  * A cycle ALREADY ON THE WIRE is the other way back. A reader who presses Forget just after
  * a page opens presses it during that page's first pull, and the pull answers with the
@@ -347,12 +385,19 @@ export async function forgetEverywhere(): Promise<void> {
 let running: Promise<void> | null = null;
 
 async function cycle(): Promise<void> {
-  if ((await ask()) !== 'signed-in') return;
-
+  /*
+    A forget still owed is paid FIRST, signed in or not (ADR-0068 §5). It used to wait behind
+    the question below, which was right while the account was the only copy away from this
+    browser; the anonymous cursor is one too, and the next sign-in adopts it. A reader with no
+    account and nothing owed still asks the API nothing here (`sync.spec.ts` watches the wire
+    for it).
+  */
   if (forgetIsPending()) {
     if (!(await deleteRemote())) return;
     setForgetPending(false);
   }
+
+  if ((await ask()) !== 'signed-in') return;
 
   const records = await pull();
   if (records === null) return;

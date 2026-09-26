@@ -5,10 +5,12 @@
 %% book of 47 programs is a number about the reader, and this product does not make those.
 %% The pager says which frame of how many, and opens the map of the program (ADR-0063).
 
-%% THE ACCOUNT LEARNS A PLACE ONLY FROM THE API'S OWN WRITES (ADR-0068). A reveal moves the
-%% cursor the reader reads under, and signing in adopts the places read without an account.
-%% The browser's copy is a resume hint (ADR-0060) and sends the account nothing. An account
-%% buys one thing: the same place on a second machine.
+%% THE BROWSER SENDS THE ACCOUNT NO PLACE (ADR-0068). What the web app puts on the account
+%% comes from the API's own writes: a reveal moves the cursor the reader reads under, and
+%% signing in adopts the places read without an account. The browser's copy is a resume hint
+%% (ADR-0060). Until #171, web/mcp still raises the account through PUT, which is a row in the
+%% deviation register. A forget reaches the cookie's place as well as the browser's and the
+%% account's. An account buys one thing: the same place on a second machine.
 
 %% FURTHEST FRAME WINS (ADR-0019). Two machines that disagree are not a conflict to resolve
 %% with a timestamp: the reader has read up to the furthest of the two, and a reconciliation
@@ -42,5 +44,5 @@ flowchart LR
   RECON --> LA
   RECON --> LB
 
-  NOACC(["No account:<br/>the API keeps the place under a cookie,<br/>and an account adopts it at sign-in"])
+  NOACC(["No account:<br/>the API keeps the place under a cookie,<br/>an account adopts it at sign-in,<br/>and a forget removes it"])
   LA -.-> NOACC

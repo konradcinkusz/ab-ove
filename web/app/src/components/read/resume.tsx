@@ -142,11 +142,12 @@ export function ForgetProgress({
 
   /*
     Fire and forget, deliberately. The local record is gone the instant this returns and
-    the control disappears with it; the account copy is the network's problem, and
-    `forgetEverywhere` leaves a marker that blocks the next PULL until the account has
-    actually been told — so a DELETE that does not land cannot resurrect what the reader
-    just watched disappear. Awaiting it here would only mean a spinner over a deletion
-    that has already happened as far as this browser is concerned.
+    the control disappears with it; the API's copies — the account's, and the anonymous
+    cursor's the next sign-in would adopt (ADR-0068 §5) — are the network's problem, and
+    `forgetEverywhere` leaves a marker that blocks the next PULL until the API has actually
+    been told — so a DELETE that does not land cannot resurrect what the reader just
+    watched disappear. Awaiting it here would only mean a spinner over a deletion that has
+    already happened as far as this browser is concerned.
   */
   const act = useCallback(() => void forgetEverywhere(), []);
   const settle = useCallback(() => document.getElementById(settleOn), [settleOn]);

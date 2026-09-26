@@ -348,7 +348,9 @@ test.describe('progress follows the reader between machines', () => {
     // the frame. A signed-in reveal tells it now — the reveal IS the write (ADR-0068) — and the
     // cycle only pulls. Here the reveals go to the real API as the anonymous reader they are,
     // because this deployment has no identity service and the account is a stub; what is
-    // asserted is the browser's half, that the cycles a frame turn schedules send nothing.
+    // asserted is the browser's half, that the cycles after the frames were read send nothing.
+    // `twoCyclesFromNow` starts them with a visibility change, which replaces the debounced
+    // cycle a frame turn scheduled — the same `cycle()`, reached from its other edge.
     const remote = account(page, []);
     await remote.install();
 

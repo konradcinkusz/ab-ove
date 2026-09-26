@@ -157,10 +157,11 @@ const chooseLast = (remote: readonly RemoteRecord[]): RemoteRecord | undefined =
  * | frame 40 | frame 40 | the account's | nothing |
  *
  * The first and third rows used to send 40 to the account, and that push was a step the
- * browser chose rather than one the gate saw earned. The account learns a place now only from
- * `AbOvo.Api`'s own writes — a signed-in reveal, and the adoption of this browser's anonymous
- * cursor at sign-in — so a program this machine holds further than the account stays further
- * HERE, as the resume hint ADR-0060 made this record, and is never sent (ADR-0068).
+ * browser chose rather than one the gate saw earned. The browser sends the account no place
+ * now: what this app puts on it comes from `AbOvo.Api`'s own writes — a signed-in reveal, and
+ * the adoption of this browser's anonymous cursor at sign-in — so a program this machine holds
+ * further than the account stays further HERE, as the resume hint ADR-0060 made this record,
+ * and is never sent (ADR-0068).
  *
  * The last row is the one that is not obviously symmetric. A tie on the frame can still
  * disagree on the EDITION — "frame 40, in Polish" is one fact and not two, which is why
