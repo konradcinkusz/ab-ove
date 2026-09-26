@@ -17,7 +17,6 @@ import { test } from 'node:test';
 import {
   couldBeOwnReveal,
   reconcile,
-  settle,
   shownHere,
   stillNews,
   type Raised,
@@ -42,41 +41,51 @@ const row = (unit: string, step: number, language = 'en', updatedAt = '2026-01-0
 
 const at = (result: { merged: Progress }, unit: string) => result.merged.positions[`${TRACK}/${unit}`];
 
+/**
+ * ADR-0068: a merge decides what this browser holds and what the reader is told, and nothing
+ * else — there is no member for what to send the account, because nothing is sent. Asserted
+ * as the whole key set, so a merge that grows one again is a failure here first.
+ */
+const decidesNothingToSend = (result: object) =>
+  assert.deepEqual(Object.keys(result).sort(), ['merged', 'raised'], 'the merge decided something to send');
+
 // ── The rule ────────────────────────────────────────────────────────────────────────────
 
 test('the account is further ahead, so it wins and the reader is told', () => {
   const result = reconcile(local({ [`${TRACK}/P01`]: { language: 'en', step: 12 } }), [row('P01', 40, 'pl')]);
 
   assert.deepEqual(at(result, 'P01'), { language: 'pl', step: 40 });
-  assert.deepEqual(result.toPush, [], 'nothing to send: this machine was behind');
   assert.deepEqual(result.raised, [
     { program: { track: TRACK, unit: 'P01' }, from: 12, to: { language: 'pl', step: 40 } },
   ]);
 });
 
-test('this machine is further ahead, so it wins and is sent to the account', () => {
+/**
+ * ADR-0068's decision about a place only this browser holds. It used to be sent — frame 40
+ * here and 12 on the account pushed 40 — and that push was a step no gate had seen earned. It
+ * stays here now, as the resume hint ADR-0060 made this record, and the account learns a
+ * place only from the API's own writes.
+ */
+test('this machine is further ahead, so it keeps its place here, and nothing is sent', () => {
   const result = reconcile(local({ [`${TRACK}/P01`]: { language: 'en', step: 40 } }), [row('P01', 12, 'pl')]);
 
   assert.deepEqual(at(result, 'P01'), { language: 'en', step: 40 });
-  assert.deepEqual(result.toPush, [
-    { program: { track: TRACK, unit: 'P01' }, position: { language: 'en', step: 40 } },
-  ]);
   assert.deepEqual(result.raised, [], 'nothing moved under the reader, so nothing to say');
+  decidesNothingToSend(result);
 });
 
-test('a program the account has never seen is sent to it', () => {
+test('a program the account has never seen stays here, and is not sent to it', () => {
   const result = reconcile(local({ [`${TRACK}/P01`]: { language: 'en', step: 7 } }), []);
 
   assert.deepEqual(at(result, 'P01'), { language: 'en', step: 7 });
-  assert.equal(result.toPush.length, 1);
   assert.deepEqual(result.raised, []);
+  decidesNothingToSend(result);
 });
 
 test('a program this machine has never seen arrives, and the reader is told it is new here', () => {
   const result = reconcile(EMPTY, [row('P04', 9, 'pl')]);
 
   assert.deepEqual(at(result, 'P04'), { language: 'pl', step: 9 });
-  assert.deepEqual(result.toPush, []);
   assert.deepEqual(result.raised, [
     { program: { track: TRACK, unit: 'P04' }, from: null, to: { language: 'pl', step: 9 } },
   ]);
@@ -91,16 +100,15 @@ test('a tie on the frame adopts the account edition, and says nothing', () => {
   const result = reconcile(local({ [`${TRACK}/P01`]: { language: 'en', step: 40 } }), [row('P01', 40, 'pl')]);
 
   assert.deepEqual(at(result, 'P01'), { language: 'pl', step: 40 });
-  assert.deepEqual(result.toPush, [], 'a tie is not ahead, so there is nothing to send');
   assert.deepEqual(result.raised, [], 'no frame moved, so the reader has not been moved');
 });
 
 /**
  * Issue #157, at the layer with the logic. A reader read to frame 3, the account holds 3,
  * and they went back to frame 2 — on this machine. The furthest is 3 and `last` is 2, so
- * there is nothing to send and nobody moved them.
+ * nobody moved them.
  */
-test('a reader who went back is neither raised nor sent anything', () => {
+test('a reader who went back is not raised', () => {
   const here: Progress = {
     last: { track: TRACK, unit: 'P01', language: 'en', step: 2 },
     positions: { [`${TRACK}/P01`]: { language: 'en', step: 3 } },
@@ -108,25 +116,31 @@ test('a reader who went back is neither raised nor sent anything', () => {
   const result = reconcile(here, [row('P01', 3, 'en')]);
 
   assert.deepEqual(result.raised, [], 'going back was announced as reading done elsewhere');
-  assert.deepEqual(result.toPush, [], 'going back was sent to the account');
   assert.deepEqual(result.merged, here, 'the sync moved where this browser was');
 });
 
 // ── Convergence, as a property rather than an example ───────────────────────────────────
 
-test('two machines converge whatever order they sync in', () => {
+test('two machines converge on the account whatever order they sync in', () => {
+  // The phone read to 40 signed in, so its reveals raised the account to 40: the account
+  // learns a place from the API's own writes (ADR-0068). The laptop stopped at 12.
   const phone = local({ [`${TRACK}/P01`]: { language: 'pl', step: 40 } }, 'P01');
   const laptop = local({ [`${TRACK}/P01`]: { language: 'en', step: 12 } }, 'P01');
+  const account = [row('P01', 40, 'pl')];
 
-  // Phone first: it pushes 40, so the laptop meets an account holding 40.
-  const phoneThenLaptop = reconcile(laptop, [row('P01', 40, 'pl')]);
-  // Laptop first: it pushes 12, which the SERVICE refuses to move backwards — so what the
-  // phone later meets is still 40, and it is the service's refusal that makes this true.
-  const laptopThenPhone = reconcile(phone, [row('P01', 12, 'en')]);
-
-  assert.deepEqual(at(phoneThenLaptop, 'P01'), { language: 'pl', step: 40 });
-  assert.deepEqual(at(laptopThenPhone, 'P01'), { language: 'pl', step: 40 });
-  assert.deepEqual(at(phoneThenLaptop, 'P01'), at(laptopThenPhone, 'P01'));
+  // A sync sends nothing, so neither machine's sync can move what the other one meets: the
+  // order they run in is the order of two reads of one account, and both end on its 40.
+  for (const [first, second] of [
+    [phone, laptop],
+    [laptop, phone],
+  ] as const) {
+    const one = reconcile(first, account);
+    const other = reconcile(second, account);
+    decidesNothingToSend(one);
+    decidesNothingToSend(other);
+    assert.deepEqual(at(one, 'P01'), { language: 'pl', step: 40 });
+    assert.deepEqual(at(one, 'P01'), at(other, 'P01'));
+  }
 });
 
 test('merging twice changes nothing the second time', () => {
@@ -134,7 +148,6 @@ test('merging twice changes nothing the second time', () => {
   const second = reconcile(first.merged, [row('P01', 40, 'pl')]);
 
   assert.deepEqual(second.merged, first.merged);
-  assert.deepEqual(second.toPush, []);
   assert.deepEqual(second.raised, [], 'a reader who has already been told is not told again');
 });
 
@@ -213,10 +226,11 @@ test('a stored key this module cannot address is kept rather than tidied away', 
   const result = reconcile({ positions: { 'no-slash': { language: 'en', step: 3 } } }, []);
 
   assert.deepEqual(result.merged.positions['no-slash'], { language: 'en', step: 3 });
-  assert.deepEqual(result.toPush, [], 'and it is never sent anywhere, because it addresses nothing');
+  // And it goes nowhere — though nothing here is sent anywhere any more (ADR-0068).
+  decidesNothingToSend(result);
 });
 
-// ── A cycle that lands after the reader read on ──────────────────────────────────────────
+// ── A raise this browser caused itself ───────────────────────────────────────────────────
 
 const raise = (unit: string, to: number, from: number | null = null): Raised => ({
   program: { track: TRACK, unit },
@@ -225,68 +239,10 @@ const raise = (unit: string, to: number, from: number | null = null): Raised => 
 });
 
 /**
- * Issue #157, the race half. A cycle pulled with this browser at frame 5; while it was out
- * the reader revealed frame 6 — which moved the account too — and landed on it. Writing the
- * cycle's record back whole put 6 back to 5, and the next cycle announced 6 as read
- * elsewhere.
- */
-test('a cycle that lands late keeps what the reader reached while it was out', () => {
-  const merged = local({ [`${TRACK}/P01`]: { language: 'en', step: 5 } }, 'P01');
-  const now = local({ [`${TRACK}/P01`]: { language: 'en', step: 6 } }, 'P01');
-
-  const { record } = settle(now, merged, []);
-
-  assert.deepEqual(record.positions[`${TRACK}/P01`], { language: 'en', step: 6 }, 'the write lowered the furthest');
-  assert.deepEqual(record.last, now.last, '`last` is where this browser is now');
-});
-
-test('a raise this browser reached on its own while the cycle was out is not announced', () => {
-  const merged = local({
-    [`${TRACK}/P01`]: { language: 'en', step: 6 },
-    [`${TRACK}/P04`]: { language: 'en', step: 9 },
-  });
-  const now = local({
-    [`${TRACK}/P01`]: { language: 'en', step: 6 },
-    [`${TRACK}/P04`]: { language: 'en', step: 2 },
-  });
-
-  const { raised } = settle(now, merged, [raise('P01', 6, 5), raise('P04', 9, 2)]);
-
-  assert.deepEqual(raised, [raise('P04', 9, 2)], 'only the raise still ahead of this browser is news');
-});
-
-test('a program first opened while the cycle was out is kept, and one only the cycle knows arrives', () => {
-  const merged = local({ [`${TRACK}/P04`]: { language: 'pl', step: 9 } });
-  const now = local({ [`${TRACK}/P01`]: { language: 'en', step: 1 } }, 'P01');
-
-  const { record } = settle(now, merged, []);
-
-  assert.deepEqual(record.positions, {
-    [`${TRACK}/P01`]: { language: 'en', step: 1 },
-    [`${TRACK}/P04`]: { language: 'pl', step: 9 },
-  });
-});
-
-test('a tie keeps the cycle’s edition, which is the account’s — ADR-0019’s tie rule', () => {
-  const merged = local({ [`${TRACK}/P01`]: { language: 'pl', step: 40 } });
-  const now = local({ [`${TRACK}/P01`]: { language: 'en', step: 40 } });
-
-  assert.deepEqual(settle(now, merged, []).record.positions[`${TRACK}/P01`], { language: 'pl', step: 40 });
-});
-
-test('a browser with no `last` of its own takes the cycle’s', () => {
-  const merged = local({ [`${TRACK}/P04`]: { language: 'en', step: 9 } }, 'P04');
-
-  assert.deepEqual(settle(EMPTY, merged, []).record.last, merged.last);
-});
-
-// ── A raise this browser caused itself ───────────────────────────────────────────────────
-
-/**
- * The half `settle` cannot reach: a cycle that lands between a signed-in reveal's answer and
- * the page it leads to finds the account one frame ahead of the frame this browser last
- * showed — the shape of a raise from elsewhere. `sync.ts` holds a raise of that shape back
- * and then asks `stillNews`, which a page that has since recorded itself answers no.
+ * Issue #157: a cycle that lands between a signed-in reveal's answer and the page it leads to
+ * finds the account one frame ahead of the frame this browser last showed — the shape of a
+ * raise from elsewhere. `sync.ts` holds a raise of that shape back and then asks `stillNews`,
+ * which a page that has since recorded itself answers no.
  */
 test('a raise to the frame after the one shown here could be this browser’s own reveal', () => {
   const onFrame3: Progress = {

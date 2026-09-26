@@ -46,14 +46,22 @@ public static class ReaderIdentity
         var subject = ClientIdentityResolver.Subject(context.User);
         if (!string.IsNullOrWhiteSpace(subject)) return subject;
 
-        if (context.Request.Headers.TryGetValue(HeaderName, out var values)
-            && TryParseAnonymousId(values.ToString(), out var anonymousId))
-        {
-            return $"anon:{anonymousId}";
-        }
-
-        return null;
+        return Anonymous(context);
     }
+
+    /// <summary>
+    /// The anonymous reader the header names, as <c>anon:&lt;uuid&gt;</c>, WHETHER OR NOT the
+    /// request also carries a bearer — or <c>null</c> when the header is absent or not shaped
+    /// like one. <see cref="Resolve"/> lets a bearer win, which is right for every read and
+    /// every advance: one request, one cursor. Adoption at sign-in is the one call that needs
+    /// both at once — the account the bearer names and the anonymous cursor whose places it
+    /// takes (ADR-0068, issue #176) — so it asks for this half by name.
+    /// </summary>
+    public static string? Anonymous(HttpContext context) =>
+        context.Request.Headers.TryGetValue(HeaderName, out var values)
+        && TryParseAnonymousId(values.ToString(), out var anonymousId)
+            ? $"anon:{anonymousId}"
+            : null;
 
     /// <summary>
     /// Bounds what can reach <c>ReaderProgress.Subject</c> from a header, the same discipline

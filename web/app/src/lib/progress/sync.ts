@@ -1,5 +1,6 @@
 /**
- * Local progress to the account and back.
+ * The account's copy of where the reader is, brought into this browser — and forgotten from
+ * both when the reader asks.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * THE BROWSER'S RECORD IS WHAT EVERYTHING BUT THE FRAME RENDERS FROM. THE ACCOUNT IS A COPY.
@@ -13,8 +14,8 @@
  * program gate, the contents page's way in — and this module does not change which record
  * those read. Nothing on any page waits for this module's round trips, nothing renders
  * differently while a sync is in flight, and every failure below leaves the reader reading —
- * the cost of one is that ANOTHER machine has not seen this one's position yet, which the
- * next cycle repairs.
+ * the cost of one is that THIS machine has not seen where the account has got to yet, which
+ * the next cycle repairs.
  *
  * Which is also why there is no error surface. A reader cannot act on "the sync failed",
  * the page in front of them is unaffected, and a banner for a condition that repairs
@@ -23,10 +24,27 @@
  * copy, it needs a surface, because then a failure costs something visible.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * IT SENDS NO PLACE — ADR-0068, ISSUE #176.
+ *
+ * It used to send the account every program this browser was further on in, through
+ * `PUT /api/v1/progress/{track}/{unit}` — frame 40 here and frame 12 on the account sent 40 —
+ * and the reveal gate then served the account whatever that number said. The number was this
+ * browser's own, which made this module the web half of the deviation-register row "`PUT` …
+ * can still name a step it did not earn". The account now learns a place only from
+ * `AbOvo.Api`'s own writes: a signed-in reveal (`POST …/advance`), and, as a session begins,
+ * the adoption of the places this browser read without an account
+ * (`lib/server/adopt-places.ts`). So this module pulls, merges, says what moved and forgets on
+ * request, and sends nothing the API does not already hold.
+ *
+ * A place only this browser holds — past the account and past the anonymous cursor — stays
+ * here as ADR-0060's resume hint: *Continue* still offers it, the gate answers for the frame
+ * behind it, and it never reaches the account. ADR-0068 says how such a place arises and what
+ * it costs.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
  * The rule is in `reconcile.ts` and is asserted there. This module is the plumbing around
- * it: when to run, what to send, and what to do with an answer. What it sends is each
- * program's FURTHEST frame (`store.ts`), so a reader re-reading an earlier frame sends
- * nothing lower and is told nothing about it (issue #157).
+ * it: when to run, what to ask, and what to do with the answer.
  *
  * It talks to ONE origin — `/api/proxy/...`, this app's own BFF (FRONTEND-BFF.md §1, §5).
  * There is no backend address anywhere below and none may appear: the proxy injects the
@@ -39,13 +57,11 @@ import { adoptRecord, forgetAll, subscribe as subscribeProgress } from './client
 import {
   couldBeOwnReveal,
   reconcile,
-  settle,
   stillNews,
-  type Push,
   type Raised,
   type RemoteRecord,
 } from './reconcile.ts';
-import { keyOf, read, type Position, type ProgramRef, type Progress } from './store.ts';
+import { keyOf, read, type ProgramRef } from './store.ts';
 
 /** The BFF path. `/api/proxy` + the service's own route — see the §5 routing table. */
 const PROGRESS = '/api/proxy/api/v1/progress';
@@ -59,13 +75,14 @@ const PROGRESS = '/api/proxy/api/v1/progress';
 const FORGET_PENDING_KEY = 'ab-ovo:progress:forget-pending';
 
 /**
- * How long after a reader turns a frame the account hears about it.
+ * How long after this browser's record changes a cycle runs.
  *
- * A frame turn is a write, and writing on every one would put a request between a reader
- * and the next frame for no benefit — nothing reads the account copy except another
- * machine, and another machine is not watching this one in real time. Long enough to
- * collapse a run of turns into one exchange, short enough that closing the tab after a
- * page or two does not lose them.
+ * A change here is usually a frame turn, and a signed-in turn has already moved the account
+ * — the reveal is the write (ADR-0068) — so what the cycle after it brings is anything the
+ * account has that this browser does not: a raise from another machine, which the reader is
+ * told about. Asking on every turn would put a request between a reader and the next frame for
+ * no benefit. Long enough to collapse a run of turns into one exchange, short enough that a
+ * raise from elsewhere is told a few seconds after the reader lands, not a page later.
  */
 const DEBOUNCE_MS = 3_000;
 
@@ -219,8 +236,6 @@ function tell(found: readonly Raised[]): void {
 
 // ── The account ─────────────────────────────────────────────────────────────────────────
 
-const json = { 'content-type': 'application/json' } as const;
-
 /**
  * Every call goes through here, and every failure is a value rather than an exception.
  *
@@ -237,9 +252,6 @@ async function call(path: string, init?: RequestInit): Promise<Response | null> 
   }
 }
 
-const isRecordBody = (value: unknown): value is RemoteRecord =>
-  typeof value === 'object' && value !== null;
-
 async function pull(): Promise<readonly RemoteRecord[] | null> {
   const response = await call(PROGRESS);
   if (!response?.ok) return null;
@@ -249,28 +261,6 @@ async function pull(): Promise<readonly RemoteRecord[] | null> {
     // The shape of each row is `reconcile`'s to check (P11 — at the edge, once). This only
     // establishes that there is a list to hand it.
     return Array.isArray(body.records) ? (body.records as RemoteRecord[]) : [];
-  } catch {
-    return null;
-  }
-}
-
-async function push(entry: Push): Promise<RemoteRecord | null> {
-  const { track, unit } = entry.program;
-  const response = await call(`${PROGRESS}/${encodeURIComponent(track)}/${encodeURIComponent(unit)}`, {
-    method: 'PUT',
-    headers: json,
-    body: JSON.stringify({ step: entry.position.step, language: entry.position.language }),
-  });
-
-  // A 400 is this machine holding something the service will not file — a program
-  // identifier it does not recognise the shape of, or a frame past the sanity limit. It is
-  // not retried differently from a 503 because there is nothing different to do: the local
-  // record is the reader's and is not edited to make a request succeed.
-  if (!response?.ok) return null;
-
-  try {
-    const body: unknown = await response.json();
-    return isRecordBody(body) ? body : null;
   } catch {
     return null;
   }
@@ -333,9 +323,10 @@ const setForgetPending = (pending: boolean): void => {
  * watched go, back on the screen under a line saying they had read it elsewhere — which a
  * full run of the core layer caught in `tests/e2e/specs/sync.spec.ts`, and which a test there
  * now provokes on every run by holding the pull until Forget has been pressed. So a cycle that
- * finds the marker set after an await writes nothing back and sends nothing more, and the
- * DELETE waits for that cycle to end: the marker is still set whenever the cycle looks, and a
- * PUT it had already sent lands before the DELETE rather than after it.
+ * finds the marker set once its pull has answered writes nothing back, and the DELETE waits
+ * for that cycle to end: the marker is still set whenever the cycle looks. (The cycle used to
+ * send `PUT`s too, and the wait also kept one that was already on its way from landing after
+ * the DELETE; it sends none since ADR-0068.)
  *
  * From this tab, the resurrection is therefore unreachable. A forget pressed in ANOTHER tab
  * waits for that tab's cycle, not this one's, so this one sees it only while its DELETE is
@@ -366,66 +357,24 @@ async function cycle(): Promise<void> {
   const records = await pull();
   if (records === null) return;
 
-  const result = reconcile(read(window.localStorage), records);
-
-  let record: Progress = result.merged;
-  const late: Raised[] = [];
-
-  for (const entry of result.toPush) {
-    // Forgotten since the pull: what is left to send is what the reader asked to lose.
-    if (forgetIsPending()) return;
-    const answer = await push(entry);
-    if (!answer) continue;
-
-    /**
-     * The answer is the merged truth rather than an echo — the service applies the same
-     * rule and returns what it holds. So a machine that raced past us between the pull
-     * and this push shows up HERE, and the reader is told about it exactly as they would
-     * have been had it arrived in the pull.
-     */
-    const landed = landedPosition(answer);
-    if (!landed) continue;
-
-    record = withPosition(record, entry, landed);
-    if (landed.step > entry.position.step) {
-      late.push({ program: entry.program, from: entry.position.step, to: landed });
-    }
-  }
-
-  // Forgotten during an await above: the record was emptied, and the pull's rows are the
-  // account's copy from before that. Writing them back would undo it (`forgetEverywhere`).
+  // Forgotten while the pull was on the wire: the record was emptied, and the pull's rows are
+  // the account's copy from before that. Writing them back would undo it (`forgetEverywhere`).
   if (forgetIsPending()) return;
 
   /*
-    Against the record as it is NOW, not as it was when the pull left — the reader kept
-    reading through every await above, and a signed-in reveal moves the account as it goes.
-    `settle` keeps what this browser reached meanwhile and drops a raise it reached on its
-    own, and `tell` holds back one it is about to reach — which together are the difference
-    between "read elsewhere" and a false notice (issue #157).
+    Merged into the record as it is NOW, once the pull has answered, and written straight back
+    — nothing is awaited between the two, so nothing the reader reached meanwhile can be
+    written over. That gap is what `settle` closed for issue #157, when a cycle sent its `PUT`s
+    between the merge and the write; it went with them (ADR-0068). `tell` still holds back a
+    raise this browser is about to reach itself — the difference between "read elsewhere" and
+    a false notice.
   */
-  const settled = settle(read(window.localStorage), record, [...result.raised, ...late]);
-  adoptRecord(settled.record);
-  tell(settled.raised);
+  const result = reconcile(read(window.localStorage), records);
+  adoptRecord(result.merged);
+  tell(result.raised);
 }
 
-const landedPosition = (answer: RemoteRecord): Position | null => {
-  const row = answer as unknown as Record<string, unknown>;
-  return typeof row['step'] === 'number' &&
-    Number.isInteger(row['step']) &&
-    row['step'] >= 1 &&
-    typeof row['language'] === 'string' &&
-    row['language'].length > 0
-    ? { language: row['language'], step: row['step'] }
-    : null;
-};
-
-/** A push's answer, as the program's furthest. `last` is this browser's and is left alone. */
-function withPosition(record: Progress, entry: Push, position: Position): Progress {
-  const positions = { ...record.positions, [keyOf(entry.program)]: position };
-  return record.last ? { last: record.last, positions } : { positions };
-}
-
-/** One cycle at a time. Overlapping runs would push the same position twice and race. */
+/** One cycle at a time. Overlapping runs would pull the same rows twice and race to write them. */
 export function sync(): Promise<void> {
   running ??= cycle().finally(() => {
     running = null;
@@ -440,7 +389,9 @@ export function sync(): Promise<void> {
  *
  *   - **arrival**, because a reader opening a second machine should find their place
  *     without doing anything first;
- *   - **a local change**, debounced, because that is when there is something to send;
+ *   - **a local change**, debounced, because a reader turning frames here is a reader looking
+ *     at the screen — the moment a raise from another machine, or from an agent reading on the
+ *     account, is worth telling. There is nothing to send any more (ADR-0068);
  *   - **the tab becoming visible**, because the other machine was being read while this
  *     one was not, and coming back to a tab is when a reader would look.
  *

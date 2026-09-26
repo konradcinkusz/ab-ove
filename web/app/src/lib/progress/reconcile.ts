@@ -50,12 +50,6 @@ export interface RemoteRecord {
   readonly updatedAt: string;
 }
 
-/** A program this machine is ahead on, to be sent to the account. */
-export interface Push {
-  readonly program: ProgramRef;
-  readonly position: Position;
-}
-
 /**
  * A program the account moved forward, and by how much.
  *
@@ -70,11 +64,13 @@ export interface Raised {
   readonly to: Position;
 }
 
+/**
+ * What a merge decides. There is no third member for what to send the account, because
+ * nothing is sent (ADR-0068): a program this machine is ahead on stays ahead, here.
+ */
 export interface Reconciliation {
   /** The record as it should now be in this browser. */
   readonly merged: Progress;
-  /** Programs this machine is ahead on. The caller PUTs these; the rule is the same there. */
-  readonly toPush: readonly Push[];
   /** Programs the account moved forward. The caller shows these; nothing else does. */
   readonly raised: readonly Raised[];
 }
@@ -148,17 +144,23 @@ const chooseLast = (remote: readonly RemoteRecord[]): RemoteRecord | undefined =
 };
 
 /**
- * Merge the account's record into this browser's, and say what has to happen next.
+ * Merge the account's record into this browser's, and say what the reader should be told.
  *
  * Per program, on the FURTHEST frame (`store.ts`), and nothing else is consulted:
  *
  * | here | there | merged | and |
  * |---|---|---|---|
- * | frame 40 | frame 12 | 40 | push 40 to the account |
+ * | frame 40 | frame 12 | 40 | nothing is sent |
  * | frame 12 | frame 40 | 40 | tell the reader it moved |
- * | frame 40 | — | 40 | push 40 to the account |
+ * | frame 40 | — | 40 | nothing is sent |
  * | — | frame 40 | 40 | tell the reader it moved |
  * | frame 40 | frame 40 | the account's | nothing |
+ *
+ * The first and third rows used to send 40 to the account, and that push was a step the
+ * browser chose rather than one the gate saw earned. The account learns a place now only from
+ * `AbOvo.Api`'s own writes — a signed-in reveal, and the adoption of this browser's anonymous
+ * cursor at sign-in — so a program this machine holds further than the account stays further
+ * HERE, as the resume hint ADR-0060 made this record, and is never sent (ADR-0068).
  *
  * The last row is the one that is not obviously symmetric. A tie on the frame can still
  * disagree on the EDITION — "frame 40, in Polish" is one fact and not two, which is why
@@ -177,7 +179,6 @@ export function reconcile(local: Progress, remote: readonly RemoteRecord[]): Rec
   }
 
   const merged: Record<string, Position> = {};
-  const toPush: Push[] = [];
   const raised: Raised[] = [];
 
   for (const [key, here] of Object.entries(local.positions)) {
@@ -190,10 +191,11 @@ export function reconcile(local: Progress, remote: readonly RemoteRecord[]): Rec
       continue;
     }
 
+    // A program the account holds no row for, or holds behind this browser, keeps this
+    // browser's place — and that place goes nowhere (the table above, ADR-0068).
     const there = rows.get(key);
-    if (!there) {
+    if (!there || here.step > there.step) {
       merged[key] = here;
-      toPush.push({ program, position: here });
       continue;
     }
 
@@ -201,9 +203,6 @@ export function reconcile(local: Progress, remote: readonly RemoteRecord[]): Rec
       const to = positionOf(there);
       merged[key] = to;
       raised.push({ program, from: here.step, to });
-    } else if (here.step > there.step) {
-      merged[key] = here;
-      toPush.push({ program, position: here });
     } else {
       merged[key] = positionOf(there);
     }
@@ -223,7 +222,7 @@ export function reconcile(local: Progress, remote: readonly RemoteRecord[]): Rec
 
   const last = mergedLast(local, merged, remote.filter(isRemote));
 
-  return { merged: last ? { last, positions: merged } : { positions: merged }, toPush, raised };
+  return { merged: last ? { last, positions: merged } : { positions: merged }, raised };
 }
 
 function mergedLast(
@@ -245,61 +244,19 @@ function mergedLast(
   return { ...program, ...position };
 }
 
-/** What a cycle writes back and what it tells the reader, once it has landed. */
-export interface Settled {
-  readonly record: Progress;
-  readonly raised: readonly Raised[];
-}
-
-/**
- * Put a cycle's result back over the record as it stands NOW, and keep only the raises this
- * browser did not cause.
+/*
+ * `settle` STOOD HERE, AND IT WENT WITH THE PUSHES — ADR-0068.
  *
- * ──────────────────────────────────────────────────────────────────────────────────────
- * A CYCLE IS SEVERAL ROUND TRIPS LONG, AND THE READER KEEPS READING THROUGH IT — ISSUE #157.
- *
- * `reconcile` runs on the record as it was when the pull left. By the time the pushes have
- * answered, a reader who reveals quickly is a frame or two further on, and a signed-in
- * reveal has ALREADY moved the account (the reveal gate's cursor is the account's row). Two
- * things then went wrong, and both ended in the notice saying something false:
- *
- *   - writing `merged` back whole put this browser's furthest back to where the cycle
- *     started, and the next cycle found the account ahead of it — by a frame this browser
- *     had shown — and announced it as read elsewhere;
- *   - a raise to a frame this browser had meanwhile shown on its own was announced as well.
- *
- * So the write is merged again, by the same rule, against `now` — furthest wins, and a
- * program first opened during the cycle is kept — and a raise is announced only while
- * `now` is still behind it. `last` is `now`'s: it is where this browser is, and the cycle
- * adopts one only for a browser that has none.
- * ──────────────────────────────────────────────────────────────────────────────────────
- *
- * What is NOT reachable from here, and so is not claimed: the moment between the gate's
- * answer to a reveal and the page it leads to. A cycle that lands in it sees the account one
- * frame ahead of a browser that has not recorded that frame yet — the shape of a raise from
- * elsewhere. `furthest-frame.spec.ts` opens that gap on purpose, and with the hold below taken
- * out it saw "You had read F01 to frame 4 elsewhere." on the reader's own reveal.
- * `couldBeOwnReveal` is how `sync.ts` holds such a raise back until the page has had time to
- * land, and `stillNews` is how it drops one that did.
+ * It put a cycle's result back over the record as it stood when the cycle LANDED, because a
+ * cycle used to be several round trips long (issue #157): `reconcile` ran when the pull had
+ * answered, and by the time the cycle's `PUT`s had answered too, a reader who revealed quickly
+ * was a frame or two further on. Writing the merge back whole put this browser's furthest back
+ * where the cycle started, and the next cycle announced a frame the reader had shown here as
+ * read elsewhere. A cycle sends nothing now, and `sync.ts` merges the record as it is once the
+ * pull has answered and writes it back with nothing awaited in between, so there is no
+ * meanwhile left to settle. Recorded rather than silently deleted: a cycle that grows an await
+ * between the merge and the write grows that defect back.
  */
-export function settle(now: Progress, merged: Progress, raised: readonly Raised[]): Settled {
-  const positions: Record<string, Position> = { ...merged.positions };
-  for (const [key, here] of Object.entries(now.positions)) {
-    const there = positions[key];
-    // A tie keeps `merged`'s, which on a tie with the account is the account's edition —
-    // ADR-0019's tie rule, not re-decided here.
-    if (!there || here.step > there.step) positions[key] = here;
-  }
-
-  const last = now.last ?? merged.last;
-  const record: Progress = last ? { last, positions } : { positions };
-
-  const unreached = raised.filter(
-    (entry) => (now.positions[keyOf(entry.program)]?.step ?? 0) < entry.to.step,
-  );
-
-  return { record, raised: unreached };
-}
 
 /**
  * Whether this browser has now SHOWN the raised frame, or one past it, itself — at which
@@ -309,7 +266,7 @@ export function settle(now: Progress, merged: Progress, raised: readonly Raised[
  * adopting a raise puts the furthest at the raised frame by design, and a test on it would
  * withdraw every notice the moment it was written. `last` is written by reading (`store.ts`),
  * so it reaches the raised frame when a page of it has been on this screen — the reveal a
- * sync raced (`settle` above), or a reader following the notice's own link.
+ * sync raced (`couldBeOwnReveal` below), or a reader following the notice's own link.
  *
  * ONE EXCEPTION, NAMED RATHER THAN ENGINEERED AROUND: a browser with no `last` at all is
  * given one by the sync — the program the account touched last, at its furthest frame
@@ -354,7 +311,9 @@ export function stillNews(entry: Raised, progress: Progress): boolean {
  * browser's own reveal arrives here within a page load, and another machine's never does. So
  * `sync.ts` holds a raise of this shape back for a moment, drops it for good the moment
  * `stillNews` says its frame has been shown here — even if the reader goes back past it before
- * the moment is over — and tells it only if nothing did.
+ * the moment is over — and tells it only if nothing did. `furthest-frame.spec.ts` opens that
+ * gap on purpose, and with the hold taken out it saw "You had read F01 to frame 4 elsewhere."
+ * on the reader's own reveal.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * Only the next frame. A raise is always past the program's furthest, and `last` is never

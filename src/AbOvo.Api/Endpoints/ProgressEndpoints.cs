@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using AbOvo.Api.Extensions;
 using AbOvo.Api.Persistence;
 using AbOvo.Contracts;
 using AbOvo.ServiceDefaults;
@@ -27,6 +28,12 @@ namespace AbOvo.Api.Endpoints;
 /// the caller's own subject, read through the kernel's shared resolver. There is no route
 /// here that takes a subject: an endpoint that let a caller name whose progress they wanted
 /// is an endpoint whose authorization is a parameter.
+/// </para>
+/// <para>
+/// Adoption (<c>POST /progress/adopt</c>) is the one call that reads a SECOND reader's rows,
+/// and the second reader is named the same way the first is — by what the request carries,
+/// here the anonymous cursor's header (ADR-0061), and never by a route or a body. It writes
+/// only the caller's own rows (ADR-0068).
 /// </para>
 /// </summary>
 public static class ProgressEndpoints
@@ -75,9 +82,11 @@ public static class ProgressEndpoints
          * (subject only to "does not lower it"), which is exactly what a caller could use to
          * skip the reveal gate `GET/POST .../content/**` now enforces — see the 2026-09-21
          * deviation register row in docs/architecture/00-ARCHITECTURE.md for why this is not
-         * closed here (it would break the two callers that still raise Step through it:
-         * web/mcp, and web/app's sync.ts pushing a place read anonymously) and what retires
-         * it.
+         * closed here (it would break the one caller that still raises Step through it,
+         * web/mcp, until #171 moves it to `POST .../advance`) and what retires it. web/app's
+         * sync no longer calls it at all: a place read without an account reaches the account
+         * through adoption at sign-in, below, and nothing else the browser holds does
+         * (ADR-0068).
          */
         authApi.MapPut("/progress/{track}/{unit}", async (
                 string track,
@@ -177,6 +186,110 @@ public static class ProgressEndpoints
             .WithSummary("Forget every record of where this reader got to.")
             .Produces(StatusCodes.Status204NoContent);
 
+        /*
+         * ADOPTION AT SIGN-IN — ADR-0068, issue #176.
+         *
+         * A reader who read without an account has their place under the anonymous cursor
+         * (ADR-0061), and the account they then sign in to, or create, may be behind it. This
+         * is how the account learns that place: `web/app` calls it from its own server as a
+         * session begins, with the bearer it has just been handed and the reader-id cookie the
+         * browser already held. No step arrives from the caller. Every step adopted here was
+         * earned through the reveal gate, because `POST .../advance` is the only write that
+         * moves an anonymous row — which is what lets web/app's sync stop raising a step
+         * through the `PUT` above.
+         *
+         * Per program the furthest frame wins and its edition travels with it, and a tie keeps
+         * the account's copy whole: ADR-0019, exactly as the `PUT` above and the browser's
+         * `reconcile.ts` apply it. The anonymous rows are LEFT AS THEY WERE. Signing in has no
+         * more claim over the cookie's place than signing out does (ADR-0061), so a reader who
+         * signs out again still reads what they read without an account, a second adoption
+         * changes nothing, and a sign-in whose adoption failed is repaired by the next one.
+         *
+         * Two reads, each pinned to one Subject by an equality (`ReaderScopedQueries`,
+         * ADR-0020): the account the token names, and the anonymous reader the header names.
+         * Nothing in the route or the body names either, so a caller can adopt only a cursor
+         * whose id it holds — and holding the id is already the whole of that cursor's
+         * credential.
+         */
+        authApi.MapPost("/progress/adopt", async (
+                HttpContext http,
+                [FromServices] AbOvoDbContext db,
+                [FromServices] TimeProvider clock,
+                CancellationToken cancellationToken) =>
+            {
+                var subject = ClientIdentityResolver.Subject(http.User);
+                if (string.IsNullOrWhiteSpace(subject)) return TokenCarriesNoSubject();
+
+                var anonymous = ReaderIdentity.Anonymous(http);
+                if (anonymous is null) return NoAnonymousReader();
+
+                var theirs = await db.ReaderProgress
+                    .AsNoTracking()
+                    .Where(p => p.Subject == anonymous)
+                    .ToListAsync(cancellationToken);
+
+                if (theirs.Count > 0)
+                {
+                    var held = await db.ReaderProgress
+                        .Where(p => p.Subject == subject)
+                        .ToListAsync(cancellationToken);
+
+                    foreach (var place in theirs)
+                    {
+                        /*
+                         * A loop, not `held.Find(p => ...)`, and that was measured: a lambda
+                         * that takes a ReaderProgress and captures `place` is compiled into a
+                         * closure nested directly in this class, and ProgressIsNotEvidenceTests's
+                         * reachability rule then names ProgressEndpoints. Putting it on that
+                         * rule's allow-list would be a decision (ADR-0020); a loop needs none.
+                         */
+                        ReaderProgress? existing = null;
+                        foreach (var row in held)
+                        {
+                            if (row.Track != place.Track || row.Unit != place.Unit) continue;
+                            existing = row;
+                            break;
+                        }
+
+                        if (existing is null)
+                        {
+                            db.ReaderProgress.Add(new ReaderProgress
+                            {
+                                Subject = subject,
+                                Track = place.Track,
+                                Unit = place.Unit,
+                                Step = place.Step,
+                                Language = place.Language,
+                                UpdatedAt = clock.GetUtcNow(),
+                            });
+                        }
+                        else if (place.Step > existing.Step)
+                        {
+                            existing.Step = place.Step;
+                            existing.Language = place.Language;
+                            existing.UpdatedAt = clock.GetUtcNow();
+                        }
+                    }
+
+                    // One SaveChanges, so a relational provider adopts every program or none.
+                    // A row this changed nothing about keeps its UpdatedAt, as the PUT's does.
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+
+                // The account's rows as they now stand, as the `PUT` above answers with its row.
+                var records = await db.ReaderProgress
+                    .AsNoTracking()
+                    .Where(p => p.Subject == subject)
+                    .OrderBy(p => p.Track).ThenBy(p => p.Unit)
+                    .Select(p => new ProgressRecord(p.Track, p.Unit, p.Step, p.Language, p.UpdatedAt))
+                    .ToListAsync(cancellationToken);
+
+                return Results.Ok(new ProgressResponse(records));
+            })
+            .WithName(EndpointNames.PostAdoptProgress)
+            .WithSummary("Adopt the places of the anonymous reader the request carries into this account. The furthest frame wins; the anonymous places stay as they were.")
+            .Produces<ProgressResponse>();
+
         return authApi;
     }
 
@@ -189,4 +302,14 @@ public static class ProgressEndpoints
         title: "The token carries no subject.",
         detail: "This service files progress under the token's subject claim and the token has none.",
         statusCode: StatusCodes.Status403Forbidden);
+
+    /// <summary>
+    /// An adoption that names no anonymous reader, or names one in a shape no reader id has.
+    /// A 400 rather than an empty success: the caller asked to adopt a cursor and sent nothing
+    /// that identifies one, which is a fault in the request and not "nothing to adopt".
+    /// </summary>
+    private static IResult NoAnonymousReader() => Results.Problem(
+        title: "No anonymous reader.",
+        detail: "Adoption takes the places of the anonymous reader the X-Ab-Ovo-Reader-Id header names, and this call carries no such header.",
+        statusCode: StatusCodes.Status400BadRequest);
 }

@@ -345,9 +345,10 @@ test.describe('a frame a reader reads reaches the account and comes back', () =>
     await page.goto(`/read/${TRACK}/${UNIT}/en/${STEP}`);
     await expect(page.locator('article')).toBeVisible();
 
-    // `sync.ts` debounces a frame turn by three seconds and pulls before it pushes, so this
-    // polls rather than asserting once. The ceiling is a ceiling and not a sleep: it passes
-    // the moment the row is there.
+    // The walk's advances are what put the frame on the account: a signed-in reveal is the
+    // write, and `sync.ts` sends the account nothing (ADR-0068). This polls rather than
+    // asserting once all the same, and the ceiling is a ceiling and not a sleep: it passes the
+    // moment the row is there.
     await expect
       .poll(
         async () => {

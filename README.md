@@ -400,7 +400,11 @@ summary screen. They are one program of forty-seven and they are on their way ou
 deletion checklist.
 
 **An account adds synchronisation and nothing else** — your place in the book following you
-between machines. It is not a gate on any of the four steps above, it is the last phase of
+between machines. Signing in, or making an account, after reading without one takes that
+place along: the account adopts it from the API's own record, the furthest frame winning, and
+the browser sends it nothing
+([ADR-0068](docs/adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)).
+An account is not a gate on any of the four steps above, it is the last phase of
 the work rather than the first, and a deployment with no identity service at all is a
 supported configuration that the API reports as *degraded* rather than failing to start
 (P8). `web/app/src/app/login/page.tsx` says that to the reader's face instead of offering a

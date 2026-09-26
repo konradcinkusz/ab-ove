@@ -40,9 +40,10 @@ import styles from './progress-sync.module.css';
  * back from frame 40 to 39 on this one: the record held the frame last viewed, the account
  * held 40, and the sync "raised" the reader to where they had just been. The record now
  * keeps the furthest frame apart from the frame last viewed (`lib/progress/store.ts`), so
- * going back raises nothing; `settle` in `reconcile.ts` drops a raise this browser reached
- * on its own while a sync was in flight, and `shownHere` withdraws one the moment this browser
- * shows that frame itself (a sync that raced a reveal). What is left is reading done elsewhere —
+ * going back raises nothing; a sync merges the record as it stands once its pull has answered,
+ * so a frame this browser reached while the pull was out is no raise (`sync.ts`), and
+ * `shownHere` withdraws one the moment this browser shows that frame itself (a sync that raced
+ * a reveal). What is left is reading done elsewhere —
  * another machine, or an agent reading on the account, and the reveals of this browser's own
  * that nothing in a pull tells apart from it, which `tell` in `lib/progress/sync.ts` names —
  * and each line says so as a fact and offers `Go to frame 40`, because a notice about a frame

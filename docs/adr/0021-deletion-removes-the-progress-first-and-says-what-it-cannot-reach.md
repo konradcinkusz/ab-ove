@@ -2,7 +2,10 @@
 
 ## Status
 
-**Accepted.** Date: 2026-09-15.
+**Accepted.** Date: 2026-09-15. Its first reason for the order was taken away on 2026-09-26 by
+[ADR-0068](0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md),
+which keeps the order; the notes under the Decision and the Consequences say what a mistyped
+password costs now.
 
 ## Context
 
@@ -55,6 +58,15 @@ One order's worst case repairs itself and the other's is permanent. **That recov
 is inherited from ADR-0019 and is not a property of this file**; reverse that decision and
 this ordering becomes the wrong one.
 
+> **Since 2026-09-26 the first order does not repair itself.**
+> [ADR-0068](0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)
+> stopped the sync sending the account any place, so nothing pushes the browser's copy back
+> after a mistyped password. What that costs is the account's copy of the reader's places. The
+> browser keeps its own as a resume hint, and what the reader read without an account is
+> adopted again at their next sign-in. The order is kept: the other order's worst case is still
+> rows nobody can remove, and the reader was deleting the account. Whether it should now be
+> reversed is a decision of its own, which ADR-0068 does not take.
+
 **Clear the session cookies last, and only on success.** authservice revokes only the
 _refresh_ tokens; the access token stays valid until its own `exp`, and nothing in this
 deployment consults authservice per request. Until this origin drops its own cookies the
@@ -86,6 +98,10 @@ deletion screen points at it.
 back on the next sync from the browser that submitted the form — but a reader who submits
 from one device and then opens a _different_ one before that sync has run sees an empty
 account. Accepted, because the alternative is the permanent orphan above.
+
+> Since 2026-09-26 it does not come back that way (the note under the Decision above): what
+> the reader read without an account is adopted again at their next sign-in, and the rest of
+> the account's copy is gone.
 
 **The screen is bilingual where `/login` is English-only, which is a deviation from that
 page's own recorded reasoning.** `/login` argues it has no language to follow and declines

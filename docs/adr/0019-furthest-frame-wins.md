@@ -7,6 +7,14 @@ program's furthest frame, which the browser now keeps apart from the frame it la
 the notice is raised only for reading done elsewhere — see *Amendment 2026-09-25*. The rule, the
 tie, the pointer and the sentence *the furthest frame wins* are unchanged.
 
+Amended on 2026-09-26 by
+[ADR-0068](0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)
+(#176): the browser sends the account no place. The account learns one only from `AbOvo.Api`'s
+own writes — a signed-in reveal, and the adoption of the places read without an account when a
+session begins — and applies this rule there. Where this record says the browser pushes, and
+where the amendment below names `settle`, that is what the browser did until then. The rule, the
+tie, the pointer, the notice and the forget are unchanged.
+
 ## Context
 
 [ADR-0017](0017-progress-is-local-first-and-holds-nothing-worth-scoring.md) put the reader's

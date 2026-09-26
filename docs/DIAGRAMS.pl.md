@@ -561,7 +561,9 @@ Powierzchnia lektury pokazuje miejsce, nigdy postęp
 ([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md)). Konto kupuje
 dokładnie jedną rzecz: to samo miejsce na drugiej maszynie. Wygrywa najdalsza ramka
 ([ADR-0019](adr/0019-furthest-frame-wins.md)) — uzgodnienie, które cofnęłoby czytelnika,
-straciłoby lekturę, którą odbył.
+straciłoby lekturę, którą odbył. Konto dowiaduje się o pozycji w lekturze tylko z własnych
+zapisów API — z odsłonięcia i z pozycji przeczytanych bez konta, przejmowanych przy logowaniu —
+a przeglądarka niczego mu nie wysyła ([ADR-0068](adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)).
 
 ```mermaid
 %% Gdzie jest czytelnik: miejsce w lekturze, które nie jest postępem, i kto je trzyma.
@@ -572,9 +574,10 @@ straciłoby lekturę, którą odbył.
 %% produkuje. Pasek nawigacji mówi, która to ramka z ilu, i otwiera mapę programu
 %% (ADR-0063).
 
-%% NAJPIERW LOKALNIE, A LOKALNA KOPIA NIE TRZYMA NICZEGO WARTEGO OCENIANIA (ADR-0017). Konto
-%% kupuje jedną rzecz: to samo miejsce na drugiej maszynie. Cała reszta pętli jest taka sama
-%% niezależnie od tego, czy czytelnik je ma.
+%% KONTO DOWIADUJE SIĘ O POZYCJI W LEKTURZE TYLKO Z WŁASNYCH ZAPISÓW API (ADR-0068).
+%% Odsłonięcie przesuwa kursor, pod którym czytelnik czyta, a zalogowanie przejmuje pozycje
+%% przeczytane bez konta. Kopia w przeglądarce jest podpowiedzią, gdzie wrócić (ADR-0060), i
+%% niczego kontu nie wysyła. Konto kupuje jedną rzecz: to samo miejsce na drugiej maszynie.
 
 %% WYGRYWA NAJDALSZA RAMKA (ADR-0019). Dwie maszyny, które się nie zgadzają, to nie konflikt
 %% do rozstrzygnięcia znacznikiem czasu: czytelnik przeczytał do dalszej z dwóch, a
@@ -590,22 +593,25 @@ flowchart LR
   end
 
   subgraph server["Tylko jeśli czytelnik się zalogował"]
-    API["PUT /api/v1/progress/track/unit<br/>GET /api/v1/progress<br/>DELETE /api/v1/progress"]
+    API["GET /api/v1/progress<br/>DELETE /api/v1/progress"]
     RP[("ReaderProgress<br/>klucz zaczyna się od czytelnika")]
   end
+
+  WRITES["odsłonięcie<br/>POST .../advance<br/>zalogowanie<br/>POST /api/v1/progress/adopt"]
 
   RECON["reconcile<br/>wygrywa najdalsza ramka,<br/>nigdy znacznik czasu"]
 
   LA -->|"przy nawigacji"| RECON
   LB -->|"przy nawigacji"| RECON
   RECON -->|"bearer wstrzykuje proxy"| API
+  WRITES --> RP
   API --> RP
   RP --> API
   API --> RECON
   RECON --> LA
   RECON --> LB
 
-  NOACC(["Bez konta:<br/>pętla jest identyczna,<br/>miejsce zostaje lokalnie"])
+  NOACC(["Bez konta:<br/>API trzyma pozycję pod ciasteczkiem,<br/>a konto przejmuje ją przy logowaniu"])
   LA -.-> NOACC
 ```
 
