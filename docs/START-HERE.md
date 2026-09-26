@@ -129,7 +129,8 @@ draw them.
 
 And the reader is told what that costs them, which is the half an architectural absence cannot
 deliver on its own: because an outcome carries no reader, **deleting an account cannot retract
-a contribution already folded into a rate**. The deletion screen says exactly that.
+a contribution already folded into a rate**. The deletion screen tells the reader so in plain
+words.
 
 ## Everything on one page
 

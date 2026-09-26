@@ -150,15 +150,16 @@ export default function AboutPage(): React.JSX.Element {
         {/*
           ADR-0060 — two requirements, stated as two, because they are independent and only
           one of them was reversed. The first sentence is what `specs/about.spec.ts` asserts.
-          The account's half says what it buys and no more: it ended "the last phase of the
-          work rather than the gate on the first", which read the roadmap below it — gone
-          since issue #162 — back to the reader.
+          The account's half says what it is for. It said an account buys "exactly one
+          thing", which the section below contradicts: the edition a reader chose is kept on
+          the account too (ADR-0052). And it ended "the last phase of the work rather than
+          the gate on the first", which read the roadmap below it — gone since issue #162 —
+          back to the reader.
         */}
         <p>
           Reading needs no account, but it does need this site&rsquo;s book server: every frame
           and every reveal is fetched from it as you read, so while it is down, no frame will
-          open. An account buys exactly one thing: your place, carried from one device to
-          another.
+          open. An account is for carrying your place from one device to another.
         </p>
       </section>
 

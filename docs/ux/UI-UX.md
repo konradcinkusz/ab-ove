@@ -241,11 +241,13 @@ the order IS the argument:
    which is the page a leaderboard would actually appear on.
 3. **The loop** — the four steps, numbered.
 4. **What it needs from you** — that reading needs no account but does need this site's book
-   server, the two halves of ADR-0060 said as two (#142), and what an account does buy.
+   server, the two halves of ADR-0060 said as two (#142), and what an account is for — no
+   longer that it buys "exactly one thing", which the next section contradicted: the edition
+   choice is kept on the account too (issue #162).
 5. **Which edition you read** — that the choice is the reader's and that nothing is guessed.
 6. **The computer exercises** — that the book's Python exercises run in the browser and are
    offered after a program that has them, never beside a frame (ADR-0040). This was *Where
-   the work is*, a roadmap of the four phases this document still ranks its backlog by: the
+   the work is*, a roadmap of the phases this document still ranks its backlog by: the
    order the product was built in, which a reader can do nothing with. Issue #162 kept the
    one fact in it a reader can use, and took the ADR numbers out of the page's sentences —
    the records are cited in its comments, where the reasoning lives.
@@ -366,8 +368,12 @@ reader whose sign-in failed on a locked account, an unreachable identity service
 token this deployment refuses was handed the form and invited to try again — "the
 interface telling the reader the fault is theirs", in the field's own words. Under those
 problems the page now shows the sentence and a link to a fresh sign-in page instead. The
-two second-factor codes that send a reader back here to start from the password keep the
-form, because on this page the password *is* the way back in; `startsOver` names them.
+sentence names *the problem described above* and comes first in the *Sign in* section; a
+private page the reader was bounced off is named after it, and the fresh sign-in page still
+carries them there. Placed before it, that name once made the sentence read as a remark about
+`/account` (issue #162). The two second-factor codes that send a reader back here to start
+from the password keep the form, because on this page the password *is* the way back in;
+`startsOver` names them.
 
 ### The integration panel
 
@@ -979,10 +985,11 @@ commits, 4.61 MB, zero findings, audit committed under `docs/architecture/`.
 
 ## The ranked backlog
 
-Ranked, not estimated. The order is the delivery order and the phases are the ones named on
-`/about`, so the page and this document cannot drift. (They were named on the landing page
-until ADR-0036 moved the argument there; `specs/about.spec.ts` followed, and is still what
-makes the drift fail a build rather than go unnoticed.)
+Ranked, not estimated. The order is the delivery order. The phases were named on `/about`
+(on the landing page before ADR-0036) until issue #162 took the roadmap off a reader's screen,
+and `specs/about.spec.ts` stopped holding the page and this document together with it. This
+document is where they are named now. The feature-request template still lists them as a hint
+to a contributor, and no test holds either list to the other.
 
 Each item says what it is, what it must not do, and what "done" looks like. Where an item is
 blocked, the blocker is named — not left to be discovered by the person who picks it up.

@@ -61,8 +61,9 @@ import styles from '../credentials-form.module.css';
  *
  * So the destination is named once, by what `destinationAt` says stands there:
  *
- *   'private-page'  the sentence it always had, now in every state of the page: it is the
- *                   one destination that is a reason to sign in rather than a choice to;
+ *   'private-page'  the sentence it always had, now in every state of the page — after the
+ *                   reason, where the form is withdrawn (see `asked`): it is the one
+ *                   destination that is a reason to sign in rather than a choice to;
  *   'open'          the page the reader pressed *Sign in* on — the index's link carries
  *                   `/?lang=…`, a frame's carries the frame — which signing in returns them
  *                   to, and which is the way back if they change their mind. It is called
@@ -124,6 +125,33 @@ export default async function LoginPage({
     ? `/register?redirect=${encodeURIComponent(intended)}`
     : '/register';
 
+  /*
+    A private page is named whatever else the page says, because it is the one reason for
+    being here that the reader did not choose — the true half of what "What happened" used
+    to say about every destination (issue #162). Where signing in would take them there, the
+    sentence says so, and where the form is withdrawn, that starting again still will: the
+    fresh sign-in page carries the same destination.
+
+    WHERE IT STANDS IS PART OF WHAT IT SAYS, so each branch below places it. With a form, or
+    with no identity service, it comes first. Under a withdrawn form it comes AFTER the
+    paragraph saying why, because that paragraph is about the problem panel above it, and
+    this sentence standing between the two once made it read as a remark about `/account` —
+    to the very reader the route sends here, bounced off `/account` with a code no password
+    fixes.
+  */
+  const asked =
+    destination?.kind === 'private-page' ? (
+      <p>
+        You asked for <code>{destination.address}</code>, which is one of the few pages that
+        needs to know who you are.
+        {offersForm
+          ? ' Sign in and you will be taken straight there.'
+          : identityConfigured
+            ? ' Starting again will still take you there.'
+            : null}
+      </p>
+    ) : null;
+
   return (
     <main className="shell">
       <SkipLink language="en" />
@@ -158,34 +186,28 @@ export default async function LoginPage({
 
       <section className="section">
         <h2>Sign in</h2>
-        {/*
-          A private page is named whatever else the page says, because it is the one reason
-          for being here that the reader did not choose — the true half of what "What
-          happened" used to say about every destination (issue #162). Where signing in would
-          take them there, the sentence says so.
-        */}
-        {destination?.kind === 'private-page' ? (
-          <p>
-            You asked for <code>{destination.address}</code>, which is one of the few pages
-            that needs to know who you are.
-            {offersForm ? ' Sign in and you will be taken straight there.' : null}
-          </p>
-        ) : null}
         {identityConfigured && !offersForm ? (
-          /*
-            The form is withdrawn, and the sentence says why in general terms because the
-            panel above has already said it in particular. The link is a FRESH sign-in page
-            — the same destination, no error code — so a reader told to wait a minute has
-            somewhere to come back to, and nothing on this page invites an attempt the
-            panel has just said cannot work.
-          */
-          <p>
-            Typing the password again cannot change that answer, so the form is not offered
-            under it. Once the sentence above says an attempt is worth making,{' '}
-            <Link href={startAgainHref}>start again</Link> from a fresh sign-in page.
-          </p>
+          <>
+            {/*
+              The form is withdrawn, and the sentence says why in general terms because the
+              panel above has already said it in particular. It names the panel — "the
+              problem described above" — instead of pointing at "the sentence above", so
+              what it refers to does not depend on what stands between them, and it stands
+              first anyway, directly under the heading (see `asked`). The link is a FRESH
+              sign-in page — the same destination, no error code — so a reader told to wait
+              a minute has somewhere to come back to, and nothing on this page invites an
+              attempt the panel has just said cannot work.
+            */}
+            <p>
+              Typing your password again cannot fix the problem described above, so there is
+              no form here. When the problem has cleared,{' '}
+              <Link href={startAgainHref}>start again</Link> from a fresh sign-in page.
+            </p>
+            {asked}
+          </>
         ) : identityConfigured ? (
           <>
+            {asked}
             {destination === null ? (
               <p>Use the email address and password you created your account with.</p>
             ) : destination.kind === 'open' ? (
@@ -258,14 +280,17 @@ export default async function LoginPage({
             </p>
           </>
         ) : (
-          /*
-            P8 — a deployment with no identity service is a supported state, and what that
-            means to a reader is that there are no accounts here. It said "this deployment
-            has no identity service configured, which is a normal way to run ab-ovo", which
-            is true and is said to the operator (issue #162). That reading is unaffected is
-            the standfirst's to say, and it already has.
-          */
-          <p>This site has no accounts, so there is nothing to sign in to.</p>
+          <>
+            {asked}
+            {/*
+              P8 — a deployment with no identity service is a supported state, and what that
+              means to a reader is that there are no accounts here. It said "this deployment
+              has no identity service configured, which is a normal way to run ab-ovo", which
+              is true and is said to the operator (issue #162). That reading is unaffected is
+              the standfirst's to say, and it already has.
+            */}
+            <p>This site has no accounts, so there is nothing to sign in to.</p>
+          </>
         )}
       </section>
 

@@ -98,7 +98,10 @@ export interface KeyEntry {
  * retention period is not named, that a number copied out of authservice "would be a figure
  * nothing here could check". That is ADR-0021's reason for not naming it, and the screen
  * says what it means for the reader: the period exists, the identity service sets it, and
- * ab-ovo is not told how long it is.
+ * ab-ovo is not told how long it is. `problemUnconfigured` said "this deployment has no
+ * identity service"; to a reader that is a site with no accounts (P8), which is what the
+ * sign-in page says as well. The Polish says `tutaj` rather than naming the site, because
+ * `strona` is also the page (see `renderError.failedWhere`).
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 interface DeleteAccountStrings {
@@ -703,8 +706,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         'What your account had stored — your reading position, the edition you chose — could not be removed, so nothing else was attempted. Your account is untouched. Try again.',
       problemAccount:
         'What your account had stored has been removed, but the account itself could not be. It is still yours, and this device still knows where you are in the book. Try again.',
-      problemUnconfigured:
-        'This deployment has no identity service, so there is no account to delete.',
+      problemUnconfigured: 'This site has no accounts, so there is no account to delete.',
     },
     raised: (unit, step) =>
       `${unit} moved to frame ${step}, read on another device. The furthest frame wins.`,
@@ -739,7 +741,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     youWrote: 'You wrote',
     matchesBook: 'Matches the book',
     writtenBefore: 'written before the reveal',
-    earlierEdition: 'written for an earlier version of this frame',
+    earlierEdition: 'written for an earlier version of the book',
     clearAnswer: 'Clear my answer',
     clearAnswerConfirm: 'Clear it',
     working: 'Work it out',
@@ -880,8 +882,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         'Nie uda\u0142o si\u0119 usun\u0105\u0107 tego, co przechowywa\u0142o twoje konto \u2014 pozycji w lekturze i wybranego wydania \u2014 wi\u0119c nic wi\u0119cej nie by\u0142o pr\u00f3bowane. Konto pozosta\u0142o nietkni\u0119te. Spr\u00f3buj ponownie.',
       problemAccount:
         'To, co przechowywa\u0142o twoje konto, zosta\u0142o usuni\u0119te, ale samego konta nie uda\u0142o si\u0119 usun\u0105\u0107. Nadal nale\u017cy do ciebie, a to urz\u0105dzenie nadal wie, gdzie jeste\u015b w ksi\u0105\u017cce. Spr\u00f3buj ponownie.',
-      problemUnconfigured:
-        'To wdro\u017cenie nie ma serwisu to\u017csamo\u015bci, wi\u0119c nie ma konta do usuni\u0119cia.',
+      problemUnconfigured: 'Tutaj nie ma kont, wi\u0119c nie ma konta do usuni\u0119cia.',
     },
     raised: (unit, step) =>
       `${unit} przesunięto do ramki ${step}, czytanej na innym urządzeniu. Wygrywa najdalsza ramka.`,
@@ -938,7 +939,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     youWrote: 'Twoja odpowiedź',
     matchesBook: 'Tak jak w książce',
     writtenBefore: 'zapisane przed odsłonięciem',
-    earlierEdition: 'zapisane przy wcześniejszej wersji tej ramki',
+    earlierEdition: 'zapisane przy wcześniejszej wersji książki',
     clearAnswer: 'Wyczyść moją odpowiedź',
     clearAnswerConfirm: 'Wyczyść',
     working: 'Policz to',

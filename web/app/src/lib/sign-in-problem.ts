@@ -142,12 +142,14 @@ export const SIGN_IN_PROBLEMS = {
   },
   /**
    * A token was issued and the key set that would verify it could not be reached — the
-   * sign-in is not refused, it is unconfirmed. Said without the token since issue #162.
+   * sign-in is not refused, it is unconfirmed. Said without the token since issue #162, and
+   * said once: that the password was accepted is the fact, so the detail no longer adds
+   * that it was "almost certainly right" as well.
    */
   unverifiable: {
     title: 'Your sign-in could not be confirmed.',
     detail:
-      'Your password was accepted, and then the identity service could not be reached to confirm the sign-in. The password was almost certainly right; try again shortly.',
+      'Your password was accepted, and then the identity service could not be reached to confirm the sign-in. Try again shortly.',
     retryable: false,
   },
   /**
