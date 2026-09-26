@@ -220,8 +220,10 @@ test.describe('a program’s way back', () => {
     // The second program is open once the first has a place (ADR-0051).
     await openThrough(page, SECOND.id);
     await page.goto(contentsAt(SECOND.id, 'en'));
-    // The arrow is the pager's drawn one now (issue #158), so the link's name is the id alone.
-    const back = pager(page).getByRole('link', { name: FIRST.id, exact: true });
+    // Found by the id, the label a reader sees. The arrow is the pager's drawn one now and
+    // hidden from the name (issue #158), so the name says the direction in words instead.
+    const back = pager(page).getByRole('link', { name: FIRST.id });
+    await expect(back).toHaveAccessibleName(/previous program$/i);
     await expect(back).toHaveAttribute('href', contentsAt(FIRST.id, 'en'));
     await back.click();
     await expect(page).toHaveURL(new RegExp(`${contentsAt(FIRST.id, 'en')}$`));

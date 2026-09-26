@@ -185,8 +185,9 @@ test.describe('a program opens when the one before it has been opened', () => {
     await expect(foot).toContainText(
       `${second!.id} opens once you have read any frame of this program.`,
     );
-    // By the id alone: the arrow beside it is drawn and hidden from the name (issue #158).
-    await expect(foot.getByRole('link', { name: second!.id, exact: true })).toHaveCount(0);
+    // Any link naming it at all. The drawn arrow is hidden from the name (issue #158), and
+    // the words that say the direction instead are not what this is about.
+    await expect(foot.getByRole('link', { name: second!.id })).toHaveCount(0);
   });
 
   test('reading one frame of a program opens the next one, and only the next @core', async ({
@@ -221,7 +222,8 @@ test.describe('a program opens when the one before it has been opened', () => {
     await openThrough(page, second!.id);
     await page.goto(contentsOf(second!.id));
 
-    const onward = page.getByRole('link', { name: third!.id, exact: true });
+    // Found by the id, the label a reader sees.
+    const onward = page.getByRole('link', { name: third!.id });
     await expect(onward).toHaveCount(0);
 
     // Read one frame of it, and the way on appears.
@@ -235,6 +237,9 @@ test.describe('a program opens when the one before it has been opened', () => {
     );
     await page.goto(contentsOf(second!.id));
     await expect(onward).toHaveCount(1);
+    // And its name says which way it goes. The arrow is drawn and hidden from the name
+    // (issue #158), so the words are all a screen reader has to tell it from the way back.
+    await expect(onward).toHaveAccessibleName(/next program$/i);
   });
 
   test('a reader who already has a place in a program keeps it, however they got there @core', async ({

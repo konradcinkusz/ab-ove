@@ -117,6 +117,10 @@ test.describe('no backend', () => {
     );
     await page.goto('/');
     expect((await probed).status(), 'the index did not ask the API about its course').toBe(200);
+    // Read, and not only received. The response reaches this test before the component has
+    // handled it, so an empty line checked in between would pass a component that spoke on
+    // every answer; `data-probed` is the component saying it has read this one.
+    await expect(notice).toHaveAttribute('data-probed', 'yes');
     await expect(notice).toBeEmpty();
 
     await page.route('**/api/proxy/api/v1/content/**', (route) => route.abort('failed'));

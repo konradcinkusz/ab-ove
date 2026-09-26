@@ -27,7 +27,7 @@ any account.
 
 | Route | What it is | Needs |
 | --- | --- | --- |
-| `/` | the landing page: every program as a tile, in the book's own runs, in the reader's edition, and the narrowing to one course | nothing to render — it reads the compiled bundle, a recorded deviation; it asks the API from the browser only to say when no program will open |
+| `/` | the landing page: every program as a tile, in the book's own runs, in the reader's edition, and the narrowing to one course | nothing to render — it reads the compiled bundle, a recorded deviation; as it loads, its own components ask the API, from the browser, only to say when no program will open |
 | `/courses` | the courses this deployment carries, each with its length and its editions, and the way into one ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) | nothing — it reads the compiled bundle, a recorded deviation |
 | `/about` | what the product is, the anti-goal, the loop, the integration panel | nothing |
 | `/read/<track>/<unit>/<lang>` | a program's contents: its headings, those past the reader's furthest frame locked, and the filled way in — frame 1, or the reader's own place | the API, and no account |
@@ -392,8 +392,9 @@ same element, same class — so the page moves by nothing when the record is rea
 (`progress.spec.ts` holds it to the index's shift bound). The crumb row's quiet *Start at
 frame 1* appears only beside a *Continue*, so the page has exactly one link to the reader's
 frame and always one to the first. The foot carries the two neighbouring programs, each an
-id beside the pager's drawn arrow rather than a typed one — the key map is in *Reading
-settings*, opened from the top bar
+id beside the pager's drawn arrow rather than a typed one, and each named for a screen reader
+with its direction in words (*F01, Previous program*), which the hidden arrow cannot say — the
+key map is in *Reading settings*, opened from the top bar
 ([ADR-0063](../adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)) — and **the next
 one only once this program has been opened**
 ([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)): an

@@ -628,11 +628,14 @@ the rest are why it is not ended now:
 - Nothing on these pages is behind the reveal gate. They print a program's title and how long
   it is, never a step, so the gate ADR-0060 put in the API is not bypassed; what is not live is
   the list of what the book holds, which changes only when a new bundle is pinned.
-- The API does not serve what these pages draw. `TrackContent` lists one course's programs with
-  their titles and parts, and nothing lists the courses themselves or carries a program's frame
-  and section counts, which every tile prints. Moving the pages means a new endpoint and new
-  fields first, and `ProgramGrid` and `CourseList` rebuilt on the wire shapes rather than on a
-  `Bundle`.
+- The API does not serve what these pages draw in the shape they draw it. No endpoint lists the
+  courses, and `TrackContent`'s list of a course's programs carries their titles and parts but
+  not how long each one is: the index's tiles print a program's frame and section counts, and
+  `/courses` adds up a course's frames. `UnitSummary` has both counts, but for one program per
+  call, so drawing the index from it would cost a request for every tile. Moving the pages
+  means both of those first — a listing of the courses, and the counts on `TrackContent` or on
+  a listing endpoint of their own — and then `ProgramGrid` and `CourseList` rebuilt on the wire
+  shapes rather than on a `Bundle`.
 - The index is being reworked by other items of the order (630 and 650), and another change to
   it at the same time would be the collision the order's stages exist to avoid.
 
@@ -643,10 +646,11 @@ and through this origin's proxy, the question a program's contents ask, and says
 will open right now when the book's server does not answer it. A program's contents, one click
 on, is the error page a frame gets.
 
-**Exit.** `AbOvo.Api` lists the courses it holds and carries each program's frame and section
-counts, and the index, `/courses` and the author's list of programs render from
-`web/app/src/lib/server/content.ts` like every reading page, failing as a program's contents do.
-The index's line above then has nothing left to say and goes with the deviation; this row is
+**Exit.** `AbOvo.Api` lists the courses it holds, and `TrackContent` (or a listing endpoint of
+its own) carries each program's frame and section counts, so one call draws every tile. The
+index, `/courses` and the author's list of programs then render from
+`web/app/src/lib/server/content.ts` like every reading page, failing as a program's contents do,
+and the index's line above has nothing left to say and goes with the deviation. This row is
 discharged by the change that moves them.
 
 **Recorded in.** `web/app/src/app/page.tsx` and `web/app/src/app/courses/page.tsx`, in their

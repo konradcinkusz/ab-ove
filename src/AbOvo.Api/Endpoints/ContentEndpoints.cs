@@ -106,11 +106,10 @@ public static class ContentEndpoints
                 [FromServices] AbOvoDbContext db,
                 CancellationToken cancellationToken) =>
             {
+                // Not FindUnit: the lab list below is read off the bundle's root.
                 var bundle = await cache.GetLatest(db, track, cancellationToken);
                 if (bundle is null) return Results.NotFound();
-                var unitNode = bundle.Value.Root["units"]!.AsArray()
-                    .Select(u => u!.AsObject())
-                    .FirstOrDefault(u => u["id"]!.GetValue<string>() == unit);
+                var unitNode = UnitIn(bundle.Value.Root, unit);
                 if (unitNode is null) return Results.NotFound();
                 var steps = unitNode["steps"]!.AsArray();
 
@@ -326,12 +325,19 @@ public static class ContentEndpoints
         CancellationToken cancellationToken)
     {
         var bundle = await cache.GetLatest(db, track, cancellationToken);
-        if (bundle is null) return null;
+        return bundle is null ? null : UnitIn(bundle.Value.Root, unit);
+    }
 
-        return bundle.Value.Root["units"]!.AsArray()
+    /// <summary>
+    /// One unit of a stored bundle, by id: <see cref="FindUnit"/>'s search, kept once for the
+    /// return index's endpoint too, which needs the bundle's root beside the unit because the
+    /// lab list is a sibling of the units rather than a part of one (<c>Bundle.labs</c> in
+    /// <c>@ab-ovo/web-kit</c>'s <c>schema.ts</c>).
+    /// </summary>
+    private static JsonObject? UnitIn(JsonObject root, string unit) =>
+        root["units"]!.AsArray()
             .Select(u => u!.AsObject())
             .FirstOrDefault(u => u["id"]!.GetValue<string>() == unit);
-    }
 
     /// <summary>
     /// <paramref name="cursorStep"/> rides along on a successful read as

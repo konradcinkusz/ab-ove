@@ -45,7 +45,9 @@ export interface ReadingUnavailableProps {
  * the page moves; only a page that has something to say grows by one line to say it.
  */
 export function ReadingUnavailable({ tracks, message, language }: ReadingUnavailableProps): React.JSX.Element {
-  const [down, setDown] = useState(false);
+  // The last answer, and which courses it was about. The line keeps the last answer until the
+  // next one lands, so a narrowing to one course does not blank a line that is still true.
+  const [answer, setAnswer] = useState<{ readonly key: string; readonly down: boolean } | null>(null);
   // A string rather than the array, so the effect runs once per set of courses rather than
   // once per render of a parent that built a new array with the same ids in it.
   const key = tracks.join(' ');
@@ -68,7 +70,7 @@ export function ReadingUnavailable({ tracks, message, language }: ReadingUnavail
     }
 
     void Promise.all(key.split(' ').filter(Boolean).map(probe)).then((results) => {
-      if (!cancelled) setDown(results.some(readingUnavailable));
+      if (!cancelled) setAnswer({ key, down: results.some(readingUnavailable) });
     });
 
     return () => {
@@ -81,16 +83,23 @@ export function ReadingUnavailable({ tracks, message, language }: ReadingUnavail
     notice (`shut-notice.tsx`), which a reader moved here is sent to and `gate.spec.ts` finds by
     that role — and an ordinary visit is held to having none. `aria-live` with `aria-atomic` is
     what the role would imply, announced the same way, without a second status on every visit.
+
+    `data-probed` SAYS WHETHER THE ANSWER FOR THESE COURSES HAS BEEN READ, as the reveal's
+    `data-pending` says whether it is on its way (`reveal-label.tsx`). The response reaching
+    the browser is not this component having read it, and an empty line in between proves
+    nothing: `no-backend.spec.ts` waits for `yes` before it holds the line to saying nothing
+    while the server answers, so a line that spoke on every answer fails there.
   */
   return (
     <p
       aria-atomic="true"
       aria-live="polite"
       className={styles.notice}
+      data-probed={answer?.key === key ? 'yes' : 'no'}
       data-testid="reading-unavailable"
       lang={language}
     >
-      {down ? message : null}
+      {answer?.down ? message : null}
     </p>
   );
 }

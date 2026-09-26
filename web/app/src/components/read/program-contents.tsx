@@ -9,6 +9,7 @@ import { editionHrefs } from '@/lib/language/hrefs';
 import { isReachable, openingEnds, sectionSpansOf } from '@/lib/read/place';
 
 import styles from './contents.module.css';
+import controls from './controls.module.css';
 import { EntryControl, StartAfresh } from './entry-control.tsx';
 import { ArrowLeft, ArrowRight, Lock } from './icons.tsx';
 import { ProgramGate } from './program-gate.tsx';
@@ -118,6 +119,12 @@ export function ProgramContents({
           IN THE PAGE'S FLOW, NOT PINNED (reading-foot.tsx): the way on is a SENTENCE until
           the next program opens and a link after, decided after hydration, and a bar pinned
           to the viewport would change height under the reader's thumb when it did.
+
+          THE DIRECTION IS SAID AS WELL AS DRAWN (WCAG 2.4.4, issue #158). The arrows are
+          `aria-hidden` (`icons.tsx`), so without the hidden words a screen reader heard two
+          links named `F01` and `F03` and nothing about which way each went, which the typed
+          `←` and `→` used to say. The id comes first, so the name starts with the label a
+          reader sees (WCAG 2.5.3).
         */
         <ReadingFoot
           back={
@@ -125,6 +132,9 @@ export function ProgramContents({
               <Link className={foot.pagerButton} href={`/read/${track}/${previousUnit.id}/${language}`}>
                 <ArrowLeft className={foot.arrow} />
                 <span>{previousUnit.id}</span>
+                <span className={controls.visuallyHidden} lang={chrome.language}>
+                  , {chrome.previousProgramLabel}
+                </span>
               </Link>
             ) : (
               <Link className={foot.pagerButton} href="/">
@@ -145,6 +155,9 @@ export function ProgramContents({
               <WhenOpen language={chrome.language} previous={unit.id} track={track} unit={nextUnit.id}>
                 <Link className={foot.pagerButton} href={`/read/${track}/${nextUnit.id}/${language}`}>
                   <span>{nextUnit.id}</span>
+                  <span className={controls.visuallyHidden} lang={chrome.language}>
+                    , {chrome.nextProgramLabel}
+                  </span>
                   <ArrowRight className={foot.arrow} />
                 </Link>
               </WhenOpen>

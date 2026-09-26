@@ -5,8 +5,8 @@
  *
  * EMPTY, IT HAS NO BOX. It is in the document from the first render, so its live region is
  * announced when the sentence arrives, and on the ordinary path it never has one: every rule
- * that draws it is on `:not(:empty)`, so the index's zero shift bound (`progress.spec.ts`) is
- * untouched while the API answers.
+ * that draws it is on `:not(:empty)`, so it adds nothing to the layout shift `progress.spec.ts`
+ * bounds the index to while the API answers.
  */
 .notice {
   margin: 0;

@@ -84,10 +84,11 @@ export interface FrameViewProps {
  * ──────────────────────────────────────────────────────────────────────────────────────────
  *
  * THE LAST FRAME'S WAY ON IS `Summary`, the same button in the same place, and it STAYS A
- * LINK: ADR-0060's gate covers the frames of a program, and there is no step past the last
- * one to raise a cursor to (`Reveal.Advance` answers `ProgramComplete`). `prefetch={false}`
- * because `/summary`'s labels paraphrase what the program concluded, which is close enough to
- * an answer to earn the reveal's restraint.
+ * LINK: there is no step past the last one to raise a cursor to (`Reveal.Advance` answers
+ * `ProgramComplete`), and `/summary` is served under the last frame's own gate (issue #158,
+ * `Reveal.ServeReturnIndex`), which a reader on this frame has already passed.
+ * `prefetch={false}` because `/summary`'s labels paraphrase what the program concluded, which
+ * is close enough to an answer to earn the reveal's restraint.
  */
 export function FrameView({
   track,
