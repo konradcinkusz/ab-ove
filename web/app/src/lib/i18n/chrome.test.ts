@@ -97,6 +97,24 @@ test('every language carries the same key map, entry for entry', () => {
   }
 });
 
+test('a version of the book is a version: on a screen, "edition" is the language (#162)', () => {
+  // Two strings used the word for something else — a worksheet written for an earlier
+  // release of the book, and a part of the app that is not built yet — and a reader who has
+  // just chosen an edition reads either as a claim about their LANGUAGE. Held on the two keys
+  // that did it, in every language here, so a later rewording cannot bring the word back.
+  // The keys keep their names: the rule is about what the screen says.
+  const edition = /edition|wydani|edycj/i;
+  for (const language of CHROME_LANGUAGES) {
+    for (const key of ['earlierEdition', 'exercisesNotYet'] as const) {
+      assert.doesNotMatch(
+        TABLE[language]![key],
+        edition,
+        `${language} "${key}" calls something that is not a language an edition`,
+      );
+    }
+  }
+});
+
 test('a language is named in its own language', () => {
   assert.equal(endonym('en'), 'English');
   assert.equal(endonym('pl'), 'polski');

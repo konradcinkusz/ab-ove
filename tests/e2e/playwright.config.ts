@@ -263,11 +263,12 @@ export default defineConfig({
      * for a reason that is not a defect. TESTING-STRATEGY.md §9's rule about aspirational
      * config, applied to a project rather than to a layer.
      *
-     * The grep is `@identity` and not `@smoke|@identity`: every other smoke spec is about
-     * the reading surface, which does not change when an identity service exists, and
-     * running the whole layer twice would double the budget to assert the same things. The
-     * one spec that IS about the difference carries both tags, so it runs in both projects
-     * and each run exercises the branch that environment is in.
+     * The grep is `@identity` and not `@smoke|@identity`: a smoke spec is about the reading
+     * surface unless it says otherwise, the reading surface does not change when an identity
+     * service exists, and running the whole layer twice would double the budget to assert
+     * the same things. A test that IS about the difference says so by carrying `@identity`
+     * beside `@smoke` or `@core`, so it runs in both projects and each run exercises the
+     * branch that environment is in.
      */
     ...(targetIsLocal
       ? [

@@ -507,5 +507,10 @@ test.describe('navigation', () => {
       page.getByRole('link', { name: /open the programs/i }),
       'the not-found page offers no way back to the index',
     ).toHaveAttribute('href', '/');
+
+    // And its help is in words. It printed `/read/<track>/<program>/<edition>/<frame>`, and
+    // *track* is the one word of the content's that no screen says (`chrome.ts`, on
+    // `courses`) — put in front of every reader who mistyped a number (issue #162).
+    expect(await page.locator('main').textContent()).not.toContain('<track>');
   });
 });

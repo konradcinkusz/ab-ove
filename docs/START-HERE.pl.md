@@ -132,7 +132,7 @@ oraz zapytanie obejmujące wiele tekstów odrzucane, zanim EF je skompiluje.
 
 A czytelnik słyszy, co go to kosztuje — czego strukturalna nieobecność nie potrafi dostarczyć
 sama: ponieważ wynik nie niesie czytelnika, **usunięcie konta nie cofnie wkładu już wliczonego
-do wskaźnika**. Ekran usuwania mówi to dokładnie tak.
+do wskaźnika**. Ekran usuwania mówi to czytelnikowi wprost.
 
 ## Wszystko na jednej stronie
 

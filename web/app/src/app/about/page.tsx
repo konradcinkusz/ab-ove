@@ -33,8 +33,20 @@ import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
  * ADR-0040 — THE LAB IS NOT A STEP OF THE LOOP. The loop's fourth step was the program's own
  * exercises, with Python as its detour. The lab left the reader loop and the worksheet took
  * its place, so the worksheet is now the step, put where a reader uses it — between reading
- * the frame and committing an answer — and the lab is named where the work is listed, as
- * what it is: offered after a program, never beside a frame.
+ * the frame and committing an answer — and the lab has a section of its own, as what it is:
+ * offered after a program, never beside a frame.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * ISSUE #162 — THE PAGE SAYS WHAT A READER NEEDS, AND THE RECORDS KEEP THE REASONING.
+ *
+ * It cited `(ADR-0052)` in the middle of a sentence and ended on "Where the work is": Phase 1
+ * to Phase 4, the order the product was BUILT in. Both were the repository talking to a
+ * reader. The ADRs are cited in the comments beside the sentences they stand behind, and the
+ * roadmap is gone from the screen — UI-UX.md still ranks the backlog by those phases, which
+ * is where a contributor looks for them. The one fact in it a reader could use is the section
+ * that replaced it: where the book's computer exercises are. `specs/about.spec.ts` asserts
+ * both halves.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * A Server Component that renders from content compiled into the app and nothing else: no
@@ -138,57 +150,50 @@ export default function AboutPage(): React.JSX.Element {
         {/*
           ADR-0060 — two requirements, stated as two, because they are independent and only
           one of them was reversed. The first sentence is what `specs/about.spec.ts` asserts.
+          The account's half says what it is for. It said an account buys "exactly one
+          thing", which the section below contradicts: the edition a reader chose is kept on
+          the account too (ADR-0052). And it ended "the last phase of the work rather than
+          the gate on the first", which read the roadmap below it — gone since issue #162 —
+          back to the reader.
         */}
         <p>
           Reading needs no account, but it does need this site&rsquo;s book server: every frame
           and every reveal is fetched from it as you read, so while it is down, no frame will
-          open. An account buys exactly one thing — progress that follows you between
-          machines — and it is the last phase of the work rather than the gate on the first.
+          open. An account is for carrying your place from one device to another.
         </p>
       </section>
 
       <section className="section">
         <h2>Which edition you read</h2>
+        {/*
+          ADR-0052: the book still has two editions and no primary one — its own parity
+          tooling gates them frame for frame — and this product opens in English and
+          remembers a choice in this browser and on the account. The page cited it in its
+          text until issue #162; it says what that means for a reader, and the record is
+          named here.
+        */}
         <p>
           Either, and the choice is yours to make rather than ours to guess. The book has two
-          editions and no primary one — its own tooling gates them frame for frame — but this
-          site has to open in one of them, so it opens in English and offers the switch at the
-          top of every screen. Change it once and it stays changed: in this browser, and on
-          your account if you have one (ADR-0052). Nothing is inferred from your
-          browser&rsquo;s settings, and every position of the switch is a link you can see,
-          share and leave.
+          editions, matched frame for frame, and neither comes first — but this site has to
+          open in one of them, so it opens in English and offers the switch at the top of
+          every screen. Change it once and it stays changed: in this browser, and on your
+          account if you have one. Nothing is guessed from your browser&rsquo;s settings, and
+          each choice on the switch is an ordinary link you can share.
         </p>
       </section>
 
       <section className="section">
-        <h2>Where the work is</h2>
-        <ul className="phases">
-          <li>
-            <dfn>Phase 1</dfn>
-            <span>
-              The lab pane: the book&rsquo;s computer exercises, running in the browser &mdash;
-              offered after a program that has them, never beside a frame.
-            </span>
-          </li>
-          <li>
-            <dfn>Phase 2</dfn>
-            <span>
-              The content schema and the frame view — 47 programs, two languages, one
-              structure.
-            </span>
-          </li>
-          <li>
-            <dfn>Phase 3</dfn>
-            <span>Progress and accounts, for readers who want their place kept.</span>
-          </li>
-          <li>
-            <dfn>Phase 4</dfn>
-            <span>
-              The instrument: which frames the book is getting wrong, and the evidence for
-              it.
-            </span>
-          </li>
-        </ul>
+        <h2>The computer exercises</h2>
+        {/*
+          ADR-0040, said to a reader: where the lab is, and that it is not in the loop. It
+          was the first of four phases in a roadmap until issue #162, and the only one a
+          reader could act on.
+        */}
+        <p>
+          Some programs have computer exercises from the book, in Python. They run in your
+          browser, they are optional, and they are offered at the end of the program that has
+          them &mdash; never beside a frame, because no frame asks you to write code.
+        </p>
       </section>
 
       <IntegrationReport />

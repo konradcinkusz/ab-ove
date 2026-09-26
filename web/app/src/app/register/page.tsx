@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { destinationAt } from '@/lib/page-gate';
 import { backendConfigured } from '@/lib/server/backends';
 import { legalDocument, legalPath, offersRegistrationForm } from '@/lib/server/legal';
 import { consentVersions } from '@/lib/server/register';
@@ -44,6 +45,14 @@ export default async function RegisterPage({
 }): Promise<React.JSX.Element> {
   const params = await searchParams;
   const intended = safeRedirectTarget(params['redirect']);
+
+  /*
+    What stands at the destination, by the gate's own lists — `/login`'s question, asked for
+    `/login`'s reason (issue #162). `/login`'s *Create one* carries whatever it was handed,
+    and most of that is the page the reader pressed *Sign in* on, which this page used to
+    call "one of the few pages that needs to know who you are". Only a private page is.
+  */
+  const destination = intended === null ? null : destinationAt(intended);
 
   // P8 — a deployment with no identity service is a supported state. `backendConfigured`
   // rather than `publicAuthBaseUrl`: the browser never speaks to authservice, so what
@@ -152,11 +161,12 @@ export default async function RegisterPage({
         <h2>Create an account</h2>
 
         {!identityConfigured ? (
-          <p>
-            This deployment has no identity service configured, which is a normal way to run
-            ab-ovo. Everything except progress that follows you between machines works
-            without one, and there is nothing here to register with.
-          </p>
+          /*
+            P8, in the reader's words rather than the operator's: no identity service means
+            no accounts here (issue #162, as on `/login`). The standfirst has already said
+            that nothing a reader reads needs one.
+          */
+          <p>This site has no accounts, so there is nothing to create here.</p>
         ) : consent === null ? (
           /*
             Configured, and not answering — or answering something this app cannot read.
@@ -206,16 +216,26 @@ export default async function RegisterPage({
         ) : (
           <>
             <p>
-              {intended ? (
+              {destination === 'private-page' ? (
                 <>
                   You asked for <code>{intended}</code>, which is one of the few pages that
                   needs to know who you are. Make an account and you will be taken straight
                   there — or <Link href={signInHref}>sign in</Link> if you already have one.
                 </>
-              ) : (
+              ) : destination === 'open' ? (
                 <>
-                  The address and password go to the identity service this deployment is
-                  configured against; this site never stores either.{' '}
+                  Make an account and you will be taken back to where you were — or{' '}
+                  <Link href={signInHref}>sign in</Link> if you already have one.
+                </>
+              ) : (
+                /*
+                  Where the two go, said as the reader meets it: the service that holds the
+                  accounts. It named "the identity service this deployment is configured
+                  against", which is where an operator looks for it (issue #162).
+                */
+                <>
+                  Your address and password go to the identity service that holds the
+                  accounts here; this site never stores either.{' '}
                   <Link href={signInHref}>Sign in</Link> if you already have an account.
                 </>
               )}
@@ -329,11 +349,17 @@ export default async function RegisterPage({
 
       <section className="section">
         <h2>What an account does not do</h2>
+        {/*
+          ADR-0009 §1: an outcome is keyed by a frame in a bundle version, an attempt and a
+          check run, and never by a reader. The page said so in those words — "a frame, a
+          bundle version and whether an answer matched" — until issue #162; it now says it
+          in the consent's (#153), which is the question the reader was actually asked.
+        */}
         <p>
-          It does not gate anything you are reading, and it is not how the book is measured.
-          An outcome carries a frame, a bundle version and whether an answer matched — never
-          a reader — so there is no per-reader score to sign in and see, and creating an
-          account does not start one.
+          It does not unlock any part of the book, and it is not how the book is measured.
+          With your agreement, ab-ovo counts whether answers matched the book&rsquo;s — for
+          each frame, each version of the book and each try, never for each reader — so there
+          is no score of yours to sign in and see, and making an account does not start one.
         </p>
       </section>
 

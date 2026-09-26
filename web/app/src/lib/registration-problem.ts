@@ -115,25 +115,30 @@ export const REGISTRATION_PROBLEMS = {
    * Reported separately from `unavailable` because the remedy is different in a way that
    * matters: there is nothing to create a second time, and a reader who tried again would
    * be told the address is taken by the account they just made.
+   *
+   * The cause is `sign-in-problem.ts`'s `token-rejected` — the issuer or audience this app
+   * expects does not match the one signing the token, a configuration fault only an
+   * operator can fix — and, as there, it is kept here and not on the screen (issue #162).
    */
   'token-rejected': {
-    title: 'The account was created and the session could not be established.',
+    title: 'Your account was created, but this site could not sign you in.',
     detail:
-      'The identity service accepted the registration and issued a token this deployment then refused — a configuration fault, where the issuer or audience this app expects does not match the one signing the token. The account exists; signing in will meet the same fault until an operator fixes it.',
+      'The fault is in how this site is set up, not in anything you typed. The account exists; signing in will fail the same way until the fault is fixed.',
     retryable: false,
     signInInstead: true,
   },
   unverifiable: {
-    title: 'The account was created and the session could not be verified.',
+    title: 'Your account was created, but the sign-in could not be confirmed.',
     detail:
-      'The identity service issued a token and then could not be reached to confirm it. The account exists — wait a moment and sign in.',
+      'The identity service could not be reached to confirm it. The account exists — wait a moment, then sign in.',
     retryable: false,
     signInInstead: true,
   },
+  /** P8, in the reader's words: `sign-in-problem.ts`'s `not-configured`, one form over. */
   'not-configured': {
-    title: 'This deployment has no identity service.',
+    title: 'This site has no accounts.',
     detail:
-      'Running ab-ovo without one is normal: the frames and the worksheet need no account, and only progress that follows you between machines does. There is nothing here to register with.',
+      'There is nothing to register with, and nothing else needs an account: the frames and the worksheet work without one.',
     retryable: false,
   },
 } as const satisfies Record<string, RegistrationProblem>;
@@ -162,10 +167,11 @@ export function registrationProblem(
  * straight in (authservice's `RequireConfirmedEmail` defaults to "on when email works").
  */
 export const REGISTRATION_NOTICES = {
+  // "Will not issue a session until…" was the service's account of it (issue #162).
   'verify-email': {
     title: 'The account was created. One step is left.',
     detail:
-      'The identity service will not issue a session until the address is confirmed, so a message with a link is on its way to it. Open that, then sign in here.',
+      'Signing in waits until the address is confirmed, so a message with a link is on its way to it. Open that, then sign in here.',
   },
 } as const;
 

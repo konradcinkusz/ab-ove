@@ -113,7 +113,8 @@ test.describe('about page', () => {
     await expect(steps.nth(3)).toContainText('Reveal the next frame, which opens with the answer.');
 
     // ADR-0040, as something a machine can check: the lab is not a step of the loop. The
-    // phases below may name it — that is where the work is listed — and the loop may not.
+    // section on the computer exercises below may name it — that is where it is offered —
+    // and the loop may not.
     await expect(loop).not.toContainText(/python|\blab\b/i);
 
     /*
@@ -160,24 +161,43 @@ test.describe('about page', () => {
     await expect(main).not.toContainText('no backend');
   });
 
-  test('names the four phases in the order they are being built @core', async ({ page }) => {
+  test('says where the computer exercises are: after a program, never beside a frame @core', async ({
+    page,
+  }) => {
     await page.goto('/about');
 
-    const phases = page.getByRole('list').filter({ hasText: 'Phase 1' });
-    await expect(phases).toHaveCount(1);
+    /*
+      THIS TEST NAMED THE FOUR PHASES, and the page no longer lists them (issue #162).
 
-    const entries = phases.getByRole('listitem');
-    await expect(entries).toHaveCount(4);
+      "Where the work is" was Phase 1 to Phase 4 — the lab pane, the content schema and the
+      frame view, progress and accounts, the instrument — which is the order the product was
+      BUILT in, and nothing a reader could act on. The one thing in it a reader could use is
+      the section now: where the book's computer exercises are. It says what ADR-0040
+      decided, so a rewording that put the lab back into the loop fails here as well as in
+      the loop's own test above.
+    */
+    const exercises = page.locator('section').filter({
+      has: page.getByRole('heading', { name: 'The computer exercises', level: 2 }),
+    });
+    await expect(exercises).toHaveCount(1);
+    await expect(exercises).toContainText('in Python');
+    await expect(exercises).toContainText('never beside a frame');
+  });
 
-    // UI-UX.md names its phases after these rows, so the page and the plan cannot drift
-    // without this failing. The first row also says where the lab is since ADR-0040 —
-    // after a program, never beside a frame — so a rewording that put it back into the loop
-    // fails here as well as in the loop's own test above.
-    await expect(entries.nth(0)).toContainText('The lab pane');
-    await expect(entries.nth(0)).toContainText('never beside a frame');
-    await expect(entries.nth(1)).toContainText('The content schema and the frame view');
-    await expect(entries.nth(2)).toContainText('Progress and accounts');
-    await expect(entries.nth(3)).toContainText('The instrument');
+  test('speaks to the reader, not to the repository @core', async ({ page }) => {
+    await page.goto('/about');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+    /*
+      Issue #162. The page cited `(ADR-0052)` in the middle of a sentence to a reader, and
+      ended on the roadmap the test above replaced. Both are the repository's reasoning, and
+      they are kept where the repository keeps its reasoning: the ADRs, and the comments in
+      `about/page.tsx`. `textContent`, for `sign-in.spec.ts`'s measured reason: it is what a
+      screen reader reads, whether or not it is on screen.
+    */
+    const text = (await page.locator('main').textContent()) ?? '';
+    expect(text).not.toMatch(/ADR-\d{4}/);
+    expect(text).not.toContain('Phase 1');
   });
 
   test('links to the canonical repository @core', async ({ page }) => {

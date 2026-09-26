@@ -110,10 +110,11 @@ that test fails and somebody has to delete either the feature or the promise. Th
 is the point of the test.
 
 It also asserts the reader loop's four steps **in order** (a loop that revealed the answer
-before asking for one would be a different product), the four phases in the order they are
-being built, and that the footer links to `https://github.com/konradcinkusz/ab-ovo` — the
-canonical spelling. The repository was created as `ab-ove`, a typo; GitHub redirects the old
-name, which is exactly why a wrong link would work and would still be wrong.
+before asking for one would be a different product), that the computer exercises are offered
+after a program and never beside a frame, that the page cites no ADR and shows no roadmap to
+a reader (issue #162), and that the footer links to `https://github.com/konradcinkusz/ab-ovo`
+— the canonical spelling. The repository was created as `ab-ove`, a typo; GitHub redirects
+the old name, which is exactly why a wrong link would work and would still be wrong.
 
 **This journey ran against `/` until
 [ADR-0036](../../docs/adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)**,
@@ -227,8 +228,8 @@ proxy's 504 (something answered too slowly, e.g. cold-starting), and an unexpect
 The test that renders the whole of `/about` with the API cut off asserts three properties,
 because any one alone would be satisfied by a broken page:
 
-- **the product is intact** — the heading, the anti-goal, the four loop steps, the four
-  phases, asserted element by element exactly as journey 1 asserts them with a backend
+- **the product is intact** — the heading, the anti-goal, the four loop steps, the sections
+  under them, asserted element by element exactly as journey 1 asserts them with a backend
   present;
 - **the panel is legible** about which fault it was, and is not still showing its loading
   state;
