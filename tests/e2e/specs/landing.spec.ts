@@ -711,9 +711,13 @@ test.describe('the top of the page', () => {
       expect(heights.length, 'the card was never measured').toBeGreaterThan(0);
       expect([...new Set(heights)], 'the card changed height under the reader').toHaveLength(1);
 
-      // Offered once on either screen, and back to this page as the reader left it.
+      // Offered once on either screen, back to this page as the reader left it, and to the
+      // sign-in page in the edition the reader reads (issue #166, `account-href.ts`).
       await expect(carry).toHaveCount(1);
-      await expect(carry).toHaveAttribute('href', `/login?redirect=${encodeURIComponent(`/?lang=${language}`)}`);
+      await expect(carry).toHaveAttribute(
+        'href',
+        `/login?redirect=${encodeURIComponent(`/?lang=${language}`)}&lang=${language}`,
+      );
 
       const card = page.getByTestId('start-card');
       const line = card.getByText(chrome.placeKeptHere);
