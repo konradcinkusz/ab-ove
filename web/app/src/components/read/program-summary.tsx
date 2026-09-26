@@ -97,9 +97,10 @@ export function ProgramSummary({
             last frame finds the arrows still work.
 
             THIS SCREEN RECORDS NO POSITION, AND THAT IS A CORRECTION RATHER THAN AN OMISSION:
-            the store holds a FRAME NUMBER and there is no number for "the summary", so the
-            only thing it could write is N — the claim that the reader has read every frame,
-            which a deep link here would have invented from a page load.
+            the store holds the FRAME this browser last opened and the summary is not a frame,
+            so the only number it could write, N, would name a frame this page load never
+            showed. (A deep link used to reach it short of frame N as well; since #158
+            `AbOvo.Api` refuses that, and `page.tsx` renders Not there yet instead.)
           */}
           <SummaryKeys back={lastFrameAt} forward={nextProgramAt} />
         </>

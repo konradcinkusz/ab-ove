@@ -18,9 +18,9 @@ import { resolveProgram } from '@/lib/server/program';
  * ──────────────────────────────────────────────────────────────────────────────────────
  * FROM `AbOvo.Api`, AS A FRAME IS — issue #158, ADR-0060.
  *
- * It read the bundle compiled into the app until then, which made it the one page of a
- * program that rendered with the API stopped — every heading on it a link into a frame that
- * then answered 500. It asks the API for the track and the unit now, as the reader
+ * It and the summary read the bundle compiled into the app until then, so both rendered with
+ * the API stopped — every heading on this one a link into a frame that then answered 500. It
+ * asks the API for the track and the unit now, as the reader
  * (`resolveProgram`), so the unit comes back with this reader's furthest frame and the page
  * can lock what the gate would refuse; and an API that does not answer is the error page a
  * frame gets, marked as that failure, before the reader has clicked into anything
