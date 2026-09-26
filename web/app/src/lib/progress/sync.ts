@@ -85,6 +85,19 @@ const OWN_REVEAL_GRACE_MS = 3_000;
 const raisedListeners = new Set<() => void>();
 let raised: readonly Raised[] = [];
 
+/**
+ * The raises `tell` is holding back, each until its `OWN_REVEAL_GRACE_MS` is over.
+ *
+ * Here and not only in the timer that tells them, so that `withdrawStale` sees them (issue
+ * #157): a raise whose frame this browser shows during the hold is settled AT THAT MOMENT,
+ * and stays settled. Asked only when the hold was over, it was asked about wherever the reader
+ * had got to by then — and a reader who revealed, landed, and went straight back with
+ * *Previous*, which is the move `docs/tutorials/02-read-a-program.md` gives a reader who did
+ * not follow an answer, was behind the raise again and was told their own reveal as reading
+ * done elsewhere.
+ */
+let held: readonly Raised[] = [];
+
 const EMPTY_RAISED: readonly Raised[] = [];
 
 const announceRaised = (): void => {
@@ -124,17 +137,19 @@ export function dismissRaised(program?: ProgramRef): void {
 }
 
 /**
- * Withdraw every line that is no longer news (`stillNews`): its frame has since been shown on
- * this screen, or its program is no longer where the line says — forgotten, here or in
- * another tab, or raised again.
+ * Withdraw every line that is no longer news (`stillNews`), on the screen or still held: its
+ * frame has since been shown on this screen, or its program is no longer where the line says —
+ * forgotten, here or in another tab, or raised again.
  *
  * Run on every change to the record, because the change that matters most is a page
- * recording itself: a reveal whose page took longer than `OWN_REVEAL_GRACE_MS` to arrive is
- * told as reading done elsewhere, and this is where that is taken back (issue #157).
+ * recording itself (issue #157). A held raise whose page lands is dropped here, before the
+ * reader can go back past it; a reveal whose page took longer than `OWN_REVEAL_GRACE_MS` to
+ * arrive has been told as reading done elsewhere by then, and this is where that is taken back.
  */
 function withdrawStale(): void {
-  if (raised.length === 0) return;
+  if (raised.length === 0 && held.length === 0) return;
   const now = read(window.localStorage);
+  held = held.filter((entry) => stillNews(entry, now));
   const left = raised.filter((entry) => stillNews(entry, now));
   if (left.length === raised.length) return;
   raised = left.length === 0 ? EMPTY_RAISED : left;
@@ -154,33 +169,47 @@ function publishRaised(more: readonly Raised[]): void {
 
 /**
  * Tell the reader what a cycle found: at once, or — for a raise that could be this browser's
- * own reveal on its way (`couldBeOwnReveal`) — after `OWN_REVEAL_GRACE_MS`, and only if it is
- * still news then.
+ * own reveal on its way (`couldBeOwnReveal`) — after `OWN_REVEAL_GRACE_MS`, and only if
+ * nothing settled it in the meantime.
  *
  * Only a raise this browser did not cause is told (issue #157), and a signed-in reveal moves
  * the account a page load before this browser records the frame it leads to. So a raise of
  * that shape is held rather than shown and taken back: a line that appears on the reader's
  * way to the next frame and goes when it lands has still said something false, and
- * `aria-live` may already have read it aloud. The one raise of its own this cannot tell
- * apart is a reveal whose page never arrives — the tab closed between the answer and the
- * page — which left the account a frame ahead of a browser that never showed it, and is told
- * once the hold is over as reading done elsewhere.
+ * `aria-live` may already have read it aloud. The page landing settles it for good
+ * (`withdrawStale`), wherever the reader goes next.
  *
- * The timer is not cleared by a forget or by a later cycle, because it has no need to be:
- * `stillNews` asks the record as it stands when the timer fires, and a forgotten program, a
- * program raised again, or a frame since shown here are all no longer news by then.
+ * What this still tells as reading done elsewhere, named because nothing in a pull tells these
+ * apart from the real thing:
+ *
+ *   - a reveal whose page never arrives — the tab closed, or navigated away, between the
+ *     answer and the page. It left the account a frame ahead of a browser that never showed
+ *     that frame, and it is told once the hold is over, like any line from elsewhere;
+ *   - a reveal whose page takes longer than the hold to record itself. Told when the hold is
+ *     over, and taken back when the page lands;
+ *   - a reveal made while another tab has since recorded a different frame. `last` is this
+ *     browser's, not this tab's, so the raise no longer looks like a reveal from the frame last
+ *     shown: it is told at once, in whichever tab syncs first, and taken back when the reveal's
+ *     page records itself — in the other tab, by a `storage` event.
+ *
+ * The timer is not cleared by a forget or by a later cycle, because it has no need to be: it
+ * tells only what is still `held` — which `withdrawStale` has emptied of anything shown here,
+ * forgotten or raised again — and asks `stillNews` once more for a change it did not hear.
  */
 function tell(found: readonly Raised[]): void {
   if (found.length === 0) return;
 
   const now = read(window.localStorage);
-  const held = found.filter((entry) => couldBeOwnReveal(entry, now));
-  publishRaised(found.filter((entry) => !held.includes(entry)));
-  if (held.length === 0) return;
+  const hold = found.filter((entry) => couldBeOwnReveal(entry, now));
+  publishRaised(found.filter((entry) => !hold.includes(entry)));
+  if (hold.length === 0) return;
 
+  held = [...held, ...hold];
   setTimeout(() => {
     const later = read(window.localStorage);
-    publishRaised(held.filter((entry) => stillNews(entry, later)));
+    const due = hold.filter((entry) => held.includes(entry) && stillNews(entry, later));
+    held = held.filter((entry) => !hold.includes(entry));
+    publishRaised(due);
   }, OWN_REVEAL_GRACE_MS);
 }
 

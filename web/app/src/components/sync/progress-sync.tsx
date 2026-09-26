@@ -43,10 +43,11 @@ import styles from './progress-sync.module.css';
  * going back raises nothing; `settle` in `reconcile.ts` drops a raise this browser reached
  * on its own while a sync was in flight, and `shownHere` withdraws one the moment this browser
  * shows that frame itself (a sync that raced a reveal). What is left is reading done elsewhere —
- * another machine, or an agent reading on the account — and each line says so as a fact
- * and offers `Go to frame 40`, because a notice about a frame with no way to it leaves the
- * reader to find the index's *Continue* themselves. Following the link acknowledges that
- * line and no other.
+ * another machine, or an agent reading on the account, and the reveals of this browser's own
+ * that nothing in a pull tells apart from it, which `tell` in `lib/progress/sync.ts` names —
+ * and each line says so as a fact and offers `Go to frame 40`, because a notice about a frame
+ * with no way to it leaves the reader to find the index's *Continue* themselves. Following
+ * the link acknowledges that line and no other.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * IT IS FIXED, AND THAT IS A LAYOUT DECISION RATHER THAN A STYLE ONE. The notice appears

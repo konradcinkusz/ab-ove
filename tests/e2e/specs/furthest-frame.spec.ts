@@ -66,14 +66,44 @@ const furthestHere = async (page: Page): Promise<number | null> =>
 const lastHere = async (page: Page): Promise<number | null> =>
   (await stored(page)).last?.step ?? null;
 
+/** The account's furthest frame in the program, through this app's own proxy. */
+const accountStep = (page: Page) =>
+  page.evaluate(
+    async ([path, program]) => {
+      const response = await fetch(path!, { cache: 'no-store', credentials: 'same-origin' });
+      if (!response.ok) return `status ${response.status}`;
+      type Row = { track: string; unit: string; step: number };
+      const body = (await response.json()) as { records: Row[] };
+      return body.records.find((row) => `${row.track}/${row.unit}` === program)?.step ?? null;
+    },
+    ['/api/proxy/api/v1/progress', `${track}/${UNIT}`] as const,
+  );
+
 /**
  * Read up to frame `n` the way a reader does — `Next`, and land — and wait for the record to
  * have noticed each landing, because the recorder writes in an effect after hydration
  * (`progress.spec.ts`'s `readUpTo` says what skipping that wait costs).
+ *
+ * `signedIn`, for an account nobody has read on yet: wait for the account to hold frame 1
+ * before the first `Next`. Landing on frame 1 has the sync send the account its first row for
+ * the program (a PUT), and the first reveal sends an advance; each finds no row and INSERTs
+ * one, and the API answers the loser with a 500 on the duplicate key, which the reveal shows as
+ * "Could not reach the book". It was seen now and then, always at the first reveal, and CI's
+ * retries would have hidden it. That race is the API's own and not what this spec asserts, so
+ * the spec keeps the two apart rather than passing on a retry.
  */
-async function readForwardTo(page: Page, n: number): Promise<void> {
+async function readForwardTo(
+  page: Page,
+  n: number,
+  { signedIn = false }: { readonly signedIn?: boolean } = {},
+): Promise<void> {
   await page.goto(frameAt(1));
   await expect(page.locator('article')).toBeVisible();
+  if (signedIn) {
+    await expect
+      .poll(() => accountStep(page), { message: 'the account never held frame 1' })
+      .toBe(1);
+  }
   for (let at = 2; at <= n; at += 1) {
     await Promise.all([page.waitForURL(new RegExp(`${frameAt(at)}$`)), reveal(page).click()]);
     await expect(page.locator('article')).toBeVisible();
@@ -128,6 +158,14 @@ const NEEDS_API =
 /** Satisfies the identity service's policy: eight or more, upper, lower, digit, symbol. */
 const PASSWORD = 'Fixture-password-1!';
 
+/**
+ * `OWN_REVEAL_GRACE_MS` in `web/app/src/lib/progress/sync.ts`: how long a raise that could be
+ * this browser's own reveal on its way is held before it is told. A copy, because this suite
+ * cannot import the application, so the two move together — or the waits below that are
+ * measured against it stop proving what they say.
+ */
+const HOLD_MS = 3_000;
+
 /** An account nobody else in the suite has touched, signed in on `page`. */
 async function aFreshAccount(page: Page): Promise<Credentials> {
   const email = `furthest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.test`;
@@ -138,19 +176,6 @@ async function aFreshAccount(page: Page): Promise<Credentials> {
   await Promise.all([page.waitForURL(/\/$|\/[a-z]/), page.click('button[type="submit"]')]);
   return { email, password: PASSWORD };
 }
-
-/** The account's furthest frame in the program, through this app's own proxy. */
-const accountStep = (page: Page) =>
-  page.evaluate(
-    async ([path, program]) => {
-      const response = await fetch(path!, { cache: 'no-store', credentials: 'same-origin' });
-      if (!response.ok) return `status ${response.status}`;
-      type Row = { track: string; unit: string; step: number };
-      const body = (await response.json()) as { records: Row[] };
-      return body.records.find((row) => `${row.track}/${row.unit}` === program)?.step ?? null;
-    },
-    ['/api/proxy/api/v1/progress', `${track}/${UNIT}`] as const,
-  );
 
 /** The next pull the sync makes. Armed BEFORE whatever is meant to cause it. */
 const nextPull = (page: Page) =>
@@ -209,24 +234,32 @@ test.describe('the account, when the reader goes back and when they read elsewhe
     // measured against an account and a browser that already agree, and the pull awaited
     // after going back cannot be this one arriving late. Armed as the record says 3, which
     // is where the three-second debounce starts.
-    await readForwardTo(page, 3);
+    await readForwardTo(page, 3, { signedIn: true });
     await nextPull(page);
     await expect
       .poll(() => accountStep(page), { message: 'the account never held frame 3' })
       .toBe(3);
 
     // #157's first step, verbatim: go back to frame 2 and let the sync run.
+    await watchTheNotice(page);
     const afterGoingBack = nextPull(page);
     await goBackTo(page, 2);
+    // Asked before that sync, which would put 3 back either way: the account holds it.
+    expect(await furthestHere(page), 'going back lowered the furthest frame').toBe(3);
     await afterGoingBack;
-    // An absence has no event to wait for. The pull above has answered, and what it would
-    // announce is published as soon as its body is merged — this is a ceiling past that.
-    await page.waitForTimeout(1_000);
-    await expect(
-      syncNotice(page),
+    // An absence has no event to wait for, and a moment after the pull is too soon to ask.
+    // Had going back been recorded as the reader's place, the account's 3 would come back as a
+    // raise to the frame right after the one last shown — the shape of this browser's own
+    // reveal on its way — and be HELD before it was told, for `HOLD_MS` from this pull. So this
+    // waits past the hold and asks whether a line was on the screen at any moment. Watched
+    // failing with `remember()` writing the frame viewed over the furthest: at the check
+    // above, and — with that check taken out — here, on "You had read F01 to frame 3
+    // elsewhere."
+    await page.waitForTimeout(HOLD_MS + 1_000);
+    expect(
+      await noticesSeen(page),
       'going back one frame was announced as reading done elsewhere',
-    ).toHaveCount(0);
-    expect(await furthestHere(page)).toBe(3);
+    ).toEqual([]);
 
     // Now read ON, somewhere else: a second browser, the same account, two more frames.
     const elsewhere = await browser.newContext();
@@ -252,12 +285,11 @@ test.describe('the account, when the reader goes back and when they read elsewhe
       .filter({ hasText: 'Continue at frame 5' });
     await expect(resume, 'the index did not offer the raised frame').toHaveCount(1);
 
+    // Landing on the frame withdraws the line whether or not the link also acknowledged it
+    // (`shownHere`), so this asks what the reader sees, not which of the two took it away.
     await Promise.all([page.waitForURL(new RegExp(`${frameAt(5)}$`)), go.click()]);
     await expect(page.locator('article')).toBeVisible();
-    await expect(
-      syncNotice(page),
-      'following the notice’s own link did not acknowledge it',
-    ).toHaveCount(0);
+    await expect(syncNotice(page), 'the notice outlived following its own link').toHaveCount(0);
   });
 
   /**
@@ -273,18 +305,28 @@ test.describe('the account, when the reader goes back and when they read elsewhe
    * proxy — then a sync pulls, then the page lands, by `Next`, whose advance is by then the
    * idempotent one. Without the hold the line is on the screen from the pull to the landing,
    * and the observer sees it; watched failing that way before the hold was written.
+   *
+   * The landing settles the raise for good. The reader then goes straight back with
+   * `Previous` — what the tutorial tells a reader who did not follow an answer to do — and is
+   * behind the raise again before the hold is over. A hold that asked only when it was over
+   * told their own reveal as reading done elsewhere then; watched failing that way too, with
+   * the held raise kept only in its timer rather than in `held` (`sync.ts`). The journey back
+   * is timed against the hold, because one that outlasted it would prove nothing.
    */
-  test('this browser’s own reveal is not told as reading elsewhere, and a raise it never shows still is @identity', async ({
+  test('this browser’s own reveal is not told as reading elsewhere, even when the reader goes straight back, and a raise it never shows still is @identity', async ({
     page,
   }) => {
     await aFreshAccount(page);
-    await readForwardTo(page, 3);
+    await readForwardTo(page, 3, { signedIn: true });
     // The landing's own sync, so that no cycle is in flight when one is asked for below.
     await nextPull(page);
     await watchTheNotice(page);
 
     // The first half of a reveal from frame 3: the account moves to 4.
     await walkTo(page, UNIT, 'en', 4);
+    // Taken before the sync is asked for. The hold starts once its pull has answered, so it
+    // cannot be over before this plus `HOLD_MS`.
+    const beforeTheHold = Date.now();
     const pulled = nextPull(page);
     await syncNow(page);
     await pulled;
@@ -293,19 +335,28 @@ test.describe('the account, when the reader goes back and when they read elsewhe
     await expect.poll(() => furthestHere(page), { message: 'the sync never adopted 4' }).toBe(4);
     expect(await lastHere(page)).toBe(3);
 
-    // The second half: the page lands, the way a reveal's redirect lands it.
+    // The second half: the page lands, the way a reveal's redirect lands it — and the reader
+    // goes straight back to frame 3, inside the hold.
     await Promise.all([page.waitForURL(new RegExp(`${frameAt(4)}$`)), reveal(page).click()]);
     await expect.poll(() => lastHere(page), { message: 'frame 4 was never recorded' }).toBe(4);
-    // Past the hold (`OWN_REVEAL_GRACE_MS`, three seconds from the pull), so a line it only
-    // postponed would have been told by now.
-    await page.waitForTimeout(4_000);
+    await goBackTo(page, 3);
+    expect(
+      Date.now() - beforeTheHold,
+      'the reader was back on frame 3 only after the hold was over, so this run proved nothing',
+    ).toBeLessThan(HOLD_MS);
+
+    // Past the hold, so a line it only postponed would have been told by now.
+    await page.waitForTimeout(HOLD_MS + 1_000);
     expect(
       await noticesSeen(page),
       'this browser’s own reveal was told as reading done elsewhere',
     ).toEqual([]);
 
     // And the hold is a delay, never a drop: a one-frame raise this browser does not go on
-    // to show — the account moved from somewhere else — is told once it is over.
+    // to show — the account moved from somewhere else — is told once it is over. From frame 4,
+    // so that the raise has the held shape: `Next` once more, an advance the account has had.
+    await Promise.all([page.waitForURL(new RegExp(`${frameAt(4)}$`)), reveal(page).click()]);
+    await expect.poll(() => lastHere(page), { message: 'frame 4 was never recorded' }).toBe(4);
     await walkTo(page, UNIT, 'en', 5);
     const again = nextPull(page);
     await syncNow(page);
@@ -320,7 +371,7 @@ test.describe('the account, when the reader goes back and when they read elsewhe
     page,
   }) => {
     const account = await aFreshAccount(page);
-    await readForwardTo(page, 3);
+    await readForwardTo(page, 3, { signedIn: true });
     await expect.poll(() => accountStep(page)).toBe(3);
 
     // Signing out leaves the record where it was (ADR-0019), so the index still offers 3 —

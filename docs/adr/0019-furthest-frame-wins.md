@@ -148,8 +148,10 @@ furthest read frame in this program is 1*, with no reason given.
   furthest; nothing undoes their going back, because nothing records it as a position.
 - **Every control that offers a place offers the furthest** — the index's *Continue*, the
   contents page's, and a tile's `at frame N` — each through `positionIn`, so they cannot
-  disagree. `last` still only says which program; the sync no longer rewrites it,
-  except to give a browser with none the program the account touched last, as before.
+  disagree. `last` says which program, and which frame only for a record that holds no
+  furthest there; its frame is also how the notice below tells this browser's own reveal from
+  reading done elsewhere. The sync no longer rewrites it, except to give a browser with none
+  the program the account touched last, as before.
 - **The notice is for a raise this browser did not cause.** A sync is several round trips, and
   a signed-in reveal moves the account as it goes. `settle` in `reconcile.ts` merges the
   cycle's result into the record as it stands when the cycle lands — writing the cycle's
@@ -158,12 +160,17 @@ furthest read frame in this program is 1*, with no reason given.
   page load before its page records itself, and a cycle that pulls in between sees a raise to
   the frame right after the one this browser last showed; nothing in the pull tells that from
   another machine's reading, so a raise of that shape is held for three seconds and told only
-  if this browser has not shown the frame by then (`couldBeOwnReveal`, `stillNews`). A line
-  already on the screen goes when it stops being news — its frame shown here, its program
-  forgotten or raised again. What this costs, and is accepted: a real one-frame raise from
-  elsewhere is told three seconds late, and a reveal whose page never loaded — the tab closed
-  in between — is told as reading done elsewhere, because it left the account a frame ahead of
-  a browser that never showed it.
+  if this browser has not shown the frame at any moment of them (`couldBeOwnReveal`,
+  `stillNews`) — a reader who lands and goes straight back, which is what
+  [the tutorial](../tutorials/02-read-a-program.md) tells a reader who did not follow an
+  answer to do, has shown it. A line already on the screen goes when it stops being
+  news — its frame shown here, its program forgotten or raised again. What this costs, and is
+  accepted: a real one-frame raise from elsewhere is told three seconds late, and this
+  browser's own reveal is still told as reading done elsewhere where nothing in a pull tells it
+  apart — when its page never loads (the tab closed or left in between), which leaves the
+  account a frame ahead of a browser that never showed it; when its page takes longer than the
+  hold, until it lands; and when another tab has since recorded a different frame, because
+  `last` is the browser's and not a tab's, until the reveal's page records itself.
 - **The notice says it as a fact and goes there**: *You had read F01 to frame 40 elsewhere.
   The furthest frame wins.*, with *Go to frame 40* under it, which also acknowledges that
   line. It wears the rule and the raised paper and no longer a drop shadow.

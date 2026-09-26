@@ -75,8 +75,11 @@ export interface ProgramRef {
  */
 export interface Progress {
   /**
-   * The frame this browser last showed, and so the program an index offers one control for.
-   * Only its program is read back: the frame offered is that program's furthest.
+   * The frame this browser last showed. Its program is the one the index offers a control
+   * for, at that program's furthest frame — at `last`'s own frame and edition only for a
+   * record that holds no furthest there (`ResumeLast`). Its frame is what the sync notice asks
+   * of a raise: whether it could be this browser's own reveal on its way, and whether it has
+   * been shown here since (`couldBeOwnReveal` and `shownHere` in `reconcile.ts`).
    */
   readonly last?: ProgramRef & Position;
   /** The furthest frame reached in each program, keyed by `track/unit`. */

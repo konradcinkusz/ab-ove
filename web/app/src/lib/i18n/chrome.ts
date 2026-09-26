@@ -251,8 +251,9 @@ interface Strings {
    * A FACT about the reader, worded as one (issue #157): it used to say the program "moved to
    * frame N, read on another device", and it said so to a reader who had gone back one frame
    * on this one. It is shown only for a raise this browser did not cause, so "elsewhere" is
-   * true — `lib/progress/sync.ts` names the one case it cannot tell — and it is followed by
-   * `goToFrameNumber` as a link to the frame it names.
+   * true — but for the reveals of this browser's own that nothing in a pull tells apart, which
+   * `tell` in `lib/progress/sync.ts` names — and it is followed by `goToFrameNumber` as a link
+   * to the frame it names.
    */
   readonly raised: (unit: string, step: number) => string;
   readonly dismiss: string;

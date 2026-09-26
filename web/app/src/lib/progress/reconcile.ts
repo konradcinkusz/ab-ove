@@ -352,14 +352,17 @@ export function stillNews(entry: Raised, progress: Progress): boolean {
  * ahead of the frame this browser last showed, which is exactly what a raise from another
  * machine looks like, and nothing in the pull can tell the two apart. What can is waiting: this
  * browser's own reveal arrives here within a page load, and another machine's never does. So
- * `sync.ts` holds a raise of this shape back for a moment and then asks `stillNews`.
+ * `sync.ts` holds a raise of this shape back for a moment, drops it for good the moment
+ * `stillNews` says its frame has been shown here — even if the reader goes back past it before
+ * the moment is over — and tells it only if nothing did.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * Only the next frame. A raise is always past the program's furthest, and `last` is never
  * past it, so a raise to the frame after `last` means `last` IS the furthest — the one frame
  * a reveal can move the account from, and a reveal moves it by one. A raise of two or more,
- * or in another program, is therefore somebody else's and is told at once. Holding a real
- * one-frame raise from elsewhere costs its line a few seconds, and nothing else.
+ * or in another program, is therefore not a reveal from the frame this browser last showed,
+ * and is told at once — wrongly in one case `sync.ts` names, a reveal made in another tab.
+ * Holding a real one-frame raise from elsewhere costs its line a few seconds, and nothing else.
  */
 export function couldBeOwnReveal(entry: Raised, progress: Progress): boolean {
   const last = progress.last;

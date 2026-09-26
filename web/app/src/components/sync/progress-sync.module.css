@@ -84,9 +84,10 @@
  *
  * A FINGER'S TARGET, GIVEN BACK AS MARGIN (issue #147) — the language and theme controls'
  * pattern, so the notice lays out as it did. `Got it` is a short word, so the box grows to the
- * RIGHT only, into the notice's own padding: the auto margin that pushes the button to the
- * right-hand end cannot also be negative, and padding on the left with nothing to give it back
- * would move the word. 0.875rem is what takes `Got it` past 44px and stays inside the notice.
+ * RIGHT only, into the notice's own padding, which has room for it. What puts the button at
+ * the right-hand end is its own `auto` column (`.notice`, issue #157) rather than an auto
+ * margin, so its left margin is zero. 0.875rem is what takes `Got it` past 44px and stays
+ * inside the notice.
  */
 .dismiss {
   background: none;
@@ -95,7 +96,7 @@
   cursor: pointer;
   font: inherit;
   font-size: 0.85rem;
-  margin: -0.75rem -0.875rem -0.75rem auto;
+  margin: -0.75rem -0.875rem -0.75rem 0;
   padding: 0.75rem 0.875rem 0.75rem 0;
   text-decoration: underline;
   text-decoration-style: dotted;
