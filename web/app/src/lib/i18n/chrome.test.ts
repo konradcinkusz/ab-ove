@@ -9,7 +9,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { CHROME_LANGUAGES, FALLBACK_LANGUAGE, TABLE, chromeFor, endonym } from './chrome.ts';
+import { REGISTRATION_NOTICES, REGISTRATION_PROBLEMS } from '../registration-problem.ts';
+import { SIGN_IN_PROBLEMS } from '../sign-in-problem.ts';
+
+import { CHROME_LANGUAGES, FALLBACK_LANGUAGE, TABLE, chromeFor, endonym, type Explained } from './chrome.ts';
 
 test('the fallback language has an entry, which every other branch assumes', () => {
   assert.ok(TABLE[FALLBACK_LANGUAGE], 'chromeFor() falls back to a language that is not in the table');
@@ -111,6 +114,77 @@ test('a version of the book is a version: on a screen, "edition" is the language
         edition,
         `${language} "${key}" calls something that is not a language an edition`,
       );
+    }
+  }
+});
+
+/*
+ * THE ACCOUNT PAGES' PROBLEMS, IN EVERY EDITION (issue #166). The codes are closed sets in
+ * `sign-in-problem.ts` and `registration-problem.ts`; the words moved here. The type keys each
+ * table by its set, so the compiler already refuses a missing code — this holds the same at
+ * run time, where an empty string would build and render as a blank panel.
+ */
+test('every problem and notice on the account pages has words in every edition', () => {
+  const sets = [
+    ['signInProblems', Object.keys(SIGN_IN_PROBLEMS)],
+    ['registrationProblems', Object.keys(REGISTRATION_PROBLEMS)],
+    ['registrationNotices', [...REGISTRATION_NOTICES]],
+  ] as const;
+  for (const language of CHROME_LANGUAGES) {
+    for (const [key, codes] of sets) {
+      const words = TABLE[language]![key] as Readonly<Record<string, Explained>>;
+      assert.deepEqual(Object.keys(words).sort(), [...codes].sort(), `${language} ${key} is not the closed set`);
+      for (const code of codes) {
+        assert.ok(words[code]!.title.length > 0, `${language} ${key}.${code} has no title`);
+        assert.ok(words[code]!.detail.length > 0, `${language} ${key}.${code} has no detail`);
+      }
+    }
+  }
+});
+
+test('the two second-factor problems a reader must tell apart say different things, in every edition', () => {
+  // One means "try the code again" and the other "start over", which is the whole reason there
+  // are two codes. `sign-in-problem.test.ts` held this on the English sentences while they
+  // lived beside the codes; it is a claim about words, so it is held where the words are.
+  for (const language of CHROME_LANGUAGES) {
+    const problems = TABLE[language]!.signInProblems;
+    assert.notEqual(
+      problems['second-factor-rejected'].title,
+      problems['second-factor-expired'].title,
+      `${language} says the same thing about a wrong code and an expired sign-in`,
+    );
+  }
+});
+
+test('the account pages speak to the reader, not to whoever runs the site, in every edition', () => {
+  // Issue #162 took the operator's vocabulary off these pages in English, and
+  // `specs/sign-in.spec.ts` holds the rendered English pages to it. The Polish words are
+  // here, so the rule is held on them here — every string on the three pages and in their
+  // problems, in each edition's own spelling of the words #162 found.
+  const operatorWords: Readonly<Record<string, RegExp>> = {
+    en: /deployment|configured|issuer|audience|token|bundle|operator/i,
+    pl: /wdroż|konfigur|wystawc|token|operator/i,
+  };
+  const everyString = (value: unknown): string[] =>
+    typeof value === 'string'
+      ? [value]
+      : typeof value === 'object' && value !== null
+        ? Object.values(value).flatMap(everyString)
+        : [];
+  for (const language of CHROME_LANGUAGES) {
+    const strings = TABLE[language]!;
+    const words = operatorWords[language];
+    assert.ok(words, `${language} has no operator vocabulary to check against`);
+    const said = everyString([
+      strings.signInPage,
+      strings.signInProblems,
+      strings.secondFactorPage,
+      strings.registerPage,
+      strings.registrationProblems,
+      strings.registrationNotices,
+    ]);
+    for (const sentence of said) {
+      assert.doesNotMatch(sentence, words, `${language} says this to a reader: "${sentence}"`);
     }
   }
 });

@@ -1,7 +1,9 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { chromeFor } from '@/lib/i18n/chrome';
+import { indexHref } from '@/lib/index-href';
 
 /**
  * The page a reader lands on once the account is gone.
@@ -31,6 +33,20 @@ import { chromeFor } from '@/lib/i18n/chrome';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * The tab, in the page's edition: since ADR-0067 the document's language is the page's, and a
+ * title left as the site's English one would be read out in the page's voice.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const requested = (await searchParams)['lang'];
+  const chrome = chromeFor(typeof requested === 'string' ? requested : '');
+  return { title: `${chrome.deleteAccount.doneTitle} — ab-ovo` };
+}
+
 export default async function AccountDeletedPage({
   searchParams,
 }: {
@@ -40,13 +56,19 @@ export default async function AccountDeletedPage({
   const requested = params['lang'];
   const chrome = chromeFor(typeof requested === 'string' ? requested : '');
   const strings = chrome.deleteAccount;
+  // The programs, in the edition this page is in, so leaving it does not undo the choice — and
+  // not prefetched, since the index titles its tab in it (ADR-0067, `index-href.ts`).
+  const programs = indexHref({ edition: chrome.language });
 
   return (
     <main className="shell" lang={chrome.language}>
       <SkipLink language={chrome.language} />
       <header className="masthead">
+        {/* The way home, as on the account's other pages (issue #166). */}
         <p className="wordmark">
-          ab<span>-</span>ovo
+          <Link href={programs} prefetch={false}>
+            ab<span>-</span>ovo
+          </Link>
         </p>
         <h1 className="lede" id={SKIP_TARGET_ID}>{strings.doneTitle}</h1>
       </header>
@@ -73,7 +95,7 @@ export default async function AccountDeletedPage({
 
       <footer className="colophon">
         <p>
-          <Link href="/">{strings.keepReading}</Link>
+          <Link href={programs} prefetch={false}>{strings.keepReading}</Link>
         </p>
       </footer>
     </main>

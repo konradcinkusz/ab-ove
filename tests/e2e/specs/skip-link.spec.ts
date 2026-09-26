@@ -178,8 +178,9 @@ test.describe('the skip link', () => {
     expect(pl.language, 'the chrome has no Polish, so this proves nothing').toBe('pl');
     expect(pl.skipToContent, 'the Polish label is the English one').not.toBe(en.skipToContent);
 
-    // The index, whose edition is a query parameter, and a frame, whose edition is the path.
-    for (const path of ['/?lang=pl', frameAt('pl', 1)]) {
+    // The index, whose edition is a query parameter, and a frame, whose edition is the path —
+    // and the pages around the book, which follow a query parameter too since issue #166.
+    for (const path of ['/?lang=pl', frameAt('pl', 1), '/about?lang=pl', '/login?lang=pl']) {
       await page.goto(path);
       const first = await firstTab(page);
       await expect(first, `${path}: the first Tab reached something else`).toHaveText(pl.skipToContent);

@@ -11,7 +11,7 @@ import { editionsOffered } from '@/lib/content/chosen-edition';
 import { shownBundles } from '@/lib/content/chosen-track';
 import { runReasons } from '@/lib/content/run-reasons';
 import { chromeFor } from '@/lib/i18n/chrome';
-import { coursesHref, indexHref } from '@/lib/index-href';
+import { aboutHref, coursesHref, indexHref } from '@/lib/index-href';
 import { editionHrefs } from '@/lib/language/hrefs';
 
 import { ClearWorksheets, ExportWorksheets } from '../read/clear-controls.tsx';
@@ -284,10 +284,15 @@ export function ProgramGrid({
             a SWITCH with one position would be a control that cannot move. It carries the
             chosen edition so the page it opens is in the language this one is in.
           */}
-          <Link className={styles.chromeLink} href={coursesHref(chosen)}>
+          <Link className={styles.chromeLink} href={coursesHref(chosen)} prefetch={false}>
             {chrome.courses}
           </Link>
-          <Link className={styles.chromeLink} href="/about">
+          {/*
+            Neither link prefetches: both pages title their tab in the edition, and a head
+            prefetched before *polski* was pressed titled the Polish page in English (ADR-0067,
+            `index-href.ts`).
+          */}
+          <Link className={styles.chromeLink} href={aboutHref(chosen)} prefetch={false}>
             {chrome.about}
           </Link>
           <AccountControl language={chrome.language} returnTo={returnTo} />
@@ -445,10 +450,16 @@ export function ProgramGrid({
               */}
               {bundles.length > 1 ? (
                 <p className={styles.allCourses}>
+                  {/* The index titles its tab in the edition: no prefetch (`index-href.ts`). */}
                   {chosenTrack ? (
-                    <Link href={indexHref({ edition: chosen })}>{chrome.allCourses}</Link>
+                    <Link href={indexHref({ edition: chosen })} prefetch={false}>
+                      {chrome.allCourses}
+                    </Link>
                   ) : (
-                    <Link href={indexHref({ track: bundle.track.id, edition: chosen })}>
+                    <Link
+                      href={indexHref({ track: bundle.track.id, edition: chosen })}
+                      prefetch={false}
+                    >
                       {chrome.onlyThisCourse}
                     </Link>
                   )}

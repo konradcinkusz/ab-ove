@@ -150,9 +150,10 @@ export function ProgramSummary({
                 The last program in the track. `Programs` rather than a disabled `Next
                 program`: a control that names a destination and does not go there is the dead
                 control this project refuses, and the index IS where a reader who has finished
-                the last program goes.
+                the last program goes. Not prefetched, as no link to the index is (ADR-0067,
+                `index-href.ts`).
               */
-              <Link className={foot.reveal} href="/">
+              <Link className={foot.reveal} href="/" prefetch={false}>
                 <span>{chrome.programs}</span>
                 <ArrowRight className={foot.arrow} />
               </Link>

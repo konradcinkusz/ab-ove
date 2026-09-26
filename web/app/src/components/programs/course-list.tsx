@@ -6,7 +6,7 @@ import { LanguageChoice } from '@/components/language/language-choice';
 import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { editionsOffered } from '@/lib/content/chosen-edition';
 import { chromeFor, endonym } from '@/lib/i18n/chrome';
-import { coursesHref, indexHref } from '@/lib/index-href';
+import { aboutHref, coursesHref, indexHref } from '@/lib/index-href';
 import { editionHrefs } from '@/lib/language/hrefs';
 
 import styles from './course-list.module.css';
@@ -68,8 +68,15 @@ export function CourseList({ bundles, chosen }: CourseListProps): React.JSX.Elem
       {/* Past the masthead to the heading, as on the index (issue #149, `skip-link.tsx`). */}
       <SkipLink language={chrome.language} />
       <header className={styles.top}>
+        {/*
+          NO LINK ON THIS PAGE PREFETCHES (ADR-0067). Each opens the index or `/about`, and both
+          title their tab in the reader's edition; a head prefetched here before the language
+          control was pressed titled the next page in the edition the reader had left —
+          measured on 2026-09-26: *polski* pressed here, *← Programy* followed, and the Polish
+          index titled in English. `index-href.ts` has the reason it is every link.
+        */}
         <p className={styles.wordmark}>
-          <Link href={indexHref({ edition: chosen })}>
+          <Link href={indexHref({ edition: chosen })} prefetch={false}>
             ab<span>-</span>ovo
           </Link>
         </p>
@@ -94,10 +101,14 @@ export function CourseList({ bundles, chosen }: CourseListProps): React.JSX.Elem
             languages={editions}
           />
           <nav className={styles.chromeLinks} aria-label={chrome.courses}>
-            <Link className={styles.chromeLink} href={indexHref({ edition: chosen })}>
+            <Link
+              className={styles.chromeLink}
+              href={indexHref({ edition: chosen })}
+              prefetch={false}
+            >
               {chrome.programsCrumb}
             </Link>
-            <Link className={styles.chromeLink} href="/about">
+            <Link className={styles.chromeLink} href={aboutHref(chosen)} prefetch={false}>
               {chrome.about}
             </Link>
           </nav>
@@ -138,6 +149,7 @@ export function CourseList({ bundles, chosen }: CourseListProps): React.JSX.Elem
               <Link
                 className={styles.into}
                 href={indexHref({ track: bundle.track.id, edition: chosen })}
+                prefetch={false}
               >
                 <span className={styles.title} lang={shown}>
                   {say(bundle.track.titles, shown)}

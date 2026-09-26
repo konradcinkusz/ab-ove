@@ -178,7 +178,8 @@ for (const [screen, viewport] of SCREENS) {
 
       // The two destinations in the masthead.
       await isAFingersTarget(row.locator('a[href^="/courses"]'), where);
-      await isAFingersTarget(row.locator('a[href="/about"]'), where);
+      // By prefix, as `/courses` is: the link carries the edition since issue #166.
+      await isAFingersTarget(row.locator('a[href^="/about"]'), where);
       // The reader's way back in — the card's *Continue* — and, under the card, the way to the
       // reader's data and the consent question beside it (issue #165).
       await isAFingersTarget(page.getByTestId('start-card').locator(`a[href^="/read/${track}/${UNIT}/"]`), where);
@@ -287,6 +288,6 @@ for (const [screen, viewport] of SCREENS) {
 
     // In the navigation, not the wordmark, which goes to the same place and is not this issue's.
     await isAFingersTarget(page.locator('header nav a[href^="/?"]'), where);
-    await isAFingersTarget(page.locator('header nav a[href="/about"]'), where);
+    await isAFingersTarget(page.locator('header nav a[href^="/about"]'), where);
   });
 }

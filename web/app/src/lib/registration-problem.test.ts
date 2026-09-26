@@ -21,12 +21,13 @@ import {
 
 const CODES = Object.keys(REGISTRATION_PROBLEMS) as RegistrationProblemCode[];
 
-test('every code in the table resolves to a problem', () => {
+test('every code in the table resolves to a problem, and names itself', () => {
+  // The words are `chrome.registrationProblems[code]` since issue #166; `chrome.test.ts`
+  // holds that every code has words in every edition.
   for (const code of CODES) {
     const problem = registrationProblem(code);
     assert.ok(problem, `${code} should resolve`);
-    assert.ok(problem.title.length > 0);
-    assert.ok(problem.detail.length > 0);
+    assert.equal(problem.code, code);
   }
 });
 
@@ -79,7 +80,8 @@ test('only the problems a reader can act on here are retryable', () => {
  */
 test('the problems that mean the account exists point at the sign-in form', () => {
   const signInInstead = CODES.filter(
-    (code) => (REGISTRATION_PROBLEMS[code] as RegistrationProblem).signInInstead === true,
+    (code) =>
+      (REGISTRATION_PROBLEMS[code] as Omit<RegistrationProblem, 'code'>).signInInstead === true,
   );
   assert.deepEqual(signInInstead.sort(), ['taken', 'token-rejected', 'unverifiable']);
 
@@ -96,11 +98,8 @@ test('the problems that mean the account exists point at the sign-in form', () =
  * whose registration SUCCEEDED that it had failed.
  */
 test('the notice table is closed too, and holds no problem codes', () => {
-  for (const code of Object.keys(REGISTRATION_NOTICES)) {
-    const found = registrationNotice(code);
-    assert.ok(found, `${code} should resolve`);
-    assert.ok(found.title.length > 0);
-    assert.ok(found.detail.length > 0);
+  for (const code of REGISTRATION_NOTICES) {
+    assert.equal(registrationNotice(code), code, `${code} should resolve`);
     assert.equal(registrationProblem(code), null, `${code} must not also be a problem`);
   }
 

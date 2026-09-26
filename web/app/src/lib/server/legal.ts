@@ -34,7 +34,11 @@
 /** The two documents a registration accepts, in the order the consent sentence names them. */
 export type LegalDocumentId = 'terms' | 'privacy';
 
-/** What each is called on the page. English only, as `/register` is (see its header). */
+/**
+ * What each is called on its own page and tab. English only, as those pages are
+ * (`app/legal/[document]/[version]/page.tsx` says why); `/register`'s consent names them in the
+ * reader's edition, from `chrome.registerPage.accept`.
+ */
 export const LEGAL_DOCUMENT_TITLES: Readonly<Record<LegalDocumentId, string>> = {
   terms: 'Terms of Use',
   privacy: 'Privacy Policy',

@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 
+import { secondFactorHref, signInHref } from '@/lib/account-href';
+import { indexHref } from '@/lib/index-href';
+import { isLanguageTag } from '@/lib/language/store';
 import { backendConfigured } from '@/lib/server/backends';
 import { readerAddress } from '@/lib/server/client-ip';
 import { isSameOrigin } from '@/lib/server/same-origin';
 import { establishSession } from '@/lib/server/session';
 import { storeChallenge } from '@/lib/server/challenge';
+import { forgetAddress, rememberAddress } from '@/lib/server/sign-in-address';
 import { signIn, type SignInOutcome } from '@/lib/server/sign-in';
 import { safeRedirectTarget } from '@/lib/redirect-target';
 import type { SignInProblemCode } from '@/lib/sign-in-problem';
@@ -32,18 +36,28 @@ import type { SignInProblemCode } from '@/lib/sign-in-problem';
  * is deliberate: the reading surface works without script, and a sign-in that did not would
  * be the first thing in the product to require it. A form post gets a 303 and a `Location`;
  * a JSON caller gets a status and a problem code.
+ *
+ * EVERY `Location` CARRIES THE READER'S EDITION (issue #166), which the form sends as `lang`:
+ * the page a failure lands on, the code screen, and the programs when nothing said where the
+ * reader was going. And a failed form post leaves the address it was made with in a cookie
+ * scoped to the sign-in page, so the field is filled again without the address going near a
+ * URL (`lib/server/sign-in-address.ts`, which says why ADR-0018 refused the URL).
  */
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-/** Where a reader goes when sign-in worked and nothing said where they were headed. */
-const DEFAULT_DESTINATION = '/';
-
 interface Credentials {
   readonly email: string;
   readonly password: string;
   readonly redirectTo: string | null;
+  /**
+   * The edition the sign-in page was in, for every page this route sends the reader to. Only
+   * its SHAPE is checked here — the page it lands on resolves it against the editions the
+   * courses have, as it resolves any `?lang=` — so a value that is not a language tag is not
+   * carried at all.
+   */
+  readonly edition: string | undefined;
   /**
    * Whether this caller is a plain HTML form, and therefore whether the answer is a 303 or
    * a status. It is decided HERE, by the branch that actually parsed the body, rather than
@@ -70,6 +84,7 @@ async function readCredentials(request: Request): Promise<Credentials | null> {
         email: String(form.get('email') ?? '').trim(),
         password: String(form.get('password') ?? ''),
         redirectTo: safeRedirectTarget(String(form.get('redirect') ?? '')),
+        edition: editionOf(form.get('lang')),
         wantsRedirect: true,
       };
     }
@@ -82,6 +97,7 @@ async function readCredentials(request: Request): Promise<Credentials | null> {
         redirectTo: safeRedirectTarget(
           typeof body['redirect'] === 'string' ? body['redirect'] : undefined,
         ),
+        edition: editionOf(body['lang']),
         wantsRedirect: false,
       };
     }
@@ -90,6 +106,11 @@ async function readCredentials(request: Request): Promise<Credentials | null> {
   }
 
   return null;
+}
+
+/** A `lang` field worth carrying on: the shape of a language tag, or nothing. */
+function editionOf(value: unknown): string | undefined {
+  return isLanguageTag(value) ? value : undefined;
 }
 
 /** This app's outcomes, mapped onto the codes the sign-in page knows how to render. */
@@ -144,7 +165,8 @@ const PROBLEM_STATUS: Readonly<Record<SignInProblemCode, number>> = {
 };
 
 /**
- * The sign-in page, carrying what went wrong and where the reader was headed.
+ * The sign-in page, carrying what went wrong, where the reader was headed and the edition —
+ * in that order, which `account-href.ts` fixes so one page has one address.
  *
  * Built as a PATH rather than an absolute URL, and so is every other `Location` this route
  * emits. RFC 7231 allows a relative one and every browser resolves it against the address
@@ -158,10 +180,12 @@ const PROBLEM_STATUS: Readonly<Record<SignInProblemCode, number>> = {
  * request nobody made to localhost. Harmless there; behind Fly it would name the
  * container.
  */
-function loginPagePath(problem: SignInProblemCode, redirectTo: string | null): string {
-  const query = new URLSearchParams({ error: problem });
-  if (redirectTo) query.set('redirect', redirectTo);
-  return `/login?${query.toString()}`;
+function loginPagePath(problem: SignInProblemCode, credentials: Credentials): string {
+  return signInHref({
+    error: problem,
+    redirect: credentials.redirectTo,
+    edition: credentials.edition,
+  });
 }
 
 /**
@@ -191,13 +215,17 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const fail = (problem: SignInProblemCode): NextResponse =>
-    credentials.wantsRedirect
-      ? seeOther(loginPagePath(problem, credentials.redirectTo))
-      : NextResponse.json(
-          { problem },
-          { status: PROBLEM_STATUS[problem], headers: { 'cache-control': 'no-store' } },
-        );
+  const fail = async (problem: SignInProblemCode): Promise<NextResponse> => {
+    if (!credentials.wantsRedirect) {
+      return NextResponse.json(
+        { problem },
+        { status: PROBLEM_STATUS[problem], headers: { 'cache-control': 'no-store' } },
+      );
+    }
+    // The address goes back to the form in a cookie and never on the `Location` (#166).
+    await rememberAddress(credentials.email);
+    return seeOther(loginPagePath(problem, credentials));
+  };
 
   // P8 — a deployment with no identity service is a supported state. The page does not
   // render a form in that case, so reaching here means the request did not come from it;
@@ -235,11 +263,13 @@ export async function POST(request: Request): Promise<NextResponse> {
    */
   if (outcome.kind === 'second-factor-required') {
     await storeChallenge(outcome.challengeToken, outcome.expiresIn);
+    // The password was right, so the address has done its job; see the success path below.
+    await forgetAddress();
 
-    const next = new URLSearchParams();
-    if (credentials.redirectTo) next.set('redirect', credentials.redirectTo);
-    const query = next.toString();
-    const destination = query ? `/login/2fa?${query}` : '/login/2fa';
+    const destination = secondFactorHref({
+      redirect: credentials.redirectTo,
+      edition: credentials.edition,
+    });
 
     return credentials.wantsRedirect
       ? seeOther(destination)
@@ -266,7 +296,12 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (session.status === 'rejected') return fail('token-rejected');
   if (session.status === 'unverifiable') return fail('unverifiable');
 
-  const destination = credentials.redirectTo ?? DEFAULT_DESTINATION;
+  // The address a failed attempt left for the form is not needed once one has succeeded, and
+  // is removed rather than left to a stranger at the same browser for the rest of its minute.
+  await forgetAddress();
+
+  // Where the reader was going; else the programs, in the edition they signed in from.
+  const destination = credentials.redirectTo ?? indexHref({ edition: credentials.edition });
 
   return credentials.wantsRedirect
     ? seeOther(destination)

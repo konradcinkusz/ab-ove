@@ -443,10 +443,11 @@ test.describe('navigation', () => {
   });
 
   test('the reading surface says which language it is in @core', async ({ page }) => {
-    // The document root is `lang="en"` (layout.tsx), so an untagged Polish page is read out
-    // by a screen reader in an English voice: the right edition, announced wrongly. The
-    // assertion is that the element CONTAINING the text carries the language, which is what
-    // a `lang` attribute somewhere else on the page would not satisfy.
+    // The document root is `lang="en"` until the page sets its own in the browser (ADR-0067),
+    // and stays so with script off, so an untagged Polish page would be read out in an English
+    // voice there: the right edition, announced wrongly. The assertion is that the element
+    // CONTAINING the text carries the language, which a `lang` on `<html>` would not satisfy
+    // for the reader with no script.
     for (const language of languages) {
       await page.goto(contentsAt(language));
       await expect(
@@ -506,7 +507,7 @@ test.describe('navigation', () => {
     await expect(
       page.getByRole('link', { name: /open the programs/i }),
       'the not-found page offers no way back to the index',
-    ).toHaveAttribute('href', '/');
+    ).toHaveAttribute('href', '/?lang=en');
 
     // And its help is in words. It printed `/read/<track>/<program>/<edition>/<frame>`, and
     // *track* is the one word of the content's that no screen says (`chrome.ts`, on

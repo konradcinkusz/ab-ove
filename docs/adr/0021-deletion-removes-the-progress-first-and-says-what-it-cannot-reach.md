@@ -4,6 +4,9 @@
 
 **Accepted.** Date: 2026-09-15.
 
+Amended on 2026-09-26 (#166): the screen is no longer a deviation from `/login`, which follows
+the reader's edition too — see the end of _The screen is bilingual_ in _Consequences_.
+
 ## Context
 
 Issue #13 asks for account deletion that removes the account **and the progress**, and adds
@@ -93,7 +96,10 @@ to guess; this page is reached from a link in the reading chrome that already kn
 edition, and — unlike a sign-in form, where a reader can guess at "email" and "password" —
 its four paragraphs _are_ the deliverable. A reader who cannot read them has not been told,
 which is the thing issue #13 asks for. No deviation-register row: this is a decision about
-one page, not a departure from a reference-architecture rule.
+one page, not a departure from a reference-architecture rule. **No longer a deviation since
+issue #166:** `/login` follows the edition too, on this page's own argument that the link into
+it already knows the edition ([ADR-0018](0018-password-sign-in-happens-server-side.md)'s
+amendment).
 
 **`/account/deleted` is a second page, and public.** `/account?deleted=1` cannot work: the
 route's last act ends the session, so the middleware would bounce the reader to a sign-in

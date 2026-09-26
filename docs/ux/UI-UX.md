@@ -73,9 +73,11 @@ brings the frame back into the same page once it answers, and its way back is th
 contents. The page knows that cause because the reading page marks the error it throws;
 any other failure gets the same page saying the fault is on this side, not in the address,
 and names no cause it cannot know. Its tab is the frame's number and never "Not found",
-which is a claim about the address nobody could check. The 404 is English only, on
-`/login`'s reasoning; the 500 follows the edition in the address and is English where there
-is none, and `app/global-error.tsx` says the same when the root layout itself fails. The
+which is a claim about the address nobody could check. Both follow the edition in the
+address; where it names none, the 404 speaks the edition this browser remembers and the 500
+speaks English (issue #166 moved the 404's words into `chrome.ts`, and the 404's tab is titled
+in its edition too), and `app/global-error.tsx` says the same as the 500 when the root layout
+itself fails. The
 middleware is private by default, so an unknown *top-level* path meets the sign-in redirect
 first; the pages are met under `/read/` and `/lab/`, and anywhere at all once signed in.
 `specs/navigation.spec.ts` asserts the 404's way back, and `specs/error-page.spec.ts` the
@@ -383,6 +385,15 @@ the order IS the argument:
 8. **Colophon** — that the page is served entirely from its own origin, and the repository
    link.
 
+**All of it is in the reader's edition** (issue #166): *O ab-ovo* on the Polish index opened
+this page in English, and a commitment made in one edition is made to half the readers. The
+index's and `/courses`' links carry `?lang=`, the page falls back to the edition this browser
+remembers, and the words — the anti-goal included — are `chrome.ts`'s. The integration panel is
+the exception and says so with `lang="en"`: what it reports is the API's own English words. The
+page reads a cookie to do this, so it is rendered per request where it used to be prerendered
+([ADR-0067](../adr/0067-the-documents-language-follows-the-edition-and-the-page-sets-it.md)
+records what changed in the build).
+
 ### `/login` — a form, and no token in the document
 
 `web/app/src/app/login/page.tsx`. **This section claimed for several weeks that there was no
@@ -410,8 +421,23 @@ explained by "the issuer or audience this app expects". The heading now says wha
 is for, a site with no identity service says it has no accounts, and a fault in the setup is
 called that, with the mechanism kept in `lib/sign-in-problem.ts`. `/login/2fa` and
 `/register` had the same sentences and were rewritten with it, and so were
-`lib/registration-problem.ts`'s. They are still English only; 660 in
-[the order](#the-order) moves them into `chrome.ts`.
+`lib/registration-problem.ts`'s.
+
+**It speaks the reader's edition** (660 in [the order](#the-order)). From the Polish index,
+*Zaloguj się* opened an English page. Every link into `/login`, `/login/2fa` and `/register`
+carries `?lang=` now (`lib/account-href.ts`) — the index's *Sign in*, a frame's *Sign in to
+continue*, each of these pages' links to the others — and each resolves it as the index does,
+falling back to the edition this browser remembers for an address that carries none, such as
+the gate's own bounce. Their words, and the problem sentences, are `chrome.ts`'s in both
+editions; `lib/sign-in-problem.ts` and `lib/registration-problem.ts` keep the codes and what
+each code does. The forms carry the edition on in a hidden field, so the page a route answers
+with is in it too. The smaller frictions went with it: the wordmark is the way home on these
+pages and the account's, as it was everywhere else; *Start again* on the code screen keeps the
+destination, where it used to link a bare `/login`; and a failed attempt keeps the address in
+the field — not through the URL, which [ADR-0018](../adr/0018-password-sign-in-happens-server-side.md)
+refused, but through a minute-long HttpOnly cookie this origin's server sets on the redirect
+and scopes to `/login`. `specs/edition-pages.spec.ts` follows a Polish reader through all of
+it.
 
 **It says what stands at the address it was handed**, because the gate cannot. The middleware
 is private by default, so a mistyped `/nope` is redirected here exactly as `/account` is, and
@@ -473,9 +499,14 @@ form is what `/register` shows from the AppHost today (ADR-0049's amendment).
 The outcomes are a closed set in this app's words, looked up from a code on the query string
 exactly as `/login`'s are. Three of them are separated because each is fixed somewhere
 different — an address that already has an account (the form is withdrawn and the sign-in
-link offered instead), a password the policy refuses (the page states all five rules rather
-than waiting to refuse again), and a consent that was not given. A fourth, *the account was
-created and the address needs verifying*, is a NOTICE and not a problem: reporting it in the
+link offered instead), a password the policy refuses (the page states the rules rather than
+waiting to refuse again), and a consent that was not given. **The rules are the password
+field's description** (`aria-describedby`), so a screen reader says them with the field, and
+since issue #166 the browser checks them before anything is sent: the length as `minlength`,
+the four kinds of character and the hundred-character ceiling as `pattern`, all read from the
+pinned authservice's source (`lib/password-policy.ts`, which also names the passwords the two
+count differently: those with astral characters in them, such as emoji). A fourth, *the account
+was created and the address needs verifying*, is a NOTICE and not a problem: reporting it in the
 warning panel would tell a reader whose registration succeeded that it had failed.
 
 **A registration grants no role**, which is a fact about authservice rather than a choice
@@ -1120,6 +1151,17 @@ it. They are listed here rather than left to be rediscovered per screen.
    moves nothing. The root layout cannot render it, because it does not know the edition;
    a new page that forgets it is a page a keyboard reader tabs through the masthead of
    (`specs/skip-link.spec.ts`).
+10. **A page says which language it is in, wherever a reader or a screen reader meets it.**
+    Its `<main lang>`, from the first byte; its tab, titled in that language, because the tab
+    is what the router's announcer reads out after every client navigation; and the
+    document's own `lang`, which the skip link sets in the browser and puts back when the page
+    goes ([ADR-0067](../adr/0067-the-documents-language-follows-the-edition-and-the-page-sets-it.md)).
+    The root layout says English and cannot do better: it sees neither the query nor the
+    path, and is not rendered again when a reader changes edition without a page load. **And
+    nothing prefetches a page whose tab follows the edition through the query or the
+    remembered choice** — the index, `/courses`, `/about`, the sign-in pages, the account's:
+    Next serves the head it prefetched for a path whatever edition the reader has changed to
+    since, so a prefetched link titled the next page in the edition they had left.
 
 ---
 

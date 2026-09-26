@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 
 import { allBundles } from '@ab-ovo/web-kit';
@@ -6,6 +7,7 @@ import { ProgramGrid } from '@/components/programs/program-grid';
 import { chosenEdition } from '@/lib/content/chosen-edition';
 import { chosenTrack, shownBundles } from '@/lib/content/chosen-track';
 import { refusedProgram } from '@/lib/content/refused-program';
+import { chromeFor } from '@/lib/i18n/chrome';
 import { LANGUAGE_COOKIE, isLanguageTag } from '@/lib/language/store';
 import { backendConfigured } from '@/lib/server/backends';
 
@@ -56,6 +58,28 @@ import { backendConfigured } from '@/lib/server/backends';
  * is already right and nothing corrects it afterwards.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
+/**
+ * The tab: the product's title, in the edition the page is in (issue #166). The root layout
+ * gives every page the English one, and since ADR-0067 the document's language is the page's
+ * — so on the Polish index that title would be read out in a Polish voice. Resolved as the
+ * page below resolves it, for `/courses`' reason: Next calls the two separately.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const bundles = allBundles();
+  const asked = await searchParams;
+  const remembered = (await cookies()).get(LANGUAGE_COOKIE)?.value;
+  const chosen = chosenEdition(
+    shownBundles(bundles, chosenTrack(bundles, asked['track'])),
+    asked['lang'],
+    isLanguageTag(remembered) ? remembered : undefined,
+  );
+  return { title: chromeFor(chosen).siteTitle };
+}
+
 export default async function HomePage({
   searchParams,
 }: {

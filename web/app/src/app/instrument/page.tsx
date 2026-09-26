@@ -47,7 +47,8 @@ export default function InstrumentIndexPage(): React.JSX.Element {
     <main className={styles.page}>
       <SkipLink language="en" />
       <p className={styles.crumb}>
-        <Link href="/">ab-ovo</Link> / instrument
+        {/* Not prefetched: the index titles its tab in the reader's edition (ADR-0067). */}
+        <Link href="/" prefetch={false}>ab-ovo</Link> / instrument
       </p>
       <h1 className={styles.title} id={SKIP_TARGET_ID}>The instrument</h1>
       <p className={styles.subtitle}>

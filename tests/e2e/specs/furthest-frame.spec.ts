@@ -167,13 +167,14 @@ const PASSWORD = 'Fixture-password-1!';
 const HOLD_MS = 3_000;
 
 /**
- * Where registering and signing in land when no destination was asked for: the index (`/`,
- * each route's `DEFAULT_DESTINATION`). Waited for exactly. A looser pattern such as
+ * Where registering and signing in land when no destination was asked for: the index, in the
+ * edition the form was in (`/?lang=en` — each route's default since issue #166, and `/` for a
+ * caller that sends no edition). Waited for exactly. A looser pattern such as
  * `/\/$|\/[a-z]/` already matches `/register` and `/login`, where the page is before the form
  * is sent — and where a refused one lands again — so the wait would return at once, prove
  * nothing, and leave a failed sign-in to surface later as a sync that never saw the account.
  */
-const THE_INDEX = /\/$/;
+const THE_INDEX = /\/(\?lang=[a-z]{2,3})?$/;
 
 /**
  * An account nobody else in the suite has touched, signed in on `page` — the form
@@ -401,7 +402,8 @@ test.describe('the account, when the reader goes back and when they read elsewhe
     // The reason, where the refusal is, with the way back.
     await expect(page.getByText('You read this while signed in.')).toBeVisible();
     const again = page.getByRole('link', { name: 'Sign in to continue', exact: true });
-    const back = `/login?redirect=${encodeURIComponent(frameAt(3))}`;
+    // The frame, and its edition, which the sign-in page follows (issue #166).
+    const back = `/login?redirect=${encodeURIComponent(frameAt(3))}&lang=en`;
     await expect(again).toHaveAttribute('href', back);
 
     await again.click();

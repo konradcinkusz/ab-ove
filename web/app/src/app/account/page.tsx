@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 
@@ -59,6 +60,20 @@ import styles from './account.module.css';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * The tab, in the page's edition: since ADR-0067 the document's language is the page's, and a
+ * title left as the site's English one would be read out in the page's voice.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const requested = (await searchParams)['lang'];
+  const chrome = chromeFor(typeof requested === 'string' ? requested : '');
+  return { title: `${chrome.accountOverview.title} — ab-ovo` };
+}
+
 export default async function AccountPage({
   searchParams,
 }: {
@@ -96,14 +111,19 @@ export default async function AccountPage({
 
   // Where the reader goes back to, and where signing out sends them: the programs, in the
   // edition this page is in, so leaving does not undo the choice that labelled the link here.
+  // No link here prefetches a page whose tab follows the edition through the query or the
+  // cookie (ADR-0067, `index-href.ts`); a place's address names its edition in its path.
   const programs = indexHref({ edition: chrome.language });
 
   return (
     <main className="shell" lang={chrome.language}>
       <SkipLink language={chrome.language} />
       <header className="masthead">
+        {/* The way home, to the programs in this edition — it was text (issue #166). */}
         <p className="wordmark">
-          ab<span>-</span>ovo
+          <Link href={programs} prefetch={false}>
+            ab<span>-</span>ovo
+          </Link>
         </p>
         <h1 className="lede" id={SKIP_TARGET_ID}>
           {strings.title}
@@ -184,6 +204,7 @@ export default async function AccountPage({
           <Link
             className={styles.delete}
             href={`/account/delete?lang=${encodeURIComponent(chrome.language)}`}
+            prefetch={false}
           >
             {chrome.deleteAccount.title}
           </Link>
@@ -192,7 +213,7 @@ export default async function AccountPage({
 
       <footer className="colophon">
         <p>
-          <Link href={programs}>{strings.keepReading}</Link>
+          <Link href={programs} prefetch={false}>{strings.keepReading}</Link>
         </p>
       </footer>
     </main>

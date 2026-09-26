@@ -242,8 +242,12 @@ test.describe('a reader with an account reaches the page the gate was keeping', 
       page.locator('form[action="/api/auth/login"]'),
       'a retry that cannot work was offered anyway',
     ).toHaveCount(0);
-    // And it is not a dead end: a fresh sign-in page is one link away, without the code.
-    await expect(page.getByRole('link', { name: /start again/i })).toHaveAttribute('href', '/login');
+    // And it is not a dead end: a fresh sign-in page is one link away, without the code and
+    // in the page's edition (issue #166).
+    await expect(page.getByRole('link', { name: /start again/i })).toHaveAttribute(
+      'href',
+      '/login?lang=en',
+    );
 
     // A second-factor step that expired sends the reader back HERE to start from the
     // password, so on this page the form is the remedy even though that step is not
@@ -283,7 +287,7 @@ test.describe('a reader with an account reaches the page the gate was keeping', 
     await expect(paragraphs.nth(1)).toContainText('Starting again will still take you there.');
     await expect(signIn.getByRole('link', { name: 'start again' })).toHaveAttribute(
       'href',
-      '/login?redirect=%2Faccount',
+      '/login?redirect=%2Faccount&lang=en',
     );
   });
 

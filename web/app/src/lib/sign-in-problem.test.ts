@@ -17,12 +17,14 @@ import {
 
 const CODES = Object.keys(SIGN_IN_PROBLEMS) as SignInProblemCode[];
 
-test('every code in the table resolves to a problem', () => {
+test('every code in the table resolves to a problem, and names itself', () => {
+  // The words are `chrome.signInProblems[code]` since issue #166, so the code the page is
+  // handed is the only way to them; `chrome.test.ts` holds that every code has words in
+  // every edition.
   for (const code of CODES) {
     const problem = signInProblem(code);
     assert.ok(problem, `${code} should resolve`);
-    assert.ok(problem.title.length > 0);
-    assert.ok(problem.detail.length > 0);
+    assert.equal(problem.code, code);
   }
 });
 
@@ -77,17 +79,16 @@ test('the second-factor codes each sit on the right side of that line', () => {
   assert.equal(SIGN_IN_PROBLEMS['second-factor-expired'].retryable, false);
   assert.equal(SIGN_IN_PROBLEMS['second-factor'].retryable, false);
 
-  // And the two the reader can be told apart must not say the same thing, which is the
-  // whole reason there are two: one means "try the code again", the other "start over".
-  assert.notEqual(
-    SIGN_IN_PROBLEMS['second-factor-rejected'].title,
-    SIGN_IN_PROBLEMS['second-factor-expired'].title,
-  );
+  // That the two a reader must be able to tell apart do not SAY the same thing — one means
+  // "try the code again", the other "start over" — is a claim about their words, and it is
+  // held where the words are since issue #166: `chrome.test.ts`, in every edition.
 
   // And the two that are not retryable on the code screen are exactly the two that send
   // the reader back to the password, where the form IS the remedy. `startsOver` is what
   // `/login` reads to keep offering it under them and to withdraw it under everything else
   // that is not retryable — a locked account, a token this deployment refuses.
-  const startsOver = CODES.filter((code) => (SIGN_IN_PROBLEMS[code] as SignInProblem).startsOver === true);
+  const startsOver = CODES.filter(
+    (code) => (SIGN_IN_PROBLEMS[code] as Omit<SignInProblem, 'code'>).startsOver === true,
+  );
   assert.deepEqual(startsOver.sort(), ['second-factor', 'second-factor-expired']);
 });

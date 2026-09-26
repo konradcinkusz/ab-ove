@@ -62,6 +62,7 @@ was first written with.
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
 | `consent.spec.ts` | being asked once whether answers may be counted, the question one press from the index's first screen, focus landing on the answer given, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
+| `edition-pages.spec.ts` | from the Polish index, sign-in, registration and `/about` are Polish, down to the document's own language and the tab's title — after the edition changes in place too, because no link into those pages prefetches them (ADR-0067); a failed sign-in keeps the address without the URL; restarting the second step keeps the destination; a new password's rules are its field's description, checked by the browser (#166) |
 | `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload; a program's contents and summary fail the same way |
 | `focus-ring.spec.ts` | the controls that showed focus by a colour or a brightness wear the shared ring, in light, dark and forced colours |
 | `frame-loading.spec.ts` | a frame on its way says so where the reader pressed — `Previous`, clicked or pressed as `←`, or the program map's door — while the API is held back for that one reader, and the pager does not move (#160) |
