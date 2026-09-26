@@ -45,6 +45,7 @@
  *   GET    /__fault/health               this process is up — what Playwright's `webServer` polls
  *   PUT    /__fault/<reader id>          take the API away from that reader
  *   PUT    /__fault/<reader id>?delay=N  keep it, but hold each of that reader's requests N ms
+ *                                        (N at most `MAX_DELAY_MS`, one test's timeout)
  *   DELETE /__fault/<reader id>          give it back, on time
  *
  * A delay is answered with `x-ab-ovo-fault-delay` naming it. A fixture from before delays
@@ -91,6 +92,15 @@ const slowed = new Map<string, number>();
 
 /** Echoed on a `PUT` that set a delay — see the header for why a spec reads it. */
 const DELAY_ECHO = 'x-ab-ovo-fault-delay';
+
+/**
+ * The longest hold a spec may ask for: one test's own timeout (`playwright.config.ts`). A
+ * request held longer than that outlives the test that asked for it, so no spec needs more,
+ * and the ceiling stops a mistyped delay from parking this process's sockets for hours. It
+ * is the upper bound CodeQL's `js/resource-exhaustion` asks for on a timer whose duration
+ * arrives in a request.
+ */
+const MAX_DELAY_MS = 30_000;
 
 /**
  * Headers that describe ONE CONNECTION rather than the message (RFC 9110 §7.6.1), so each
@@ -148,10 +158,10 @@ const server = createServer((incoming, outgoing) => {
         return;
       }
       const ms = Number(delay);
-      if (!/^\d+$/.test(delay) || !Number.isSafeInteger(ms)) {
+      if (!/^\d+$/.test(delay) || !Number.isSafeInteger(ms) || ms > MAX_DELAY_MS) {
         outgoing
           .writeHead(400, { 'content-type': 'text/plain' })
-          .end('delay is a whole number of milliseconds');
+          .end(`delay is a whole number of milliseconds, at most ${MAX_DELAY_MS}`);
         return;
       }
       // Slowed is not cut: the API is there for this reader, only late.
