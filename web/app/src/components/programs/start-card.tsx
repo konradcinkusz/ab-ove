@@ -183,7 +183,8 @@ export function StartCard({ start, programs, language, signInHref }: StartCardPr
         {quiet ? (
           <p className={styles.startNote} lang={chrome.language}>
             {chrome.placeKeptHere}{' '}
-            <Link className={styles.carryLink} href={quiet}>
+            {/* Titled in the edition, so not prefetched (ADR-0067, `account-href.ts`). */}
+            <Link className={styles.carryLink} href={quiet} prefetch={false}>
               {chrome.signInToCarry}
             </Link>
           </p>
@@ -225,7 +226,7 @@ export function PlaceKeptLink({ programs, language, signInHref }: PlaceKeptLinkP
   return (
     <span className={styles.placeKept} lang={chrome.language}>
       {' '}
-      <Link className={styles.carryLink} href={quiet}>
+      <Link className={styles.carryLink} href={quiet} prefetch={false}>
         {chrome.signInToCarry}
       </Link>
     </span>

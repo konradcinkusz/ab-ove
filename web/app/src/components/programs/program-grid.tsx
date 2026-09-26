@@ -7,6 +7,7 @@ import { ConsentControl } from '@/components/consent/consent-control';
 import { LanguageChoice } from '@/components/language/language-choice';
 import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { ThemeSwitch } from '@/components/theme/theme-switch';
+import { signInHref as signInPageHref } from '@/lib/account-href';
 import { editionsOffered } from '@/lib/content/chosen-edition';
 import { shownBundles } from '@/lib/content/chosen-track';
 import { runReasons } from '@/lib/content/run-reasons';
@@ -210,12 +211,14 @@ export function ProgramGrid({
 
   /*
     The quiet line's way to sign in (issue #165), beside the card's *Continue* or, on a phone, at
-    the end of *Your data in this browser* — the address the account control's *Sign in* is built
-    to, from the same return address, so each brings the reader back to this page as they left
-    it. Built once, here, for both. Only where signing in exists (P8): without it the page never
-    offers to carry a place, and the masthead's control is the sign-in page saying there is none.
+    the end of *Your data in this browser* — built by the builder the account control's *Sign in*
+    uses (`account-href.ts`), from the same return address and in the same edition, so each
+    brings the reader back to this page as they left it and opens the sign-in page in the
+    edition they read (issue #166). Built once, here, for both. Only where signing in exists
+    (P8): without it the page never offers to carry a place, and the masthead's control is the
+    sign-in page saying there is none.
   */
-  const signInHref = signIn ? `/login?redirect=${encodeURIComponent(returnTo)}` : undefined;
+  const signInHref = signIn ? signInPageHref({ redirect: returnTo, edition: chrome.language }) : undefined;
 
   return (
     <main className={styles.page} lang={chrome.language}>
