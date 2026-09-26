@@ -223,7 +223,17 @@ test.describe('the program map', () => {
     await map.getByRole('button', { name: 'Close' }).click();
     await expect(map, 'the close button did not close the program map').toBeHidden();
 
-    // And the arrows are the page's again once it is closed.
+    /*
+      AND THE ARROWS ARE THE PAGE'S AGAIN ONCE IT IS CLOSED — from the page. The browser hands
+      focus back to the position that opened the panel, and a key pressed at a control is the
+      control's (#159, `reading-focus.ts`), so `→` there turns nothing; a click in the text puts
+      the reader back on the page, and it turns the page from there.
+    */
+    await expect(position, 'focus did not come back to the position').toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(300);
+    expect(page.url(), '`→` at the position turned the page').toContain(at('en', n));
+    await page.locator('article').getByRole('heading', { level: 2 }).click();
     await page.keyboard.press('ArrowRight');
     await page.waitForURL(`**${at('en', n + 1)}`);
   });

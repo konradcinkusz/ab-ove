@@ -12,12 +12,14 @@ import { bookNumberOf } from '@/lib/sheet/number';
 import { AnswerLine } from './answer-line.tsx';
 import { ClearAnswer } from './clear-controls.tsx';
 import controls from './controls.module.css';
+import { FrameFocus } from './frame-focus.tsx';
 import { FrameKeys } from './frame-keys.tsx';
 import styles from './frame-view.module.css';
 import { ArrowLeft, ArrowRight, ChevronUp, List } from './icons.tsx';
 import { PROGRAM_MAP_ID } from './popover.ts';
 import { ProgramGate } from './program-gate.tsx';
 import { ProgramMap } from './program-map.tsx';
+import { FRAME_ANSWER_ID, FRAME_HEADING_ID, FRAME_ID } from './reading-focus.ts';
 import foot from './reading-foot.module.css';
 import { ReadingFoot } from './reading-foot.tsx';
 import { ReadingScreen } from './reading-screen.tsx';
@@ -28,6 +30,7 @@ import { RevealForm } from './reveal-form.tsx';
 import { RevealLabel } from './reveal-label.tsx';
 import { RichInline, RichText } from './rich-text.tsx';
 import { Sketch } from './sketch.tsx';
+import { WideContent } from './wide-content.tsx';
 import worksheet from './worksheet.module.css';
 import { Working } from './working.tsx';
 import { YouWrote } from './you-wrote.tsx';
@@ -180,8 +183,18 @@ export function FrameView({
       pager={
         <ReadingFoot
           back={
+            /*
+              EACH BUTTON NAMES ITS KEY, in its tooltip and in `aria-keyshortcuts`, and the
+              page prints neither (ADR-0063). The key does what the button does — on frame 1
+              as well, where `←` opens the contents too (`frame-keys.tsx`, #159).
+            */
             step.n > 1 ? (
-              <Link className={foot.pagerButton} href={at(step.n - 1)} title={`${chrome.previous} (←)`}>
+              <Link
+                aria-keyshortcuts="ArrowLeft"
+                className={foot.pagerButton}
+                href={at(step.n - 1)}
+                title={`${chrome.previous} (←)`}
+              >
                 <ArrowLeft className={foot.arrow} />
                 <span>{chrome.previous}</span>
               </Link>
@@ -192,7 +205,12 @@ export function FrameView({
                 `Previous` greyed out: a control that names a destination and does not go there
                 is the dead control this project removes wherever it finds one.
               */
-              <Link className={foot.pagerButton} href={base}>
+              <Link
+                aria-keyshortcuts="ArrowLeft"
+                className={foot.pagerButton}
+                href={base}
+                title={`${chrome.backToContents} (←)`}
+              >
                 <List className={foot.arrow} />
                 <span>{chrome.backToContents}</span>
               </Link>
@@ -216,6 +234,7 @@ export function FrameView({
               />
             ) : (
               <Link
+                aria-keyshortcuts="ArrowRight"
                 className={foot.reveal}
                 data-testid="frame-reveal"
                 href={summaryAt}
@@ -268,28 +287,57 @@ export function FrameView({
         `lang` ON THE CONTENT, and the chrome's own language on the controls: the document root
         is `lang="en"`, and a Polish frame without this is read aloud in an English voice.
       */}
-      <article className={styles.page} key={step.n} lang={language}>
+      <article className={styles.page} id={FRAME_ID} key={step.n} lang={language}>
         {/*
           A HEADING NOBODY SEES, for the reader who navigates by headings: the program's title
           and the position — the same two facts the bars show, said once for the landmark.
+
+          AND WHERE FOCUS LANDS WHEN THE PAGE TURNS (#159, `frame-focus.tsx`, which waits for
+          the router's own announcement to go first), so a screen reader says which frame this
+          is — and, through `aria-describedby`, the answer the frame opens with, which is what
+          the turn was for; a long answer in part, because Chromium computes a description from
+          about its first hundred nodes and stops. The description is the answer's content,
+          walked, so nothing inside the answer box may carry an `aria-label`: the walk would
+          say the label instead of the maths (`wide-content.tsx` names its blocks with
+          `aria-labelledby` for that reason). `tabIndex={-1}`: focusable from script and never
+          a Tab stop. Off the page, so a pointer cannot land on it either.
         */}
-        <h1 className={styles.title}>
+        <h1
+          aria-describedby={step.answer ? FRAME_ANSWER_ID : undefined}
+          className={styles.title}
+          id={FRAME_HEADING_ID}
+          tabIndex={-1}
+        >
           <RichInline language={language} text={unitTitle} />{' '}
           <span lang={chrome.language}>· {chrome.position(step.n, stepCount)}</span>
         </h1>
+        <FrameFocus />
+        {/*
+          Every block of the text that scrolls sideways becomes a named Tab stop, and only
+          those (`wide-content.tsx`, #159). Handed the names in the chrome's language, and
+          never the text itself; it renders them hidden, for the blocks to point at.
+        */}
+        <WideContent
+          code={chrome.wideCode}
+          formula={chrome.wideFormula}
+          language={chrome.language}
+          table={chrome.wideTable}
+        />
 
         {/*
           WHICH PART OF THE PROGRAM THIS IS — the heading the frame falls under, or *Opening*
-          before the first. Plain text: the way to another heading is the pager's position,
-          and a heading that was also a button would be a control hiding in plain sight.
+          before the first. A real heading since #159, under the frame's own: it was a styled
+          `<p>`, so a reader moving by headings found only the hidden one. Still not a link —
+          the way to another heading is the pager's position, and a heading that was also a
+          button would be a control hiding in plain sight.
         */}
-        <p className={styles.section}>
+        <h2 className={styles.section}>
           {currentSpan ? (
             <RichInline language={language} text={say(currentSpan.section.titles, language)} />
           ) : (
             <span lang={chrome.language}>{chrome.opening}</span>
           )}
-        </p>
+        </h2>
 
         {step.answer ? (
           /*
@@ -302,7 +350,7 @@ export function FrameView({
             rather than taking it as a prop, because a prop would serialise it into the HTML
             of every frame that renders that component, and the answer is already here.
           */
-          <div className={styles.answer} data-book-number={bookNumber ?? ''}>
+          <div className={styles.answer} data-book-number={bookNumber ?? ''} id={FRAME_ANSWER_ID}>
             <span className={styles.answerLabel} lang={chrome.language}>
               {chrome.answerTo(step.n - 1)}
             </span>
@@ -336,6 +384,9 @@ export function FrameView({
           The line is labelled (`Your answer`) and `Clear my answer` sits beside the label,
           by the line it clears (ADR-0063); both are in a row that has its height before
           anything in it is decided, so nothing below moves when the browser fills it in.
+          Under the line, always, is `step.cue`'s own sentence — `chrome.cue`, *The next frame
+          answers this.* — because `Next` reads the same on every frame and nothing else said
+          that here it reveals (#159). It gates nothing (ADR-0039); `answer-line.tsx` has it.
           The two panes open from buttons under the line, side by side (ADR-0059), and never
           open themselves (ADR-0043).
           ────────────────────────────────────────────────────────────────────────────────
@@ -356,6 +407,7 @@ export function FrameView({
               />
             </div>
             <AnswerLine
+              cue={chrome.cue}
               earlierEdition={chrome.earlierEdition}
               language={chrome.language}
               lockedNote={chrome.writtenBefore}

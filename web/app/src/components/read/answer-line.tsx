@@ -15,11 +15,17 @@ export interface AnswerLineProps {
   /** The bundle tag, stored IN the record — see lib/sheet/store.ts on why not in the key. */
   readonly tag: string;
   readonly placeholder: string;
+  /** `chrome.cue` — what `Next` does on this frame, said under the line for good (#159). */
+  readonly cue: string;
   readonly lockedNote: string;
   readonly earlierEdition: string;
   /** The chrome's own language, for the note under a locked line. */
   readonly language: string;
 }
+
+/** The line's two descriptions: the cue, which is always there, and the note, which says why a line is locked. */
+const CUE_ID = 'answer-cue';
+const NOTE_ID = 'answer-note';
 
 /**
  * The dotted row, as somewhere to write.
@@ -65,6 +71,20 @@ export interface AnswerLineProps {
  * a line tall, and empty until there is something to say.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * AND ABOVE THE NOTE, ALWAYS, THE CUE — *The next frame answers this.* (#159)
+ *
+ * The placeholder was the one instruction on the frame, and it vanished at the first
+ * keystroke, which is the moment a reader starts following it. `Next` reads `Next` on every
+ * frame (ADR-0063), so nothing near it said that on this frame it turns to the answer. The
+ * cue says so and stays, and the field is described by it (`aria-describedby`) as well as
+ * by the note, so a screen reader hears it with `Your answer`.
+ *
+ * IT IS INFORMATION, NOT A GATE (ADR-0039). The same sentence under an empty line and a full
+ * one; nothing is asked of a reader who turns over having written nothing, and nothing
+ * nudges them. Rendered on the server, so it is in the first paint and moves nothing.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
  * THE LOCK PROTECTS SOMETHING OR IT DOES NOT APPLY. A line is read-only once it holds text
  * AND the reader has seen the answer — `revealed`, written by arrival at the next frame.
  * An EMPTY line stays editable after the reveal, because the dominant path through a
@@ -77,6 +97,7 @@ export function AnswerLine({
   n,
   tag,
   placeholder,
+  cue,
   lockedNote,
   earlierEdition,
   language,
@@ -157,6 +178,7 @@ export function AnswerLine({
   return (
     <div className={styles.answerLine}>
       <textarea
+        aria-describedby={`${CUE_ID} ${NOTE_ID}`}
         autoCapitalize="off"
         autoCorrect="off"
         className={styles.field}
@@ -190,7 +212,10 @@ export function AnswerLine({
         spellCheck={false}
         value={value}
       />
-      <p className={styles.note} lang={language}>
+      <p className={styles.cue} id={CUE_ID} lang={language}>
+        {cue}
+      </p>
+      <p className={styles.note} id={NOTE_ID} lang={language}>
         {locked ? lockedNote : null}
         {locked && stale ? ' · ' : null}
         {stale ? earlierEdition : null}

@@ -5,6 +5,7 @@ import controls from './controls.module.css';
 import { Close } from './icons.tsx';
 import { KeyMap } from './keys-details.tsx';
 import { READING_SETTINGS_ID } from './popover.ts';
+import { SettingsKey } from './settings-key.tsx';
 import styles from './sheet.module.css';
 
 /**
@@ -17,9 +18,16 @@ import styles from './sheet.module.css';
  * it would open off the screen; and a setting a reader touches twice a season does not belong
  * in the one bar they press on every frame (ADR-0058's own argument, one step further).
  *
- * A POPOVER, NOT A DIALOG: nothing here needs an answer before the reader can go on, so it
+ * A POPOVER, NOT A MODAL: nothing here needs an answer before the reader can go on, so it
  * closes on Esc, on a click anywhere else and on its own ✕, and focus goes back to the button
  * that opened it — all of it the browser's, with no JavaScript of this application's.
+ *
+ * `?` opens it from the keyboard as well, on every screen that has it (`settings-key.tsx`,
+ * #159), and puts focus on the panel itself — which is why it takes `tabIndex={-1}`, and why it
+ * carries the `dialog` role the program map carries, so a screen reader arriving in it hears
+ * its name. A role and not a modal: everything above about closing it still holds, but one
+ * thing — opened by `?` there is no button for focus to go back to, and a reader who was
+ * reading had focus on nothing, so `settings-key.tsx` returns focus itself as the panel closes.
  *
  * `data-testid` as E2E-ACCEPTANCE-TESTING.md's deliberate fallback, on the reasoning
  * ADR-0058 gave for the disclosure it replaces: the panel's only text is translated, and
@@ -34,7 +42,10 @@ export function ReadingSettings({ chrome }: { readonly chrome: Chrome }): React.
       id={READING_SETTINGS_ID}
       lang={chrome.language}
       popover="auto"
+      role="dialog"
+      tabIndex={-1}
     >
+      <SettingsKey />
       <div className={styles.head}>
         <h2 className={styles.title} id={`${READING_SETTINGS_ID}-title`}>
           {chrome.readingSettings}

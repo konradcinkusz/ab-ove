@@ -489,9 +489,10 @@ one keeps it there. It is a grid of three cells, the same on every frame:
   ([ADR-0041](../adr/0041-the-reading-surface-shows-position-and-never-progress.md)).
 - **`Next →`**, filled, 48 px — the reveal's form, reading `Next` on every frame, a frame that
   asks included. The instruction the mechanic runs on is where the reader acts on it: the
-  answer line's placeholder says *Write it down before you read on*, and the next frame
-  opens with the answer under *Answer to frame 3*. On the last frame the same button reads
-  `Summary` and is the one link to `/summary`.
+  answer line's placeholder says *Write it down before you read on*, the line under it says
+  *The next frame answers this.* and does not go away when the placeholder does (#159), and
+  the next frame opens with the answer under *Answer to frame 3*. On the last frame the same
+  button reads `Summary` and is the one link to `/summary`.
 
 It is the one element on these pages positioned over the text, and the page pays for it:
 `scroll-padding-bottom` keeps a field reached by Tab clear of it (WCAG 2.4.11), and the sync
@@ -543,22 +544,89 @@ Both panels are native popovers: they open with no script, close on Esc or a cli
 elsewhere, and a browser without the Popover API renders them in flow at the end of the page
 and hides their buttons.
 
-**The keys stay and are not advertised.** `→` and `←` move; `Enter` with nothing focused puts
-the caret in the answer line; `Ctrl+Enter` — spelt `⌘+Enter` on an Apple keyboard, from a flag
-the page sets rather than a string it rewrites — keeps the answer and goes on; `Esc` returns
-to reading; `g` opens the map with the caret in its frame number. The frame used to print a
-line of them under every question, one state at a time; it prints none now. Every move is a
-labelled button, the pager's buttons carry their key in their tooltip, and the whole map is in
-*Reading settings*. While a panel is open the page's keys stand aside, because the arrows'
-forward is a write. `specs/reading.spec.ts` still reads a program end to end by pressing `→`.
+**The keys stay and are not advertised.** `→` and `←` move, and on frame 1 `←` opens the
+contents, where the button in `Previous`'s place leads; `Enter` with nothing focused puts the
+caret in the answer line; `Ctrl+Enter` — spelt `⌘+Enter` on an Apple keyboard, from a flag the
+page sets rather than a string it rewrites — keeps the answer and goes on; `Esc` returns to
+reading; `g` opens the map with the caret in its frame number; `?` opens *Reading settings* with
+focus in the panel, on every screen that has one, and when the panel closes focus goes back
+where `?` found it — for a reader who was reading, the page, at once, so `→` straight after Esc
+turns the page (`settings-key.tsx`). The frame used to print a line of them under every
+question, one state at a time; it prints none now. Every move is a labelled button, the pager's
+buttons carry their key in their tooltip and in `aria-keyshortcuts`, which a screen reader says
+with the name, and the whole map is in *Reading settings* — where `→`'s row says that it reveals
+the answer. The key a button names is the page's, pressed while reading; at the button itself,
+`Enter` presses it. While a panel is open the page's keys stand aside, because the arrows'
+forward is a write. **The arrows and `Enter` are the page's only while the reader is reading** —
+focus on nothing, or on the frame's heading (below): a key pressed at a button, a link, a pane's
+button or a formula wide enough to scroll is that element's. Until #159 `→` revealed the frame
+from any of them, and `←` on frame 1 did nothing while the button beside it went somewhere.
+`specs/reading.spec.ts` still reads a program end to end by pressing `→`, and
+`specs/reading-loop.spec.ts` holds the rest.
 
-**The frame itself** is quiet: a line naming the heading it is under; the answer box labelled
-with the frame it answers; the book's text; and, on a frame that asks, the answer line under a
-visible `Your answer` label with `Clear my answer` beside it, and the two pane buttons. A
-heading nobody sees — the program's title and the position, in a visually-hidden `<h1>` — is
-for the reader who navigates by headings. A new frame fades in over a fifth of a second, the
-one sign with the pager standing still that the page turned; a reader who asks for less motion
-gets none.
+**The frame itself** is quiet: the heading it is under, a real `<h2>` set small in the UI
+face; the answer box labelled with the frame it answers; the book's text; and, on a frame that
+asks, the answer line under a visible `Your answer` label with `Clear my answer` beside it, the
+cue under the line, and the two pane buttons. **The cue is *The next frame answers this.*** —
+on every frame that asks, for good, and tied to the line as its description
+(`aria-describedby`), so a screen reader hears it with `Your answer`. It is what `Next` does
+there, said where the reader acts on it, because the placeholder that used to be the frame's
+one instruction vanished at the first keystroke; and it is information and not a gate — the
+same words under an empty line and a full one, and an empty line's frame turns on the first
+press ([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
+
+A heading nobody sees — the program's title and the position, in a visually-hidden `<h1>` — is
+for the reader who navigates by headings, **and it is where focus goes when the page turns**
+(#159, `frame-focus.tsx`). Before, focus fell to `<body>` on every turn; the router's own
+announcer (below) said the new page's title, and nothing said the answer. Now a screen reader
+says which frame this is and, as the heading's description, the answer the frame opens with — a
+long answer only in part, because Chromium computes a description from about its first hundred
+nodes and stops there. It is `tabIndex="-1"`, so it is never a Tab stop, the keys count it as
+the page, and the next Tab goes into the new frame. A frame the browser loaded — a deep link, a
+reload — leaves focus where every page starts, so the skip link is still the first Tab; only a
+frame the router brought takes it. The section's line was a styled `<p>`, so heading navigation
+found only the hidden `<h1>`; it is a real heading now.
+
+**The heading takes focus after the router has spoken, never beside it.** Next's App Router
+announces every client navigation itself: `<next-route-announcer>` holds a `role="alert"`,
+`aria-live="assertive"` region, and on each turn the router writes the new page's title into
+it, or the heading's own text while the title is still empty. With focus moved at once, that
+announcement came a few milliseconds after the heading took focus, on every turn; and the order
+a screen reader gets is not the DOM's. Chromium passes a page's accessibility changes on to a
+screen reader at most once every 150 ms after the page has loaded (350 ms before), but a change
+of focus goes at once and takes everything waiting with it, and within one update the focus is
+fired first — so the alert came after the heading and its answer, and an assertive alert may
+cut into them. The heading therefore waits until the announcement has gone out in an update of
+its own: that interval and a margin after the announcer's region last changes, or after the
+frame arrives when it does not. The screen reader, which generally speaks a new focus over
+whatever it was saying, then gives the heading and the answer last. A reader who moves in the
+meantime — a Tab, `Enter` into the answer line — keeps where they went.
+`specs/reading-loop.spec.ts` holds the order and the interval by the page's own clock, and that
+a reader who writes straight after a turn keeps the caret. No screen reader was run: what one
+hears rests on Chromium's source (`ax_object_cache_impl.cc` and
+`browser_accessibility_manager.cc`, read at Chromium 141).
+
+**Wide content is reachable from the keyboard.** A display formula, a table or a code block
+wider than the column scrolls inside it rather than widening the page, and one that actually
+scrolls is a Tab stop, named `Formula`, `Table` or `Code` in the reader's edition, wearing the
+shared ring; its arrows scroll it (`wide-content.tsx`). Only one that scrolls: whether it does
+is measured in the browser as the width and the maths' faces change, so a formula that fits is
+never a stop between the skip link and the answer line. Chromium already made such a scroller
+a Tab stop, with no name; another browser left it out of reach. `specs/accessibility.spec.ts`
+scans a frame whose formula is wider than a phone.
+
+**The name is a hidden element the block points at (`aria-labelledby`), never an `aria-label`**,
+because the heading's description is the answer box walked, and a walk that meets an
+`aria-label` says the label instead of what is under it. With one, a turn onto a frame whose
+answer is a formula too wide for the column was announced as *Answer to frame 23 Formula* — on a
+phone, and on the widest at desktop width. An `aria-labelledby` is not followed inside a
+description, so the maths is read, and the block is still named when it takes focus.
+`specs/reading-loop.spec.ts` asks the browser's own accessibility tree what such a turn says,
+because Playwright's own computation follows the `aria-labelledby` there and would report the
+word the browser does not say.
+
+A new frame fades in over a fifth of a second, the one sign with the pager standing still that
+the page turned; a reader who asks for less motion gets none.
 
 <!-- Superseded, and kept for the trail: ADR-0041's place row (`F01 · <title> › <section ▾>
 English · polski [12] / 45`, the frame number an input styled as text, the sections a

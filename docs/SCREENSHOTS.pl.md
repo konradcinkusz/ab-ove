@@ -60,10 +60,11 @@ programu, które prowadzą do jego spisu treści; wybór języka; i *Reading set
 nawigacji przy dolnej krawędzi niesie **Previous**, to, gdzie jesteś — `3 of 45` — i
 **Next**, w tym samym miejscu na każdej ramce i na ekranie, gdy ramka przewija się pod nim
 ([ADR-0063](adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)). Klawisze też działają
-(`→`, `←`, `g`), a nic na ramce ich nie reklamuje. **Pozycja pokazuje, gdzie jesteś, nigdy
-postęp** ([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md)) —
-procent z książki o czterdziestu siedmiu programach byłby liczbą o czytelniku, a ten produkt
-takich nie produkuje.
+(`→`, `←`, `g` i `?`, który pokazuje ich listę), a nic na ramce ich nie reklamuje. **Pozycja
+pokazuje, gdzie jesteś, nigdy postęp**
+([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md)) — procent z
+książki o czterdziestu siedmiu programach byłby liczbą o czytelniku, a ten produkt takich nie
+produkuje.
 
 ### Mapa programu
 

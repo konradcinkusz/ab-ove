@@ -79,7 +79,13 @@ export function RevealForm({ action, busy, label, language, unreachable }: Revea
         if (pending) event.preventDefault();
       }}
     >
+      {/*
+        The key that presses it (`frame-keys.tsx`), named twice and printed nowhere on the
+        frame (ADR-0063): in the tooltip, and in `aria-keyshortcuts`, which a screen reader
+        says with the button's name (#159).
+      */}
       <button
+        aria-keyshortcuts="ArrowRight"
         className={foot.reveal}
         data-testid="frame-reveal"
         lang={language}

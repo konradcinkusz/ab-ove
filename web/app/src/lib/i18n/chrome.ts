@@ -257,6 +257,12 @@ interface Strings {
    */
   readonly raised: (unit: string, step: number) => string;
   readonly dismiss: string;
+  /**
+   * What `Next` does on a frame that asks, said under the answer line on every such frame and
+   * never taken away (#159, `answer-line.tsx`). It was in this table for a long time and on no
+   * screen, while the one instruction a frame carried was a placeholder that vanished at the
+   * first keystroke. Information and not a gate (ADR-0039): the same words whatever is written.
+   */
   readonly cue: string;
   /**
    * ────────────────────────────────────────────────────────────────────────────────────
@@ -268,7 +274,8 @@ interface Strings {
    * sat in the text rather than beside *Previous*, so the pair a reader looks for never
    * existed. It is `Next` everywhere now. The mechanic is unchanged — pressing it on a frame
    * that asks is still what turns the page to the one that opens with the answer — and the
-   * book's instruction is said where it applies, in the answer line's `writeItDown`.
+   * book's instruction is said where it applies: the answer line's `writeItDown`, and under
+   * the line, `cue` above.
    * ────────────────────────────────────────────────────────────────────────────────────
    */
   readonly next: string;
@@ -476,7 +483,12 @@ interface Strings {
   readonly readingSettings: string;
   /** The heading over the key map inside that disclosure. */
   readonly keysHeading: string;
-  /** The full keyboard map, in the order a reader would want to read it. */
+  /**
+   * The full keyboard map, in the order a reader would want to read it. `→` says that it
+   * reveals the answer, because on a frame that asks that is what it does and nothing else
+   * on the key's row said so; `←` has a row for frame 1, where it opens the contents; and `?`
+   * is here because it is how a reader reaches this list without a mouse (#159).
+   */
   readonly keysMap: readonly KeyEntry[];
   /**
    * The accessible name of the foot's navigation landmark, on all three reading screens.
@@ -501,6 +513,14 @@ interface Strings {
   readonly toSummary: string;
   /** The answer box's label: the answer it holds is to the PREVIOUS frame's question. */
   readonly answerTo: (n: number) => string;
+  /**
+   * The names a block of the book's text takes when it is wider than the measure and so
+   * scrolls, and becomes a Tab stop so a keyboard can scroll it (#159, `wide-content.tsx`).
+   * Nouns, because a screen reader says them on arriving: what the block is, not what it does.
+   */
+  readonly wideFormula: string;
+  readonly wideTable: string;
+  readonly wideCode: string;
   /**
    * A way to a frame named by its number: the "Not there yet" screen's way on, the program
    * map's answer to a number typed past the reader's furthest frame, and the sync notice's
@@ -787,10 +807,12 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     readingSettings: 'Reading settings',
     keysHeading: 'Keys',
     keysMap: [
-      { key: '→', does: 'next frame' },
+      { key: '→', does: 'next frame (reveals the answer)' },
       { key: '←', does: 'previous frame' },
+      { key: '←', does: 'contents', where: 'on the first frame' },
       { key: 'Enter', does: 'write an answer' },
       { key: 'g', does: 'sections and frames' },
+      { key: '?', does: 'reading settings' },
       { key: 'Ctrl+Enter', macKey: '⌘+Enter', does: 'keep your answer and go on', where: 'in your answer' },
       { key: 'Ctrl+Enter', macKey: '⌘+Enter', does: 'work it out', where: 'in the pad' },
       { key: 'Enter', does: 'go to that frame', where: 'in the frame number' },
@@ -801,6 +823,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     backToContents: 'Contents',
     toSummary: 'Summary',
     answerTo: (n) => `Answer to frame ${n}`,
+    wideFormula: 'Formula',
+    wideTable: 'Table',
+    wideCode: 'Code',
     goToFrameNumber: (n) => `Go to frame ${n}`,
     frameNumbered: (n) => `Frame ${n}`,
     frameRange: (last) => `Enter a frame from 1 to ${last}.`,
@@ -1007,11 +1032,15 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     lockedSection: 'jeszcze niedostępna',
     readingSettings: 'Ustawienia czytania',
     keysHeading: 'Klawisze',
+    // `odsłania`, as `writtenBefore` already says `odsłonięcie` for the reveal; `w pierwszej
+    // ramce` in the shape of the other `where` entries — `w odpowiedzi`, `w numerze ramki`.
     keysMap: [
-      { key: '→', does: 'następna ramka' },
+      { key: '→', does: 'następna ramka (odsłania odpowiedź)' },
       { key: '←', does: 'poprzednia ramka' },
+      { key: '←', does: 'spis treści', where: 'w pierwszej ramce' },
       { key: 'Enter', does: 'wpisz odpowiedź' },
       { key: 'g', does: 'sekcje i ramki' },
+      { key: '?', does: 'ustawienia czytania' },
       { key: 'Ctrl+Enter', macKey: '⌘+Enter', does: 'zapisz odpowiedź i dalej', where: 'w odpowiedzi' },
       { key: 'Ctrl+Enter', macKey: '⌘+Enter', does: 'policz', where: 'w obliczeniach' },
       { key: 'Enter', does: 'przejdź do tej ramki', where: 'w numerze ramki' },
@@ -1024,6 +1053,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     backToContents: 'Spis treści',
     toSummary: 'Podsumowanie',
     answerTo: (n) => `Odpowiedź do ramki ${n}`,
+    wideFormula: 'Wzór',
+    wideTable: 'Tabela',
+    wideCode: 'Kod',
     goToFrameNumber: (n) => `Przejdź do ramki ${n}`,
     frameNumbered: (n) => `Ramka ${n}`,
     frameRange: (last) => `Wpisz numer ramki od 1 do ${last}.`,
@@ -1234,6 +1266,9 @@ export interface Chrome {
   readonly backToContents: string;
   readonly toSummary: string;
   readonly answerTo: (n: number) => string;
+  readonly wideFormula: string;
+  readonly wideTable: string;
+  readonly wideCode: string;
   readonly goToFrameNumber: (n: number) => string;
   readonly frameNumbered: (n: number) => string;
   readonly frameRange: (last: number) => string;
