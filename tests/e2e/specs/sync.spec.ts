@@ -66,11 +66,12 @@ const PROGRESS_ONE = '**/api/proxy/api/v1/progress/*/*';
  * The two frames every test below reads as "behind" and "ahead", taken FROM THE FIXTURE
  * rather than written down.
  *
- * Both have to be inside the program, and that is not a nicety: `ResumeLast` clamps a
- * stored place to the length of the program it is in, so a spec using a frame past the end
- * would assert against a link to a frame the reader never reached — and would have been
- * asserting the clamp rather than the merge. The fixture is four frames long; the first
- * draft of this suite used 40 and 12, and every test failed on a product that was working.
+ * Both have to be inside the program, and that is not a nicety: the index's *Continue*
+ * (`start-card.tsx`) clamps a stored place to the length of the program it is in, so a spec
+ * using a frame past the end would assert against a link to a frame the reader never
+ * reached — and would have been asserting the clamp rather than the merge. The fixture is
+ * four frames long; the first draft of this suite used 40 and 12, and every test failed on a
+ * product that was working.
  */
 const UNIT = 'P01';
 
@@ -78,7 +79,7 @@ const UNIT = 'P01';
   FROM THE SERVED BUNDLE, not from the committed fixture. `bundleFor()` reads
   `web/content/bundle/bundle.json` and never the fixture — see specs/support/bundle.ts —
   so a length taken from the fixture would be four where the program is thirty-five, and
-  `ResumeLast`'s clamp would quietly turn every assertion below into an assertion about
+  *Continue*'s clamp would quietly turn every assertion below into an assertion about
   the clamp. That is the failure mode the paragraph above already records at 40 and 12;
   this is the same mistake arriving from the other direction.
 */

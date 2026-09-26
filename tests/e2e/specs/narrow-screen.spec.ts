@@ -170,8 +170,9 @@ test.describe('the reading surface at 360 px', () => {
     await page.goto('/');
     expect(await overflowing(page), 'the index reaches past 360 px').toEqual([]);
 
-    // And with a place in it: the filled resume control in the header and the tile's
-    // `at frame N` marker arrive after hydration, into rows that must wrap rather than run.
+    // And with a place in it: the card's *Continue* above the grid, the tile's `at frame N`
+    // marker and *Forget where I am* at the foot arrive after hydration (issue #165), into
+    // rows that must wrap rather than run.
     await walkTo(page, unit, 'en', asking.n);
     await page.goto(at('en', asking.n));
     await page.waitForFunction(() => window.localStorage.getItem('ab-ovo:progress:v1') !== null);

@@ -111,6 +111,9 @@ const SCREENS: readonly Screen[] = [
   // the server for a reader with no record, whom the gate turns away from every program but
   // the first.
   { what: 'the index, after the gate turned a reader away', path: `/?shut=${served.units[1]!.id}` },
+  // A reader who has been here (issue #165): the card's *Continue*, and *Forget where I am* in
+  // *Your data in this browser* — the walk records the frame it starts from as the place.
+  { what: 'the index, for a reader with a place', path: '/', walk: asks.n },
   { what: 'the argument', path: '/about' },
   { what: 'the courses', path: '/courses' },
   { what: 'a program’s contents', path: contentsAt('en') },

@@ -14,7 +14,8 @@
 
 /*
  * NO FONT OF ITS OWN, because it is put in two places that are not set alike: the index's
- * chrome row (`program-grid.module.css`) and the reading screens' settings panel
+ * masthead, whose `.top` sets its type (`program-grid.module.css` — the switch is beside the
+ * site's `<nav>` since issue #165, not in it), and the reading screens' settings panel
  * (`sheet.module.css`, ADR-0063), which share the UI face and not its size. A font declared
  * here would be right in one of them and conspicuous in the other; inheriting is what makes
  * it look like the words beside it wherever it is put.

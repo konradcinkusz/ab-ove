@@ -14,9 +14,11 @@ import { languages, served, track, unitNamed } from './support/bundle.ts';
  * notice's *Got it*) had `padding: 0` in their stylesheets, and the filled *Continue* was 34.
  *
  * Each is now padded to 44 px and the space given back as negative margin — the language and
- * theme controls' pattern, reached through a span for the filled one (`resume.module.css` says
- * why) — so the box a press lands in grew and the page did not move. This file holds the
- * result at a phone's width and a desktop's, in two parts:
+ * theme controls' pattern — so the box a press lands in grew and the page did not move. Since
+ * issue #165 the filled *Continue* is the card's button above the grid, 44 px as drawn, and the
+ * reader's three buttons are a column in *Your data in this browser*, where *Clear my
+ * worksheets* could at last give its padding back too. This file holds the result at a phone's
+ * width and a desktop's, in two parts:
  *
  *   - THE BOX. Each control's own box is at least 44×44, the house rule. WCAG 2.5.8 at AA asks
  *     only 24×24 with spacing; this is the stricter number because it is this product's own.
@@ -55,8 +57,8 @@ const LAST = unitNamed(UNIT).steps.length;
 const SEEDED = 'ab-ovo:test:seeded';
 
 /**
- * A reader who has read a little and written something, so every control the top row can
- * carry is there: the filled *Continue*, the worksheet pair and *Forget where I am*.
+ * A reader who has read a little and written something, so every control the index can carry
+ * for them is there: the card's *Continue*, the worksheet pair and *Forget where I am*.
  *
  * Once per browser, behind a marker, for the reason `sync.spec.ts` gives: an init script runs
  * on every navigation and would put back what a test had just changed.
@@ -152,8 +154,11 @@ async function isAFingersTarget(control: Locator, where: string): Promise<void> 
   expect(missed, `a press on the words of ${label} lands somewhere else ${where}`).toEqual([]);
 }
 
-/** The index's top row: the destinations, and the controls that are about this reader. */
+/** The index's masthead navigation: the two destinations, and the account (issue #165). */
 const topRow = (page: Page): Locator => page.locator('header nav');
+
+/** The reader's own controls, in the block the link under the card goes to (issue #165). */
+const yourData = (page: Page): Locator => page.locator('section[aria-labelledby="your-data"]');
 
 for (const [screen, viewport] of SCREENS) {
   for (const language of languages) {
@@ -162,7 +167,7 @@ for (const [screen, viewport] of SCREENS) {
     // regression.
     const layer = screen === 'a phone' && language === 'en' ? '@smoke' : '@core';
 
-    test(`on ${screen}, in ${language}, the index's top-row links and quiet buttons are finger's targets ${layer}`, async ({
+    test(`on ${screen}, in ${language}, the index's links and quiet buttons are finger's targets ${layer}`, async ({
       page,
     }) => {
       await page.setViewportSize(viewport);
@@ -171,26 +176,26 @@ for (const [screen, viewport] of SCREENS) {
       const row = topRow(page);
       const where = `on ${screen}, in ${language}`;
 
-      // The two destinations, and the reader's way back in.
+      // The two destinations in the masthead.
       await isAFingersTarget(row.locator('a[href^="/courses"]'), where);
       await isAFingersTarget(row.locator('a[href="/about"]'), where);
-      await isAFingersTarget(row.locator(`a[href^="/read/${track}/${UNIT}/"]`), where);
+      // The reader's way back in — the card's *Continue* — and, under the card, the way to the
+      // reader's data and the consent question beside it (issue #165).
+      await isAFingersTarget(page.getByTestId('start-card').locator(`a[href^="/read/${track}/${UNIT}/"]`), where);
+      await isAFingersTarget(page.locator('main a[href="#your-data"]'), where);
 
       /*
-        The reader's own buttons, in the row's order: *Export my worksheets*, *Clear my
-        worksheets*, *Forget where I am* (`program-grid.tsx` says why that order). The theme's
-        three carry `aria-pressed` and are left out.
+        The reader's own buttons, in their column's order: *Export my worksheets*, *Clear my
+        worksheets*, *Forget where I am* (`program-grid.tsx` says why that order).
 
-        The middle one is not asserted, and not because it passes. `worksheet.module.css`'s
-        `.clear` is padded but never gave the padding back, so its box is 39 px AND the row
-        lays out 39 px for it: growing it would move the row, and it is not among the controls
-        issue #147 lists. It is left for the change that takes it up, rather than papered over
-        here with a bound it does not meet.
+        All three, where the middle one used to be left out: `worksheet.module.css`'s `.clear`
+        kept its padding in the layout, and in the masthead's row growing it would have moved
+        the row. In a column of its own it gives the padding back like the other two
+        (`.clearAll`, issue #165).
       */
-      const buttons = row.locator('button:not([aria-pressed])');
+      const buttons = yourData(page).getByRole('button');
       await expect(buttons, `the worksheet and forget controls are missing ${where}`).toHaveCount(3);
-      await isAFingersTarget(buttons.first(), where);
-      await isAFingersTarget(buttons.last(), where);
+      for (const index of [0, 1, 2]) await isAFingersTarget(buttons.nth(index), where);
 
       // And *Sign in*, which renders once the session has answered.
       await isAFingersTarget(row.locator('a[href^="/login"]'), where);
@@ -213,6 +218,26 @@ for (const [screen, viewport] of SCREENS) {
       await isAFingersTarget(page.locator(`a[href="/?lang=${other}"]`), `on ${screen}, in ${language}`);
     });
   }
+
+  test(`on ${screen}, the quiet line's way to carry a place is a finger's target @identity`, async ({ page }) => {
+    /*
+      *Sign in to carry it to another device* (issue #165), for a reader with no account who has
+      a place — so on the deployment that can sign one in. Beside *Continue* on a desktop and at
+      the end of *Your data in this browser* on a phone; found by where it goes, among the links
+      to `/login` outside the masthead, whichever of its two places is showing.
+    */
+    await page.setViewportSize(viewport);
+    await aReaderWithAPlace(page, 2);
+    await page.goto('/');
+
+    const carry = page
+      .locator(
+        '[data-testid="start-card"] a[href^="/login"], section[aria-labelledby="your-data"] a[href^="/login"]',
+      )
+      .filter({ visible: true });
+    await expect(carry, `the way to carry a place is not offered on ${screen}`).toHaveCount(1);
+    await isAFingersTarget(carry, `on ${screen}, in the quiet line`);
+  });
 
   test(`on ${screen}, the shut notice's way on is a finger's target @core`, async ({ page }) => {
     /*

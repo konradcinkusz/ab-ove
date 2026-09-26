@@ -400,10 +400,11 @@ test.describe('the worksheet', () => {
     page,
   }) => {
     /*
-      `Clear my worksheets` is the index's other destructive control, beside *Forget where I
-      am*, and the same three things are asserted of it (#151): the first press destroys
-      nothing and is said aloud, the second clears, and the control — gone with what it
-      cleared — hands focus to the page's heading instead of to `<body>`.
+      `Clear my worksheets` is the index's other destructive control, above *Forget where I
+      am* in *Your data in this browser* (issue #165), and the same three things are asserted
+      of it (#151): the first press destroys nothing and is said aloud, the second clears, and
+      the control — gone with what it cleared — hands focus to its block's heading instead of
+      to `<body>`.
     */
     const key = `ab-ovo:sheet:v1:${track}/${unit}/${NUMERIC.asks}`;
     const sheet = (): Promise<string | null> => page.evaluate((k) => localStorage.getItem(k), key);
@@ -429,7 +430,7 @@ test.describe('the worksheet', () => {
     await expect.poll(sheet, { message: 'the second press left the worksheet stored' }).toBeNull();
     await expect(page.getByRole('button', { name: /clear my worksheets|clear them/i })).toHaveCount(0);
     await expect(
-      page.getByRole('heading', { level: 1 }),
+      page.getByRole('heading', { name: 'Your data in this browser', exact: true }),
       'focus was lost with the control that held it',
     ).toBeFocused();
   });
@@ -1216,26 +1217,25 @@ test.describe('the worksheet', () => {
     }
   });
 
-  test('a second press where the first one landed never cancels the index’s controls @core', async ({
+  test('a second press where the first one landed clears, on the index’s controls too @core', async ({
     page,
   }) => {
     /*
       ──────────────────────────────────────────────────────────────────────────────────
-      THE INDEX'S TWO KEEP ONE LABEL AT A TIME, SO THEY CAN MOVE — AND A MISS MUST STAY A
-      MISS.
+      THE INDEX'S TWO KEEP ONE LABEL AT A TIME, AND SINCE ISSUE #165 THEY DO NOT MOVE FOR IT.
 
-      Their second labels are the longer ones, and the top row they sit in arrives after
-      hydration and wraps, so reserving the second label's width would move the page under
-      every reader who has these controls (`use-two-step.ts`). They are allowed to move when
-      they arm, then, and what is held instead is what the reader's second press at the
-      same point may do: clear, if the control is still under it, and otherwise NOTHING —
-      the control still armed, the data still there. What it may never do is what it did
-      while a press anywhere counted as leaving: put the first label back with nothing
-      cleared, so the control seemed to ignore the reader.
+      Their second labels are the longer ones. In the masthead's wrapping row they could
+      carry the control onto the next line when it armed, and this test held the most that
+      could then be asked: that the reader's second press at the same point cleared or, where
+      the control had gone, did NOTHING — never put the first label back with nothing
+      cleared (#151). Each is now on a line of its own at the foot of the index, start-aligned
+      (`program-grid.module.css`'s `.yourDataControls`), so arming grows it to the right of
+      where it was pressed, and the stronger property is the one held: the second press, where
+      the first one was, is still on the control, and clears.
 
-      The configurations are the ones measured moving (#151): *Clear my worksheets* in
-      English at 1280 px, where it went from the end of the first line of the row to the
-      start of the second, and *Forget where I am* in Polish at 390 px.
+      The configurations are the ones measured moving in the old row (#151): *Clear my
+      worksheets* in English at 1280 px, where it went from the end of the first line of the
+      row to the start of the second, and *Forget where I am* in Polish at 390 px.
       ──────────────────────────────────────────────────────────────────────────────────
     */
     const sheetKey = `ab-ovo:sheet:v1:${track}/${unit}/${NUMERIC.asks}`;
@@ -1262,7 +1262,7 @@ test.describe('the worksheet', () => {
 
     for (const control of cases) {
       const where = `${control.label} at ${control.width} px`;
-      // A worksheet before each, so the row is the one measured: the first case clears it.
+      // A worksheet before each, so the column is the one measured: the first case clears it.
       await page.goto(at('en', NUMERIC.asks));
       await line_(page).fill('kept until the reader says otherwise');
       await line_(page).press('Escape');
@@ -1270,28 +1270,47 @@ test.describe('the worksheet', () => {
 
       await page.setViewportSize({ width: control.width, height: 900 });
       await page.goto(control.index);
-      const armed = page.getByRole('button', { name: control.confirm, exact: true });
       const covered = await pressTwiceAtOnePoint(
         page,
         page.getByRole('button', { name: control.label, exact: true }),
-        armed,
+        page.getByRole('button', { name: control.confirm, exact: true }),
       );
-      // Which of the two things happened is layout, not the property; the report says which.
-      test.info().annotations.push({
-        type: 'two-press',
-        description: `${where}: ${covered ? 'still under the point' : 'moved, so the second press was a miss'}`,
-      });
-
-      if (covered) {
-        await expect.poll(() => stored(control.key), { message: `${where}: the second press did not clear` }).toBeNull();
-        continue;
-      }
-      await expect(armed, `${where}: a second press beside the moved control cancelled it`).toBeVisible();
-      expect(await stored(control.key), `${where}: a press beside the control cleared anyway`).not.toBeNull();
-      // And the reader who sees where it went can still finish what they started.
-      await armed.click();
-      await expect.poll(() => stored(control.key), { message: `${where}: the armed control did not clear` }).toBeNull();
+      expect(covered, `${where}: arming moved the control off the point that armed it`).toBe(true);
+      await expect.poll(() => stored(control.key), { message: `${where}: the second press did not clear` }).toBeNull();
     }
+  });
+
+  test('a press on bare page leaves the index’s control armed, and cancels nothing @core', async ({ page }) => {
+    /*
+      THE MISS, ASSERTED WHERE IT NO LONGER HAS TO HAPPEN BY ITSELF. The test above used to
+      reach it through a control that moved; now that none does, a press beside the control
+      is made on purpose — on the sentence above it, which is text and nothing a reader
+      operates — and it has to be what `use-two-step.ts` says a press on nothing is: not
+      leaving. The control stays armed and says so, the worksheet stays, and the next press
+      on the control clears.
+    */
+    const key = `ab-ovo:sheet:v1:${track}/${unit}/${NUMERIC.asks}`;
+    const sheet = (): Promise<string | null> => page.evaluate((k) => localStorage.getItem(k), key);
+
+    await walkTo(page, unit, 'en', NUMERIC.asks);
+    await page.goto(at('en', NUMERIC.asks));
+    await line_(page).fill('kept until the reader says otherwise');
+    await line_(page).press('Escape');
+    await expect.poll(sheet, { message: 'nothing was written, so nothing below proves anything' }).not.toBeNull();
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Clear my worksheets', exact: true }).click();
+    const armed = page.getByRole('button', { name: 'Clear them — this cannot be undone', exact: true });
+    await expect(armed, 'the first press did not arm the control').toBeVisible();
+
+    const data = page.getByRole('region', { name: 'Your data in this browser' });
+    await data.locator('p').first().click();
+    await expect(armed, 'a press on bare page stood the control down').toBeVisible();
+    await expect(page.locator('[aria-live="polite"]').filter({ hasText: 'Press again' })).toHaveCount(1);
+    expect(await sheet(), 'a press on bare page cleared the worksheets').not.toBeNull();
+
+    await armed.click();
+    await expect.poll(sheet, { message: 'the armed control did not clear' }).toBeNull();
   });
 
   test('a frame that asks nothing offers no pad @core', async ({ page }) => {

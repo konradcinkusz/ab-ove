@@ -268,9 +268,10 @@ are a boundary rather than a signature.** The props of a Client Component are **
 into the document** so the browser can hydrate them, so every one of them on this surface
 takes identifiers and integers and never a step: `frame-keys.tsx` a path prefix and a count,
 `remember-position.tsx` a track, a unit, a language tag and a frame number,
-`resume.tsx` a map of program lengths. A draft that handed any of them the next step would
-put that step's answer into the HTML of the frame that asks the question, which is the one
-thing the frame view exists not to do.
+`start-card.tsx` a map of program lengths — and, on the index, where there is no frame to
+give away, the titles its tiles already print (issue #165). A draft that handed any of them
+the next step would put that step's answer into the HTML of the frame that asks the
+question, which is the one thing the frame view exists not to do.
 
 Measured rather than argued — widening those props on purpose turns both of
 `specs/frame-view.spec.ts`'s absence assertions red, in English and in Polish, which is

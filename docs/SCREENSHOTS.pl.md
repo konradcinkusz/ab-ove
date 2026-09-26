@@ -131,7 +131,7 @@ wyboru, i jedyna, która nie potrzebuje JavaScriptu
 
 ### Strona startowa jest indeksem
 
-![Strona startowa. Znak słowny; odnośniki do Courses i About, trójpozycyjny przełącznik trybu z opcjami System, Light i Dark oraz odnośnik do Sign in; dalej nagłówek Programs z wyborem języka na końcu jego wiersza — English i polski jako dwa obramowane pola, English wypełnione. Pod nagłówkiem akapit mówiący, czym są program i ramka; dalej tytuł kursu, a pod nim wiersz mówiący, że programy otwierają się po kolei, że część główna opiera się na programach z Podstaw i że jedna ramka programu otwiera następny. Niżej siatka kafelków — po jednym na program, każdy z identyfikatorem, programem, po którym się otworzy, tytułem i liczbą ramek i sekcji. U dołu strony karta zatytułowana "Help fix the book?" z dwoma przyciskami.](assets/screenshots/landing-english.png)
+![Strona startowa. Znak słowny; trójpozycyjny przełącznik trybu z opcjami System, Light i Dark; odnośniki do Courses i About ab-ovo oraz odnośnik do Sign in; dalej nagłówek Programs z wyborem języka na końcu jego wiersza — English i polski jako dwa obramowane pola, English wypełnione. Pod nagłówkiem akapit mówiący, czym są program i ramka; dalej karta z tytułem pierwszego programu, "Numbers, powers and roots", nad wypełnionym przyciskiem "Start with F01", a pod kartą odnośnik "Your data in this browser, and whether your answers are counted". Dalej tytuł kursu, a pod nim wiersz mówiący, że programy otwierają się po kolei, że część główna opiera się na programach z Podstaw i że jedna ramka programu otwiera następny. Niżej siatka kafelków — po jednym na program, każdy z identyfikatorem, programem, po którym się otworzy, tytułem i liczbą ramek i sekcji. U dołu strony, pod nagłówkiem "Your data in this browser", zdanie, że to, co się pisze przy ramkach, zostaje w tej przeglądarce i że pozycja w lekturze też jest tu zapisana; na końcu karta zatytułowana "Help fix the book?" z dwoma przyciskami.](assets/screenshots/landing-english.png)
 
 Pierwszy ekran jest tym, po co czytelnik przyszedł, o jedną nawigację od ramki zamiast o dwie
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). To
@@ -151,10 +151,16 @@ ramka programu otwiera następny (#163,
 [ADR-0065](adr/0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md)).
 Mówi to tekstem na pierwszym ekranie, a nie podpowiedzią, do której palec nigdy nie sięga.
 
-Karta u dołu to **zaproszenie do zgody** i stoi na końcu celowo: czytelnik, który przyszedł
-czytać, dociera najpierw do programów, a do pytania potem. Jest zaproszeniem, a nie bramką,
-jest trójwartościowa — udzielona, odmówiona, jeszcze niezadana — i mieszka w przeglądarce
-([ADR-0022](adr/0022-consent-is-local-versioned-and-three-valued.md)).
+Karta nad siatką jest wejściem (#165): *Start with F01* przy pierwszej wizycie, jak na obrazku,
+i `F01 · Continue at frame 12` w tym samym polu, gdy pozycja w lekturze jest już zapisana. Pod
+nią, o jedno naciśnięcie od pierwszego ekranu, jest droga do *Your data in this browser* u dołu
+strony i do pytania obok. Tam notatki się pobiera albo czyści, a pozycję w lekturze zapomina —
+przyciskami, które stały dawniej w nagłówku strony, tuż obok *Continue*.
+
+Ostatnia karta na stronie to **zaproszenie do zgody** i stoi na końcu celowo: czytelnik, który
+przyszedł czytać, dociera najpierw do programów, a do pytania potem. Jest zaproszeniem, a nie
+bramką, jest trójwartościowa — udzielona, odmówiona, jeszcze niezadana — i mieszka w
+przeglądarce ([ADR-0022](adr/0022-consent-is-local-versioned-and-three-valued.md)).
 
 ### W każdej edycji
 
@@ -166,7 +172,7 @@ opuszczalny i nigdy niezgadywany z `Accept-Language` — **i jest zapamiętywany
 przeglądarce, a na koncie czytelnika, jeśli je ma. Pytanie pada więc raz, a nie na każdym
 ekranie (ADR-0052).
 
-![Strona startowa w trybie ciemnym.](assets/screenshots/landing-dark.png)
+![Strona startowa w trybie ciemnym, z pozycją w lekturze na ramce 3 programu F01: karta mówi "F01 · Continue at frame 3", kafelek F01 — "at frame 3", a u dołu, obok pytania, jest "Forget where I am".](assets/screenshots/landing-dark.png)
 
 ### Spis treści programu
 

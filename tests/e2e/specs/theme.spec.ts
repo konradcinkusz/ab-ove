@@ -68,8 +68,9 @@ const live = (page: Page): Promise<string | null> =>
  * this suite makes it: since ADR-0063 the panel is a popover opened by the *Reading settings*
  * button in the top bar, rather than a disclosure at the foot of the page.
  *
- * The index has no such panel (`program-grid.tsx` keeps the switch in its chrome row), so
- * this is a no-op there and the landing-page assertions below are unchanged. A panel that is
+ * The index has no such panel (`program-grid.tsx` keeps the switch in its masthead, beside the
+ * navigation since issue #165), so this is a no-op there and the landing-page assertions below
+ * are unchanged. A panel that is
  * already open is left open — a press inside a popover does not close it.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */

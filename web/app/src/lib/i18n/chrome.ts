@@ -387,6 +387,18 @@ interface Strings {
    */
   readonly about: string;
   /**
+   * The accessible name of the index's masthead navigation (issue #165) — the landmark that
+   * holds `courses`, `about` and the account's own control, which is what a reader hears it
+   * called in a screen reader's list of landmarks.
+   *
+   * It was `programs`, the index heading's word, on a `<nav>` that also held the theme switch
+   * and both of the reader's destructive controls: a landmark named after the page and holding
+   * neither navigation alone nor the page. It is named for what it is now — the site's own
+   * ways off this page — and the language control beside it keeps its own name, so the list
+   * reads two different landmarks rather than one word twice.
+   */
+  readonly siteNav: string;
+  /**
    * ────────────────────────────────────────────────────────────────────────────────────
    * THE WORD FOR A TRACK, AND THE ONLY PLACE IT IS SAID TO A READER.
    *
@@ -462,6 +474,15 @@ interface Strings {
   readonly position: (n: number, total: number) => string;
   readonly startAtFrame: (n: number) => string;
   readonly continueAtFrame: (n: number) => string;
+  /**
+   * The index's card for a reader with no place yet (issue #165): the way into the first
+   * program, which is open to everybody (ADR-0051). It names the program by its ID, as
+   * `continueAtFrame`'s card names the program it continues, because the title is printed
+   * over it and a link's name carrying the title would be a second link called by it —
+   * the tile's is the first. It opens the program's contents, where `startAtFrame` is the
+   * filled control, so the two read as one move and then the next.
+   */
+  readonly startWith: (unit: string) => string;
   readonly frame: Plural;
   readonly section: Plural;
   /**
@@ -549,6 +570,29 @@ interface Strings {
   readonly clearWorksheets: string;
   /** Its second press — this one cannot be undone and says so. */
   readonly clearWorksheetsConfirm: string;
+  /**
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * THE BLOCK AT THE FOOT OF THE INDEX THAT HOLDS THE READER'S OWN DATA — issue #165.
+   *
+   * *Export my worksheets*, *Clear my worksheets* and *Forget where I am* sat in the
+   * masthead, two destructive controls beside the page's primary action. They are here now,
+   * under this heading and beside the consent question, which is the other thing this
+   * browser keeps for the reader (ADR-0022). `yourDataLead` says what the block is about in
+   * one sentence, so a reader with nothing stored yet is not looking at an empty heading;
+   * it promises only what holds for every reader — what they write is never sent anywhere
+   * (the consent counts whether an answer matched, never its words), and the place is kept
+   * in this browser, which is true whether or not an account keeps a copy as well.
+   *
+   * `toYourData` is the way to it from the top of the page, under the index's card: the
+   * block and the question are below every tile, and the audit of 2026-09-24 measured the
+   * question some 3170 px down on a desktop. It names the question as well as the data,
+   * and it is the same words whatever the reader answered — a link to where a setting is,
+   * not a second ask (ADR-0022: no nag, no second ask).
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  readonly yourData: string;
+  readonly yourDataLead: string;
+  readonly toYourData: string;
   /** `← Programs`, the contents page's own way back up — a NEW key rather than reusing
    * `programs`, because that string is also this application's index heading and an arrow
    * belongs on the crumb's link and nowhere near an `<h1>`. */
@@ -789,6 +833,23 @@ interface Strings {
   readonly readWhileSignedIn: string;
   readonly signInToContinue: string;
   /**
+   * THE QUIET LINE BESIDE THE INDEX'S *CONTINUE*, for a reader with no account who has a
+   * place (issue #165) — `start-card.tsx` says when it is shown, and it is never shown where
+   * this deployment cannot sign anybody in (P8).
+   *
+   * The audit found that an anonymous reader was never told where their place is kept. It is
+   * kept for this browser — in its storage, and under its cookie on the book's server
+   * (ADR-0061), which is device-scoped on purpose — and an account is what carries it to
+   * another device (ADR-0004: an account buys synchronisation and nothing else). The first
+   * sentence says the first half and `signInToCarry`, a link, offers the second. The link is
+   * the whole clause rather than the two words *Sign in*, which the masthead's own control
+   * already is. On a phone, where the card has no room for the line, `signInToCarry` alone
+   * ends `yourDataLead` instead, whose own sentence already says where the place is kept — so
+   * it has to read on from that sentence too, in each edition.
+   */
+  readonly placeKeptHere: string;
+  readonly signInToCarry: string;
+  /**
    * The index's line when the book's server does not answer (issue #158). The index renders
    * from the bundle compiled into the app, so it is still there when no program would open;
    * this says so above the list rather than leaving every tile to lead to the error page.
@@ -914,6 +975,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     programsLead:
       'Each program is a chapter of the course, made of frames: short, numbered steps, one screen each. Most frames end with a question, and the next frame opens with its answer — so write yours down before you go on.',
     about: 'About ab-ovo',
+    siteNav: 'Site',
     courses: 'Courses',
     coursesLead:
       'Every course ab-ovo offers, each a sequence of programs worked through a frame at a time. Open one to see only its programs; until you do, the Programs page lists the programs of every course.',
@@ -928,6 +990,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     position: (n, total) => `${n} of ${total}`,
     startAtFrame: (n) => `Start at frame ${n}`,
     continueAtFrame: (n) => `Continue at frame ${n}`,
+    startWith: (unit) => `Start with ${unit}`,
     frame: { one: 'frame', other: 'frames' },
     section: { one: 'section', other: 'sections' },
     program: { one: 'program', other: 'programs' },
@@ -956,6 +1019,10 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     exportWorksheets: 'Export my worksheets',
     clearWorksheets: 'Clear my worksheets',
     clearWorksheetsConfirm: 'Clear them — this cannot be undone',
+    yourData: 'Your data in this browser',
+    yourDataLead:
+      'What you write on a frame stays in this browser and is never sent anywhere, and your place in the book is kept here too.',
+    toYourData: 'Your data in this browser, and whether your answers are counted',
     programsCrumb: '← Programs',
     goToFrame: 'Go to frame',
     ofTotal: (total) => `of ${total}`,
@@ -1041,6 +1108,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       `This frame has not been reached yet. The furthest read frame in this program is ${furthest}.`,
     readWhileSignedIn: 'You read this while signed in.',
     signInToContinue: 'Sign in to continue',
+    placeKeptHere: 'Your place is kept in this browser.',
+    signInToCarry: 'Sign in to carry it to another device',
     summaryNotReachedBody: (last, furthest) =>
       `The Summary opens at the end of this program, after frame ${last}. The furthest read frame in this program is ${furthest}.`,
     backToLastFrame: (n) => `Back to frame ${n}`,
@@ -1144,6 +1213,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     programsLead:
       'Każdy program to rozdział kursu złożony z ramek: krótkich, ponumerowanych kroków, po jednym na ekran. Większość ramek kończy się pytaniem, a następna ramka zaczyna się od odpowiedzi — więc napisz swoją, zanim przejdziesz dalej.',
     about: 'O ab-ovo',
+    // `Witryna`, the site as a whole, and not `Serwis`: `serwis tożsamości` is this table's
+    // identity service (`deleteAccount`), and a landmark sharing its word would read as that.
+    siteNav: 'Witryna',
     courses: 'Kursy',
     coursesLead:
       'Wszystkie kursy dost\u0119pne w ab-ovo \u2014 ka\u017cdy to ci\u0105g program\u00f3w przerabianych ramka po ramce. Otw\u00f3rz kurs, a zobaczysz tylko jego programy; dop\u00f3ki tego nie zrobisz, strona z programami pokazuje programy wszystkich kurs\u00f3w.',
@@ -1165,6 +1237,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     // forwards — and it was `backToLastFrame`'s wording too, so two controls with opposite
     // jobs spoke alike. `od`, as in `startAtFrame` one line up, so the pair reads as a pair.
     continueAtFrame: (n) => `Kontynuuj od ramki ${n}`,
+    // `od`, the pair above's own preposition: the card starts a reader FROM a program.
+    startWith: (unit) => `Zacznij od ${unit}`,
     frame: { one: 'ramka', few: 'ramki', many: 'ramek', other: 'ramki' },
     section: { one: 'sekcja', few: 'sekcje', many: 'sekcji', other: 'sekcji' },
     // `other` is the genitive singular, as it is for the two nouns above: it is the form a
@@ -1215,6 +1289,13 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     exportWorksheets: 'Pobierz moje notatki',
     clearWorksheets: 'Wyczyść moje notatki',
     clearWorksheetsConfirm: 'Wyczyść — nie da się cofnąć',
+    yourData: 'Twoje dane w tej przeglądarce',
+    // `accountOverview.worksheets`' own first clause, and `pozycja w lekturze`, the table's
+    // word for the reader's place (docs/how-to/translate-a-document.md). The passive `są
+    // liczone` below chooses no gender for the reader, as `nothingLost` does.
+    yourDataLead:
+      'To, co piszesz przy ramkach, zostaje w tej przeglądarce i nigdzie nie jest wysyłane, a twoja pozycja w lekturze też jest tu zapisana.',
+    toYourData: 'Twoje dane w tej przeglądarce i to, czy twoje odpowiedzi są liczone',
     programsCrumb: '← Programy',
     goToFrame: 'Przejdź do ramki',
     ofTotal: (total) => `z ${total}`,
@@ -1326,6 +1407,10 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       `Ta ramka nie jest jeszcze dostępna. Najdalsza przeczytana ramka w tym programie: ${furthest}.`,
     readWhileSignedIn: 'Tę ramkę przeczytano po zalogowaniu.',
     signInToContinue: 'Zaloguj się, aby czytać dalej',
+    // `pozycja w lekturze`, as `yourDataLead` says it; `ją` is that `pozycja`, so the link
+    // reads on from the sentence before it. An imperative, which picks no gender.
+    placeKeptHere: 'Twoja pozycja w lekturze jest zapisana w tej przeglądarce.',
+    signInToCarry: 'Zaloguj się, aby zabrać ją na inne urządzenie',
     summaryNotReachedBody: (last, furthest) =>
       `Podsumowanie otworzy się na końcu tego programu, po ramce ${last}. Najdalsza przeczytana ramka w tym programie: ${furthest}.`,
     backToLastFrame: (n) => `Wróć do ramki ${n}`,
@@ -1420,6 +1505,7 @@ export interface Chrome {
   readonly programs: string;
   readonly programsLead: string;
   readonly about: string;
+  readonly siteNav: string;
   readonly courses: string;
   readonly coursesLead: string;
   readonly allCourses: string;
@@ -1433,6 +1519,7 @@ export interface Chrome {
   readonly position: (n: number, total: number) => string;
   readonly startAtFrame: (n: number) => string;
   readonly continueAtFrame: (n: number) => string;
+  readonly startWith: (unit: string) => string;
   readonly frames: (n: number) => string;
   readonly sections: (n: number) => string;
   /**
@@ -1467,6 +1554,9 @@ export interface Chrome {
   readonly exportWorksheets: string;
   readonly clearWorksheets: string;
   readonly clearWorksheetsConfirm: string;
+  readonly yourData: string;
+  readonly yourDataLead: string;
+  readonly toYourData: string;
   readonly programsCrumb: string;
   readonly goToFrame: string;
   readonly ofTotal: (total: number) => string;
@@ -1510,6 +1600,8 @@ export interface Chrome {
   readonly renderError: RenderErrorStrings;
   readonly readWhileSignedIn: string;
   readonly signInToContinue: string;
+  readonly placeKeptHere: string;
+  readonly signInToCarry: string;
   readonly readingUnavailable: string;
   readonly notReachedHeading: string;
   readonly notReachedBody: (furthest: number) => string;

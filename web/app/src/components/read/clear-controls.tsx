@@ -107,7 +107,10 @@ export interface ClearWorksheetsProps {
   readonly settleOn: string;
 }
 
-/** Every worksheet in this browser, from the index's header row beside `Forget where I am`. */
+/**
+ * Every worksheet in this browser, from *Your data in this browser* at the foot of the index,
+ * above `Forget where I am` (issue #165).
+ */
 export function ClearWorksheets({
   language,
   label,
@@ -126,14 +129,19 @@ export function ClearWorksheets({
   if (!present) return null;
 
   /*
-    ONE LABEL AT A TIME, and so a control that can move when it arms: the second label is the
-    longer one, and reserving its width would widen the index's top row, which arrives after
-    hydration and wraps (`use-two-step.ts` has the reasoning, `program-grid.tsx` the row). A
-    second press on the space it left is a miss, not a cancel.
+    ONE LABEL AT A TIME. The second label is the longer one, and the index sets this control on
+    a line of its own, start-aligned (`program-grid.tsx`, issue #165), so arming grows it to
+    the right of where it was pressed and the second press lands on it. It could move when it
+    lived in the masthead's wrapping row, where reserving the longer label's width was not an
+    option (`use-two-step.ts`); a second press on the space it leaves, wherever it is set, is
+    a miss, not a cancel.
+
+    `.clearAll` and not `.clear`: the same look, a finger tall, on the column's one edge
+    (`worksheet.module.css` says why the frame's own control keeps `.clear`).
   */
   return (
     <>
-      <button className={styles.clear} lang={language} type="button" {...control}>
+      <button className={styles.clearAll} lang={language} type="button" {...control}>
         {armed ? confirmLabel : label}
       </button>
       <TwoStepStatus armed={armed} confirm={confirmLabel} language={language} />
@@ -157,8 +165,10 @@ export interface ExportWorksheetsProps {
  * asking permission for an action that has no cost to undo.
  *
  * Gated on the same `useAnySheet` boolean as `ClearWorksheets`, and rendered BEFORE it in the
- * row: offering a way to keep a copy before offering a way to erase everything is the order a
- * reader would want them in, not an accident of where either was added.
+ * index's *Your data in this browser*: offering a way to keep a copy before offering a way to
+ * erase everything is the order a reader would want them in, not an accident of where either
+ * was added. `/account` renders it too, beside the sentence saying the worksheets never reach
+ * the account.
  */
 export function ExportWorksheets({ language, label }: ExportWorksheetsProps): React.JSX.Element | null {
   const present = useAnySheet();

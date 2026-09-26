@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { chromeFor } from '../../../web/app/src/lib/i18n/chrome.ts';
+
 import { track, unitNamed } from './support/bundle.ts';
 import { walkTo } from './support/walk.ts';
 
@@ -56,6 +58,27 @@ test.describe('the ask', () => {
     await page.goto('/');
 
     await expect(invitation(page)).toBeVisible();
+
+    /*
+      AT THE END, AND BESIDE THE READER'S DATA (issue #165): after every program, and after
+      *Your data in this browser*, which is the other thing this browser keeps for the reader.
+      Asserted in document order, which is the order a screen reader and a keyboard meet them.
+    */
+    const order = await page.evaluate(() => {
+      const tiles = document.querySelectorAll('main li[id^="p-"]');
+      const lastTile = tiles[tiles.length - 1];
+      const data = document.getElementById('your-data');
+      const ask = Array.from(document.querySelectorAll('h2, h3')).find((heading) =>
+        /Help fix the book/i.test(heading.textContent ?? ''),
+      );
+      const before = (a: Element | null | undefined, b: Element | null | undefined): boolean =>
+        !!a && !!b && (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+      return { afterEveryProgram: before(lastTile, ask), afterTheData: before(data, ask) };
+    });
+    expect(order, 'the invitation is not after the programs and the reader’s data').toEqual({
+      afterEveryProgram: true,
+      afterTheData: true,
+    });
 
     // What is being agreed to is ON the panel, concretely. "Opt-in" means nothing if the
     // thing opted into is described as "usage data".
@@ -185,6 +208,62 @@ test.describe('the ask', () => {
       ).toBeFocused();
     });
   }
+});
+
+/*
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * ONE PRESS FROM THE FIRST SCREEN, AND THE PRESS IS NOT AN ASK — issue #165.
+ *
+ * The audit of 2026-09-24 measured the question some 3170 px down a desktop's index, below
+ * all forty-seven tiles, and further down a phone's. It stays where ADR-0022 left it — an
+ * invitation reached after the programs, never a gate in front of them — beside *Your data in
+ * this browser*, and a link under the card reaches both. The link is the same words for every
+ * reader whatever they have answered: a way to where a setting is, which is not a second ask.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+test.describe('the question, from the first screen', () => {
+  const en = chromeFor('en');
+  const wayTo = (page: import('@playwright/test').Page) =>
+    page.getByRole('link', { name: en.toYourData, exact: true });
+
+  for (const [screen, viewport, layer] of [
+    ['a desktop', { width: 1280, height: 720 }, '@smoke'],
+    ['a phone', { width: 390, height: 844 }, '@core'],
+  ] as const) {
+    test(`on ${screen}, one press reaches the question, which is still at the foot ${layer}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto('/');
+
+      // The invitation has arrived — it renders after hydration — and it is not on the first
+      // screen, where the way to it is.
+      await expect(invitation(page)).toBeAttached();
+      await expect(invitation(page), 'the question has moved in front of the programs').not.toBeInViewport();
+      await expect(wayTo(page), 'there is no way to the question from the first screen').toBeInViewport();
+
+      await wayTo(page).click();
+      await expect(invitation(page), 'the press did not bring the question into view').toBeInViewport();
+      await expect(page.getByRole('heading', { name: en.yourData, exact: true })).toBeInViewport();
+    });
+  }
+
+  test('the way to it is the same for a reader who has answered, and leads to the answer @core', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: /No thanks/i }).click();
+    await expect(invitation(page)).toHaveCount(0);
+
+    // The next visit: the same words, the same place, and still no question anywhere on it.
+    await page.goto('/');
+    await expect(page.getByText('You are not contributing')).toBeAttached();
+    await expect(wayTo(page)).toHaveText(en.toYourData);
+    await expect(wayTo(page)).toHaveAttribute('href', '#your-data');
+    await expect(invitation(page)).toHaveCount(0);
+
+    // And where it leads is where the answer is changed, not asked again.
+    await wayTo(page).click();
+    await expect(page.getByText('You are not contributing')).toBeInViewport();
+    await expect(page.getByRole('button', { name: /Start contributing/i })).toBeInViewport();
+    await expect(invitation(page)).toHaveCount(0);
+  });
 });
 
 test.describe('declining, and being left alone', () => {
