@@ -136,6 +136,24 @@ export function signInProblem(raw: string | string[] | undefined): SignInProblem
 }
 
 /**
+ * Whether `/login` offers the confirmation link again under `problem` (issue #170) — one
+ * decision, pure, so it is tested where every state that withdraws it can be reached, as
+ * `recovery-problem.ts`'s `offersLinkRequestForm` is for the pages that ask for a link. Two of
+ * those states are ones no acceptance deployment is in: an identity service with no way to send
+ * email, and a site with no identity service showing a problem somebody composed.
+ *
+ * Under a problem an unconfirmed address can meet (`offersResend`), and only where an email can
+ * come: `app/login/recovery-links.tsx` says why, beside the link it renders.
+ */
+export function offersResendLink(state: {
+  readonly identityConfigured: boolean;
+  readonly sendsEmail: boolean;
+  readonly problem: SignInProblem | null;
+}): boolean {
+  return state.identityConfigured && state.sendsEmail && state.problem?.offersResend === true;
+}
+
+/**
  * What `/login` is told when a reader arrives from the end of a way back into their account
  * (issue #170) — a closed set looked up as the problems are, for the same reason: `?notice=`
  * is on a URL anybody can compose. Each is a NOTICE and not a problem, as `/register`'s

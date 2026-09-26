@@ -40,6 +40,9 @@ import { sessionCookieAttributes } from '@/lib/session-cookies';
  * do anyway: the only request that SPENDS the pair is a POST, from this origin's own form, to a
  * route that refuses any other origin (`same-origin.ts`). A cross-site GET carries it to a
  * page that reads whether it is there and nothing more.
+ *
+ * ADR-0018's amendment for issue #170 records this as a decision, with what it costs, so a
+ * review that tightens it to `Strict` meets the reason before the failing spec.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * The rest of its attributes are the session pair's — HttpOnly, Secure outside dev — and its

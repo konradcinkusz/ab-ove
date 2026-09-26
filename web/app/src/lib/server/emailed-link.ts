@@ -47,12 +47,25 @@ export const EMAILED_LINK_LIFETIME_SECONDS = 15 * 60;
 const MAX_EMAIL_LENGTH = 256;
 
 /**
- * Generous for what the service issues. An Identity token is a data-protection payload in
- * base64 — a few hundred characters — and the bound exists so a crafted link cannot make this
- * origin set a cookie a browser refuses (about four kilobytes, name and attributes included):
- * the address and this, as base64 of JSON, stay under three.
+ * Generous for what the service issues: an Identity token is a data-protection payload in
+ * base64, a few hundred characters. An early refusal of what could not be a token; the bound
+ * that decides whether a cookie is set is the next one, on the value itself.
  */
 const MAX_TOKEN_LENGTH = 2048;
+
+/**
+ * The longest value this origin will set as the cookie, measured as it will be sent — so a
+ * crafted link cannot make this origin set a cookie a browser refuses. RFC 6265 §6.1 asks a
+ * browser to keep at least 4096 bytes of a cookie, name and attributes included, and this
+ * leaves room for both.
+ *
+ * On the ENCODED value, because the two lengths above do not bound it: JSON writes a `"` or a
+ * `\` twice, and UTF-8 spells a character outside ASCII in up to four bytes. A pair of the
+ * longest plain values comes to a little over three kilobytes and still fits; a pair past this
+ * is no link worth keeping, and the page says no link is open — which is what a browser that
+ * dropped the cookie would have made it say, minus the cookie.
+ */
+const MAX_COOKIE_VALUE_LENGTH = 3600;
 
 /** Not empty, within its bound, and no control characters — nothing else is judged here. */
 function usable(value: string, maxLength: number): boolean {
@@ -78,7 +91,8 @@ export function emailedLinkFrom(query: URLSearchParams): EmailedLink | null {
   const token = (query.get('token') ?? '').trim();
   if (!usable(email, MAX_EMAIL_LENGTH) || !email.includes('@')) return null;
   if (!usable(token, MAX_TOKEN_LENGTH)) return null;
-  return { email, token };
+  const link = { email, token };
+  return encodeEmailedLink(link).length <= MAX_COOKIE_VALUE_LENGTH ? link : null;
 }
 
 /**

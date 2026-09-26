@@ -102,6 +102,10 @@ export async function LinkPage({
   // Its presence, and nothing else: the value is the route's to read (see the header).
   const held = identityConfigured && (await heldEmailedLink(kind)) !== null;
   const offersForm = held && (problem === null || problem.retryable);
+  // With no link held, what the page offers: the link again or a new one — or, where the service
+  // has just refused the link and the route dropped it, only a new one, since the panel above
+  // says opening it again would end the same way.
+  const noLinkWords = problem?.code === 'link-invalid' ? strings.spent : strings.noLink;
 
   // No destination to carry — the link in the email names none — and the edition, always.
   const fresh = purpose.href({ edition });
@@ -139,12 +143,13 @@ export async function LinkPage({
           /*
             No link on this device: it was never opened here, the page held it past its time, or
             it was used or refused — the route drops it then. The link again is the first remedy
-            and costs nothing, since opening it does not use it up; a new one is the second.
+            and costs nothing, since opening it does not use it up; a new one is the second, and
+            the only one once the service has refused the link (`noLinkWords`, above).
           */
           <p>
-            {strings.noLink.before}
-            <Link href={newLink} prefetch={false}>{strings.noLink.link}</Link>
-            {strings.noLink.after}
+            {noLinkWords.before}
+            <Link href={newLink} prefetch={false}>{noLinkWords.link}</Link>
+            {noLinkWords.after}
           </p>
         ) : !offersForm ? (
           <p>

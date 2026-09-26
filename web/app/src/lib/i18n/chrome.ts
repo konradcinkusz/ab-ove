@@ -339,6 +339,12 @@ interface LinkPageStrings {
   readonly submit: string;
   /** Where no link is held on this device: what opens one, and the way to a new one. */
   readonly noLink: Linked;
+  /**
+   * In `noLink`'s place where the service refused the link (`link-invalid`) and the route dropped
+   * it: the way to a new one, without `noLink`'s "open it again", which the panel above has just
+   * said would end the same way.
+   */
+  readonly spent: Linked;
   /** Why there is no form, under a problem no retry fixes; the link is the same page, fresh. */
   readonly withdrawn: Linked;
   readonly noAccounts: string;
@@ -1547,6 +1553,13 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         link: 'ask for a new link',
         after: ' if it has stopped working.',
       },
+      // Under `linkProblems['link-invalid']`, which has just said the link no longer works: a new
+      // one is the only remedy left, so `noLink`'s "open it again" is not offered beside it.
+      spent: {
+        before: 'Opening that link again would end the same way. ',
+        link: 'Ask for a new link',
+        after: ', and choose the new password with it.',
+      },
       withdrawn: {
         before:
           'Choosing a password again cannot fix the problem described above, so there is no form here. When it has cleared, ',
@@ -1569,6 +1582,11 @@ export const TABLE: Readonly<Record<string, Strings>> = {
           'There is no confirmation open on this device. The link in the email opens one for fifteen minutes; open it again, or ',
         link: 'ask for a new link',
         after: ' if it has stopped working.',
+      },
+      spent: {
+        before: 'Opening that link again would end the same way. ',
+        link: 'Ask for a new link',
+        after: ', and confirm the address with it.',
       },
       withdrawn: {
         before:
@@ -2304,6 +2322,12 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         link: 'poproś o nowy link',
         after: ', jeśli przestał działać.',
       },
+      // `noLink`'s `poproś o nowy link`, as the English repeats its own words.
+      spent: {
+        before: 'Ponowne otwarcie tego linku skończyłoby się tak samo. ',
+        link: 'Poproś o nowy link',
+        after: ' i ustaw nowe hasło za jego pomocą.',
+      },
       withdrawn: {
         before:
           'Ponowny wybór hasła nie rozwiąże opisanego wyżej problemu, więc nie ma tu formularza. Gdy problem minie, ',
@@ -2324,6 +2348,11 @@ export const TABLE: Readonly<Record<string, Strings>> = {
           'Na tym urządzeniu nie jest otwarte żadne potwierdzanie adresu. Link z wiadomości otwiera je na piętnaście minut; otwórz go ponownie albo ',
         link: 'poproś o nowy link',
         after: ', jeśli przestał działać.',
+      },
+      spent: {
+        before: 'Ponowne otwarcie tego linku skończyłoby się tak samo. ',
+        link: 'Poproś o nowy link',
+        after: ' i potwierdź adres za jego pomocą.',
       },
       withdrawn: {
         before:

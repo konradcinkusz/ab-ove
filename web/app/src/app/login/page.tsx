@@ -254,9 +254,13 @@ export default async function LoginPage({
           <h2 className={styles.problemTitle}>{problemWords.title}</h2>
           <p className={styles.problemDetail}>{problemWords.detail}</p>
           {/* The way back for an address never confirmed, where one would meet it (#170). */}
-          {identityConfigured && problem ? (
-            <ResendConfirmation chrome={chrome} edition={edition} redirect={intended} problem={problem} />
-          ) : null}
+          <ResendConfirmation
+            chrome={chrome}
+            edition={edition}
+            redirect={intended}
+            problem={problem}
+            identityConfigured={identityConfigured}
+          />
         </section>
       ) : null}
 

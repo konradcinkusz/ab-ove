@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { chromeFor } from '../../../web/app/src/lib/i18n/chrome.ts';
+import { languageCookie } from '../../../web/app/src/lib/language/store.ts';
 
 import { accountAtFixture, followEmailLink, outboxFor, unconfirmedAddress } from './support/outbox.ts';
 import { freshEmail, GOOD_PASSWORD, register } from './support/register.ts';
@@ -151,7 +152,13 @@ test.describe('a forgotten password has a way back', () => {
     expectNothingAboutTheAccount(shown, appOrigin, email, link);
   });
 
-  test('a link already used says so, and a new one is one press away @identity', async ({ page, request }) => {
+  test('a link already used says so, in either edition, and a new one is one press away @identity', async ({
+    page,
+    request,
+  }) => {
+    expect(pl.linkProblems['link-invalid'].title, 'the chrome has no Polish, so this proves nothing').not.toBe(
+      en.linkProblems['link-invalid'].title,
+    );
     const email = freshEmail();
     await accountAtFixture(request, email, GOOD_PASSWORD);
 
@@ -171,15 +178,44 @@ test.describe('a forgotten password has a way back', () => {
     await Promise.all([page.waitForURL(/\/login\/reset\?error=link-invalid&lang=en$/), page.click('button[type="submit"]')]);
 
     await expect(page.getByRole('heading', { name: en.linkProblems['link-invalid'].title })).toBeVisible();
-    // No form: no password gets past a spent link. The way on is a new one.
+    // No form: no password gets past a spent link. The way on is a new one — the only one, since
+    // opening the link again would end the same way, so the page no longer offers that.
     await expect(page.locator('form[action="/api/auth/reset-password"]')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: en.resetPage.noLink.link })).toHaveAttribute(
+    await expect(page.getByRole('link', { name: en.resetPage.spent.link })).toHaveAttribute(
       'href',
       '/login/forgot?lang=en',
     );
-    // And the password the spent link was refused for is not the account's.
+    await expect(page.getByText(en.resetPage.noLink.before)).toHaveCount(0);
+
+    /*
+      AND IN POLISH, for a reader whose browser remembers Polish. The link names no edition — its
+      query is authservice's — so the landing answers with the one this browser remembers, and the
+      spent link is said in it. Remembered as the language control leaves it, in the cookie the
+      server reads, written with the product's own `languageCookie`; the control's own remembering
+      is `landing.spec.ts`'s to hold.
+    */
+    const secure = new URL(page.url()).protocol === 'https:';
+    await page.evaluate((cookie) => {
+      document.cookie = cookie;
+    }, languageCookie('pl', secure));
+    await followEmailLink(page, email, 'Reset Password');
+    await expect(page).toHaveURL(/\/login\/reset\?lang=pl$/);
+    await page.getByLabel(pl.resetPage.passwordLabel).fill('A-fourth-password-4!');
+    await Promise.all([page.waitForURL(/\/login\/reset\?error=link-invalid&lang=pl$/), page.click('button[type="submit"]')]);
+
+    await expect(page.getByRole('main')).toHaveAttribute('lang', 'pl');
+    await expect(page.getByRole('heading', { name: pl.linkProblems['link-invalid'].title })).toBeVisible();
+    await expect(page.locator('form[action="/api/auth/reset-password"]')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: pl.resetPage.spent.link })).toHaveAttribute(
+      'href',
+      '/login/forgot?lang=pl',
+    );
+    await expect(page.getByText(pl.resetPage.noLink.before)).toHaveCount(0);
+
+    // And neither password the spent link was refused for is the account's. The sign-in page
+    // is in the remembered edition now, and so is where it sends the reader.
     await page.goto('/login');
-    await signIn(page, { email, password: NEW_PASSWORD }, /\/\?lang=en$/);
+    await signIn(page, { email, password: NEW_PASSWORD }, /\/\?lang=pl$/);
   });
 
   test('in Polish, from the Polish sign-in page, to what happens next @identity', async ({ page, request }) => {

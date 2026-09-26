@@ -11,6 +11,7 @@ import { test } from 'node:test';
 import {
   SIGN_IN_NOTICES,
   SIGN_IN_PROBLEMS,
+  offersResendLink,
   signInNotice,
   signInProblem,
   type SignInProblem,
@@ -108,6 +109,25 @@ test('the confirmation link is offered under the two problems an unconfirmed add
   );
   assert.deepEqual(offering.sort(), ['rejected', 'unverified']);
   assert.equal(signInProblem('rejected')?.offersResend, true);
+});
+
+/*
+ * …AND ONLY WHERE AN EMAIL CAN COME. authservice with no mail provider asks no address to be
+ * confirmed (the probe, §4), so under a refused password the line would describe an account that
+ * cannot exist. No acceptance deployment has an identity service that sends nothing, which is why
+ * this is held here rather than in a browser — `offersLinkRequestForm`'s reason.
+ */
+test('the confirmation link is offered only where an email can come, and only with accounts', () => {
+  const ready = { identityConfigured: true, sendsEmail: true, problem: signInProblem('rejected') } as const;
+  assert.equal(offersResendLink(ready), true);
+  assert.equal(offersResendLink({ ...ready, problem: signInProblem('unverified') }), true);
+
+  assert.equal(offersResendLink({ ...ready, sendsEmail: false }), false);
+  assert.equal(offersResendLink({ ...ready, identityConfigured: false }), false);
+  // Under a problem asking for an email does not fix, and with no problem at all.
+  assert.equal(offersResendLink({ ...ready, problem: signInProblem('locked') }), false);
+  assert.equal(offersResendLink({ ...ready, problem: signInProblem('unavailable') }), false);
+  assert.equal(offersResendLink({ ...ready, problem: null }), false);
 });
 
 /** Where a way back into an account ends: `?notice=` is on a URL too, and as closed as `?error=`. */

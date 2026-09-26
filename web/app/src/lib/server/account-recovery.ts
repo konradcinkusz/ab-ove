@@ -248,7 +248,9 @@ export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
  * second email, or spend a link twice. A rung that times out after acting is the one case this
  * cannot make clean, and each fails toward the truth or near it: a second email; a second
  * confirmation, answered "already verified"; and a reset whose second attempt is told the link
- * is spent — the one untrue sentence, and only about the link, since the password WAS changed.
+ * is spent and nothing was changed — the one untrue sentence, since the password WAS changed. A
+ * reset form sent twice before the first answer arrives — a double press, on a form with no
+ * script — meets the same sentence the same way (ADR-0018's amendment for issue #170).
  */
 async function postToIdentity<Outcome extends { readonly kind: string }>(
   path: string,

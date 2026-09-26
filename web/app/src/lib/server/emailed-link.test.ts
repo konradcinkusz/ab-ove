@@ -41,8 +41,30 @@ test('a value no link of the service’s would carry is refused', () => {
   assert.equal(emailedLinkFrom(arriving('reader@example.test', 'abc\ndef')), null);
   // Longer than any account's address can be.
   assert.equal(emailedLinkFrom(arriving(`${'a'.repeat(250)}@example.test`, TOKEN)), null);
-  // A token long enough that the cookie holding it would be refused by the browser.
+  // Longer than any token the service issues, by a wide margin.
   assert.equal(emailedLinkFrom(arriving('reader@example.test', 'A'.repeat(2049))), null);
+});
+
+/**
+ * THE COOKIE A LINK BECOMES IS ONE A BROWSER KEEPS. RFC 6265 §6.1 promises 4096 bytes, name and
+ * attributes included, and the value is bounded as it will be sent: the longest address and the
+ * longest token still fit, and a token of characters JSON escapes, or UTF-8 spells in several
+ * bytes, is refused rather than set as a cookie the browser drops.
+ */
+test('a link is kept only as a cookie a browser keeps, however it got long', () => {
+  const longestAddress = `${'a'.repeat(243)}@example.test`;
+  assert.equal(longestAddress.length, 256);
+  const longest = emailedLinkFrom(arriving(longestAddress, 'A'.repeat(2048)));
+  assert.ok(longest, 'the longest plain pair is refused');
+  const name = 'ab_ovo_reset';
+  assert.ok(name.length + 1 + encodeEmailedLink(longest).length <= 4096 - 200, 'no room left for attributes');
+
+  // Within the token's own bound, and past the cookie's once written down.
+  assert.equal(emailedLinkFrom(arriving('reader@example.test', '"'.repeat(2048))), null);
+  assert.equal(emailedLinkFrom(arriving('reader@example.test', '\\'.repeat(2048))), null);
+  assert.equal(emailedLinkFrom(arriving('reader@example.test', 'ż'.repeat(2048))), null);
+  // And a cookie edited to that length is no link either.
+  assert.equal(decodeEmailedLink(encodeEmailedLink({ email: 'reader@example.test', token: '"'.repeat(2048) })), null);
 });
 
 test('the kept value reads back as the same pair, and shows neither half as written', () => {

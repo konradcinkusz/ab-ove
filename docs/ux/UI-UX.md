@@ -484,10 +484,12 @@ than pages: they move both into a short-lived HttpOnly cookie only this origin's
 (`lib/server/emailed-link-cookie.ts`) and redirect to `/login/reset` or `/login/confirm`, so no
 document is ever rendered at an address that holds a token, and no address the app shows from
 there on carries the account — `specs/account-recovery.spec.ts` collects every one and holds it
-to that. The cookie is `SameSite=Lax` where every other cookie the server sets is `Strict`: the
-link is followed from another site, the reader's mail, and a `Strict` cookie set on the way in
-is not sent on the redirect that follows. The spec follows the link from a page on another
-host, and fails with `Strict`. The token is spent only by the form's POST — the new password,
+to that. The cookie is `SameSite=Lax`, lifted from the `Strict` that is the rule for a cookie
+the server sets: the link is followed from another site, the reader's mail, and a `Strict`
+cookie set on the way in is not sent on the redirect that follows. The spec follows the link
+from a page on another host, and fails with `Strict`.
+[ADR-0018's amendment](../adr/0018-password-sign-in-happens-server-side.md) records the
+decision and what it costs. The token is spent only by the form's POST — the new password,
 whose rules are the field's description as on `/register`, or one button to confirm — never by
 the GET a mail program makes when it scans a link. Each way ends back here, with a notice from
 a closed set.

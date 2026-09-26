@@ -202,8 +202,13 @@ test('the way back into an account needs no session, and a link keeps its query 
     assert.equal(isCarveOut(landing), true, landing);
     assert.equal(destinationAt(`${landing}?token=abc&email=reader%40example.test`), 'open', landing);
   }
-  // Opened by name, not as a prefix: a page under `/login/` nobody has written stays closed.
+  // Opened by name, not as a prefix: a page under `/login/` nobody has written stays closed —
+  // and so does anything a prefix match on the two landings would have let through with them.
   assert.equal(closed('/login/anything-else'), true);
+  for (const lookalike of ['/reset-password-x', '/reset-password/', '/verify-email/anything', '/verify-emails']) {
+    assert.equal(isCarveOut(lookalike), false, lookalike);
+    assert.equal(closed(lookalike), true, lookalike);
+  }
 });
 
 test('the address is resolved as the request would have been', () => {

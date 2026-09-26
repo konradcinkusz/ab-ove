@@ -6,7 +6,8 @@
  *
  * Two things read them now. The middleware DECIDES with them, exactly as it did before they
  * moved: PUBLIC_PATHS, PUBLIC_PREFIXES, CARVE_OUT_PREFIXES, `isPublic` and `isCarveOut` are
- * the middleware's own, word for word, and the gate is still private by default
+ * the middleware's own, word for word — and CARVE_OUT_PATHS, written here since, is the
+ * middleware's through `isCarveOut` — and the gate is still private by default
  * (FRONTEND-BFF.md §4). And `/login` EXPLAINS with them (issue #140). A reader bounced off
  * an address no page answers — a typo, an old link — used to be told it was "one of the few
  * pages that needs to know who you are", because the sign-in page could not tell `/nope`
@@ -137,20 +138,22 @@ const PUBLIC_PREFIXES: readonly string[] = [
  *
  * Legal pages are here for a different reason with the same shape: a consent or policy
  * link carries the parameters that say where the reader came from, and they must survive.
- *
+ */
+const CARVE_OUT_PREFIXES: readonly string[] = ['/auth/callback', '/login/2fa', '/legal/'];
+
+/**
  * The addresses the identity service's emails link to are callbacks in all but name (issue
  * #170): `/reset-password` and `/verify-email`, paths authservice fixes, reached as a rule by a
  * reader who is not signed in, carrying in the query the token and the address the route there
  * moves into this origin's server. Bounced to `/login`, the link would arrive with neither, and
  * its query would be written into `?redirect=` besides.
+ *
+ * CARVED OUT BY NAME, NOT AS PREFIXES — PUBLIC_PATHS' reason, and the two index paths' above. A
+ * carve-out opens an address exactly as a public path does, and as prefixes these two would also
+ * open `/reset-password-x` and `/verify-email/anything`: pages nobody has written yet, let
+ * through with no session the day somebody writes one.
  */
-const CARVE_OUT_PREFIXES: readonly string[] = [
-  '/auth/callback',
-  '/login/2fa',
-  '/legal/',
-  '/reset-password',
-  '/verify-email',
-];
+const CARVE_OUT_PATHS = new Set<string>(['/reset-password', '/verify-email']);
 
 export function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.has(pathname)) return true;
@@ -158,6 +161,7 @@ export function isPublic(pathname: string): boolean {
 }
 
 export function isCarveOut(pathname: string): boolean {
+  if (CARVE_OUT_PATHS.has(pathname)) return true;
   return CARVE_OUT_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
