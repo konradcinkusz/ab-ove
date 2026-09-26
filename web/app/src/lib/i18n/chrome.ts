@@ -246,7 +246,15 @@ interface Strings {
   readonly account: string;
   readonly deleteAccount: DeleteAccountStrings;
   readonly consent: ConsentStrings;
-  /** The conflict rule, said where the conflict happened. See `raised-notice.tsx`. */
+  /**
+   * The conflict rule, said where the conflict happened — `components/sync/progress-sync.tsx`.
+   * A FACT about the reader, worded as one (issue #157): it used to say the program "moved to
+   * frame N, read on another device", and it said so to a reader who had gone back one frame
+   * on this one. It is shown only for a raise this browser did not cause, so "elsewhere" is
+   * true — but for the reveals of this browser's own that nothing in a pull tells apart, which
+   * `tell` in `lib/progress/sync.ts` names — and it is followed by `goToFrameNumber` as a link
+   * to the frame it names.
+   */
   readonly raised: (unit: string, step: number) => string;
   readonly dismiss: string;
   readonly cue: string;
@@ -494,11 +502,12 @@ interface Strings {
   /** The answer box's label: the answer it holds is to the PREVIOUS frame's question. */
   readonly answerTo: (n: number) => string;
   /**
-   * A way to a frame named by its number: the "Not there yet" screen's way on, and the
-   * program map's answer to a number typed past the reader's furthest frame. Deliberately
-   * not `continueAtFrame`, which on the contents page means the frame this BROWSER last
-   * opened — the gate's furthest frame is a different fact, and one phrase for both would
-   * make a reader wonder which one they are looking at.
+   * A way to a frame named by its number: the "Not there yet" screen's way on, the program
+   * map's answer to a number typed past the reader's furthest frame, and the sync notice's
+   * link to the frame it names (issue #157). Deliberately not `continueAtFrame`, which means
+   * the furthest frame THIS BROWSER's record holds — the gate's furthest frame is a different
+   * fact (a signed-out reader's record can be past it), and one phrase for both would make a
+   * reader wonder which one they are looking at.
    */
   readonly goToFrameNumber: (n: number) => string;
   /**
@@ -598,6 +607,15 @@ interface Strings {
    */
   readonly renderError: RenderErrorStrings;
   /**
+   * What the frame-level refusal below adds for a SIGNED-OUT reader whose own record has been
+   * this far (issue #157): the frame was read on the account, and without it the API gates on
+   * the anonymous cursor (ADR-0061), which has not. `components/read/signed-out-hint.tsx`
+   * shows it, with `signInToContinue` as the link that returns the reader to this frame
+   * signed in.
+   */
+  readonly readWhileSignedIn: string;
+  readonly signInToContinue: string;
+  /**
    * ADR-0060 — the FRAME-level refusal, answered by the same live call that serves the
    * frame rather than by a client-side redirect. `shutNotice` above is the PROGRAM-level
    * gate's sentence and a different mechanism (`ProgramGate`, localStorage, a client
@@ -684,7 +702,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         'This deployment has no identity service, so there is no account to delete.',
     },
     raised: (unit, step) =>
-      `${unit} moved to frame ${step}, read on another device. The furthest frame wins.`,
+      `You had read ${unit} to frame ${step} elsewhere. The furthest frame wins.`,
     dismiss: 'Got it',
     cue: 'The next frame answers this.',
     next: 'Next',
@@ -796,6 +814,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     notReachedHeading: 'Not there yet',
     notReachedBody: (furthest) =>
       `This frame has not been reached yet. The furthest read frame in this program is ${furthest}.`,
+    readWhileSignedIn: 'You read this while signed in.',
+    signInToContinue: 'Sign in to continue',
     backToLastFrame: 'Back to the frame',
     labOptional: 'This program also has computer exercises in Python, optional',
   },
@@ -860,8 +880,11 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       problemUnconfigured:
         'To wdro\u017cenie nie ma serwisu to\u017csamo\u015bci, wi\u0119c nie ma konta do usuni\u0119cia.',
     },
+    // Impersonal, `przeczytano`, and so is `readWhileSignedIn`: the second person past tense
+    // is gendered in Polish (`przeczytałeś`, `przeczytałaś`), and the book does not know who
+    // is reading.
     raised: (unit, step) =>
-      `${unit} przesunięto do ramki ${step}, czytanej na innym urządzeniu. Wygrywa najdalsza ramka.`,
+      `Gdzie indziej przeczytano już ${unit} do ramki ${step}. Wygrywa najdalsza ramka.`,
     dismiss: 'Rozumiem',
     cue: 'Odpowiedź znajdziesz w kolejnej ramce.',
     // `Dalej` / `Wstecz` — the pair a Polish reader already knows from every wizard and form
@@ -1019,6 +1042,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     notReachedHeading: 'Jeszcze nie tutaj',
     notReachedBody: (furthest) =>
       `Ta ramka nie jest jeszcze dostępna. Najdalsza przeczytana ramka w tym programie: ${furthest}.`,
+    readWhileSignedIn: 'Tę ramkę przeczytano po zalogowaniu.',
+    signInToContinue: 'Zaloguj się, aby czytać dalej',
     backToLastFrame: 'Wróć do ramki',
     labOptional: 'Ten program ma też ćwiczenia komputerowe w Pythonie, opcjonalne',
   },
@@ -1189,6 +1214,8 @@ export interface Chrome {
   readonly shutNotice: (unit: string, previous: string) => string;
   readonly shutNextProgram: (unit: string) => string;
   readonly renderError: RenderErrorStrings;
+  readonly readWhileSignedIn: string;
+  readonly signInToContinue: string;
   readonly notReachedHeading: string;
   readonly notReachedBody: (furthest: number) => string;
 }

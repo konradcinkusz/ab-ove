@@ -11,9 +11,10 @@ import { walkTo } from './support/walk.ts';
  * ──────────────────────────────────────────────────────────────────────────────────────
  * WHAT THIS SUITE CANNOT SAY, STATED BEFORE WHAT IT CAN.
  *
- * CI runs no identity service and no API, so nothing here signs anybody in and nothing
- * here reaches `AbOvo.Api`. The two halves of #11 are therefore asserted in two places,
- * and neither place claims the other's ground:
+ * These tests run against the deployment with no identity service (`:3000`,
+ * `playwright.config.ts`), so nothing here signs anybody in: where a test needs an account,
+ * the account is a stub. The two halves of #11 are therefore asserted in two places, and
+ * neither place claims the other's ground:
  *
  *   - **the service's half** — furthest-frame-wins, order independence, one reader never
  *     seeing another's place, and a forget that forgets — is asserted against the real
@@ -24,19 +25,12 @@ import { walkTo } from './support/walk.ts';
  *     way those tests prove the real service answers.
  *
  * What neither covers is the hop between them: this app's BFF proxy carrying a real bearer
- * to a real service. **It is not covered here and is not implied to be** — and the reason
- * has CHANGED, which is worth writing down rather than leaving a pointer that now names a
- * closed issue.
- *
- * It used to be that there was no token, because there was no issuer. Issue #29's fixture
- * supplies one: `sign-in-identity.spec.ts` signs in and the cookie it gets back holds a
- * token this app verifies against a published JWKS. What is missing now is the OTHER end —
- * the acceptance job runs no `AbOvo.Api` and no database, so the proxy has nothing to carry
- * the bearer to. Closing it means a Postgres service container and a running API, which is
- * a larger change than the identity fixture was and is not what #29 asked for — so it is
- * **issue #43**, which also names what that hop would catch that nothing else can: the
- * issuer and audience agreeing across three fly configs, whose failure is every token
- * rejected after a working deploy.
+ * to a real service. **It is not covered here and is not implied to be.** This header used
+ * to say why nothing covered it — no issuer at first, then no `AbOvo.Api` and no database in
+ * the acceptance job — and both are gone: the job has run a Postgres and an API since #98,
+ * and the hop is `bearer-hop.spec.ts`'s (#102). The sentence on the screen, raised by the
+ * real API after reading on a second browser rather than by a stub, is
+ * `furthest-frame.spec.ts`'s (issue #157).
  *
  * E2E-ACCEPTANCE-TESTING.md §2 — nothing below is skipped and nothing is conditional.
  * Every test runs on every push, in every environment, and asserts against real
@@ -236,9 +230,15 @@ const storedStep = (page: Page, unit = UNIT) =>
     [KEY, `${TRACK}/${unit}`] as const,
   );
 
-/** The resume control: the only link on the index back into a frame. */
+/**
+ * The resume control: the index's one link back into a frame of its own — found by its words
+ * as well as its address, because while the sync notice is up its `Go to frame N` goes to the
+ * same frame (issue #157), and that is the notice's link, not a second resume control.
+ */
 const resumeTo = (page: Page, language: string, step: number) =>
-  page.locator(`a[href="/read/${TRACK}/${UNIT}/${language}/${step}"]`);
+  page
+    .locator(`a[href="/read/${TRACK}/${UNIT}/${language}/${step}"]`)
+    .filter({ hasText: 'Continue at frame' });
 
 test.describe('progress follows the reader between machines', () => {
   test('the machine that is behind is brought forward, and told why @smoke', async ({ page }) => {
@@ -264,6 +264,9 @@ test.describe('progress follows the reader between machines', () => {
     await expect(notice, 'the notice reports an event and states no rule').toContainText(
       'The furthest frame wins.',
     );
+    // Issue #157 — and a way to the frame it names, in the edition it was read in.
+    const go = notice.getByRole('link', { name: `Go to frame ${AHEAD}`, exact: true });
+    await expect(go).toHaveAttribute('href', `/read/${TRACK}/${UNIT}/en/${AHEAD}`);
 
     // And it was the record that moved, not the link: a reload is what tells them apart.
     expect(await storedStep(page)).toBe(AHEAD);
@@ -440,13 +443,67 @@ test.describe('the account is a copy, and the reader owns both', () => {
     ).toHaveCount(0);
     expect(await storedStep(page)).toBeNull();
   });
+
+  test('a forget pressed while the sync is pulling is not undone by what the pull brings back @core', async ({
+    page,
+  }) => {
+    // The pull left before Forget was pressed, so it answers with the account's copy from
+    // before the DELETE — the rows the forget removes. Written back, they put the place on the
+    // screen again, told as read elsewhere; a full run of the core layer caught the test above
+    // doing that while its arrival pull was still on the way. Here the pull is HELD until
+    // Forget has been pressed, so every run takes that order — and the DELETE lands, which is
+    // the case the marker alone cannot cover: a DELETE that has landed leaves no marker.
+    const remote = account(page, [row(AHEAD, 'en')]);
+    await remote.install();
+    await withLocal(page, AHEAD);
+
+    // The account's copy as each pull finds it when it ARRIVES, as a real one would answer.
+    let rows = [row(AHEAD, 'en')];
+    let pulls = 0;
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route(PROGRESS, async (route: Route) => {
+      if (route.request().method() === 'DELETE') {
+        rows = [];
+        return route.fulfill({ status: 204 });
+      }
+      pulls += 1;
+      const found = rows;
+      await released;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ records: found }),
+      });
+    });
+
+    await page.goto('/read');
+    await expect.poll(() => pulls, { message: 'the arrival sync never pulled' }).toBe(1);
+    await expect(resumeTo(page, 'en', AHEAD)).toHaveCount(1);
+
+    await forgetWhereIAm(page);
+    release();
+
+    // Cycles never overlap (`sync()` in `sync.ts`), so the next pull — the one the forget's
+    // own change schedules — is the event that says the held one has been dealt with.
+    await expect.poll(() => pulls, { message: 'no sync ran after the forget' }).toBeGreaterThan(1);
+    expect(await storedStep(page), 'the pull from before the forget put the place back').toBeNull();
+    await expect(resumeTo(page, 'en', AHEAD)).toHaveCount(0);
+    await expect(
+      page.getByRole('status').filter({ hasText: 'The furthest frame wins.' }),
+      'the forgotten place was announced as read elsewhere',
+    ).toHaveCount(0);
+    expect(rows, 'the forget never reached the account').toEqual([]);
+  });
 });
 
 /**
- * The one claim below runs against the REAL stack — this app's own proxy, and whatever is
- * behind it — with nothing intercepted. It is written as an invariant over both
- * environments, the way `sign-in.spec.ts` handles the same asymmetry: CI has no API and
- * answers 503, a configured deployment has one and answers 401, and the thing worth
+ * The first claim below runs against the REAL stack — this app's own proxy, and whatever is
+ * behind it — with nothing intercepted. It is written as an invariant over every
+ * environment, the way `sign-in.spec.ts` handles the same asymmetry: a deployment with no API
+ * in reach answers 503, one with an API — CI's, since #98 — answers 401, and the thing worth
  * asserting is true of both.
  */
 test.describe('a reader without an account is not synchronised', () => {

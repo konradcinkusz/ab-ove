@@ -208,6 +208,8 @@ for (const [screen, viewport] of SCREENS) {
     const notice = page.getByRole('status');
     await expect(notice, 'the account never told this browser it was behind').toContainText(UNIT);
     await isAFingersTarget(notice.getByRole('button'), where);
+    // Its `Go to frame N` too (issue #157), in a column of its own so neither covers the other.
+    await isAFingersTarget(notice.getByRole('link'), where);
   });
 
   test(`on ${screen}, the consent line's toggle is a finger's target @core`, async ({ page }) => {

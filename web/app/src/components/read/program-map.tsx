@@ -50,8 +50,10 @@ export interface ProgramMapProps {
  * to the gate's "Not there yet" — a control that is reliably refused, which this project
  * removes wherever it finds one (`when-open.tsx`, ADR-0056). The furthest frame is the
  * content API's own cursor, sent with the frame (`StepResponse.furthest`); the browser's
- * record could not stand in for it, because it holds the frame last viewed rather than the
- * furthest reached. A locked row still names the section and says why it cannot be opened.
+ * record could not stand in for it. It held the frame last viewed when this was written, and
+ * since #157 it holds a furthest frame too — but its own, and the account's: a signed-out
+ * reader's record can be past the anonymous cursor the gate is actually asking. A locked row
+ * still names the section and says why it cannot be opened.
  * It is the reading ORDER speaking, like a shut program's `opens after`, never a count of
  * what is left (ADR-0041).
  *

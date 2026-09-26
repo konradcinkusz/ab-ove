@@ -80,6 +80,10 @@ reader can see which of forty-seven programs they were in. It is the same test a
 tick on a finished program would be how they are doing. It is text rather than a link, so
 the index still has exactly one way back into the stored frame, and `progress.spec.ts`
 asserts both halves — the marker is there, and nothing on the page says a percentage.
+Since #157 the frame on the tile, like the one *Continue* offers, is the furthest frame
+reached in that program rather than the last one looked at, so re-reading does not move
+either; both are positions, and the test above is unchanged
+([ADR-0019](0019-furthest-frame-wins.md), *Amendment 2026-09-25*).
 
 **The section became a disclosure, and the id a link.** The decision above made the section
 a link to its anchor on the contents page, which put a heading two hops from a frame and

@@ -10,6 +10,7 @@ import { ReadingFoot } from './reading-foot.tsx';
 import { ReadingScreen } from './reading-screen.tsx';
 import { ReadingSettings } from './reading-settings.tsx';
 import { ReadingTop } from './reading-top.tsx';
+import { SignedOutHint } from './signed-out-hint.tsx';
 
 export interface NotReachedProps {
   readonly chrome: Chrome;
@@ -23,6 +24,12 @@ export interface NotReachedProps {
   readonly furthest: number;
   readonly contentsHref: string;
   readonly furthestHref: string;
+  /**
+   * `/login`, returning to this frame — present only for a reader with no session on a
+   * deployment that can sign one in. It is what lets the screen say why a frame this browser
+   * says it reached is refused (`signed-out-hint.tsx`, issue #157).
+   */
+  readonly signInHref?: string | undefined;
 }
 
 /**
@@ -34,8 +41,13 @@ export interface NotReachedProps {
  * stale tab, or a reader whose record was forgotten on another device. So it is the same
  * screen as a frame — the bar above, the pager below — with the one move that helps as the
  * pager's filled button: `Go to frame N`, the furthest frame the gate will serve. Not
- * `Continue at frame N`: on the contents page that phrase means the frame this browser last
- * opened, and the gate's furthest frame is a different fact.
+ * `Continue at frame N`: that phrase means the furthest frame this browser's record holds,
+ * and the gate's furthest frame is a different fact.
+ *
+ * THE TWO FACTS DIFFER MOST AFTER A SIGN-OUT, and that is the case this screen used to leave
+ * unexplained (issue #157): the record still offers the frame read on the account, and the
+ * anonymous cursor refuses it. `SignedOutHint` says so, with a way to sign in, when the page
+ * hands it `signInHref` and the record reaches this frame.
  */
 export function NotReached({
   chrome,
@@ -48,6 +60,7 @@ export function NotReached({
   furthest,
   contentsHref,
   furthestHref,
+  signInHref,
 }: NotReachedProps): React.JSX.Element {
   return (
     <ReadingScreen
@@ -91,6 +104,15 @@ export function NotReached({
       <p className={styles.subtitle} lang={chrome.language}>
         {chrome.notReachedBody(furthest)}
       </p>
+      {signInHref ? (
+        <SignedOutHint
+          language={language}
+          requested={requested}
+          signInHref={signInHref}
+          track={track}
+          unit={unitId}
+        />
+      ) : null}
     </ReadingScreen>
   );
 }

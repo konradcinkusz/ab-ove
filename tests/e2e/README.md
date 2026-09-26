@@ -64,6 +64,7 @@ was first written with.
 | `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload |
 | `focus-ring.spec.ts` | the controls that showed focus by a colour or a brightness wear the shared ring, in light, dark and forced colours |
 | `frame-view.spec.ts` | the answer is absent before the reveal, asserted in both directions and both editions |
+| `furthest-frame.spec.ts` | going back to re-read: *Continue* keeps the furthest frame, the sync tells only reading done elsewhere and offers a way to that frame, and a frame refused after signing out says why — the signed-in half against an account registered for the test and a real `AbOvo.Api` |
 | `gate.spec.ts` | the book is entered at the beginning: a program opens when the one before it has |
 | `hydration.spec.ts` | every page hydrates — the one defect that leaves no trace on screen |
 | `instrument-view.spec.ts` | the author's view, and the promise it must not break |
@@ -697,18 +698,26 @@ Two mechanical traps, both from the audit, both avoided here:
 
 ## Waiting
 
-No fixed sleeps, anywhere. Every wait in this suite is either a web-first auto-retrying
-assertion (`expect(locator).toBeVisible()`, `.toHaveCount()`, `.toContainText()`) or
-`page.waitForRequest`, armed *before* the navigation it observes — arming it after is a race
-the fast case loses, and the fix for that race is never a sleep.
+No fixed sleep stands in for something happening. Every wait for an event in this suite is
+either a web-first auto-retrying assertion (`expect(locator).toBeVisible()`, `.toHaveCount()`,
+`.toContainText()`, `expect.poll`) or a `page.waitForRequest`, `waitForResponse` or
+`waitForURL`, armed *before* the action it observes — arming it after is a race the fast case
+loses, and the fix for that race is never a sleep.
+
+The rule is lifted for one shape: a test that something did NOT happen — a key that must not
+turn the page, a request a signed-out reader must not make, a notice that must not appear, a
+page that must not shift. An absence has no event to wait for, so the test gives it a fixed
+window to go wrong in, sized against what it waits out (a debounce, a hold, a layout settling),
+and then asks. `grep -rn waitForTimeout specs/` is the list; a count here would be a claim
+nobody re-runs.
 
 Timeouts: 30 s per test, 10 s per assertion, and there is no global inflation to cover a slow
-case. Two places ask for more, visibly and at the point they need it — the live-API test allows
-90 s at the assertion, because a Fly machine may be scaled to zero and the proxy's ladder is
-sized to cover a cold start; and `specs/lab-p01.spec.ts` raises its own per-test timeout at the
-top of the file, because Pyodide fetches and instantiates a ~9 MB wasm before anything on that
-page can be driven. Raising the suite's 30 s to cover the second would buy every other spec a
-slower failure.
+case. A spec that needs more asks for it visibly, at the point it needs it — the live-API test
+allows 90 s at the assertion, because a Fly machine may be scaled to zero and the proxy's
+ladder is sized to cover a cold start; and `specs/lab-p01.spec.ts` raises its own per-test
+timeout at the top of the file, because Pyodide fetches and instantiates a ~9 MB wasm before
+anything on that page can be driven. Raising the suite's 30 s to cover the second would buy
+every other spec a slower failure.
 
 **There are no custom assertion or wait wrappers in this suite.** `specs/support/` contains
 route handlers, an error collector and a file-reading fixture, and nothing else — every file
@@ -737,9 +746,12 @@ accumulate in whatever database the suite runs against, which in CI is a Postgre
 thrown away with the job. Against a persistent environment they are orphans, one per context
 per run, and that is the price of reading through the real gate.
 
-**Registration writes too, into the identity fixture's memory** (`specs/registration.spec.ts`):
-each test registers a generated address, the fixture forgets it when its process exits, and
-no account is shared between tests.
+**Registration writes too, into the identity fixture's memory** (`specs/registration.spec.ts`,
+and `specs/furthest-frame.spec.ts`, which needs an account whose furthest frame no other test
+has moved): each test registers a generated address, the fixture forgets it when its process
+exits, and no account is shared between tests. What such an account then reads is written to
+`AbOvo.Api` under its own subject, which nobody else holds either — so, like a reader id's
+rows, it needs no teardown.
 
 **And the API can be taken away from one reader without taking it from the rest.** The first
 deployment reaches `AbOvo.Api` through `fixtures/api-fault.mts`, a pass-through that drops the

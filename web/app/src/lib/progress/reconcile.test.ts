@@ -14,7 +14,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { reconcile, type RemoteRecord } from './reconcile.ts';
+import {
+  couldBeOwnReveal,
+  reconcile,
+  settle,
+  shownHere,
+  stillNews,
+  type Raised,
+  type RemoteRecord,
+} from './reconcile.ts';
 import { EMPTY, type Progress } from './store.ts';
 
 const TRACK = 'math-for-ai-engineers';
@@ -87,6 +95,23 @@ test('a tie on the frame adopts the account edition, and says nothing', () => {
   assert.deepEqual(result.raised, [], 'no frame moved, so the reader has not been moved');
 });
 
+/**
+ * Issue #157, at the layer with the logic. A reader read to frame 3, the account holds 3,
+ * and they went back to frame 2 — on this machine. The furthest is 3 and `last` is 2, so
+ * there is nothing to send and nobody moved them.
+ */
+test('a reader who went back is neither raised nor sent anything', () => {
+  const here: Progress = {
+    last: { track: TRACK, unit: 'P01', language: 'en', step: 2 },
+    positions: { [`${TRACK}/P01`]: { language: 'en', step: 3 } },
+  };
+  const result = reconcile(here, [row('P01', 3, 'en')]);
+
+  assert.deepEqual(result.raised, [], 'going back was announced as reading done elsewhere');
+  assert.deepEqual(result.toPush, [], 'going back was sent to the account');
+  assert.deepEqual(result.merged, here, 'the sync moved where this browser was');
+});
+
 // ── Convergence, as a property rather than an example ───────────────────────────────────
 
 test('two machines converge whatever order they sync in', () => {
@@ -115,10 +140,14 @@ test('merging twice changes nothing the second time', () => {
 
 // ── The pointer ─────────────────────────────────────────────────────────────────────────
 
-test('a raised program drags `last` forward with it', () => {
+test('a raise moves the program, and leaves `last` where this browser was', () => {
+  // `last` is the frame this browser last showed (issue #157); a raise is not a frame it
+  // showed. The index offers the raised frame anyway, because it reads the program's
+  // furthest out of `positions` — which is the half asserted second.
   const result = reconcile(local({ [`${TRACK}/P01`]: { language: 'en', step: 12 } }, 'P01'), [row('P01', 40, 'pl')]);
 
-  assert.deepEqual(result.merged.last, { track: TRACK, unit: 'P01', language: 'pl', step: 40 });
+  assert.deepEqual(result.merged.last, { track: TRACK, unit: 'P01', language: 'en', step: 12 });
+  assert.deepEqual(at(result, 'P01'), { language: 'pl', step: 40 });
 });
 
 test('a machine that knows where it was keeps it, however recently the account moved', () => {
@@ -185,4 +214,113 @@ test('a stored key this module cannot address is kept rather than tidied away', 
 
   assert.deepEqual(result.merged.positions['no-slash'], { language: 'en', step: 3 });
   assert.deepEqual(result.toPush, [], 'and it is never sent anywhere, because it addresses nothing');
+});
+
+// ── A cycle that lands after the reader read on ──────────────────────────────────────────
+
+const raise = (unit: string, to: number, from: number | null = null): Raised => ({
+  program: { track: TRACK, unit },
+  from,
+  to: { language: 'en', step: to },
+});
+
+/**
+ * Issue #157, the race half. A cycle pulled with this browser at frame 5; while it was out
+ * the reader revealed frame 6 — which moved the account too — and landed on it. Writing the
+ * cycle's record back whole put 6 back to 5, and the next cycle announced 6 as read
+ * elsewhere.
+ */
+test('a cycle that lands late keeps what the reader reached while it was out', () => {
+  const merged = local({ [`${TRACK}/P01`]: { language: 'en', step: 5 } }, 'P01');
+  const now = local({ [`${TRACK}/P01`]: { language: 'en', step: 6 } }, 'P01');
+
+  const { record } = settle(now, merged, []);
+
+  assert.deepEqual(record.positions[`${TRACK}/P01`], { language: 'en', step: 6 }, 'the write lowered the furthest');
+  assert.deepEqual(record.last, now.last, '`last` is where this browser is now');
+});
+
+test('a raise this browser reached on its own while the cycle was out is not announced', () => {
+  const merged = local({
+    [`${TRACK}/P01`]: { language: 'en', step: 6 },
+    [`${TRACK}/P04`]: { language: 'en', step: 9 },
+  });
+  const now = local({
+    [`${TRACK}/P01`]: { language: 'en', step: 6 },
+    [`${TRACK}/P04`]: { language: 'en', step: 2 },
+  });
+
+  const { raised } = settle(now, merged, [raise('P01', 6, 5), raise('P04', 9, 2)]);
+
+  assert.deepEqual(raised, [raise('P04', 9, 2)], 'only the raise still ahead of this browser is news');
+});
+
+test('a program first opened while the cycle was out is kept, and one only the cycle knows arrives', () => {
+  const merged = local({ [`${TRACK}/P04`]: { language: 'pl', step: 9 } });
+  const now = local({ [`${TRACK}/P01`]: { language: 'en', step: 1 } }, 'P01');
+
+  const { record } = settle(now, merged, []);
+
+  assert.deepEqual(record.positions, {
+    [`${TRACK}/P01`]: { language: 'en', step: 1 },
+    [`${TRACK}/P04`]: { language: 'pl', step: 9 },
+  });
+});
+
+test('a tie keeps the cycle’s edition, which is the account’s — ADR-0019’s tie rule', () => {
+  const merged = local({ [`${TRACK}/P01`]: { language: 'pl', step: 40 } });
+  const now = local({ [`${TRACK}/P01`]: { language: 'en', step: 40 } });
+
+  assert.deepEqual(settle(now, merged, []).record.positions[`${TRACK}/P01`], { language: 'pl', step: 40 });
+});
+
+test('a browser with no `last` of its own takes the cycle’s', () => {
+  const merged = local({ [`${TRACK}/P04`]: { language: 'en', step: 9 } }, 'P04');
+
+  assert.deepEqual(settle(EMPTY, merged, []).record.last, merged.last);
+});
+
+// ── A raise this browser caused itself ───────────────────────────────────────────────────
+
+/**
+ * The half `settle` cannot reach: a cycle that lands between a signed-in reveal's answer and
+ * the page it leads to finds the account one frame ahead of the frame this browser last
+ * showed — the shape of a raise from elsewhere. `sync.ts` holds a raise of that shape back
+ * and then asks `stillNews`, which a page that has since recorded itself answers no.
+ */
+test('a raise to the frame after the one shown here could be this browser’s own reveal', () => {
+  const onFrame3: Progress = {
+    last: { track: TRACK, unit: 'P01', language: 'en', step: 3 },
+    positions: { [`${TRACK}/P01`]: { language: 'en', step: 3 } },
+  };
+
+  assert.equal(couldBeOwnReveal(raise('P01', 4, 3), onFrame3), true, 'the next frame is a reveal’s shape');
+  assert.equal(couldBeOwnReveal(raise('P01', 5, 3), onFrame3), false, 'a reveal moves the account by one');
+  assert.equal(couldBeOwnReveal(raise('P04', 4), onFrame3), false, 'nobody revealed in another program');
+  assert.equal(couldBeOwnReveal(raise('P01', 4, 3), EMPTY), false, 'a browser that showed nothing');
+});
+
+test('a raise is news until this browser shows that frame, or stops keeping it', () => {
+  // Adopted: the furthest is at the raised frame, and `last` is still where the reader was —
+  // adopting a raise moves the furthest and never `last`, so writing it down withdraws nothing.
+  const adopted: Progress = {
+    last: { track: TRACK, unit: 'P01', language: 'en', step: 3 },
+    positions: {
+      [`${TRACK}/P01`]: { language: 'en', step: 4 },
+      [`${TRACK}/P04`]: { language: 'en', step: 9 },
+    },
+  };
+  assert.equal(stillNews(raise('P01', 4, 3), adopted), true, 'adopting the raise withdrew it');
+
+  const landed: Progress = { ...adopted, last: { track: TRACK, unit: 'P01', language: 'en', step: 4 } };
+  assert.equal(shownHere(raise('P01', 4, 3), landed), true);
+  assert.equal(stillNews(raise('P01', 4, 3), landed), false, 'the page it raced never took it back');
+  assert.equal(stillNews(raise('P04', 9, 2), landed), true, 'another program’s line went with this one');
+
+  const raisedAgain: Progress = {
+    ...adopted,
+    positions: { ...adopted.positions, [`${TRACK}/P01`]: { language: 'en', step: 9 } },
+  };
+  assert.equal(stillNews(raise('P01', 4, 3), raisedAgain), false, 'a later raise has a line of its own');
+  assert.equal(stillNews(raise('P01', 4, 3), EMPTY), false, 'a forgotten program is not news');
 });

@@ -11,6 +11,7 @@ import { NotReached } from '@/components/read/not-reached';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { contentUnavailable } from '@/lib/read/render-failure';
 import { READER_ID_COOKIE } from '@/lib/reader-cookie';
+import { backendConfigured } from '@/lib/server/backends';
 import { fetchStep, fetchTrackContent, fetchUnitSummary } from '@/lib/server/content';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/session-cookies';
 import type { TrackContent, UnitSummary } from '@/lib/content/wire';
@@ -181,6 +182,12 @@ export default async function FramePage({
 
     const chrome = chromeFor(language);
     const reading = `/read/${track}/${unit.id}/${language}`;
+    // Issue #157 — a reader with no session was gated on the anonymous cursor, and may have
+    // read this frame signed in. Offered only where signing in exists (P8), and returning here.
+    const signInHref =
+      identity.bearer === undefined && backendConfigured('authservice')
+        ? `/login?redirect=${encodeURIComponent(`${reading}/${requestedStep}`)}`
+        : undefined;
     return (
       <NotReached
         chrome={chrome}
@@ -188,6 +195,7 @@ export default async function FramePage({
         furthest={refusal.furthest}
         furthestHref={`${reading}/${refusal.furthest}`}
         language={language}
+        signInHref={signInHref}
         trackLanguages={trackContent.languages}
         unitId={unit.id}
         unitTitle={say(unit.titles, language)}
