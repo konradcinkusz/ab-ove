@@ -27,7 +27,22 @@ public sealed record PartSummary(string Id, IReadOnlyDictionary<string, string> 
 /// </summary>
 public sealed record SectionSummary(string Id, IReadOnlyDictionary<string, string> Titles, int FirstStep);
 
-public sealed record ProgramSummary(string Id, IReadOnlyDictionary<string, string> Titles, PartSummary? Part);
+/// <summary>
+/// One program of a track, as the track's own listing names it.
+///
+/// <para>
+/// <see cref="StepCount"/> is how many steps it has — the length a list of programs prints
+/// beside each title, and nothing a step says. It is here because the MCP server's
+/// <c>list_programs</c> names every program with its length and reads them from this one call
+/// (issue #171); a <see cref="UnitSummary"/> per program would have been a request for every
+/// line of the list. Optional with a default for <see cref="StepResponse.Furthest"/>'s reason.
+/// </para>
+/// </summary>
+public sealed record ProgramSummary(
+    string Id,
+    IReadOnlyDictionary<string, string> Titles,
+    PartSummary? Part,
+    int? StepCount = null);
 
 /// <summary>
 /// The track-level facts a reading surface needs before it can address a program: which
@@ -101,10 +116,10 @@ public sealed record ReturnIndex(
 /// GATED AS THE LAST STEP IS (issue #158). A Summary item paraphrases what a run of steps
 /// concluded — the book's own rule is that a label may name the skill and may not carry the
 /// finding — so serving it to a reader three steps into a program printed the program's
-/// conclusions before they were reached. The MCP server shows the same block only after the
-/// last step, by its own copy of the gate (<c>web/mcp</c>'s <c>reveal.ts</c>) until #171 makes
-/// it a client of these endpoints; this is that rule in the API, for every client that asks it
-/// for the index. <see cref="Furthest"/> is the reader's cursor, as on a step.
+/// conclusions before they were reached. The MCP server asks for it here when its reader
+/// finishes a program, as the reading surface does (issue #171); this is the one copy of that
+/// rule, for every client that asks for the index. <see cref="Furthest"/> is the reader's
+/// cursor, as on a step.
 /// </para>
 /// </summary>
 public sealed record ReturnIndexResponse(
@@ -117,6 +132,15 @@ public sealed record ReturnIndexResponse(
 /// One step, already past the gate. <see cref="Answer"/> is the opening of THIS step, which
 /// answers the PREVIOUS one — present here exactly because the gate already approved serving
 /// it, never stripped separately (ADR-0014's "absent rather than hidden").
+///
+/// <para>
+/// <see cref="Check"/> is the lab exercise the step points at, when it points at one —
+/// <c>web-kit</c>'s <c>CheckRef</c>, a reference and never an exercise's body. The reading
+/// surface no longer offers a check on a frame (ADR-0040) and ignores it; the MCP server tells
+/// its reader that the step has one, which it did from its own bundle until it read the steps
+/// from here (issue #171). Optional with a default for <see cref="StepResponse.Furthest"/>'s
+/// reason.
+/// </para>
 /// </summary>
 public sealed record StepContent(
     int N,
@@ -124,11 +148,16 @@ public sealed record StepContent(
     IReadOnlyDictionary<string, string> Body,
     IReadOnlyDictionary<string, string>? Titles,
     IReadOnlyDictionary<string, string>? Answer,
-    bool Cue);
+    bool Cue,
+    StepCheck? Check = null);
+
+/// <summary>A step's pointer into the bundle's labs: which lab, and which exercise in it.</summary>
+public sealed record StepCheck(string Lab, string Exercise);
 
 /// <summary>
 /// The gate refusing, as data — a 200, never an HTTP error. "not-reached" is the product
-/// working, not a fault (reveal.ts's own reasoning, carried into <c>AbOvo.Api.Content.Reveal</c>).
+/// working, not a fault (the reasoning of <c>web/mcp</c>'s gate, carried into
+/// <c>AbOvo.Api.Content.Reveal</c> and asked by every client since, ADR-0066 §1).
 /// </summary>
 public sealed record GateRefusal(string Kind, int Requested, int Furthest, int Steps, string Message);
 
@@ -182,6 +211,25 @@ public sealed record AdvanceRequest
     /// <summary>
     /// A language tag as the content bundle spells it, for the same reason and with the same
     /// shape as <see cref="ProgressUpdate.Language"/>.
+    /// </summary>
+    [Required]
+    [StringLength(16, MinimumLength = 2)]
+    [RegularExpression("^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$")]
+    public string Language { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Opening a program — ADR-0066 §2, issue #171. It carries the edition the reader chose and
+/// nothing else: no step, because the only place an opening records is the program's first
+/// step (<c>Reveal.FirstStep</c>), and a field for one would be a field for a step the gate
+/// never served.
+/// </summary>
+public sealed record OpenRequest
+{
+    /// <summary>
+    /// The edition to open the program in, shaped as <see cref="AdvanceRequest.Language"/> is.
+    /// The endpoint also refuses an edition the track is not published in, because the place
+    /// this creates is read back as the edition to render in.
     /// </summary>
     [Required]
     [StringLength(16, MinimumLength = 2)]

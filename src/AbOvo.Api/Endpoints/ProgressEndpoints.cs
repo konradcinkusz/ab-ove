@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using AbOvo.Api.Content;
 using AbOvo.Api.Extensions;
 using AbOvo.Api.Persistence;
 using AbOvo.Contracts;
@@ -16,7 +17,9 @@ namespace AbOvo.Api.Endpoints;
 /// a lower step does not lower the stored one, so the row is monotone and the order two
 /// clients' writes arrive in stops mattering. The alternative — store whatever arrives and
 /// let clients sort it out — converges only if every client implements the same rule, which
-/// is a rule nobody can enforce and a reader cannot predict.
+/// is a rule nobody can enforce and a reader cannot predict. Since #171 no write here raises
+/// a step either: a step is raised by <c>POST .../content/{track}/{unit}/advance</c> alone,
+/// and the furthest-frame rule is applied where two copies meet, at adoption (ADR-0068).
 /// </para>
 /// <para>
 /// Every write therefore answers with the row AS IT NOW STANDS rather than with a status.
@@ -26,8 +29,8 @@ namespace AbOvo.Api.Endpoints;
 /// <para>
 /// <see cref="MapProgressEndpoints"/> maps onto <c>authApi</c> — authenticated and
 /// rate-limited — and every row is named by the caller's own subject, read through the kernel's
-/// shared resolver. <see cref="MapAnonymousProgressEndpoints"/> maps the one anonymous forget
-/// onto <c>openWriteApi</c>, for the reason given on it. There is no route
+/// shared resolver. <see cref="MapAnonymousProgressEndpoints"/> maps the anonymous read and the
+/// anonymous forget onto <c>openWriteApi</c>, for the reasons given on each. There is no route
 /// here that takes a subject: an endpoint that let a caller name whose progress they wanted
 /// is an endpoint whose authorization is a parameter.
 /// </para>
@@ -82,15 +85,21 @@ public static class ProgressEndpoints
             .Produces<ProgressResponse>();
 
         /*
-         * KNOWN, TRACKED GAP SINCE ADR-0060: this write still trusts the caller's `Step`
-         * (subject only to "does not lower it"), which is exactly what a caller could use to
-         * skip the reveal gate `GET/POST .../content/**` now enforces — see the 2026-09-21
-         * deviation register row in docs/architecture/00-ARCHITECTURE.md for why this is not
-         * closed here (it would break web/mcp, which still raises Step through it until #171
-         * moves it to `POST .../advance`) and what retires it. web/app's
-         * sync no longer calls it at all: a place read without an account reaches the account
-         * through adoption at sign-in, below, and nothing else the browser holds does
-         * (ADR-0068).
+         * A PLACE AT THE FIRST STEP, OR THE PLACE AS IT STANDS — AND NEVER A RAISE (#171).
+         *
+         * This write used to raise `Step` to whatever a caller named, subject only to "does not
+         * lower it", and the reveal gate `GET/POST .../content/**` enforces then served whatever
+         * it said: a caller could name step 48 and read it having answered nothing. That was the
+         * 2026-09-21 row of the deviation register in docs/architecture/00-ARCHITECTURE.md,
+         * discharged on 2026-09-26. Its two callers are gone: web/app's sync sends the account no
+         * place (ADR-0068), and web/mcp opens a program through `POST .../open` and moves
+         * through `POST .../advance` (ADR-0066). So a step past the furthest this reader has
+         * reached is REFUSED, a 409 with nothing written, and only `advance` raises one.
+         *
+         * What it still does, for an account: it records a place at a program's first step when
+         * the account has none there, a step the gate serves to any reader (Reveal.FirstStep);
+         * and it answers a step at or below the stored one with the row as it stands, ADR-0019's
+         * "a phone that was behind is told the truth". A tie keeps the stored edition, as it did.
          */
         authApi.MapPut("/progress/{track}/{unit}", async (
                 string track,
@@ -117,6 +126,11 @@ public static class ProgressEndpoints
                         p => p.Subject == subject && p.Track == track && p.Unit == unit,
                         cancellationToken);
 
+                // The furthest the gate has served this reader here: the stored step, or the
+                // first step, which it serves to anybody. Nothing past it is this write's to name.
+                var reached = existing?.Step ?? Reveal.FirstStep;
+                if (update.Step > reached) return StepNotEarned(track, unit, update.Step, reached);
+
                 if (existing is null)
                 {
                     existing = new ReaderProgress
@@ -124,33 +138,24 @@ public static class ProgressEndpoints
                         Subject = subject,
                         Track = track,
                         Unit = unit,
-                        Step = update.Step,
+                        Step = Reveal.FirstStep,
                         Language = update.Language,
                         UpdatedAt = clock.GetUtcNow(),
                     };
                     db.ReaderProgress.Add(existing);
-                }
-                else if (update.Step > existing.Step)
-                {
-                    // The rule, and the whole of it. The language travels with the step it
-                    // belongs to: a record that loses the merge loses its language too,
-                    // because "frame 40, in Polish" is one fact and not two.
-                    existing.Step = update.Step;
-                    existing.Language = update.Language;
-                    existing.UpdatedAt = clock.GetUtcNow();
+                    await db.SaveChangesAsync(cancellationToken);
                 }
 
-                // A write that changed nothing is not an error and does not touch UpdatedAt.
-                // It is the ordinary case: a phone that was behind, saying so.
-                await db.SaveChangesAsync(cancellationToken);
-
+                // Otherwise nothing changes and nothing is saved: a step at or below the stored
+                // one is a phone that was behind, and UpdatedAt stays where it was (ADR-0009).
                 return Results.Ok(new ProgressRecord(
                     existing.Track, existing.Unit, existing.Step, existing.Language, existing.UpdatedAt));
             })
             .WithValidation<ProgressUpdate>()
             .WithName(EndpointNames.PutProgress)
-            .WithSummary("Report a frame reached. The stored record keeps whichever is further.")
-            .Produces<ProgressRecord>();
+            .WithSummary("Record a place at a program's first step, or be told the place as it stands. Never raises a step: a step past the furthest reached is refused, and only POST .../advance raises one.")
+            .Produces<ProgressRecord>()
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         authApi.MapDelete("/progress", async (
                 HttpContext http,
@@ -228,8 +233,8 @@ public static class ProgressEndpoints
          * web/app's sync stop raising a step through the `PUT` above.
          *
          * Per program the furthest frame wins and its edition travels with it, and a tie keeps
-         * the account's copy whole: ADR-0019, exactly as the `PUT` above and the browser's
-         * `reconcile.ts` apply it. The anonymous rows are LEFT AS THEY WERE. Signing in has no
+         * the account's copy whole: ADR-0019, exactly as the browser's `reconcile.ts` applies
+         * it. The anonymous rows are LEFT AS THEY WERE. Signing in has no
          * more claim over the cookie's place than signing out does (ADR-0061), so a reader who
          * signs out again still reads what they read without an account, a second adoption
          * changes nothing, and a sign-in whose adoption failed is repaired by the next one.
@@ -324,12 +329,13 @@ public static class ProgressEndpoints
     }
 
     /// <summary>
-    /// The forget of a reader with NO account — ADR-0068 §5, issue #176. Mapped on the
-    /// anonymous, rate-limited group (<c>openWriteApi</c> in <c>Program.cs</c>), because the
-    /// reader it is for has no bearer to put in front of <c>authApi</c>, whose
-    /// <c>DELETE /progress</c> answers them 401.
+    /// The read and the forget of a reader with NO account — issue #171 (ADR-0066 §2) and
+    /// ADR-0068 §5 (issue #176). Mapped on the anonymous, rate-limited group
+    /// (<c>openWriteApi</c> in <c>Program.cs</c>), because the reader they are for has no bearer
+    /// to put in front of <c>authApi</c>, whose <c>GET</c> and <c>DELETE /progress</c> answer
+    /// them 401. The forget's reasons follow; the read's are on it.
     /// <para>
-    /// It removes the rows of the anonymous cursor the header names and nothing else: no
+    /// The forget removes the rows of the anonymous cursor the header names and nothing else: no
     /// route or body names a reader, and an account's rows are <c>authApi</c>'s to remove
     /// even when the request carries a bearer. Holding the id is the whole of the cursor's
     /// credential (ADR-0061), so its holder may forget it as they may advance it.
@@ -341,6 +347,41 @@ public static class ProgressEndpoints
     /// </summary>
     public static RouteGroupBuilder MapAnonymousProgressEndpoints(this RouteGroupBuilder openWriteApi)
     {
+        /*
+         * EVERY PLACE OF THE ANONYMOUS READER THE REQUEST CARRIES — ADR-0066 §2, issue #171.
+         *
+         * `GET /progress` answers a bearer only, and an MCP reader with no account needs the
+         * same list in one call: the programs it has a place in are what `list_programs` names
+         * and what the program gate asks (ADR-0056), and the edition of its most recent place
+         * is the one a new program starts in. The reader is the one the header names and
+         * nothing else, even beside a bearer — the forget below's rule, for its reason: an
+         * account's rows are `authApi`'s to answer. Holding the id is the whole of the cursor's
+         * credential (ADR-0061), so its holder may read it as they may advance it.
+         *
+         * One Subject, by an equality (`ReaderScopedQueries`, ADR-0020), and ordered as
+         * `GET /progress` is, so the two answers read alike.
+         */
+        openWriteApi.MapGet("/progress/anonymous", async (
+                HttpContext http,
+                [FromServices] AbOvoDbContext db,
+                CancellationToken cancellationToken) =>
+            {
+                var anonymous = ReaderIdentity.Anonymous(http);
+                if (anonymous is null) return NoAnonymousReader();
+
+                var records = await db.ReaderProgress
+                    .AsNoTracking()
+                    .Where(p => p.Subject == anonymous)
+                    .OrderBy(p => p.Track).ThenBy(p => p.Unit)
+                    .Select(p => new ProgressRecord(p.Track, p.Unit, p.Step, p.Language, p.UpdatedAt))
+                    .ToListAsync(cancellationToken);
+
+                return Results.Ok(new ProgressResponse(records));
+            })
+            .WithName(EndpointNames.GetAnonymousProgress)
+            .WithSummary("Every place of the anonymous reader the request carries, and the furthest frame reached in each. Needs no account.")
+            .Produces<ProgressResponse>();
+
         openWriteApi.MapDelete("/progress/anonymous", async (
                 HttpContext http,
                 [FromServices] AbOvoDbContext db,
@@ -368,6 +409,20 @@ public static class ProgressEndpoints
     }
 
     /// <summary>
+    /// A <c>PUT</c> naming a step past the furthest this reader has reached — issue #171. A 409
+    /// rather than a 400 or a 403: the request is well formed and the caller may write its own
+    /// place, but not to a step the gate has not served, and the same request against a place
+    /// further on would be answered. It names the endpoint that raises a step, so a client
+    /// written against the old rule is told what replaced it and not only that it was refused.
+    /// </summary>
+    private static IResult StepNotEarned(string track, string unit, int named, int reached) => Results.Problem(
+        title: "A step is raised by an answer, not by this write.",
+        detail: $"This write names step {named}, and the furthest this reader has reached in the program is {reached}. " +
+                $"Only POST /api/v1/content/{track}/{unit}/advance raises a step: it reveals the step the answer opens. " +
+                "Nothing was written.",
+        statusCode: StatusCodes.Status409Conflict);
+
+    /// <summary>
     /// A token that authenticated and carries no subject. Not a 401 — the caller's
     /// credentials were accepted — and not a 500, because nothing failed here: it is a token
     /// this service cannot file anything under, which is a fault in what issued it.
@@ -378,10 +433,11 @@ public static class ProgressEndpoints
         statusCode: StatusCodes.Status403Forbidden);
 
     /// <summary>
-    /// A call about the anonymous cursor — an adoption, or the anonymous forget — that names no
-    /// anonymous reader, or names one in a shape no reader id has. A 400 rather than an empty
-    /// success: the caller asked about a cursor and sent nothing that identifies one, which is
-    /// a fault in the request and not "nothing to adopt" or "nothing to forget".
+    /// A call about the anonymous cursor — an adoption, the anonymous read or the anonymous
+    /// forget — that names no anonymous reader, or names one in a shape no reader id has. A 400
+    /// rather than an empty success: the caller asked about a cursor and sent nothing that
+    /// identifies one, which is a fault in the request and not "no places", "nothing to adopt"
+    /// or "nothing to forget".
     /// </summary>
     private static IResult NoAnonymousReader() => Results.Problem(
         title: "No anonymous reader.",

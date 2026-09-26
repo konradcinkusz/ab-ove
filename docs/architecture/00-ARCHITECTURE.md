@@ -549,6 +549,17 @@ joins every other file in being digest-pinned, and this row is discharged.
 
 ### 2026-09-21 — `PUT /api/v1/progress/{track}/{unit}` can still name a step it did not earn
 
+**Discharged on 2026-09-26** by #171 (order 710), the second of the two changes the Exit below
+names. `web/mcp` is a client of the content API: it records opening a program through
+`POST /api/v1/content/{track}/{unit}/open`, which creates a place at `Reveal.FirstStep` and
+never raises `Step`, it moves only through `POST .../advance`, and it calls `PUT` for nothing.
+`PUT` is narrowed with it. A step past the furthest the caller has reached in the program — the
+stored step, or `Reveal.FirstStep` when there is no row — is refused with a 409 that names the
+advance, and nothing is written. What `PUT` still does is record a place at step 1 for an
+account that has none there, and answer a step at or below the stored one with the row as it
+stands. `ProgressEndpointTests` holds the refusal, and that a step so named is still not
+served. What follows is the record of why the row stood.
+
 **What.** [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
 adds a reveal gate: `GET /api/v1/content/{track}/{unit}/{step}` refuses a step past the
 reader's furthest, and `POST /api/v1/content/{track}/{unit}/advance` is the only endpoint
@@ -592,8 +603,8 @@ own `ReaderProgress` rows are reachable through it.
 
 **Exit.** Two changes, one for each caller, and the row is discharged only after both:
 
-1. #171 (order 710) makes `web/mcp` a client of the content API that calls
-   `POST .../advance` directly, as `web/app`'s reading surface already does
+1. **Done by #171 (order 710), on 2026-09-26.** It makes `web/mcp` a client of the content
+   API that calls `POST .../advance` directly, as `web/app`'s reading surface already does
    (`web/app/src/lib/server/content.ts`). It records opening a program through a new write
    that creates a place at step 1 and never raises `Step`, so `web/mcp` stops calling `PUT`
    at all. It stays in TypeScript: that is
@@ -617,6 +628,7 @@ amended on 2026-09-25 by
 [ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md),
 and again on 2026-09-26 by
 [ADR-0068](../adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md).
+Discharged on 2026-09-26 by #171, whose dated note is in ADR-0066.
 
 ### 2026-09-25 — The index and `/courses` list the programs from the bundle compiled into the app
 
@@ -637,13 +649,14 @@ the rest are why it is not ended now:
   it is, never a step, so the gate ADR-0060 put in the API is not bypassed; what is not live is
   the list of what the book holds, which changes only when a new bundle is pinned.
 - The API does not serve what these pages draw in the shape they draw it. No endpoint lists the
-  courses, and `TrackContent`'s list of a course's programs carries their titles and parts but
-  not how long each one is: the index's tiles print a program's frame and section counts, and
-  `/courses` adds up a course's frames. `UnitSummary` has both counts, but for one program per
-  call, so drawing the index from it would cost a request for every tile. Moving the pages
-  means both of those first — a listing of the courses, and the counts on `TrackContent` or on
-  a listing endpoint of their own — and then `ProgramGrid` and `CourseList` rebuilt on the wire
-  shapes rather than on a `Bundle`.
+  courses, and `TrackContent`'s list of a course's programs carries their titles, their parts
+  and — since #171, for the MCP server's list — how many frames each has, but not how many
+  sections: the index's tiles print a program's frame and section counts, and `/courses` adds
+  up a course's frames. `UnitSummary` has both counts, but for one program per call, so drawing
+  the index from it would cost a request for every tile. Moving the pages means both of those
+  first — a listing of the courses, and the section counts on `TrackContent` or on a listing
+  endpoint of its own — and then `ProgramGrid` and `CourseList` rebuilt on the wire shapes
+  rather than on a `Bundle`.
 - The index is being reworked by other items of the order (630 and 650), and another change to
   it at the same time would be the collision the order's stages exist to avoid.
 

@@ -1,10 +1,10 @@
 import Link from 'next/link';
 
 import { say } from '@ab-ovo/web-kit';
+import type { ReturnIndex, ReturnRoute, TrackContent, UnitSummary } from '@ab-ovo/web-kit/wire';
 
 import { ConsentControl } from '@/components/consent/consent-control';
 import { neighboursOf } from '@/lib/content/neighbours';
-import type { ReturnIndex, ReturnRoute, TrackContent, UnitSummary } from '@/lib/content/wire';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
 import { labFor } from '@/lib/lab/protocol';

@@ -1,9 +1,10 @@
 # The MCP server — a sketch, and what is built so far
 
 **Status: a sketch with a working core.** `web/mcp` builds, typechecks and passes its unit
-tier; it speaks MCP over stdio against a checkout, serving the real forty-seven-program
-bundle compiled at the pinned revision. **Nothing is deployed** (AGENTS.md #2), and there is
-no HTTP transport and no OAuth.
+tier; it speaks MCP over stdio from a checkout, as a client of `AbOvo.Api`, which serves it the
+book and keeps its reader's place (#171,
+[ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
+§1). **Nothing is deployed** (AGENTS.md #2), and there is no HTTP transport and no OAuth.
 
 ---
 
@@ -32,39 +33,49 @@ A server that cannot emit an unreached step is such a medium.
 
 ## 2. The gate, which is the whole design
 
-`web/mcp/src/reveal.ts`, and it is one rule:
+One rule:
 
 > Step `k` of a unit is served if and only if `k <= ` the reader's furthest step, and the
 > only thing that raises the furthest step is submitting an answer.
+
+**It is `AbOvo.Api`'s** (`src/AbOvo.Api/Content/Reveal.cs`), and this server asks it for every
+step: `GET /api/v1/content/{track}/{unit}/{step}` serves the step or refuses it, and
+`POST …/advance` is the one way a place moves. The rule was first written here, as
+`web/mcp/src/reveal.ts`; [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+moved it into the API as the one copy every client asks, and #171 deleted this package's copy
+when it became one of those clients. What is left here is how a refusal is told
+(`src/refusal.ts`): its kinds as data, and its sentences in the reader's edition.
 
 It works because of what `answer` is. `content-schema.v1.json` defines it as *"THE OPENING
 OF THIS STEP, WHICH ANSWERS THE PREVIOUS ONE"* — so the answer to step `k` is not on step
 `k`, it is on step `k+1`, and there is nowhere else it lives. **Refusing to select step
 `k+1` refuses the answer to step `k` as arithmetic, not as filtering.** There is no field to
-strip, because the object carrying it was never chosen.
+strip, because the object carrying it was never chosen — and, since #171, never sent to this
+server at all.
 
-The ceiling is `ReaderProgress.Step`, the row the reading surface already writes. ADR-0019
-makes it monotone — a write carrying a lower step does not lower it — which is what stops a
-stale client rewinding a reader and re-exposing an answer they had already earned past.
-**That dependency is load-bearing:** if furthest-wins ever became last-write-wins, this gate
-silently stops holding. `web/mcp/src/cursor.test.ts` asserts the rule here too, so the
-coupling fails loudly rather than quietly.
+The ceiling is `ReaderProgress.Step`, the row the reading surface also writes.
+[ADR-0019](../adr/0019-furthest-frame-wins.md) makes it monotone — a write carrying a lower
+step does not lower it — which is what stops a stale client rewinding a reader and re-exposing
+an answer they had already earned past. And since #171 nothing but an answer raises it: `PUT`
+refuses a step past the one the reader reached, which discharged the deviation register's row
+that said it could. **Both halves are load-bearing:** were furthest-wins to become
+last-write-wins, or a write to name a step it did not earn, this gate would silently stop
+holding. `ProgressEndpointTests` asserts both, beside the row they guard.
 
 ### Two answer-bearing fields the gate does NOT govern
 
 Schema v2 added `Route.answer` — Appendix A's answer to a quiz question — and
 `Exercise.answer`, required on every Test exercise and Further problem. Neither is a step,
-so `reveal.ts` says nothing about either: they are answers to work the reader has not done,
-and whether they escape is a property of **this tool surface alone**.
+so the gate says nothing about either: they are answers to work the reader has not done.
+The API does not send them — a `ReturnRoute` is a route's labels and span, and a step's
+`check` names its exercise and nothing of its answer — and this surface does not say them.
 
-The surface emits neither, and that is asserted rather than believed. `tools.test.ts`
-collects every answer-bearing text in the bundle — steps, routes and exercises — and checks
-the non-step ones never appear at any cursor position. The unit tier runs against the **v2**
-fixture for exactly this reason: the v1 fixture carries neither field, so a leak test
-written against it would pass by having nothing to leak.
-
-Watched failing: making `render()` emit the unit's exercise answers turns that test red and
-only that test.
+That is asserted rather than believed. `tools.test.ts` collects every answer-bearing text in
+the bundle — steps, routes and exercises — and checks the non-step ones never appear at any
+cursor position. The unit tier runs against a stub of the API (`src/testing/stub-api.ts`)
+that serves the **v2** fixture for exactly this reason: the v1 fixture carries neither field,
+so a leak test written against it would pass by having nothing to leak. The stub serves what
+the API serves and no more, so the walks are walks over what this server can actually be sent.
 
 ### The structured half is a second way out, and the walks read it too
 
@@ -79,8 +90,9 @@ checks that no step shown in the data lies past the furthest. Each walk runs onc
 the fixture's editions, because the server's own sentences differ from one edition to another
 (#167), and each checks that it was framed in the edition it names.
 
-Watched failing: carrying the next step's answer in a step's data turns the leak walks red,
-and the output-schema validation in `server.test.ts` with them. Carrying the next program's
+Watched failing before #171, when the steps were this package's own: carrying the next step's
+answer in a step's data turns the leak walks red, and the output-schema validation in
+`server.test.ts` with them. Carrying the next program's
 answer in a finished program's `finished.next` turns the three-program walk red and leaves
 the single-program walks green, which is why that walk crosses programs at all. A place line
 that ignores the edition turns every Polish walk red and leaves every English one green, which
@@ -92,10 +104,11 @@ English one.
 The acceptance suite asserts the answer is absent **from the DOM**. This transport has no
 DOM, so that assertion would have stayed green while the property did not apply here at all
 — the same shape of failure `docs/ux/UI-UX.md` refuses a service worker for. The replacement
-is `reveal.test.ts` and `tools.test.ts`, and both were **watched failing**: deleting the
-`n > cursor.step` branch turns the gate tests red, including one asserting a specific answer
-string never appears in any tool's output, and the whole-surface property test that walks
-the program and checks every tool at every cursor position.
+is in two places now. The gate's own tests are the API's (`ContentEndpointTests`, against the
+real pipeline). This package's are `tools.test.ts`'s walks, which check every tool at every
+cursor position against the stub API. Before #171 both halves were here, and both were
+**watched failing**: deleting the `n > cursor.step` branch turned the gate tests red, and the
+whole-surface walk with them.
 
 The fixture's own answers are asserted present before their absence is asserted, which is
 `lab/tools/labcheck.py`'s rule in the book one artefact over: *a check that passes on an
@@ -124,8 +137,10 @@ amending [ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-
 which left this server ungated). A program is shut until the reader has a place in the one
 before it — one step of it is enough — and the rule is `isOpenWhere` in
 `@ab-ovo/web-kit`, the same function the reading surface calls, over the same
-`ReaderProgress` row this server's cursor store already is. Before, the two surfaces
-disagreed about one reader's doors and neither could explain the other.
+`ReaderProgress` rows, read from the API. Before, the two surfaces disagreed about one
+reader's doors and neither could explain the other. The API does not hold this order
+(ADR-0065), so `open_program` asks it before it records an opening, as the browser's recorder
+does before it writes.
 [ADR-0065](../adr/0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md)
 keeps the Foundation programs inside that order: a reader who already knows them still opens
 one step of each before P01, here as in the browser.
@@ -134,9 +149,9 @@ one step of each before P01, here as in the browser.
 model does not spend the reader's answer on a question that leads nowhere; `current_step`,
 `submit_answer` and `review_step` say the same thing rather than advising an
 `open_program` that is itself refused; `list_programs` marks a program `open to the
-reader now` or `SHUT, opens after F01` and states the rule once per track. Two cursor
-reads at most, never a scan, because the rule asks about this program and the one before
-it and about nothing else.
+reader now` or `SHUT, opens after F01` and states the rule once per track. The rule asks
+about this program and the one before it, and the call already holds every place the reader
+has, from the one read of them it makes anyway.
 
 **`list_programs` says what is open in a few lines.** For a new reader it used to be about
 7 KB (measured 2026-09-24): every unopened program with its title in both editions, and
@@ -145,7 +160,7 @@ re-checked. It now names every program the reader can act on — the ones with a
 ones open now, and the one that opens next — and folds each run of shut programs behind
 that into one line per group, such as `F03–F13 — 11 programs, shut: each opens after the one
 before it`. The grouping by part or prefix and the rule stated once per track are kept.
-Titles are in one edition: the reader's (`CursorStore.edition()`), or English until they
+Titles are in one edition: the reader's (`AbOvoApi.edition()`), or English until they
 have one, which is the website's default (ADR-0052). `language` gives the other edition, and
 `all: true` names every program. The `read` prompt's completions list every id regardless,
 and a `read` prompt given an edition and no program asks for the list in that edition.
@@ -153,12 +168,12 @@ and a `read` prompt given an edition and no program asks for the list in that ed
 the in-memory note included, and its structured half to 2 KiB: the data names the programs
 the text names and folds what the text folds.
 
-**The refusal is a refusal and not an error** — `refused`, not `problem`, on `reveal.ts`'s
-own reasoning about `not-reached` — and it names the program that opens this one, says one
-step of it is enough, and says plainly that nothing is hidden or paid for. That last
-clause is for the model: a tool description is a request and not a rule, so the sentence,
-`SERVER_INSTRUCTIONS` §8, `open_program`'s description and the `read` prompt all say it,
-and none of them can stop an assistant reporting a reading order as a fault.
+**The refusal is a refusal and not an error** — `refused`, not `problem`, on the gate's own
+reasoning about `not-reached`, which `refusal.ts` keeps — and it names the program that opens
+this one, says one step of it is enough, and says plainly that nothing is hidden or paid for.
+That last clause is for the model: a tool description is a request and not a rule, so the
+sentence, `SERVER_INSTRUCTIONS` §8, `open_program`'s description and the `read` prompt all say
+it, and none of them can stop an assistant reporting a reading order as a fault.
 
 **Every step says where it is.** A rendered step opens with what the reading surface's top
 bar and pager say, in one line, one transport over — `P01 · How a computer stores a number ›
@@ -169,7 +184,7 @@ closing line names no tool; the assistant has the tool's own description for tha
 
 **Fewer arguments, and none whose answer is discarded.** `track` may be left out when the
 server carries one track, which `list_programs` shows; a program id matches in any case and
-is filed under the bundle's own spelling. `language` may be left out to resume; a different
+is filed under the book's own spelling. `language` may be left out to resume; a different
 edition on resume switches, keeps the step (frame-for-frame parity is what makes that safe)
 and says so. The first version required the edition on every call and then discarded it
 whenever a place existed, so the model asked a question whose answer went nowhere.
@@ -180,23 +195,23 @@ needed `language` at the first opening of *every* program, and refused without i
 painted an ordinary step of the conversation red — the mistake ADR-0056 corrected for
 refusals. The website keeps one edition per reader
 ([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md));
-`CursorStore.edition()` reads the same thing. The API store asks
+`AbOvoApi.edition()` reads the same thing. For an account it asks
 `GET /api/v1/preferences/language`, and when the reader never chose there, takes the edition
-of their most recent place by `updatedAt`. The memory store, with no account, has only the
-most recent place. A new program starts in that edition, and the result says so. Only a
-reader with no edition anywhere is asked, as an ordinary result naming each edition by the
-track's own title in it. On a host that supports elicitation, the reader picks from the
+of their most recent place by `updatedAt`. A reader with no account has no preference kept,
+and so only the most recent place. A new program starts in that edition, and the result says
+so. Only a reader with no edition anywhere is asked, as an ordinary result naming each edition
+by the track's own title in it. On a host that supports elicitation, the reader picks from the
 track's editions as an enum, the way `submit_answer` asks for an answer (ADR-0054). Nothing
 here writes the preference: choosing the website's language is the website's control. An
 edition the track does not have is still an error, because it names nothing.
 
-**The service keeps its edition on a tie, so the API store keeps the switch.** A write at
-the same step is answered with the account's edition (`ProgressEndpoints`, and
-`reconcile.ts` in the reading surface says why: *"frame 40, in Polish"* is one fact). The
-surface has no problem with that because the edition it shows is in the URL; here it is in
-the cursor. So `ApiCursorStore` keeps a switch made on the current step in the process, for
-that step only, writes it to the account with the next step, and drops it the moment the
-account's step moves past — another machine reading on, whose edition travels with its step.
+**An opening writes nothing on a place that exists, so the client keeps the switch.** The
+API records an edition with the step it belongs to (`reconcile.ts` in the reading surface says
+why: *"frame 40, in Polish"* is one fact), and a switch on the step the reader is on has no step
+to go with. The surface has no problem with that because the edition it shows is in the URL;
+here it is in the cursor. So `AbOvoApi` keeps a switch made on the current step in the process,
+for that step only, sends it with the next advance, and drops it the moment the API's step
+moves past — another machine reading on, whose edition travels with its step.
 
 **The sentences around a step are in the reader's edition too** (#167). They were English in
 every edition: measured on 2026-09-24 through a real MCP client, a Polish step arrived between
@@ -229,7 +244,8 @@ forty-eight steps was told the server had failed and given nowhere to go. It now
 answer and returns the reading surface's `/summary`, one transport over: the book's own
 Summary and *Can you?* — the routes' **labels only**, never `route.answer`, because a label
 may name the skill and may not carry the finding — and the next program, found by adjacency
-in the manifest, with the `open_program` call that opens it. The cursor does not move.
+in the track's listing, which keeps the manifest's order, with the `open_program` call that
+opens it. The cursor does not move.
 `open_program` on a finished program shows the last step and the same block; `list_programs`
 says *finished*. The leak walk in `tools.test.ts` covers the block at every cursor, and a
 two-program bundle walks the next-program branch with its answers in the off-limits set.
@@ -242,38 +258,40 @@ step with no cue asks nothing, and needs no answer to go on from; the first vers
 one there too, so the assistant invented a word or put a question nobody had asked.
 
 **A refusal by the gate is an ordinary result, not an error.** `reveal.ts` said from the
-start that `not-reached` "is NOT an error — it is the product working", and the first tool
-layer sent it with `isError: true` anyway, along with a finished program; a host paints that
-red and a model apologises for it. Now only an argument that names nothing — a track, a
-program, an edition or a step number the book does not have, an empty answer to a step that
-asked for one — is an error, beside the two failures of the deployment described next: no
-book, and a place out of reach. The gate's sentence and the end of a program travel as
+start that `not-reached` "is NOT an error — it is the product working" (`refusal.ts` says it
+now), and the first tool layer sent it with `isError: true` anyway, along with a finished
+program; a host paints that red and a model apologises for it. Now only an argument that
+names nothing — a track, a program, an edition or a step number the book does not have, an
+empty answer to a step that asked for one — is an error, beside the two failures of the
+deployment described next: no book, and a place out of reach. The gate's sentence and the end of a program travel as
 results.
 
-**A deployment with no book answers with the fix.** The loader's throw for a bundle that was
-never fetched used to reach the host as a JSON-RPC error on the reader's first call, carrying
-a developer's message. `content.ts` wraps it at the one crossing as `ContentUnavailable`, and
-`handle()` answers it with `noContentNote`: the paths it looked at, and the fix for the case
-it is in — never fetched into this checkout (run the fetch script, from the root it names),
-pointed by `AB_OVO_CONTENT_BUNDLE` at a file that is not there (correct the variable), or
-found and refused by the validator (not "missing", and the loader's message follows).
+**A deployment with no book answers with the fix.** The book is the API's, so there are two
+ways to have none, and each has its own fix. `AB_OVO_API_URL` is not set, and the variable is the
+fix; or the API answers 404 for the listing of a track this server carries, which means nothing
+was ingested into it or what answers is not the ab-ovo API. `api.ts` throws `NoBook` for either,
+and `handle()` answers it with `noBookNote`. The server read a compiled bundle from its checkout
+until #171, and the note then named the fetch script, the checkout and the paths looked at
+(#136).
 
-**A place that cannot be reached answers with what fixes it.** With the API store, a
-non-2xx answer used to throw a bare `Error` and a rejected `fetch` passed straight through;
-both reached the host as `MCP error -32603` carrying `progress read failed: 401` or
-`fetch failed`. `ApiCursorStore` now throws `PlaceUnavailable` with a reason —
-`unauthorised`, `unreachable` or `refused` — and `handle()` answers it beside
-`ContentUnavailable`, as a result with `isError`: nothing is lost, a failed write may not
+**An API that cannot be reached answers with what fixes it.** A non-2xx answer used to throw a
+bare `Error` and a rejected `fetch` passed straight through; both reached the host as
+`MCP error -32603` carrying `progress read failed: 401` or `fetch failed`. `api.ts` now throws
+`ApiUnavailable` with a reason — `unauthorised`, `unreachable` or `refused` — and `handle()`
+answers it beside `NoBook`, as a result with `isError`: nothing is lost, a failed write may not
 have been recorded and is safe to repeat either way, and the fix for that reason (a fresh
-token, a moment, or the address). An `AB_OVO_API_URL` that is not an http or https address
-is `refused` before anything is sent, rather than `unreachable` and retried for nothing, and
-a JSON answer that is not an object is `refused` rather than a `TypeError` out of
-`handle()`. The gate's refusals are untouched. Anything else `handle()` cannot name still
-throws, because a sentence would dress a defect in this package up as the deployment's.
+token, a moment, or the address). A 401 names the token only when there is one; a reader with
+no account sends none, so for them it names the address. An `AB_OVO_API_URL` that is not an
+http or https address is `refused` before anything is sent, rather than `unreachable` and
+retried for nothing. So is a redirect, which is not followed (§4), and so is an answer that
+parses and is not the shape the API sends. The gate's refusals are untouched. Anything else
+`handle()` cannot name still throws, because a sentence would dress a defect in this package up
+as the deployment's.
 
 What the note tells the reader follows their edition: the one the call named, if the track is
-published in it, else the one the session last spoke in, else English. The store that says which
-edition a reader reads in is the thing out of reach, so nothing is asked of it. The named
+published in it, else the one the session last spoke in, else English. The API that says which
+editions a track has is the thing out of reach, so nothing is asked of it: the track's editions
+are the ones it last listed. The named
 edition passes `languageIn`, as a named edition does everywhere else in this server, and is
 never used as sent. A host's arguments reach `handle()` unchecked, and the first version
 of this note took `language` raw. `constructor` then found `Object.prototype`'s member in the
@@ -282,11 +300,12 @@ every other call refuses it. `framingFor()` looks up only the table's own entrie
 fixes for whoever runs the server stay English with the variables they name, and so does the
 whole of the note for a deployment with no book, which has no editions to follow.
 
-**A place kept in memory is said in the results, once.** `server.ts` warned on stderr, which
-no reader of a host sees, so the results carry the same sentence, and the reader learns it
-before losing their place rather than by losing it. It used to end every `list_programs`
-and `open_program` result, so a reader heard it at each call and at every re-check of the
-list. It now ends the first result of a session that is not an error — an error's text is a
+**A place held in memory is said in the results, once.** When the anonymous reader's id cannot
+be kept in the state directory (§4), the process holds it in memory, and the place lasts as long
+as the process. `server.ts` says why on stderr, which no reader of a host sees, so the results
+say it too, and the reader learns it before losing their place rather than by losing it. It
+used to end every `list_programs` and `open_program` result, so a reader heard it at each call
+and at every re-check of the list. It now ends the first result of a session that is not an error — an error's text is a
 fix the model acts on, and a note spent there may never be relayed — and every result
 carries `placeIsEphemeral` in its data. It is in the edition of the result it ends. The
 session is the server's, one per connection over stdio.
@@ -358,17 +377,41 @@ a host with no elicitation to fall through to.
 
 ---
 
-## 4. Transport and identity — the part that is NOT built
+## 4. Transport and identity
 
-Today: **stdio**, one process, one reader, token from the environment. That is enough to run
-it against a checkout and to have exercised every tool over the real protocol.
+Today: **stdio**, one process, one reader. That is enough to run it from a checkout and to have
+exercised every tool over the real protocol.
+
+**The reader is a bearer or an opaque id** ([ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
+§2, built by #171):
+
+- `AB_OVO_READER_TOKEN`, when set, is an account's access token, sent as a bearer. It comes
+  first, the order `ReaderIdentity.Resolve` reads in, and it works for as long as the token
+  lives.
+- Otherwise the reader is anonymous, on [ADR-0061](../adr/0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)'s
+  pattern: a GUID from a CSPRNG, sent as `X-Ab-Ovo-Reader-Id`, which the API files as
+  `anon:<id>`. It is kept in `reader-ids` in the user's state directory, readable by that user
+  alone, one line per API origin (`src/identity.ts`), and a process reads it there at its first
+  request; only when the file has no line for the origin is one minted. The file is created by
+  an exclusive create and added to by appending a line; a process reads it again after
+  appending and takes the first line for its origin, so two hosts that start together still
+  end on one id. The id is sent to its own origin and to nothing else — a redirect is not
+  followed — and it is never said in a result or on stderr. An anonymous MCP reader and an
+  anonymous browser are two readers, and an account is the way to one place on both.
+- The API gave that reader what it had only for an account: `GET /api/v1/progress/anonymous`,
+  every place the id's reader has, and `POST /api/v1/content/{track}/{unit}/open`, which records
+  an opening at step 1 for a reader with or without an account and never raises a step. So
+  `open_program` keeps a place without `PUT`, and nothing here calls `PUT`.
 
 The shape a stranger on claude.ai or ChatGPT connects to is **Streamable HTTP with OAuth**,
 and it is deliberately a separate commit:
 
-- the token must arrive **per call**, not from the environment. `ApiCursorStore` already
-  takes a `() => string` rather than holding one, for exactly this reason: a field would be
-  one reader's bearer answering another reader's request;
+- the token must arrive **per call**, not from the environment. `AbOvoApi` is one reader's
+  view of the API — its bearer or its id, and the edition switch it holds — and its bearer is
+  a string fixed when it is made, which suits stdio, where the token is read once. A server
+  that serves many readers makes one per reader and never shares one, since a shared one
+  would be one reader's credential answering another reader's request, and hands it the
+  bearer per call, as `ApiCursorStore`'s `() => string` did before #171;
 - `authservice` is adopted, pinned at a published image (ADR-0004), and the pinned `v0.3.1`
   cannot act as the OAuth authorization server for a third-party MCP host. Later tags can, for
   a host the operator pre-registers with a secret, and none lets a host register itself
@@ -379,13 +422,10 @@ and it is deliberately a separate commit:
 **[ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
 answers the questions this section left open:**
 
-- **The implementation.** This package stays in TypeScript and becomes a client of the
-  content API (#171). No .NET client is planned.
-- **An anonymous reader's identity.** It is an opaque id on ADR-0061's pattern, minted once
-  by the process and kept in a file in the user's state directory, one id per API origin.
-  Pairing it with a browser is out: an account is what joins the two surfaces. #171 gives
-  that reader an anonymous read of every place and a write that records opening a program,
-  so `open_program` keeps a place without `PUT`.
+- **The implementation.** This package stays in TypeScript and is a client of the content API
+  (#171, built). No .NET client is planned.
+- **An anonymous reader's identity.** The opaque id above, one per API origin, kept by the
+  process in the user's state directory. Pairing it with a browser is out.
 - **The order.** A one-command package comes first (#172). This Streamable HTTP shape comes
   after the first deploy, and only once `authservice` can be the authorization server for a
   third-party host (#173). [The probe](AUTHSERVICE-OAUTH-PROBE.md) found that the pinned
@@ -413,7 +453,9 @@ local-first and versioned (ADR-0022) and an MCP host has no `localStorage` to ho
 this server records nothing an instrument could read, and closing that gap is its own
 design problem rather than a line of code.
 
-**No answers persisted, and no verdict.** What the reader wrote is echoed and dropped.
+**No answers persisted, and no verdict.** What the reader wrote is echoed and dropped. It is
+not sent to the API either: the advance names the step it answers and the edition, and nothing
+the reader wrote.
 
 This is narrower than the reading surface, and [ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)
 is the decision to read it against. That ADR splits the answer line into two things: the
@@ -424,9 +466,9 @@ This transport implements the commitment and not the worksheet. The commitment i
 gate is: `submit_answer` is the only thing that advances and it requires the reader's text.
 The worksheet it does not keep, because `ReaderProgress` holds a place and not a history,
 and ADR-0039's store is the reader's own local one — which an MCP host does not have. A
-reader who works some frames here and some in the browser will find their place synchronised
-and their written lines only in the browser. That is a real gap, named rather than papered
-over.
+reader who works some frames here and some in the browser will find their written lines only
+in the browser, and one place on both only when both read as one account (§4). That is a real
+gap, named rather than papered over.
 
 On verdicts, ADR-0039 is a **ceiling and not a floor**: *"The machine may say 'matches the
 book'. It may never say anything else."* This server says nothing at all, which is inside
@@ -451,11 +493,13 @@ record of the extraction itself: what moved (`bundle.ts`, `schema.ts`, `validate
 behaviour changed.
 
 **What is true now, for a reader of this file rather than of the ADR:** this package depends
-on `@ab-ovo/web-kit` as an ordinary workspace package. `content.ts` still exists and still
-does real work — `BundleSource`, `ContentUnavailable`, `fixtureBundles()` — but its
-specifiers at the top now name `@ab-ovo/web-kit` rather than a relative path three
-directories up, and `reveal.ts` / `reveal.test.ts` import their types from the same place.
-Nothing else in this package reaches into `@ab-ovo/app` any more, and nothing needs to.
+on `@ab-ovo/web-kit` as an ordinary workspace package, and since #171 it reads no bundle through
+it. `content.ts`, the crossing the extraction redirected, is gone with the bundle. What it takes
+from the kit is the reading order (`isOpenWhere`), the grouping and adjacency of a track's
+programs (`groupsOf`, `unitBefore`, which read the API's listing as they read a bundle), and the
+content API's wire shapes, which moved there from `web/app/src/lib/content/wire.ts` when this
+package became their second consumer — ADR-0053's rule applied to them. Nothing in this package
+reaches into `@ab-ovo/app`, and nothing needs to.
 
 ---
 
@@ -465,8 +509,13 @@ Nothing else in this package reaches into `@ab-ovo/app` any more, and nothing ne
   echoed would be TESTING-STRATEGY.md §9's defect — green forever, proving nothing. A flat
   ESLint config is a follow-up with its own dependency decision; `eslint-config-next` is
   Next's and not this package's.
-- **Concurrency.** `MemoryCursorStore` has no locking. Over stdio a host waits for each
-  result, so it does not arise; a deployed server should not rely on that.
+- **Concurrency.** `AbOvoApi` holds one reader's edition switch and nothing guards it. Over
+  stdio a host waits for each result, so it does not arise; a deployed server should not rely
+  on that.
+- **The tracks it carries.** The server asks the API about the tracks this checkout pins
+  (`PINS`), because `AbOvo.Api` lists no courses yet — the index's row in the deviation
+  register names that listing. A package pointed at an instance that serves another track
+  (#172) needs it.
 - **The copied words.** `web/mcp/src/framing.ts` copies the Polish words it shares with the
   reading surface's `chrome.ts` rather than importing them (ADR-0053), and nothing checks one
   copy against the other; [`translate-a-document.md`](../how-to/translate-a-document.md) asks
@@ -479,12 +528,13 @@ Nothing else in this package reaches into `@ab-ovo/app` any more, and nothing ne
   names `lab/` or `figures/values/`.
   [ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
   §4 says what each route may do under the licence as it stands. The package carries no
-  book. An instance, and a hosted server, serve the prose free and credited, never behind a
-  payment. Every route must credit the book where its reader sees it, and today none does.
+  book, since #171. An instance, and a hosted server, serve the prose free and credited, never
+  behind a payment. Every route must credit the book where its reader sees it, and today none
+  does.
 - **Schema version.** The book's compiler at the pinned revision emits a v1 bundle; the
   application supports v1 and v2. Nothing here depends on the difference — `Step.answer`
   means the same in both — but the leak assertion above needs a v2 shape, which is why the
-  unit tier reads the v2 fixture rather than what `bundleFor()` currently serves.
+  stub API the unit tier runs against serves the v2 fixture.
 
 ---
 
@@ -496,46 +546,38 @@ pnpm --dir web -r typecheck
 pnpm --dir web -r test
 ```
 
-The unit tier needs no network, no database and no deployment: the gate is pure functions
-and the tool surface runs against the committed fixture through an in-memory cursor (P13 —
-test at the layer with the logic), and `server.test.ts` drives the protocol itself —
-tools, annotations, output schemas, the prompt, completions — over `InMemoryTransport`. It
-validates every result it receives against its tool's output schema, with the validator the
-SDK's own client uses. The fixture is **injected**, not fetched — `Deps.bundles`
-is a `BundleSource`, because `bundleFor()` deliberately never serves a fixture and throws
-when the compiled bundle has not been fetched. `bash scripts/fetch-book-content.sh` is what
-the running server needs; the tests do not.
+The unit tier needs no network, no database, no book and no deployment. The tool surface
+runs against a stub of `AbOvo.Api` (`src/testing/stub-api.ts`) that serves the committed v2
+fixture and answers as the API does, gate and all (P13 — test at the layer with the logic),
+and `server.test.ts` drives the protocol itself — tools, annotations, output schemas, the
+prompt, completions — over `InMemoryTransport`. It validates every result it receives against
+its tool's output schema, with the validator the SDK's own client uses. `restart.test.ts` starts
+the launcher itself as its own process, twice, against that stub served over HTTP, and finds
+the anonymous reader where the first process left them. What the API does is
+`tests/AbOvo.Api.Tests`'s to assert.
 
-To drive the real protocol over stdio:
+To drive the real protocol over stdio, against an API that holds the book:
 
 ```bash
-node web/mcp/bin/ab-ovo-mcp.mjs
+AB_OVO_API_URL=http://localhost:<port> node web/mcp/bin/ab-ovo-mcp.mjs
 ```
 
 The launcher is plain JavaScript that checks for Node 22.18 before importing the
 TypeScript server, because the Node that cannot strip types cannot be told so by a file it
-cannot parse; `web/mcp/README.md` has the host configuration. With neither
-`AB_OVO_API_URL` nor `AB_OVO_READER_TOKEN` set it keeps the reader's place in memory and
-says so — on stderr, in the text of the session's first result, and in the data of every
+cannot parse; `web/mcp/README.md` has the host configuration and what the variables mean. With
+no `AB_OVO_API_URL` every call says what to set. With no `AB_OVO_READER_TOKEN` the reader is
+anonymous, under an id kept in the user's state directory; when that cannot be kept, the
+process says so on stderr, in the text of the session's first result, and in the data of every
 result.
 
-**It can be started from any working directory**, which is what a host does. The book is
-looked for in the server's own checkout, not relative to where the process was started:
-`content.ts` finds `web/` from its own `import.meta.url` — reliable here because Node runs
-this package's source directly — and hands it to `@ab-ovo/web-kit`'s `bundleFor`, which then
-tries `AB_OVO_CONTENT_BUNDLE` and that one path and guesses nothing. Before, the loader's
-guesses were all relative to the working directory, and a host that started the server from
-`/` was told there was no book while it sat in the checkout. `@ab-ovo/app` passes no
-`web/` — its bundled server code cannot know its own place on disk — so its candidates, and
-its Docker image, are unchanged. `bundle.test.ts` asserts the loader's half from a scratch
-directory; `content.test.ts` asserts that the live source names this checkout and finds the
-book from outside it, and starts the launcher itself from a scratch directory with `CI` set.
-That last one is not decoration: `have-bundle.ts`, the unit tier's guard that refuses to
-load in CI when the book is missing, guessed from the working directory and reached the
-server through `@ab-ovo/web-kit`'s barrel, so a host running under CI stopped the server
-before it could look. It is now an entry of its own, `@ab-ovo/web-kit/have-bundle`, which
-only tests import. To see it the way a host does:
+**It can be started from any working directory**, which is what a host does, and nothing in it
+looks at the working directory: the book is the API's, and the reader's id is in the state
+directory. Until #171 the book was looked for in the server's own checkout, and a host that
+started the server from `/` was once told there was no book while it sat there (#136);
+`restart.test.ts` still starts the launcher from a scratch directory with `CI` set, which is
+where a test-only module once stopped the server before it could look. To see it the way a host
+does:
 
 ```bash
-cd / && node /absolute/path/to/ab-ovo/web/mcp/bin/ab-ovo-mcp.mjs
+cd / && AB_OVO_API_URL=http://localhost:<port> node /absolute/path/to/ab-ovo/web/mcp/bin/ab-ovo-mcp.mjs
 ```

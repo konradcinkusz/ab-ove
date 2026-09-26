@@ -3,8 +3,9 @@
  *
  * A TOOL DESCRIPTION IS A REQUEST, NOT A RULE — ADR-0009 draws that line for this estate:
  * "an anti-goal that exists only as prose is a request; one the architecture cannot express
- * is a rule." So nothing below is load-bearing for the reveal. The gate is `reveal.ts` and
- * it holds whatever a model decides to do with these strings.
+ * is a rule." So nothing below is load-bearing for the reveal. The gate is `AbOvo.Api`'s
+ * (`Reveal.cs`, ADR-0060), which this server asks for every step through `api.ts`, and it
+ * holds whatever a model decides to do with these strings.
  *
  * What the descriptions ARE load-bearing for is whether the answer that arrives is the
  * reader's — and on a host with no elicitation, that is still a request rather than a rule:
@@ -14,23 +15,20 @@
  * property — ADR-0054 — and the argument becomes a suggestion the reader confirms or
  * overrules rather than a claim taken on faith.
  */
-import { advance, current, explain, serve, FIRST_STEP } from './reveal.ts';
-import type { Cursor, Refusal } from './reveal.ts';
-import type { CursorStore } from './cursor.ts';
-import { PlaceUnavailable, isIdentifier } from './cursor.ts';
-import {
-  CONTENT_BUNDLE_VARIABLE,
-  ContentUnavailable,
-  REPOSITORY_ROOT,
-  groupsOf,
-  isOpenWhere,
-  languageIn,
-  say,
-  unitBefore,
-  unitIn,
-} from './content.ts';
-import type { Bundle, BundleSource, Step, Text, Unit } from './content.ts';
+import { groupsOf, isOpenWhere, say, unitBefore } from '@ab-ovo/web-kit';
+import type {
+  ProgramSummary,
+  ReturnIndex,
+  StepContent,
+  TrackContent,
+  UnitSummary,
+} from '@ab-ovo/web-kit/wire';
+
+import { ApiUnavailable, NoBook, isIdentifier } from './api.ts';
+import type { AbOvoApi, Cursor, Place } from './api.ts';
 import { FALLBACK_LANGUAGE, framingFor } from './framing.ts';
+import { explain, fromGate } from './refusal.ts';
+import type { Refusal } from './refusal.ts';
 
 /**
  * What the host is told about the server as a whole, before any tool is called.
@@ -596,7 +594,7 @@ const problem = (text: string): Failed => ({ text, isError: true });
 /**
  * THE GATE'S OWN VOICE, WHICH IS NOT AN ERROR'S.
  *
- * `reveal.ts` says it in as many words — "`not-reached` is the gate doing its job and is
+ * `refusal.ts` says it in as many words — "`not-reached` is the gate doing its job and is
  * NOT an error … or a model will report the refusal as a fault and the reader will think
  * the server is broken" — and the first version of this file then sent every refusal with
  * `isError: true` anyway. A host paints that red; a model apologises for it; a reader who
@@ -620,8 +618,9 @@ function refusalResult(refusal: Refusal, language: string): Built {
 }
 
 /**
- * What a reader is told when the place is kept in memory — IN THE RESULT, where they can
- * read it. `server.ts` says the same on stderr, which no reader of an MCP host ever sees;
+ * What a reader is told when their place is found only while this process runs — the id it
+ * is filed under could not be kept on this computer (`identity.ts`) — IN THE RESULT, where
+ * they can read it. `server.ts` says why on stderr, which no reader of an MCP host ever sees;
  * finding out by losing one's place is the worst available way to be told (P8).
  *
  * ONCE PER SESSION IN THE TEXT, AND ON EVERY RESULT AS DATA (#164). It used to end every
@@ -638,99 +637,82 @@ function refusalResult(refusal: Refusal, language: string): Built {
 export const ephemeralNote = (language: string): string => framingFor(language).placeIsEphemeral;
 
 /**
- * What a reader is told when the deployment has no book, and what fixes it — which depends
- * on WHY there is none, so it is built from what the loader found rather than fixed.
+ * What a reader is told when this server has no book to serve, and what fixes it — which
+ * depends on WHY there is none, so it is built from what the API client found.
  *
- * The first version was one constant for every case: the bundle "is not on this machine",
- * run the fetch script. Started from `/` by a host, the server said that with the bundle
- * sitting in the checkout, and sent whoever ran it to a script that could not help (#136).
- * The loader now looks in this checkout whatever the working directory (`content.ts`'s
- * `WEB_DIR`), which leaves three cases, and each has its own fix:
+ * The book was the compiled bundle in the checkout until #171, and this note named the fetch
+ * script, the checkout and every path it looked at (#136). It comes from `AbOvo.Api` now, so
+ * there are two cases, and each has its own fix:
  *
- * - NEVER FETCHED into this checkout: the fetch script, run from the root named here —
- *   a host's working directory says nothing about which checkout the server is in.
- * - FETCHED, BUT NOT WHERE THIS PROCESS WAS TOLD TO LOOK: `AB_OVO_CONTENT_BUNDLE` names a
- *   file that is not there. The variable is the fix, not the script.
- * - FOUND AND REFUSED: a bundle that does not validate is not missing, and saying so
- *   would send somebody looking for a file they can see.
+ * - NO API TO ASK: `AB_OVO_API_URL` is not set. The variable is the fix.
+ * - AN API THAT HOLDS NO BOOK for a track this server carries: it answered 404 for the
+ *   track's listing. Either nothing was ingested into it, or what answers at that address is
+ *   not the ab-ovo API, and the note names both, since a 404 cannot tell them apart.
  *
- * Every path tried is named, because that is the one thing whoever runs the server can
- * check for themselves.
- *
- * ENGLISH IN EVERY EDITION, unlike the note below (#167). Every sentence of it is for
- * whoever runs the server, whose fix is a script, a variable or a path in an English-only
- * repository — and with no book there is no edition to speak: the editions are the book's.
+ * ENGLISH IN EVERY EDITION, unlike the note below (#167). Every sentence of it is for whoever
+ * runs the server, whose fix is a variable or an ingest in an English-only repository — and
+ * with no book there is no edition to speak: the editions are the book's.
  */
-export function noContentNote(missing: ContentUnavailable): string {
-  const fetch =
-    `run \`bash scripts/fetch-book-content.sh\` once, from ${REPOSITORY_ROOT}, and start the ` +
-    'server again';
-
-  if (missing.checked === undefined) {
+export function noBookNote(missing: NoBook): string {
+  if (missing.kind === 'unconfigured') {
     return (
-      'This server found its book and cannot load it: the compiled content bundle is on ' +
-      'disk and does not validate, and a book is served whole or not at all. Whoever runs ' +
-      `the server should ${fetch}; the script compiles the bundle again at the revision this ` +
-      `checkout pins.\n\n${missing.message}`
+      'This server has no book to serve: it reads the book, and keeps the reader\'s place, ' +
+      'through the ab-ovo API, and AB_OVO_API_URL is not set. Whoever runs the server should ' +
+      'set AB_OVO_API_URL to the API\'s address in the environment the host starts this server ' +
+      'with, and start it again.'
     );
   }
-
-  const looked = missing.checked.map((path) => `  ${path}`).join('\n');
-  if (missing.override !== undefined) {
-    return (
-      `This server has no book to serve: ${CONTENT_BUNDLE_VARIABLE} says the compiled content ` +
-      `bundle is at ${missing.override}, and there is no file there. The book may well be on ` +
-      `this machine, just not where this process was told to look. It looked at:\n${looked}\n` +
-      `Whoever runs the server should set ${CONTENT_BUNDLE_VARIABLE} to the path of the ` +
-      `bundle.json file itself, or remove it and ${fetch}.`
-    );
-  }
-
   return (
-    'This server has no book to serve: the compiled content bundle has never been fetched ' +
-    `into the checkout it runs from. It looked at:\n${looked}\n` +
-    `Whoever runs the server should ${fetch}. A book compiled somewhere else can be named ` +
-    `instead: set ${CONTENT_BUNDLE_VARIABLE} to its bundle.json in the environment the host ` +
-    'starts this server with.'
+    'This server has no book to serve: the ab-ovo API at AB_OVO_API_URL holds no content for ' +
+    `the track "${missing.track ?? ''}", or what answers there is not the ab-ovo API. Whoever ` +
+    'runs the API should ingest the compiled book into it (POST /api/v1/admin/content/bundles, ' +
+    'which docs/tutorials/01-first-run.md walks through), or point AB_OVO_API_URL at an API ' +
+    'that holds it.'
   );
 }
 
 /**
- * What a reader is told when their place could not be reached — a result they can read,
+ * What a reader is told when the book's server could not be used — a result they can read,
  * where there used to be a JSON-RPC error they could not (#137).
  *
- * Two things, in the order a reader needs them. First that NOTHING IS LOST: the place is
- * the account's, and a failed read did not move it. A failed WRITE may or may not have been
+ * Two things, in the order a reader needs them. First that NOTHING IS LOST: the place is the
+ * API's, and a failed read did not move it. A failed WRITE may or may not have been
  * committed — a 5xx or a dropped connection can follow the commit — so the note does not
  * claim either; what it can say is that making the same call again is safe, because
- * `open_program` writes the same place twice and `submit_answer` names its step. Then what
- * fixes it, which is different for each
- * `PlaceProblem`: a fresh token, a moment's wait, or a look at the address. The model gets
- * the same sentence and so has something true to relay instead of `fetch failed`.
+ * `open_program` records the same place twice and `submit_answer` names its step. Then what
+ * fixes it, which is different for each `ApiProblem`: a fresh token, a moment's wait, or a
+ * look at the address. The model gets the same sentence and so has something true to relay
+ * instead of `fetch failed`.
  *
  * `isError`, unlike the gate's refusals: this is not the book working, it is a call that
  * did not do what it was asked.
  *
  * WHAT THE READER IS TOLD FOLLOWS THEIR EDITION; WHAT FIXES THE DEPLOYMENT DOES NOT (#167).
- * That nothing is lost, that a failed write is safe to repeat, and to try again shortly
- * are the reader's, and are `framing.ts`'s. A fresh token and a corrected address are for
- * whoever runs the server, and stay English with the variables they name. The edition is
- * `handle()`'s to choose, because the place that says which edition the reader reads in is
- * the thing that could not be reached.
+ * That nothing is lost, that a failed write is safe to repeat, and to try again shortly are
+ * the reader's, and are `framing.ts`'s. A fresh token and a corrected address are for whoever
+ * runs the server, and stay English with the variables they name. The edition is `handle()`'s
+ * to choose, because the API that says which editions a track has is the thing out of reach.
+ *
+ * A 401 OR A 403 NAMES THE TOKEN ONLY WHEN THERE IS ONE. A reader with no account sends an id
+ * to endpoints that need no account (#171), so a refusal to let this server in is not about
+ * a token it does not have; it is an address that is not the ab-ovo API.
  */
-export function placeUnavailableNote(failure: PlaceUnavailable, language: string = FALLBACK_LANGUAGE): string {
+export function apiUnavailableNote(failure: ApiUnavailable, language: string = FALLBACK_LANGUAGE): string {
   const framing = framingFor(language);
   const status = failure.status === undefined ? '' : ` (HTTP ${failure.status})`;
   const kept = framing.placeUnreachable + (failure.writing ? ` ${framing.placeMaybeRecorded}` : '');
 
   switch (failure.reason) {
     case 'unauthorised':
-      return (
-        `${kept}\n\nThe service that keeps it would not let this server in${status}: the reader ` +
-        'token it was started with has expired or is not valid. Whoever runs the server should ' +
-        'give it a fresh AB_OVO_READER_TOKEN and start it again; trying again before that will ' +
-        'not help.'
-      );
+      return failure.withToken
+        ? `${kept}\n\nThe service that keeps it would not let this server in${status}: the reader ` +
+            'token it was started with has expired or is not valid. Whoever runs the server should ' +
+            'give it a fresh AB_OVO_READER_TOKEN and start it again; trying again before that will ' +
+            'not help.'
+        : `${kept}\n\nWhat answered at AB_OVO_API_URL would not let this server in${status}, and ` +
+            'this server reads without an account, which the ab-ovo API never refuses. Whoever runs ' +
+            'the server should check that AB_OVO_API_URL names the ab-ovo API; trying again will ' +
+            'not change the answer.';
     case 'unreachable':
       return `${kept}\n\n${framing.placeOutOfReach(status)}`;
     case 'refused':
@@ -740,9 +722,21 @@ export function placeUnavailableNote(failure: PlaceUnavailable, language: string
             'the service that keeps it. Whoever runs the server should set AB_OVO_API_URL to the ab-ovo API\'s ' +
             'address and start it again; trying again will not change the answer.'
         : `${kept}\n\nWhat answered at AB_OVO_API_URL refused the request${status}, or answered ` +
-            'with something that is not a place. Whoever runs the server should check that ' +
-            'AB_OVO_API_URL names the ab-ovo API; trying again will not change the answer.';
+            'with something that is not the book or a place. Whoever runs the server should check ' +
+            'that AB_OVO_API_URL names the ab-ovo API; trying again will not change the answer.';
   }
+}
+
+/**
+ * The heading a step falls under: the last one to start at or before it, and none for a step
+ * before the first. A heading's span runs to the step before the next heading's — the order of
+ * `UnitSummary.sections` is the data, and the reading surface finds a step's heading the same
+ * way (`web/app`'s `place.ts`), since the content API sends no section on a step.
+ */
+function sectionOf(unit: UnitSummary, n: number): UnitSummary['sections'][number] | undefined {
+  let found: UnitSummary['sections'][number] | undefined;
+  for (const section of unit.sections) if (section.firstStep <= n) found = section;
+  return found;
 }
 
 /**
@@ -754,12 +748,12 @@ export function placeUnavailableNote(failure: PlaceUnavailable, language: string
  * row until ADR-0063 split it between the two bars. The first version of this file printed
  * `## Step 5 of 48` and nothing else, so a reader thirty steps in had a number and no
  * name, and a reader choosing a program in `list_programs` had forty-seven ids to choose
- * among. The title lives in the bundle; it was never emitted.
+ * among.
  */
-export function placeLine(unit: Unit, step: Step, language: string): string {
-  const section = unit.sections?.find((candidate) => candidate.id === step.section);
+export function placeLine(unit: UnitSummary, step: StepContent, language: string): string {
+  const section = sectionOf(unit, step.n);
   const where = section ? ` › ${say(section.titles, language)}` : '';
-  return `${unit.id} · ${say(unit.titles, language)}${where} · ${framingFor(language).position(step.n, unit.steps.length)}`;
+  return `${unit.id} · ${say(unit.titles, language)}${where} · ${framingFor(language).position(step.n, unit.stepCount)}`;
 }
 
 /**
@@ -770,7 +764,7 @@ export function placeLine(unit: Unit, step: Step, language: string): string {
  * step arrived between English banners that the host's model translated, against the
  * instruction to show a step as it is served.
  */
-export function render(unit: Unit, step: Step, language: string): string {
+export function render(unit: UnitSummary, step: StepContent, language: string): string {
   const framing = framingFor(language);
   const parts: string[] = [`## ${placeLine(unit, step, language)}`];
 
@@ -805,23 +799,23 @@ export function render(unit: Unit, step: Step, language: string): string {
  * words of step k + 1, which `render()` writes — and `answersStep` says only that this step
  * opens with it, which the banner above says too.
  */
-export function stepData(track: string, unit: Unit, step: Step, language: string): StepData {
+export function stepData(track: string, unit: UnitSummary, step: StepContent, language: string): StepData {
   return {
     track,
     unit: unit.id,
     step: step.n,
-    total: unit.steps.length,
+    total: unit.stepCount,
     asks: step.cue === true,
     language,
     ...(step.answer ? { answersStep: step.n - 1 } : {}),
   };
 }
 
-/** One step shown: its words and its data, from the one `Step`, so the two cannot name different steps. */
+/** One step shown: its words and its data, from the one `StepContent`, so the two cannot name different steps. */
 function show(
   track: string,
-  unit: Unit,
-  step: Step,
+  unit: UnitSummary,
+  step: StepContent,
   language: string,
 ): { readonly text: string; readonly step: StepData } {
   return { text: render(unit, step, language), step: stepData(track, unit, step, language) };
@@ -829,7 +823,8 @@ function show(
 
 /**
  * THE HAND-OFF, when a program is finished — the reading surface's `/summary`, one
- * transport over.
+ * transport over, and from the same place: the API's return index, which it serves only to
+ * a reader at the program's last step (#158).
  *
  * The first version ended a program on an error: the last `submit_answer` was refused as
  * `program-complete`, with `isError` set, and a reader who had just worked forty-eight
@@ -837,27 +832,32 @@ function show(
  * a screen: the book's own Summary, its *Can you?* list, and the next program. This is
  * that screen.
  *
- * ONLY THE ROUTES' LABELS, NEVER `route.answer`. A Summary item paraphrases what a run of
- * frames concluded — the book's own rule is that a label may name the skill and may not
- * carry the finding — and the quiz's `answer` is an answer, which the leak walk in
- * `tools.test.ts` asserts is never emitted at any cursor, this block included.
+ * ONLY THE ROUTES' LABELS, NEVER A QUIZ'S ANSWER. A Summary item paraphrases what a run of
+ * frames concluded — the book's own rule is that a label may name the skill and may not carry
+ * the finding — and the return index has no field for a route's `answer` to arrive in
+ * (`ReturnRoute`, ADR-0014). The leak walk in `tools.test.ts` asserts none is emitted at any
+ * cursor, this block included.
  *
  * IN THE READER'S EDITION, EXCEPT THE CALLS (#167). The heading, the Summary, *Can you?*
  * and the next program's name are the reader's, and `framing.ts`'s; the `open_program` call
  * that opens the next program and the pointer to `list_programs` tell the model what to do,
  * and stay English after the reader's sentence they follow.
  */
-export function completion(unit: Unit, language: string, next: Unit | undefined): string {
+export function completion(
+  unit: UnitSummary,
+  index: ReturnIndex | undefined,
+  language: string,
+  next: ProgramSummary | undefined,
+): string {
   const framing = framingFor(language);
-  const routes = unit.routes ?? [];
-  const summary = routes.filter((route) => route.kind === 'summary');
-  const outcomes = routes.filter((route) => route.kind === 'outcome');
-  const item = (route: { labels?: Text; from: number; to: number }): string =>
-    `- ${route.labels ? say(route.labels, language) : ''} (${framing.range(route.from, route.to)})`;
+  const item = (route: ReturnIndex['summary'][number]): string =>
+    `- ${route.labels[language] ?? ''} (${framing.range(route.from, route.to)})`;
 
   const parts: string[] = [
-    `## ${unit.id} · ${say(unit.titles, language)} · ${framing.finished(framing.steps(unit.steps.length))}`,
+    `## ${unit.id} · ${say(unit.titles, language)} · ${framing.finished(framing.steps(unit.stepCount))}`,
   ];
+  const summary = index?.summary ?? [];
+  const outcomes = index?.outcomes ?? [];
   if (summary.length > 0) parts.push(`${framing.summary}\n${summary.map(item).join('\n')}`);
   if (outcomes.length > 0) parts.push(`${framing.canYou}\n${outcomes.map(item).join('\n')}`);
   parts.push(
@@ -873,18 +873,35 @@ export function completion(unit: Unit, language: string, next: Unit | undefined)
  * program and the next one and nothing of the Summary, whose labels are for the reader.
  */
 function handOff(
-  unit: Unit,
+  unit: UnitSummary,
+  index: ReturnIndex | undefined,
   language: string,
-  next: Unit | undefined,
+  next: ProgramSummary | undefined,
 ): { readonly text: string; readonly finished: FinishedData } {
   return {
-    text: completion(unit, language, next),
+    text: completion(unit, index, language, next),
     finished: {
       unit: unit.id,
-      total: unit.steps.length,
+      total: unit.stepCount,
       ...(next ? { next: { unit: next.id, title: say(next.titles, language) } } : {}),
     },
   };
+}
+
+/**
+ * The hand-off for a program the reader is at the end of: its return index asked of the API,
+ * which serves it only there. A refusal leaves the Summary out rather than failing the call —
+ * the reader is at the last step, and the heading and the next program still stand.
+ */
+async function finishing(
+  deps: Deps,
+  located: Located,
+  unit: UnitSummary,
+  language: string,
+): Promise<{ readonly text: string; readonly finished: FinishedData }> {
+  const answered = await deps.api.returnIndex(located.track, located.program.id);
+  const index = answered.ok && answered.index ? answered.index : undefined;
+  return handOff(unit, index, language, nextProgram(located.content, located.program.id));
 }
 
 /**
@@ -900,15 +917,15 @@ function handOff(
  * because no edition is known, so there is none to say it in. Each edition is offered by
  * the track's own title in it, which is the part the reader reads.
  */
-function editionQuestion(unit: Unit, editions: readonly EditionOffered[], declined: boolean): string {
+function editionQuestion(unit: string, editions: readonly EditionOffered[], declined: boolean): string {
   const choices = editions.map((edition) => `"${edition.language}" (${edition.title})`);
   const list =
     choices.length > 1 ? `${choices.slice(0, -1).join(', ')} or ${choices.at(-1)}` : (choices[0] ?? 'none');
   return (
     (declined
-      ? `Nothing opened: the reader was asked directly which edition to read "${unit.id}" in, and ` +
+      ? `Nothing opened: the reader was asked directly which edition to read "${unit}" in, and ` +
         'declined or cancelled. Ask them in the conversation instead: '
-      : `"${unit.id}" needs an edition, and none is known for this reader yet. Ask them which ` +
+      : `"${unit}" needs an edition, and none is known for this reader yet. Ask them which ` +
         'to read: ') +
     `${list}. Do not infer it from the language the conversation is in. Then call ` +
     'open_program again with "language". It is asked once: every program they open after ' +
@@ -929,25 +946,26 @@ type Door =
   | { readonly kind: 'behind'; readonly after: string };
 
 /**
- * Every program's door, in the manifest's order, asked of the places already in hand.
+ * Every program's door, in the track's order, asked of the places already in hand.
  *
  * `isOpenWhere` is the shared rule (`@ab-ovo/web-kit`'s `gate.ts`) and `shutBehind` is the
- * same question over the cursor store; this is the third caller, and it reads the list
- * `readAll()` already fetched rather than fetching again. Whether a shut program is next or
- * behind is a question about the program before it, which the manifest's order has already
- * answered by the time it is asked.
+ * same question for one program; this is the third caller, and it reads the list `places()`
+ * already fetched rather than fetching again. Whether a shut program is next or behind is a
+ * question about the program before it, which the listing's order has already answered by the
+ * time it is asked.
  */
 function doorsOf(
-  bundle: Bundle,
+  track: string,
+  content: TrackContent,
   placeOf: (track: string, unit: string) => Cursor | undefined,
 ): ReadonlyMap<string, Door> {
   const doors = new Map<string, Door>();
-  for (const program of bundle.units) {
-    const cursor = placeOf(bundle.track.id, program.id);
-    const previous = unitBefore(bundle, program.id);
+  for (const program of content.programs) {
+    const cursor = placeOf(track, program.id);
+    const previous = unitBefore({ units: content.programs }, program.id);
     const shut =
       previous !== undefined &&
-      !isOpenWhere((asked) => placeOf(bundle.track.id, asked) !== undefined, {
+      !isOpenWhere((asked) => placeOf(track, asked) !== undefined, {
         unit: program.id,
         previous: previous.id,
       });
@@ -966,9 +984,12 @@ function doorsOf(
   return doors;
 }
 
+/** How many steps a program has — the API's listing says (`api.ts` checked that it does). */
+const lengthOf = (program: ProgramSummary): number => program.stepCount ?? 0;
+
 /** One program's line: its id, its title in the listing's edition, its length, and its door. */
-function programLine(program: Unit, door: Door, edition: string): string {
-  const total = program.steps.length;
+function programLine(program: ProgramSummary, door: Door, edition: string): string {
+  const total = lengthOf(program);
   /*
     A place on the last step is "finished": no last step of this book asks anything
     (measured on the pinned bundle), so reaching it is reaching the end, and the hand-off
@@ -986,41 +1007,65 @@ function programLine(program: Unit, door: Door, edition: string): string {
 }
 
 /** `programLine()`'s twin: the same program and door as data (#164). */
-function programData(track: string, program: Unit, door: Door, edition: string): ProgramData {
+function programData(track: string, program: ProgramSummary, door: Door, edition: string): ProgramData {
   return {
     track,
     id: program.id,
     title: say(program.titles, edition),
-    total: program.steps.length,
+    total: lengthOf(program),
     open: door.kind === 'placed' || door.kind === 'open',
     place: door.kind === 'placed' ? door.cursor.step : null,
     ...(door.kind === 'next' || door.kind === 'behind' ? { after: door.after } : {}),
   };
 }
 
+/** The edition a reader asked for, if the track is published in it. */
+function editionIn(content: TrackContent, language: string): string | undefined {
+  return content.languages.includes(language) ? language : undefined;
+}
+
 /**
  * The edition `list_programs` gives titles in when none is named: the reader's, if the
  * track has it; else English, the website's default (ADR-0052); else the track's first.
  */
-function listingEdition(bundle: Bundle, reader: string | undefined): string {
+function listingEdition(content: TrackContent, reader: string | undefined): string {
   return (
-    (reader !== undefined ? languageIn(bundle, reader) : undefined) ??
-    languageIn(bundle, 'en') ??
-    bundle.track.languages[0] ??
+    (reader !== undefined ? editionIn(content, reader) : undefined) ??
+    editionIn(content, 'en') ??
+    content.languages[0] ??
     'en'
   );
+}
+
+/**
+ * The edition a place is shown in: its own, when the track is published in it, and the
+ * listing's otherwise — a place written in an edition the track does not have (no client of
+ * this repository writes one) is shown rather than failed on.
+ */
+function shownIn(content: TrackContent, language: string): string {
+  return editionIn(content, language) ?? listingEdition(content, undefined);
+}
+
+/** A track's own name in an edition, or its id when the listing carries no names. */
+function trackTitle(track: string, content: TrackContent, edition: string): string {
+  return content.titles?.[edition] ?? track;
 }
 
 /**
  * The edition a shut program is refused in (#167). No place in the program can say it — a
  * program with a place is open by that fact alone (`gate.ts`'s valve) — so it is the one
  * the call named, if the track has it, else the one `list_programs` titles in for this
- * reader. Asked only once the refusal is certain, so an open program pays no read for it.
+ * reader. Asked only once the refusal is certain, so an open program pays nothing for it.
  */
-async function refusalEdition(deps: Deps, bundle: Bundle | undefined, asked: string | undefined): Promise<string> {
-  const named = asked !== undefined && bundle ? languageIn(bundle, asked) : undefined;
+async function refusalEdition(
+  deps: Deps,
+  content: TrackContent,
+  asked: string | undefined,
+  places: readonly Place[],
+): Promise<string> {
+  const named = asked !== undefined ? editionIn(content, asked) : undefined;
   if (named) return named;
-  return bundle ? listingEdition(bundle, await deps.cursors.edition()) : FALLBACK_LANGUAGE;
+  return listingEdition(content, await deps.api.edition(places));
 }
 
 /**
@@ -1030,39 +1075,41 @@ async function refusalEdition(deps: Deps, bundle: Bundle | undefined, asked: str
  * the model carry `math-for-ai-engineers` through every turn for nothing. A server with
  * several still asks.
  */
-function soleTrack(bundles: BundleSource): string | Built {
-  const all = bundles.all();
-  const only = all.length === 1 ? all[0] : undefined;
-  if (only) return only.track.id;
+function soleTrack(api: AbOvoApi): string | Built {
+  const only = api.tracks.length === 1 ? api.tracks[0] : undefined;
+  if (only) return only;
   return problem(
-    `This server carries ${all.length === 0 ? 'no tracks' : 'several tracks'}; name one with "track"` +
-      (all.length > 1 ? `: ${all.map((bundle) => bundle.track.id).join(', ')}.` : '.'),
+    `This server carries ${api.tracks.length === 0 ? 'no tracks' : 'several tracks'}; name one with "track"` +
+      (api.tracks.length > 1 ? `: ${api.tracks.join(', ')}.` : '.'),
   );
 }
 
 interface Located {
   readonly track: string;
-  readonly unit: Unit;
+  readonly content: TrackContent;
+  readonly program: ProgramSummary;
 }
 
 /**
- * The program after this one, by ADJACENCY in `bundle.units` — the order the book's own
+ * The program after this one, by ADJACENCY in the track's listing — the order the book's own
  * manifest declares — and never by adding one to a parsed id: the book renumbered its own
  * main sequence once already when P07 was inserted (program-contents.tsx records it).
  */
-function nextUnit(bundle: Bundle | undefined, unit: Unit): Unit | undefined {
-  if (!bundle) return undefined;
-  const index = bundle.units.findIndex((candidate) => candidate.id === unit.id);
-  return index >= 0 ? bundle.units[index + 1] : undefined;
+function nextProgram(content: TrackContent, unit: string): ProgramSummary | undefined {
+  const index = content.programs.findIndex((candidate) => candidate.id === unit);
+  return index >= 0 ? content.programs[index + 1] : undefined;
 }
 
 /**
  * Resolve a call's track and program. The program id is matched in any case — a reader
- * says "p01" — and what comes back is the bundle's own spelling, which is what the cursor
- * is filed under: a place keyed by "p01" would be a second place for P01.
+ * says "p01" — and what comes back is the book's own spelling, which is what the place is
+ * filed under: a place keyed by "p01" would be a second place for P01.
+ *
+ * A track this server does not carry is refused without a request: the tracks it carries
+ * are its own list (`api.ts`), and the API is asked only about those.
  */
-function locate(bundles: BundleSource, track: string, unit: string): Located | Built {
-  const resolvedTrack = track === '' ? soleTrack(bundles) : track;
+async function locate(api: AbOvoApi, track: string, unit: string): Promise<Located | Built> {
+  const resolvedTrack = track === '' ? soleTrack(api) : track;
   if (isResult(resolvedTrack)) return resolvedTrack;
 
   if (!isIdentifier(resolvedTrack)) {
@@ -1071,16 +1118,17 @@ function locate(bundles: BundleSource, track: string, unit: string): Located | B
   if (!isIdentifier(unit)) {
     return problem(`"${unit}" is not a program id: letters, digits, dot, dash or underscore. Try list_programs.`);
   }
+  if (!api.tracks.includes(resolvedTrack)) {
+    return problem(`This server does not carry the track "${resolvedTrack}". Try list_programs.`);
+  }
 
-  const bundle = bundles.for(resolvedTrack);
-  if (!bundle) return problem(`This server does not carry the track "${resolvedTrack}". Try list_programs.`);
-
+  const content = await api.track(resolvedTrack);
   const found =
-    unitIn(bundle, unit) ??
-    bundle.units.find((candidate) => candidate.id.toLowerCase() === unit.toLowerCase());
+    content.programs.find((candidate) => candidate.id === unit) ??
+    content.programs.find((candidate) => candidate.id.toLowerCase() === unit.toLowerCase());
   if (!found) return problem(`The track "${resolvedTrack}" has no program "${unit}". Try list_programs.`);
 
-  return { track: resolvedTrack, unit: found };
+  return { track: resolvedTrack, content, program: found };
 }
 
 const isResult = (value: unknown): value is Built =>
@@ -1094,48 +1142,41 @@ const isResult = (value: unknown): value is Built =>
  * READER.
  *
  * ADR-0051 shuts a program until the reader has a place in the one before it, and until
- * now that rule was the website's alone: `open_program` would start F02 for a reader the
- * index would have refused, both reading the SAME `ReaderProgress` row (`cursor.ts` — "a
- * second table keyed by reader would be a second answer to where is this person"). A reader
- * could be inside a program in one window that the other window says does not open yet, and
- * nothing in either could explain it.
+ * ADR-0056 that rule was the website's alone: `open_program` would start F02 for a reader the
+ * index would have refused, both reading the SAME `ReaderProgress` row. A reader could be
+ * inside a program in one window that the other window says does not open yet, and nothing
+ * in either could explain it.
  *
  * THE RULE IS NOT RESTATED HERE. `isOpenWhere` (`@ab-ovo/web-kit`'s `gate.ts`) is the one
- * copy, shared with the reading surface for the reason `unitBefore` gives one door down.
- * What is here is this transport's half: which two places to fetch, and the refusal.
+ * copy, shared with the reading surface. What is here is this transport's half: the places
+ * to ask it of, and the refusal. The API does not hold the order (ADR-0065), which is why
+ * `open_program` asks this before it records an opening (`POST …/open` writes whatever it
+ * is sent), as the browser's recorder asks it before it writes (`remember-position.tsx`).
  *
- * TWO READS AT MOST, and never a scan: the rule asks about this program and the one before
- * it and about nothing else, so the places are fetched by name. A `readAll()` here would be
- * forty-seven rows fetched to answer a question about two.
+ * NO REQUEST OF ITS OWN: the rule asks about this program and the one before it, and the
+ * caller already holds every place the reader has, from the one read the call makes anyway.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * `undefined` MEANS OPEN, and it is also the honest answer for a program with nothing
  * before it: `unitBefore` returns `undefined` both for the first program of a track and for
- * a unit the bundle does not carry, and `gate.ts` takes both to mean "nothing here precedes
- * it" — a program the book does not list is not a program a reader can be sent back from.
+ * a program the listing does not carry, and `gate.ts` takes both to mean "nothing here
+ * precedes it" — a program the book does not list is not a program a reader can be sent
+ * back from.
  */
-async function shutBehind(
-  cursors: CursorStore,
-  bundle: Bundle | undefined,
-  track: string,
-  unit: Unit,
-  /** The place in THIS program, already fetched by the caller — never fetched twice. */
-  here: Cursor | undefined,
-): Promise<Refusal | undefined> {
-  const previous = bundle ? unitBefore(bundle, unit.id) : undefined;
+function shutBehind(
+  located: Located,
+  placeOf: (track: string, unit: string) => Cursor | undefined,
+): Refusal | undefined {
+  const { track, content, program } = located;
+  const previous = unitBefore({ units: content.programs }, program.id);
   if (!previous) return undefined;
 
-  // Asked only when the answer can still matter: a reader who is already inside this
-  // program opens it by that fact alone (the valve in `gate.ts`), and fetching the
-  // program before it would be a round trip whose answer is discarded.
-  const before = here ? undefined : await cursors.read(track, previous.id);
+  const open = isOpenWhere((asked) => placeOf(track, asked) !== undefined, {
+    unit: program.id,
+    previous: previous.id,
+  });
 
-  const open = isOpenWhere(
-    (asked) => (asked === unit.id ? here !== undefined : before !== undefined),
-    { unit: unit.id, previous: previous.id },
-  );
-
-  return open ? undefined : { kind: 'not-open', unit: unit.id, after: previous.id };
+  return open ? undefined : { kind: 'not-open', unit: program.id, after: previous.id };
 }
 
 /**
@@ -1174,25 +1215,20 @@ export type EditionOutcome =
 export interface Session {
   ephemeralNoteSaid: boolean;
   /**
-   * The edition of the last result that spoke one (#167). When the reader's place cannot be
-   * reached — the place being where an edition is otherwise read from — `handle()` says
-   * `placeUnavailableNote()` in the edition the call named if the track has it, else in this
+   * The edition of the last result that spoke one (#167). When the book's server cannot be
+   * reached — the API being where an edition is otherwise read from — `handle()` says
+   * `apiUnavailableNote()` in the edition the call named if the track has it, else in this
    * one (`unreachableEdition()`). Nothing else reads it.
    */
   spokenIn?: string;
 }
 
 export interface Deps {
-  readonly cursors: CursorStore;
-  /** Injected so the unit tier runs against the committed fixture, never through bundleFor(). */
-  readonly bundles: BundleSource;
   /**
-   * True when the place is kept in this process's memory and forgotten at restart — the
-   * store `server.ts` falls back to with no API to talk to. The first result of the session
-   * that is not an error then says so, and every result carries it as data; a reader is told
-   * in the channel they can read.
+   * The book and the reader's place, both `AbOvo.Api`'s (`api.ts`). The unit tier hands it a
+   * stub API; nothing here holds a copy of either.
    */
-  readonly placeIsEphemeral?: boolean;
+  readonly api: AbOvoApi;
   /**
    * What this session has said already. Absent, every call is a session of its own and every
    * result that is not an error says the note: told too often, never too late.
@@ -1218,17 +1254,17 @@ export interface Deps {
 
 /**
  * Answer one tool call. Two things are wrapped here, and they are the two a deployment can
- * get wrong under a reader who did nothing wrong: the content going missing — a bundle that
- * was never fetched throws out of the loader — and the reader's place going out of reach —
- * a token that expired, an API that is down. Each used to reach the host as a JSON-RPC
- * error carrying a developer's string. Each is a tool result now, with what fixes it.
+ * get wrong under a reader who did nothing wrong: the book going missing — no API to ask, or
+ * one that holds no book — and the API going out of reach — a token that expired, an API that
+ * is down. Each used to reach the host as a JSON-RPC error carrying a developer's string. Each
+ * is a tool result now, with what fixes it.
  *
  * Anything else still throws, on purpose: an error this file cannot name is a defect in
  * this package, and a sentence would dress it up as the deployment's.
  *
- * A PLACE OUT OF REACH IS TOLD IN AN EDITION THE STORE DID NOT HAVE TO SAY (#167) —
- * `unreachableEdition()`'s. Asking the store which edition the reader reads in would be
- * asking the thing that has just failed.
+ * AN API OUT OF REACH IS TOLD IN AN EDITION IT DID NOT HAVE TO SAY (#167) —
+ * `unreachableEdition()`'s. Asking the API which editions a track has would be asking the
+ * thing that has just failed.
  */
 export async function handle(
   name: string,
@@ -1239,42 +1275,40 @@ export async function handle(
   try {
     built = await dispatch(name, args, deps);
   } catch (error) {
-    if (error instanceof ContentUnavailable) return problem(noContentNote(error));
-    if (error instanceof PlaceUnavailable) return problem(placeUnavailableNote(error, unreachableEdition(args, deps)));
+    if (error instanceof NoBook) return problem(noBookNote(error));
+    if (error instanceof ApiUnavailable) return problem(apiUnavailableNote(error, unreachableEdition(args, deps)));
     throw error;
   }
   return delivered(built, deps);
 }
 
 /**
- * The edition a place out of reach is told in (#167): the one the call named, if a track the
+ * The edition an API out of reach is told in (#167): the one the call named, if a track the
  * call can mean is published in it; else the one this session last spoke in; else English.
  *
  * RESOLVED, NEVER TAKEN AS SENT. The SDK's low-level `Server` checks no argument against a
  * tool's schema, so `language` is whatever the host passed, and the first version handed it
- * to `placeUnavailableNote()` as it came: `constructor` threw out of `handle()` on the path
- * #137 exists to keep a result, and `PL`, or an edition the track does not have, was
- * honoured where every other call refuses it. So it passes `languageIn`, as an edition a
- * call names does everywhere else here — and `framingFor()` is total besides.
+ * to the note as it came: `constructor` threw out of `handle()` on the path #137 exists to
+ * keep a result, and `PL`, or an edition the track does not have, was honoured where every
+ * other call refuses it. So it is looked up among a track's editions, as an edition a call
+ * names is everywhere else here — and `framingFor()` is total besides.
  *
- * THE BOOK IS ASKED, AND MAY BE MISSING TOO. A deployment can lose its book and its store at
- * once; the note owed is still the place's, and with no book no edition can be named, since
- * the editions are the book's.
+ * THE EDITIONS ARE THE LAST ONES THE API SAID. The listing that names a track's editions
+ * comes from the API that has just failed, so it is the one this process was last answered
+ * with (`lastKnown`), and with none there is no edition a call can name: the note owed is
+ * still the place's, in the session's edition or English.
  */
 function unreachableEdition(args: Record<string, unknown>, deps: Deps): string {
   const asked = typeof args.language === 'string' && args.language !== '' ? args.language : undefined;
   let named: string | undefined;
   if (asked !== undefined) {
-    let carried: readonly Bundle[] = [];
-    try {
-      carried = deps.bundles.all();
-    } catch (error) {
-      if (!(error instanceof ContentUnavailable)) throw error;
-    }
     // The track the call names, or any this server carries when it names none (`list_programs`).
     const track = typeof args.track === 'string' && args.track !== '' ? args.track : undefined;
-    const meant = track === undefined ? carried : carried.filter((bundle) => bundle.track.id === track);
-    named = meant.map((bundle) => languageIn(bundle, asked)).find((edition) => edition !== undefined);
+    const meant = deps.api.tracks.filter((id) => track === undefined || id === track);
+    named = meant
+      .map((id) => deps.api.lastKnown(id))
+      .map((content) => (content ? editionIn(content, asked) : undefined))
+      .find((edition) => edition !== undefined);
   }
   return named ?? deps.session?.spokenIn ?? FALLBACK_LANGUAGE;
 }
@@ -1289,12 +1323,12 @@ function unreachableEdition(args: Record<string, unknown>, deps: Deps): string {
  * not an error, whichever tool gives it — and an error carries no data to flag it in.
  *
  * In the result's own edition (#167), and English on a result that speaks none; the session
- * keeps that edition for the error that is told in it, a place out of reach (`handle()`).
+ * keeps that edition for the error that is told in it, an API out of reach (`handle()`).
  */
 function delivered(built: Built, deps: Deps): ToolResult {
   if (built.isError) return built;
   if (deps.session && built.language !== undefined) deps.session.spokenIn = built.language;
-  const ephemeral = deps.placeIsEphemeral === true;
+  const ephemeral = deps.api.placeIsEphemeral;
   const tell = ephemeral && deps.session?.ephemeralNoteSaid !== true;
   if (tell && deps.session) deps.session.ephemeralNoteSaid = true;
   const text = tell ? `${built.text}\n\n${ephemeralNote(built.language ?? FALLBACK_LANGUAGE)}` : built.text;
@@ -1303,6 +1337,10 @@ function delivered(built: Built, deps: Deps): ToolResult {
     structured: { text, ...built.data, ...(ephemeral ? { placeIsEphemeral: true as const } : {}) },
   };
 }
+
+/** The place in one program, from the list the call already holds. */
+const placeIn = (places: readonly Place[]) => (track: string, unit: string): Place | undefined =>
+  places.find((cursor) => cursor.track === track && cursor.unit === unit);
 
 async function dispatch(
   name: string,
@@ -1315,35 +1353,38 @@ async function dispatch(
   if (name === 'list_programs') {
     const asked = typeof args.language === 'string' && args.language !== '' ? args.language : undefined;
     const every = args.all === true;
-    const places = await deps.cursors.readAll();
-    const placeOf = (track: string, unit: string): Cursor | undefined =>
-      places.find((cursor) => cursor.track === track && cursor.unit === unit);
-    const readerEdition = asked ? undefined : await deps.cursors.edition();
+    // One read of every place the reader has, whatever the number of programs: `list_programs`
+    // used to ask for one place per program — forty-seven requests of the same list.
+    const places = await deps.api.places();
+    const placeOf = placeIn(places);
+    const listings: { readonly track: string; readonly content: TrackContent }[] = [];
+    for (const track of deps.api.tracks) listings.push({ track, content: await deps.api.track(track) });
+    const readerEdition = asked ? undefined : await deps.api.edition(places);
 
     const lines: string[] = [];
     const programs: ProgramData[] = [];
     const otherEditions = new Set<string>();
     let listedIn: string | undefined;
     let folded = false;
-    for (const bundle of deps.bundles.all()) {
+    for (const { track, content } of listings) {
       /*
         ONE EDITION'S TITLES, NOT BOTH (#145). Every unopened program used to carry its
         title in every edition, which is most of what made a new reader's list about 7 KB.
         The reader's edition when one is known, English until then — the website's default
         (ADR-0052) — and any other on request, by `language`.
       */
-      const edition = asked ? languageIn(bundle, asked) : listingEdition(bundle, readerEdition);
+      const edition = asked ? editionIn(content, asked) : listingEdition(content, readerEdition);
       if (!edition) {
         return problem(
-          `The track "${bundle.track.id}" is not published in "${asked}". It has: ${bundle.track.languages.join(', ')}.`,
+          `The track "${track}" is not published in "${asked}". It has: ${content.languages.join(', ')}.`,
         );
       }
       listedIn = edition;
-      for (const other of bundle.track.languages) if (other !== edition) otherEditions.add(other);
+      for (const other of content.languages) if (other !== edition) otherEditions.add(other);
 
       lines.push(
-        `Track "${bundle.track.id}" — ${say(bundle.track.titles, edition)} — editions: ` +
-          `${bundle.track.languages.join(', ')} — content tag: ${bundle.tag}`,
+        `Track "${track}" — ${trackTitle(track, content, edition)} — editions: ` +
+          `${content.languages.join(', ')} — content tag: ${content.tag}`,
       );
       /*
         THE RULE, ONCE PER TRACK, SO THE LIST BELOW CAN BE READ WITHOUT GUESSING.
@@ -1360,7 +1401,7 @@ async function dispatch(
           'names what opens it — the reading order, not an error and not a permission.',
       );
 
-      const doors = doorsOf(bundle, placeOf);
+      const doors = doorsOf(track, content, placeOf);
       /*
         Grouped where the book is — its parts, or the id prefix — by the same function the
         index uses, so the two surfaces never divide the book two ways. One group is a
@@ -1374,7 +1415,7 @@ async function dispatch(
         A prefix with no name is listed without a heading.
       */
       const groupLabels = framingFor(edition).groupLabels;
-      for (const group of groupsOf(bundle)) {
+      for (const group of groupsOf({ units: content.programs })) {
         const heading = group.part
           ? say(group.part.titles, edition)
           : group.prefix
@@ -1383,9 +1424,9 @@ async function dispatch(
         if (heading) lines.push(`  ${heading}`);
         const indent = heading ? '    ' : '  ';
         // A program the text names is a program the data names, and no other (#164).
-        const named = (program: Unit, door: Door): void => {
+        const named = (program: ProgramSummary, door: Door): void => {
           lines.push(`${indent}${programLine(program, door, edition)}`);
-          programs.push(programData(bundle.track.id, program, door, edition));
+          programs.push(programData(track, program, door, edition));
         };
 
         /*
@@ -1396,7 +1437,7 @@ async function dispatch(
           program was most of the rest of the 7 KB. `all` names them anyway. A run of one
           is simply its line, which is no longer than the fold.
         */
-        let run: Unit[] = [];
+        let run: ProgramSummary[] = [];
         const fold = (): void => {
           const [first] = run;
           if (first && run.length === 1) {
@@ -1440,23 +1481,26 @@ async function dispatch(
     };
   }
 
-  const located = locate(deps.bundles, askedTrack, askedUnit);
+  const located = await locate(deps.api, askedTrack, askedUnit);
   if (isResult(located)) return located;
-  const { track, unit } = located;
+  const { track, content, program } = located;
+  const places = await deps.api.places();
+  const placeOf = placeIn(places);
+  const existing = placeOf(track, program.id);
 
   if (name === 'open_program') {
-    const bundle = deps.bundles.for(track);
     const asked = typeof args.language === 'string' && args.language !== '' ? args.language : undefined;
-    const existing = await deps.cursors.read(track, unit.id);
 
     /*
       BEFORE THE EDITION IS ASKED FOR, AND THAT ORDER IS THE POINT. A first opening needs an
       edition and the model is told to ask the reader for one; putting the gate after that
       would have the assistant ask "English or Polish?", wait for the answer, and only then
       say the program is not open — a question asked for nothing, in the reader's time.
+      AND BEFORE ANYTHING IS WRITTEN: the opening records a place, a place opens the next
+      program, and the API records whatever it is sent (ADR-0065).
     */
-    const shut = await shutBehind(deps.cursors, bundle, track, unit, existing);
-    if (shut) return refusalResult(shut, await refusalEdition(deps, bundle, asked));
+    const shut = shutBehind(located, placeOf);
+    if (shut) return refusalResult(shut, await refusalEdition(deps, content, asked, places));
 
     /*
       THE EDITION, ASKED ONCE PER READER AND NOT ONCE PER PROGRAM (#144): the one named, else
@@ -1464,53 +1508,65 @@ async function dispatch(
       none of those is known, a question.
 
       A reader who resumes is not asked again — the first version required the argument on
-      every call and then discarded it whenever a cursor existed, so the model asked a
+      every call and then discarded it whenever a place existed, so the model asked a
       question whose answer went nowhere. The second version still asked at the first
       opening of EVERY program, so an agent put "English or Polish?" at the start of each of
       forty-seven, and with `isError` set, so the host painted an ordinary step of the
       conversation red — the mistake ADR-0056 had already corrected for refusals. The
-      website keeps one edition per reader (ADR-0052); `CursorStore.edition()` reads the
-      same record. A named edition the track does not have is still an error: it names
-      nothing.
+      website keeps one edition per reader (ADR-0052); `AbOvoApi.edition()` reads the same
+      record. A named edition the track does not have is still an error: it names nothing.
     */
-    const offered = bundle?.track.languages ?? [];
+    const offered = content.languages;
     let language: string | undefined;
     let how: 'named' | 'kept' | 'remembered' | 'chosen';
     if (asked) {
-      language = bundle ? languageIn(bundle, asked) : undefined;
+      language = editionIn(content, asked);
       if (!language) return problem(`The track "${track}" is not published in "${asked}". It has: ${offered.join(', ')}.`);
       how = 'named';
-    } else if (existing) {
+    } else if (existing && editionIn(content, existing.language)) {
       language = existing.language;
       how = 'kept';
     } else {
-      const known = await deps.cursors.edition();
-      language = known !== undefined && bundle ? languageIn(bundle, known) : undefined;
+      const known = await deps.api.edition(places);
+      language = known !== undefined ? editionIn(content, known) : undefined;
       how = 'remembered';
       if (!language) {
-        const editions: readonly EditionOffered[] = bundle
-          ? offered.map((edition) => ({ language: edition, title: say(bundle.track.titles, edition) }))
-          : [];
+        const editions: readonly EditionOffered[] = offered.map((edition) => ({
+          language: edition,
+          title: trackTitle(track, content, edition),
+        }));
         const outcome: EditionOutcome = deps.chooseEdition
-          ? await deps.chooseEdition(unit.id, editions)
+          ? await deps.chooseEdition(program.id, editions)
           : { kind: 'unavailable' };
-        language = outcome.kind === 'chosen' && bundle ? languageIn(bundle, outcome.language) : undefined;
+        language = outcome.kind === 'chosen' ? editionIn(content, outcome.language) : undefined;
         how = 'chosen';
         if (!language) {
           const declined = outcome.kind === 'declined';
           return {
-            text: editionQuestion(unit, editions, declined),
+            text: editionQuestion(program.id, editions, declined),
             data: { question: { kind: 'edition', offered: editions, declined } },
           };
         }
       }
     }
 
-    const cursor: Cursor = existing ? { ...existing, language } : { track, unit: unit.id, language, step: FIRST_STEP };
-    const saved = await deps.cursors.save(cursor);
+    /*
+      A FIRST OPENING IS RECORDED BY THE API, AND A RESUME RECORDS NOTHING. `POST …/open`
+      creates the place at the program's first step in the edition chosen, and answers the
+      place as it stands (ADR-0066 §2); on a place that exists it writes nothing, so a switch
+      of edition on the step the reader is on is kept here until the next advance carries it
+      (`api.ts`'s `keepEdition`). Nothing here names a step to the API: the only step an
+      opening records is the first, which the gate serves to any reader.
+    */
+    let cursor: Cursor = existing ?? (await deps.api.open(track, program.id, language));
+    if (cursor.language !== language) {
+      cursor = { ...cursor, language };
+      deps.api.keepEdition(cursor);
+    }
 
-    const served = current(unit, saved);
-    if (!served.ok) return refusalResult(served.refusal, saved.language);
+    const unit = await deps.api.unit(track, program.id);
+    const served = await deps.api.step(track, program.id, cursor.step);
+    if (!served.ok || !served.step) return refusalResult(fromGate(served.refusal!), cursor.language);
 
     /*
       THE MODEL'S LINE, AND ENGLISH IN EVERY EDITION (#167): what this call did — started,
@@ -1519,26 +1575,25 @@ async function dispatch(
     */
     const opening = !existing
       ? how === 'remembered'
-        ? `Starting "${unit.id}" in the "${saved.language}" edition, the one the reader already reads in. ` +
+        ? `Starting "${program.id}" in the "${cursor.language}" edition, the one the reader already reads in. ` +
           'Naming another edition switches, at the same step.'
         : how === 'chosen'
-          ? `Starting "${unit.id}" in the "${saved.language}" edition, chosen directly by the reader.`
-          : `Starting "${unit.id}".`
-      : existing.language !== saved.language
-        ? `Resuming "${unit.id}" at step ${saved.step}, switched to the "${saved.language}" edition.`
-        : `Resuming "${unit.id}" at step ${saved.step}.`;
+          ? `Starting "${program.id}" in the "${cursor.language}" edition, chosen directly by the reader.`
+          : `Starting "${program.id}".`
+      : existing.language !== cursor.language
+        ? `Resuming "${program.id}" at step ${cursor.step}, switched to the "${cursor.language}" edition.`
+        : `Resuming "${program.id}" at step ${cursor.step}.`;
     // On the last step the program is finished; the step is shown, and then where to next.
-    const shown = show(track, unit, served.step, saved.language);
-    const done = saved.step === unit.steps.length ? handOff(unit, saved.language, nextUnit(bundle, unit)) : undefined;
+    const shown = show(track, unit, served.step, cursor.language);
+    const done = cursor.step === unit.stepCount ? await finishing(deps, located, unit, cursor.language) : undefined;
     return {
       text: `${opening}\n\n${shown.text}${done ? `\n\n${done.text}` : ''}`,
-      language: saved.language,
+      language: cursor.language,
       data: { step: shown.step, ...(done ? { finished: done.finished } : {}) },
     };
   }
 
-  const cursor = await deps.cursors.read(track, unit.id);
-  if (!cursor) {
+  if (!existing) {
     /*
       TWO REASONS FOR AN EMPTY PLACE, AND THEY ARE NOT THE SAME ANSWER. Either the reader
       simply has not started this program — open_program is the next call, and the model can
@@ -1546,23 +1601,33 @@ async function dispatch(
       first" is advice that leads straight into a refusal. Asking the gate here is what keeps
       the model from taking a reader round that loop and then reporting a failure.
     */
-    const bundle = deps.bundles.for(track);
-    const shut = await shutBehind(deps.cursors, bundle, track, unit, undefined);
-    if (shut) return refusalResult(shut, await refusalEdition(deps, bundle, undefined));
-    return problem(`The reader has not opened "${unit.id}" yet. Call open_program first.`);
+    const shut = shutBehind(located, placeOf);
+    if (shut) return refusalResult(shut, await refusalEdition(deps, content, undefined, places));
+    return problem(`The reader has not opened "${program.id}" yet. Call open_program first.`);
   }
+  const cursor: Cursor = { ...existing, language: shownIn(content, existing.language) };
+  const unit = await deps.api.unit(track, program.id);
 
   if (name === 'current_step') {
-    const served = current(unit, cursor);
-    if (!served.ok) return refusalResult(served.refusal, cursor.language);
+    const served = await deps.api.step(track, program.id, cursor.step);
+    if (!served.ok || !served.step) return refusalResult(fromGate(served.refusal!), cursor.language);
     const shown = show(track, unit, served.step, cursor.language);
     return { text: shown.text, language: cursor.language, data: { step: shown.step } };
   }
 
   if (name === 'review_step') {
+    /*
+      A NUMBER THE PROGRAM DOES NOT HAVE NAMES NOTHING, and is answered here, before a request:
+      it is the call's argument that is wrong, not the reader's place, and `review_step` with
+      `1.5` or `900` has no step to ask the API for. Whether a step the program does have has
+      been reached is the API's to answer — the gate this package no longer holds a copy of.
+    */
     const n = typeof args.step === 'number' ? args.step : Number.NaN;
-    const served = serve(unit, cursor, n);
-    if (!served.ok) return refusalResult(served.refusal, cursor.language);
+    if (!Number.isInteger(n) || n < 1 || n > unit.stepCount) {
+      return refusalResult({ kind: 'no-such-step', requested: n, steps: unit.stepCount }, cursor.language);
+    }
+    const served = await deps.api.step(track, program.id, n);
+    if (!served.ok || !served.step) return refusalResult(fromGate(served.refusal!), cursor.language);
     const shown = show(track, unit, served.step, cursor.language);
     return { text: shown.text, language: cursor.language, data: { step: shown.step } };
   }
@@ -1573,15 +1638,15 @@ async function dispatch(
       calls again, or a model that calls twice, used to move the reader two steps: the
       skipped step's body was never shown while its answer arrived in the next step's
       banner. Naming the step makes the second call a no-op that hands back where the
-      reader actually is.
+      reader actually is — and the API applies the same rule to the advance it is sent.
     */
     const answering = typeof args.step === 'number' ? args.step : Number.NaN;
     if (!Number.isInteger(answering)) {
       return problem('submit_answer needs "step": the number of the step being answered, from the step that was shown.');
     }
-    // Through the gate before anything else, so the step a refusal hands back is one it served.
-    const here = current(unit, cursor);
-    if (!here.ok) return refusalResult(here.refusal, cursor.language);
+    // Asked of the API before anything else, so the step a refusal hands back is one it served.
+    const here = await deps.api.step(track, program.id, cursor.step);
+    if (!here.ok || !here.step) return refusalResult(fromGate(here.refusal!), cursor.language);
 
     /*
       WHAT A CALL RECORDED IS THE MODEL'S TO KNOW, AND ENGLISH IN EVERY EDITION (#167) — the
@@ -1654,28 +1719,48 @@ async function dispatch(
         'wrote, say so and re-read the step rather than moving on.)\n\n'
       : `Step ${cursor.step} asked nothing, so nothing was recorded.\n\n`;
 
-    const moved = advance(unit, cursor);
-    if (!moved.ok) {
+    /*
+      THE ADVANCE IS THE API'S: `POST …/advance`, the only thing that raises a place (ADR-0060),
+      which reveals the step the answer opens or refuses. The reader's words are not sent — the
+      API keeps none — and the edition goes with the step it raises (ADR-0019).
+    */
+    const moved = await deps.api.advance(track, program.id, cursor.step, cursor.language);
+    if (!moved.ok || !moved.step) {
       /*
         The last step: there is no next one to open, and the first version said so with
         `isError` and a sentence — a reader who had just finished the book was told the
         server had failed. The hand-off instead, as the reading surface's `/summary`: the
-        book's Summary, its *Can you?*, and the next program. The cursor is unchanged, and
+        book's Summary, its *Can you?*, and the next program. The place is unchanged, and
         nothing is destroyed; opening the program again shows the same.
       */
-      if (moved.refusal.kind === 'program-complete') {
-        const done = handOff(unit, cursor.language, nextUnit(deps.bundles.for(track), unit));
+      if (moved.refusal?.kind === 'ProgramComplete') {
+        const done = await finishing(deps, located, unit, cursor.language);
         return { text: recorded + done.text, language: cursor.language, data: { finished: done.finished } };
       }
-      return refusalResult(moved.refusal, cursor.language);
+      return refusalResult(fromGate(moved.refusal!), cursor.language);
     }
 
-    const saved = await deps.cursors.save(moved.cursor);
-    const served = current(unit, saved);
-    if (!served.ok) return refusalResult(served.refusal, saved.language);
+    /*
+      THE API RECORDED NOTHING WHEN ITS PLACE WAS NOT THE ONE ANSWERED — another surface moved
+      the reader between the read above and this advance — and it answered with the step the
+      reader is on. Said as the retry above is said, and nothing claimed recorded.
+    */
+    if (moved.step.n !== answering + 1) {
+      const shown = show(track, unit, moved.step, cursor.language);
+      return refused(
+        `Nothing recorded: the reader is on step ${moved.step.n}, not step ${answering}` +
+          (answering < moved.step.n ? ' — that one was already answered.' : '.') +
+          ` Here is the step they are on:\n\n${shown.text}`,
+        answering < moved.step.n
+          ? { kind: 'already-answered', requested: answering }
+          : { kind: 'not-reached', requested: answering, furthest: moved.step.n },
+        cursor.language,
+        shown.step,
+      );
+    }
 
-    const shown = show(track, unit, served.step, saved.language);
-    return { text: recorded + shown.text, language: saved.language, data: { step: shown.step } };
+    const shown = show(track, unit, moved.step, cursor.language);
+    return { text: recorded + shown.text, language: cursor.language, data: { step: shown.step } };
   }
 
   return problem(`No such tool: ${name}`);

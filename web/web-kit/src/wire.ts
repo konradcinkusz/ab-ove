@@ -1,14 +1,25 @@
 /**
- * The content API's wire shapes — ADR-0060 — a shadow of `AbOvo.Contracts.Content.cs`, the
- * same relationship `@ab-ovo/web-kit`'s `schema.ts` has to `content-schema.v1.json`.
+ * The content API's wire shapes — ADR-0060 — a shadow of `AbOvo.Contracts` (`Content.cs`, and
+ * the progress records of `Progress.cs`), the same relationship `schema.ts` has to
+ * `content-schema.v1.json`.
  *
- * TYPES ONLY, DELIBERATELY SEPARATE FROM `lib/server/content.ts`. That module holds the
- * fetch calls and is restricted from `src/components/**` by the ESLint boundary
- * (FRONTEND-BFF.md §1 — nothing under `lib/server` may reach a component, because it also
- * holds backend addresses and the session cookie). These shapes carry neither: a component
- * that renders a fetched step needs to know what one LOOKS like without being handed
- * anything that could reach the network or a credential, so the shapes live here and the
- * calls stay there.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * HERE BECAUSE THERE ARE TWO CONSUMERS, WHICH IS ADR-0053'S RULE APPLIED TO THEM.
+ *
+ * They lived in `@ab-ovo/app`'s `lib/content/wire.ts` while the reading surface was the one
+ * client of these endpoints. The MCP server became the second when it began reading and
+ * advancing through them (ADR-0066 §1, issue #171), and a second copy of a shadow is two
+ * shadows that drift from the one thing they both describe. So they moved, whole, and both
+ * packages import them from here.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * TYPES ONLY, AND AN ENTRY OF THEIR OWN (`@ab-ovo/web-kit/wire`). In `@ab-ovo/app` the calls
+ * live in `lib/server/content.ts`, which the ESLint boundary keeps out of `src/components/**`
+ * (FRONTEND-BFF.md §1 — it also holds backend addresses and the session cookie). These shapes
+ * carry neither: a component that renders a fetched step needs to know what one LOOKS like
+ * without being handed anything that could reach the network or a credential. This module
+ * imports nothing, so reaching it through its own entry brings no I/O with it — the reason
+ * `./gate` has an entry too (`package.json`).
  */
 
 export interface PartSummary {
@@ -26,6 +37,12 @@ export interface ProgramSummary {
   readonly id: string;
   readonly titles: Readonly<Record<string, string>>;
   readonly part: PartSummary | null;
+  /**
+   * How many steps the program has — what the MCP server's `list_programs` prints beside each
+   * title, from this one call (issue #171). Optional for `furthest`'s reason on `StepResponse`:
+   * an older `AbOvo.Api` omits it.
+   */
+  readonly stepCount?: number | null;
 }
 
 export interface TrackContent {
@@ -55,6 +72,12 @@ export interface UnitSummary {
   readonly furthest?: number | null;
 }
 
+/** Which lab exercise a step points at — `schema.ts`'s `CheckRef`, a reference and never a body. */
+export interface StepCheck {
+  readonly lab: string;
+  readonly exercise: string;
+}
+
 export interface StepContent {
   readonly n: number;
   readonly kind: string;
@@ -62,6 +85,12 @@ export interface StepContent {
   readonly titles: Readonly<Record<string, string>> | null;
   readonly answer: Readonly<Record<string, string>> | null;
   readonly cue: boolean;
+  /**
+   * The lab exercise the step points at. The reading surface no longer offers one on a frame
+   * (ADR-0040); the MCP server tells its reader of it (issue #171). Optional for `furthest`'s
+   * reason on `StepResponse`.
+   */
+  readonly check?: StepCheck | null;
 }
 
 export type RefusalKind = 'NotReached' | 'NoSuchStep' | 'ProgramComplete';
@@ -120,4 +149,34 @@ export interface AdvanceBody {
   readonly answeringStep: number;
   readonly answer?: string;
   readonly language: string;
+}
+
+/**
+ * `AbOvo.Contracts.OpenRequest` — `POST .../content/{track}/{unit}/open` (ADR-0066 §2, issue
+ * #171). The edition and nothing else: an opening records the program's first step, so there
+ * is no step to send.
+ */
+export interface OpenBody {
+  readonly language: string;
+}
+
+/**
+ * `AbOvo.Contracts.ProgressRecord` — one reader's place in one program, as the progress
+ * endpoints and an opening answer it. `step` is the furthest the gate has served; `language`
+ * is the edition at that step, which travels with it (ADR-0019).
+ */
+export interface ProgressRecord {
+  readonly track: string;
+  readonly unit: string;
+  readonly step: number;
+  readonly language: string;
+  readonly updatedAt: string;
+}
+
+/**
+ * `AbOvo.Contracts.ProgressResponse` — every place one reader has: `GET /api/v1/progress` for
+ * an account, `GET /api/v1/progress/anonymous` for the anonymous reader a request names.
+ */
+export interface ProgressResponse {
+  readonly records: readonly ProgressRecord[];
 }

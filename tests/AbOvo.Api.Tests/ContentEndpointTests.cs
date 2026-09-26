@@ -18,18 +18,21 @@ public sealed class ContentEndpointTests
 {
     private const string Track = "math-for-ai-engineers";
     private const string Unit = "P01";
+    private const string NextUnit = "P02";
     private const string Tag = "fixture-0";
 
     /// <summary>
     /// Three steps: enough to exercise a mid-program advance and program-complete both. One
     /// route of each kind and a lab named for the unit, so the return index has a Quiz to
-    /// leave out and a lab to name (issue #158).
+    /// leave out and a lab to name (issue #158). The last step points at that lab, and a
+    /// second program follows, so an opening has a program the reading order would keep shut
+    /// and an edition switch has a second edition to switch to (issue #171).
     /// </summary>
     private static string BundleJson() => JsonSerializer.Serialize(new
     {
         schemaVersion = 2,
         tag = Tag,
-        track = new { id = Track, titles = new { en = "Mathematics from Zero" }, languages = new[] { "en" } },
+        track = new { id = Track, titles = new { en = "Mathematics from Zero" }, languages = new[] { "en", "pl" } },
         labs = new object[]
         {
             new { id = Unit, runtime = "stdlib", exercises = new[] { "e1" } },
@@ -57,6 +60,7 @@ public sealed class ContentEndpointTests
                     {
                         n = 3, kind = "frame", body = new { en = "Frame three." },
                         answer = new { en = "Answer to frame two." }, cue = true,
+                        check = new { lab = Unit, exercise = "e1" },
                     },
                 },
                 routes = new object[]
@@ -68,6 +72,21 @@ public sealed class ContentEndpointTests
                     },
                     new { kind = "summary", labels = new { en = "What frames one and two established." }, from = 1, to = 2 },
                     new { kind = "outcome", labels = new { en = "Say what frame three asks." }, from = 3, to = 3 },
+                },
+            },
+            new
+            {
+                id = NextUnit,
+                titles = new { en = "Rounding" },
+                part = new { id = "F", titles = new { en = "Foundations" } },
+                steps = new object[]
+                {
+                    new { n = 1, kind = "frame", body = new { en = "The next program's first frame." }, cue = true },
+                    new
+                    {
+                        n = 2, kind = "frame", body = new { en = "The next program's second frame." },
+                        answer = new { en = "The next program's first answer." },
+                    },
                 },
             },
         },
@@ -114,13 +133,15 @@ public sealed class ContentEndpointTests
             $"/api/v1/content/{Track}", TestContext.Current.CancellationToken);
 
         Assert.Equal(Tag, content!.Tag);
-        Assert.Equal(["en"], content.Languages);
+        Assert.Equal(["en", "pl"], content.Languages);
         // The course's own name, which the contents page prints under a program's title and
         // used to read from the compiled bundle (issue #158).
         Assert.Equal("Mathematics from Zero", content.Titles?["en"]);
-        var program = Assert.Single(content.Programs);
-        Assert.Equal(Unit, program.Id);
-        Assert.Equal("F", program.Part?.Id);
+        Assert.Equal([Unit, NextUnit], content.Programs.Select(program => program.Id));
+        Assert.All(content.Programs, program => Assert.Equal("F", program.Part?.Id));
+        // Each program's length, which the MCP server's list prints beside its title and
+        // reads from this one call (issue #171).
+        Assert.Equal([3, 2], content.Programs.Select(program => program.StepCount));
     }
 
     [Fact]
@@ -561,5 +582,202 @@ public sealed class ContentEndpointTests
 
         Assert.False(bobsStepTwo!.Ok, "bob's own cursor must not have moved because alice's did");
         Assert.Equal("NotReached", bobsStepTwo.Refusal!.Kind);
+    }
+
+    /// <summary>
+    /// A step that points at a lab exercise says so, and a step that points at none says
+    /// nothing: the MCP server tells its reader of the exercise, which it read from its own
+    /// bundle until it read the steps from here (issue #171). A reference, never a body.
+    /// </summary>
+    [Fact]
+    public async Task A_step_carries_the_lab_exercise_it_points_at_and_no_other_does()
+    {
+        using var factory = new SignedInApiFactory();
+        using var scope = factory.Services.CreateScope();
+        await Seed(scope.ServiceProvider.GetRequiredService<AbOvoDbContext>(), TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+
+        using var client = factory.CreateClient();
+        UseAnonymousReader(client, Guid.NewGuid());
+        foreach (var answering in new[] { 1, 2 })
+        {
+            using var step = await client.PostAsJsonAsync(
+                $"/api/v1/content/{Track}/{Unit}/advance",
+                new AdvanceRequest { AnsweringStep = answering, Language = "en" }, token);
+            Assert.Equal(HttpStatusCode.OK, step.StatusCode);
+        }
+
+        var first = await client.GetFromJsonAsync<StepResponse>($"/api/v1/content/{Track}/{Unit}/1", token);
+        Assert.Null(first!.Step!.Check);
+
+        var last = await client.GetFromJsonAsync<StepResponse>($"/api/v1/content/{Track}/{Unit}/3", token);
+        Assert.Equal(new StepCheck(Unit, "e1"), last!.Step!.Check);
+    }
+
+    // ── Opening a program — ADR-0066 §2, issue #171 ─────────────────────────────────────────
+
+    private static Task<HttpResponseMessage> OpenAsync(HttpClient client, string unit, string language) =>
+        client.PostAsJsonAsync(
+            $"/api/v1/content/{Track}/{unit}/open",
+            new OpenRequest { Language = language },
+            TestContext.Current.CancellationToken);
+
+    /// <summary>
+    /// The write the MCP server's <c>open_program</c> records a place with, reader with an
+    /// account or without: a place at the program's first step, in the edition chosen, and the
+    /// place as it now stands in the answer — which is what opens the next program (ADR-0056).
+    /// </summary>
+    [Fact]
+    public async Task Opening_a_program_records_a_place_at_its_first_step_in_the_edition_chosen()
+    {
+        using var factory = new SignedInApiFactory();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AbOvoDbContext>();
+        await Seed(db, TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+
+        var readerId = Guid.NewGuid();
+        using var client = factory.CreateClient();
+        UseAnonymousReader(client, readerId);
+
+        using var opened = await OpenAsync(client, Unit, "pl");
+        Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
+        var place = await opened.Content.ReadFromJsonAsync<ProgressRecord>(token);
+        Assert.Equal((Track, Unit, 1, "pl"), (place!.Track, place.Unit, place.Step, place.Language));
+        Assert.Equal(factory.Clock.GetUtcNow(), place.UpdatedAt);
+
+        var row = await db.ReaderProgress.AsNoTracking()
+            .SingleAsync(p => p.Subject == $"anon:{readerId:D}" && p.Track == Track && p.Unit == Unit, token);
+        Assert.Equal((1, "pl"), (row.Step, row.Language));
+    }
+
+    /// <summary>
+    /// On a place that exists it writes NOTHING — not the step, not the edition, not the time.
+    /// A reader further on is not moved back, and an edition switch waits for the next advance,
+    /// which carries one: a place and its edition travel together (ADR-0019).
+    /// </summary>
+    [Fact]
+    public async Task Opening_a_program_the_reader_has_a_place_in_writes_nothing()
+    {
+        using var factory = new SignedInApiFactory();
+        using var scope = factory.Services.CreateScope();
+        await Seed(scope.ServiceProvider.GetRequiredService<AbOvoDbContext>(), TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+
+        using var client = factory.CreateClient();
+        UseAnonymousReader(client, Guid.NewGuid());
+        using (var advanced = await client.PostAsJsonAsync(
+                   $"/api/v1/content/{Track}/{Unit}/advance",
+                   new AdvanceRequest { AnsweringStep = 1, Language = "en" }, token))
+        {
+            Assert.Equal(HttpStatusCode.OK, advanced.StatusCode);
+        }
+        var then = factory.Clock.GetUtcNow();
+        factory.Clock.Advance(TimeSpan.FromHours(3));
+
+        using var opened = await OpenAsync(client, Unit, "pl");
+        var place = await opened.Content.ReadFromJsonAsync<ProgressRecord>(token);
+
+        Assert.Equal((2, "en", then), (place!.Step, place.Language, place.UpdatedAt));
+        var step = await client.GetFromJsonAsync<StepResponse>($"/api/v1/content/{Track}/{Unit}/2", token);
+        Assert.True(step!.Ok, "opening moved a reader back from a step they had reached");
+    }
+
+    /// <summary>
+    /// It never raises a step, and it does not ask the reading order: the API holds no order
+    /// (ADR-0065), and the MCP server asks <c>isOpenWhere</c> before it writes, as the
+    /// browser's recorder does. So a program with nothing read before it is opened at its first
+    /// step, and its second step is still the gate's to serve.
+    /// </summary>
+    [Fact]
+    public async Task Opening_raises_no_step_and_does_not_ask_the_reading_order()
+    {
+        using var factory = new SignedInApiFactory();
+        using var scope = factory.Services.CreateScope();
+        await Seed(scope.ServiceProvider.GetRequiredService<AbOvoDbContext>(), TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+
+        using var client = factory.CreateClient();
+        UseAnonymousReader(client, Guid.NewGuid());
+
+        using var opened = await OpenAsync(client, NextUnit, "en");
+        Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
+        Assert.Equal(1, (await opened.Content.ReadFromJsonAsync<ProgressRecord>(token))!.Step);
+
+        using var again = await OpenAsync(client, NextUnit, "en");
+        Assert.Equal(1, (await again.Content.ReadFromJsonAsync<ProgressRecord>(token))!.Step);
+
+        var second = await client.GetFromJsonAsync<StepResponse>($"/api/v1/content/{Track}/{NextUnit}/2", token);
+        Assert.False(second!.Ok);
+        Assert.Equal("NotReached", second.Refusal!.Kind);
+    }
+
+    /// <summary>
+    /// A bearer names the reader when there is one, as it does for every read and advance
+    /// (<c>ReaderIdentity.Resolve</c>): the account's place is opened and the anonymous
+    /// cursor beside it is left alone.
+    /// </summary>
+    [Fact]
+    public async Task Opening_with_a_bearer_opens_the_accounts_place()
+    {
+        const string account = "11111111-2222-3333-4444-555555555555";
+        using var factory = new SignedInApiFactory();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AbOvoDbContext>();
+        await Seed(db, TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+
+        var readerId = Guid.NewGuid();
+        using var client = factory.ClientFor(account);
+        UseAnonymousReader(client, readerId);
+
+        using var opened = await OpenAsync(client, Unit, "en");
+        Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
+
+        Assert.Equal(1, await db.ReaderProgress.AsNoTracking().CountAsync(p => p.Subject == account, token));
+        Assert.Equal(0, await db.ReaderProgress.AsNoTracking().CountAsync(p => p.Subject == $"anon:{readerId:D}", token));
+    }
+
+    /// <summary>
+    /// What it refuses, and none of it leaves a row: no reader to file the place under, a
+    /// program or a track the book does not have, and an edition the track is not published in
+    /// — the place is read back as the edition to render in, so it would be a place no client
+    /// could show.
+    /// </summary>
+    [Fact]
+    public async Task Opening_is_refused_without_a_reader_a_program_or_a_published_edition()
+    {
+        using var factory = new SignedInApiFactory();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AbOvoDbContext>();
+        await Seed(db, TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+
+        using var nobody = factory.CreateClient();
+        using (var noReader = await OpenAsync(nobody, Unit, "en"))
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, noReader.StatusCode);
+        }
+
+        var readerId = Guid.NewGuid();
+        using var client = factory.CreateClient();
+        UseAnonymousReader(client, readerId);
+
+        using (var noProgram = await OpenAsync(client, "P99", "en"))
+        {
+            Assert.Equal(HttpStatusCode.NotFound, noProgram.StatusCode);
+        }
+        using (var noTrack = await client.PostAsJsonAsync(
+                   $"/api/v1/content/no-such-track/{Unit}/open", new OpenRequest { Language = "en" }, token))
+        {
+            Assert.Equal(HttpStatusCode.NotFound, noTrack.StatusCode);
+        }
+        foreach (var language in new[] { "de", "english!" })
+        {
+            using var refused = await OpenAsync(client, Unit, language);
+            Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
+        }
+
+        Assert.Equal(0, await db.ReaderProgress.AsNoTracking().CountAsync(p => p.Subject == $"anon:{readerId:D}", token));
     }
 }

@@ -1,4 +1,4 @@
-import type { StepResponse, TrackContent, UnitSummary } from '@/lib/content/wire';
+import type { StepResponse, TrackContent, UnitSummary } from '@ab-ovo/web-kit/wire';
 
 import {
   fetchStep,

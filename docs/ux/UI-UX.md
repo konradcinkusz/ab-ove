@@ -1466,25 +1466,30 @@ copy of everything above.
 **A second TRANSPORT is not a second client** — and the difference is what
 [`docs/architecture/MCP-SERVER-SKETCH.md`](../architecture/MCP-SERVER-SKETCH.md) is
 allowed by. `web/mcp` serves the book to a reader working inside an MCP host, and it is not
-the refusal above because it copies nothing: the content library is imported rather than
-reimplemented, the reader's place is the same `ReaderProgress` row reached over the same
-HTTP API, and it owns no store. What a second copy would mean here is a second loader, a
-second cursor or a second answer to where a reader is — and the sketch's §6 exit condition
-exists so that the first of those cannot arrive quietly.
+the refusal above because it copies nothing. Since #171 it is a client of the HTTP API the
+reading surface reads: the book, the reveal gate and the reader's place are all
+`AbOvo.Api`'s, and what it shares with the surface beyond them — the reading order and the
+wire shapes — it imports from `@ab-ovo/web-kit` rather than reimplementing. It owns no store
+and no loader. What a second copy would mean here is a second loader, a second gate, a second
+cursor or a second answer to where a reader is, and none of them has a module left to live in.
 
-The reveal is the thing that does NOT travel for free. On the reading surface it is a form
+The reveal is the thing that did NOT travel for free. On the reading surface it is a form
 that raises the reader's cursor and turns the page, and there is no page to turn on a
-transport with no navigation, so the property is rebuilt there rather than inherited: a step
-is served only at or below the reader's furthest, which makes an unreached answer
-unselectable rather than filtered. What does travel: where the reader is (every step opens
+transport with no navigation, so the MCP server first rebuilt the property rather than
+inheriting it: a step is served only at or below the reader's furthest, which makes an
+unreached answer unselectable rather than filtered. That rule moved into `AbOvo.Api`
+([ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)),
+and both transports ask the same copy of it; how a turn is asked for stays each transport's
+own — a form there, `submit_answer` here. What does travel: where the reader is (every step opens
 with program, title, section and position — what the surface's top bar and pager say), the
 summary screen (the last
 step hands off to the program's Summary, *Can you?* and the next program), and the book's
 runs in the program list — each from the same function the surface uses, so the two never
 divide or name the book two ways. The note above about the
 service worker applies here with the sign turned over — the acceptance suite asserts over
-the DOM, and a transport that has none needs its own gate or the suite stays green while the
-property does not reach it.
+the DOM, and a transport that has none needs assertions of its own (the MCP unit tier's leak
+walks, over what the API sends it) or the suite stays green while the property does not reach
+it.
 
 **A service worker that caches or prefetches `/read/` navigations.** Refused, and the reason is
 not performance. The reveal *is* a navigation to step `n + 1`, and `prefetch={false}` on that

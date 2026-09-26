@@ -34,6 +34,40 @@ has the account adopt an anonymous reader's places at sign-in, and the browser s
 Where the Context and the Consequences below describe `sync.ts` pushing through `PUT`, they
 record how things stood when this was decided. Narrowing `PUT` now waits only on #171.
 
+**Built by #171 on 2026-09-26.** `web/mcp` reads tracks, programs and steps from
+`GET /api/v1/content/**`, records an opening through the new
+`POST /api/v1/content/{track}/{unit}/open`, and advances through `POST …/advance`. It reads every
+place its reader has through `GET /api/v1/progress` for an account, or through the new
+`GET /api/v1/progress/anonymous` for an anonymous id. It holds no bundle and no copy of the gate:
+its `reveal.ts`, `cursor.ts` and `content.ts` are gone, and its unit tier runs against a stub of
+the API. The wire shapes moved from `web/app` to `@ab-ovo/web-kit/wire`. `PUT` is narrowed so that
+it raises no step, answering a step past the one reached with a 409, and the register row is
+discharged. Where the Context and the Decision below name `CursorStore`, `ApiCursorStore` or the
+in-memory store, they name modules this removed: `AbOvoApi`, in `web/mcp/src/api.ts`, took their
+place. Where §2 left a choice, this is how it was built:
+
+- **The file** is `reader-ids` in the user's state directory: `$XDG_STATE_HOME/ab-ovo`, else
+  `~/.local/state/ab-ovo`, and `~/Library/Application Support/ab-ovo` on macOS or
+  `%LOCALAPPDATA%\ab-ovo` on Windows. It is readable by its user alone (0600, in a 0700
+  directory) and holds one line per API origin: the origin and the id.
+- **Created atomically, and the first line wins.** The file is made by an exclusive create. An id
+  is added by appending one line in one write, and the process then reads the file again and
+  takes the first line for its origin, so the loser of a race adopts the winner's id. Appending
+  also keeps two origins added at once, which rewriting the file and renaming it into place could
+  not promise without a lock.
+- **Minted at the first request** a process makes, not at its start.
+- **A redirect is not followed.** `fetch` carries a custom header across one, so an id could
+  otherwise reach an origin it was not minted for.
+- **The wire gained two optional fields**: `ProgramSummary.stepCount`, since `list_programs`
+  prints each program's length and would otherwise need a request per program, and
+  `StepContent.check`, since a step still says which lab exercise it points at. The reading
+  surface ignores both.
+- **The tracks it asks about** are the ones this checkout pins (`PINS`), because `AbOvo.Api`
+  lists no courses yet.
+- **With no `AB_OVO_API_URL`** there is no book, and every call says what to set. The in-memory
+  place of §2 is an id held in memory: the API keeps the place under it for as long as the
+  process runs, and the results say so.
+
 ## Context
 
 Measured for #155 on 2026-09-24, and read again on 2026-09-25.

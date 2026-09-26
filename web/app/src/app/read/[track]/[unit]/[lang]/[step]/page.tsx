@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { say } from '@ab-ovo/web-kit';
+import type { TrackContent } from '@ab-ovo/web-kit/wire';
 
 import { FrameView } from '@/components/read/frame-view';
 import { NotReached } from '@/components/read/not-reached';
@@ -17,7 +18,6 @@ import type { ReaderIdentity } from '@/lib/server/content';
 import { fetchFrame, fetchProgram, frameNumberOf, type ProgramFetch } from '@/lib/server/frame';
 import { readerEdition } from '@/lib/server/reader-edition';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/session-cookies';
-import type { TrackContent } from '@/lib/content/wire';
 
 /**
  * One frame of one program, in one language.

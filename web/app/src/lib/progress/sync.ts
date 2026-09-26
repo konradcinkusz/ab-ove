@@ -35,8 +35,9 @@
  * `AbOvo.Api`'s own writes: a signed-in reveal (`POST …/advance`), and, as a session begins,
  * the adoption of the places this browser read without an account
  * (`lib/server/adopt-places.ts`). So this module pulls, merges, says what moved and forgets on
- * request, and sends nothing the API does not already hold. (`web/mcp` still raises the
- * account through `PUT` until #171 moves it to the advance; that is the register row now.)
+ * request, and sends nothing the API does not already hold. (`web/mcp` raised the account
+ * through `PUT` too, until #171 moved it to the advance and narrowed `PUT` so that nothing
+ * raises a step through it; the register row was discharged with it.)
  *
  * A place only this browser holds — past the account and past the anonymous cursor — stays
  * here as ADR-0060's resume hint: *Continue* still offers it, the gate answers for the frame

@@ -1,11 +1,14 @@
 /**
- * @ab-ovo/web-kit — the loader, the schema types and the validator, and nothing else.
+ * @ab-ovo/web-kit — the loader, the schema types and the validator, the reading order, and
+ * the content API's wire shapes; nothing else.
  *
- * content.ts's own words, from before this package existed, are still the description:
- * "the loader, the validator that refuses rather than degrades, and the schema types."
- * Rendering (maths, markdown), the index's edition/track selection and lab-runtime asset
- * staging stay in `@ab-ovo/app` — see this package's own package.json for why each one
- * does not belong here.
+ * content.ts's own words, from before this package existed, are still the description of the
+ * first three: "the loader, the validator that refuses rather than degrades, and the schema
+ * types." The reading order (`gate.ts`) arrived when the MCP server asked the website's
+ * question, and the wire shapes (`wire.ts`) when it became the second client of the content
+ * API (issue #171): each is here because two packages need the one copy. Rendering (maths,
+ * markdown), the index's edition/track selection and lab-runtime asset staging stay in
+ * `@ab-ovo/app` — see this package's own package.json for why each one does not belong here.
  *
  * The validator's internals (`Problem`, `Schema`, `unimplementedKeywords`,
  * `validateAgainst`) are deliberately not re-exported: nothing outside `validate.ts` and
@@ -24,3 +27,4 @@ export * from './bundle.ts';
 export * from './gate.ts';
 export * from './schema.ts';
 export { validateBundle, type ValidationResult } from './validate.ts';
+export type * from './wire.ts';

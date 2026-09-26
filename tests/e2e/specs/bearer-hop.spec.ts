@@ -378,33 +378,40 @@ test.describe('a frame a reader reads reaches the account and comes back', () =>
     // because the caller ADOPTS the answer. `ProgressEndpointTests` proves the service does
     // that; this proves the answer survives the proxy, which is the only hop between them that
     // could drop a body or re-wrap it in an envelope of its own.
+    //
+    // The place is raised the one way a place is raised, by a signed-in reveal (`walkTo`, the
+    // advance through this same proxy): since #171 `PUT` raises nothing, and records a place
+    // only at a program's first step.
     await openThrough(page, UNIT);
-    await page.goto(`/read/${TRACK}/${UNIT}/en/1`);
+    await walkTo(page, UNIT, 'en', 2);
+    await page.goto(`/read/${TRACK}/${UNIT}/en/2`);
 
-    const wrote = await throughProxy(page, `${PROGRESS}/${TRACK}/${UNIT}`, {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ step: 2, language: 'en' }),
-    });
-
-    expect(wrote.status, 'the write did not reach the API as this reader').toBe(200);
-    expect(JSON.parse(wrote.body)).toMatchObject({ track: TRACK, unit: UNIT, step: 2 });
-
-    // And the rule the service applies, seen from a browser: a step that is not strictly
-    // greater does not move the record, and the answer is what it HOLDS rather than an echo of
-    // what was sent. A proxy that returned a 200 of its own would pass the line above and fail
-    // this one.
+    // The rule the service applies, seen from a browser: a step that is not strictly greater
+    // does not move the record, and the answer is what it HOLDS rather than an echo of what was
+    // sent. A proxy that returned a 200 of its own would fail this.
     const behind = await throughProxy(page, `${PROGRESS}/${TRACK}/${UNIT}`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ step: 1, language: 'en' }),
     });
 
-    expect(behind.status).toBe(200);
-    expect(
-      (JSON.parse(behind.body) as { step: number }).step,
-      'the answer echoed the request instead of reporting the stored row',
-    ).toBe(2);
+    expect(behind.status, 'the write did not reach the API as this reader').toBe(200);
+    expect(JSON.parse(behind.body), 'the answer echoed the request instead of reporting the stored row').toMatchObject(
+      { track: TRACK, unit: UNIT, step: 2 },
+    );
+
+    // And a step past the one reached is refused, as a refusal and not a 200 of the proxy's
+    // own, and moves nothing: the one way to read ahead unanswered is shut at the API (#171).
+    const ahead = await throughProxy(page, `${PROGRESS}/${TRACK}/${UNIT}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ step: 4, language: 'en' }),
+    });
+
+    expect(ahead.status, 'a step no answer reached was not refused').toBe(409);
+    const held = await throughProxy(page, PROGRESS);
+    const { records } = JSON.parse(held.body) as { records: { track: string; unit: string; step: number }[] };
+    expect(records.find((row) => row.track === TRACK && row.unit === UNIT)?.step).toBe(2);
   });
 });
 
@@ -523,10 +530,11 @@ test.describe('a reader’s place is filed under the reader the session names', 
       READER.id,
     );
 
+    // Step 1, a place a write may still record (#171: `PUT` raises nothing past it).
     const wrote = await throughProxy(page, `${PROGRESS}/${TRACK}/${UNIT}`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ step: 2, language: 'en' }),
+      body: JSON.stringify({ step: 1, language: 'en' }),
     });
     expect(wrote.status).toBe(200);
 
