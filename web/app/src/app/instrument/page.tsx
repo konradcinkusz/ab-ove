@@ -3,7 +3,8 @@ import Link from 'next/link';
 
 import { allBundles, say } from '@ab-ovo/web-kit';
 
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { Masthead } from '@/components/masthead/masthead';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import { LABS } from '@/lib/lab/protocol';
 
 import styles from './instrument.module.css';
@@ -45,11 +46,11 @@ export const metadata: Metadata = {
 export default function InstrumentIndexPage(): React.JSX.Element {
   return (
     <main className={styles.page}>
-      <SkipLink language="en" />
-      <p className={styles.crumb}>
-        {/* Not prefetched: the index titles its tab in the reader's edition (ADR-0067). */}
-        <Link href="/" prefetch={false}>ab-ovo</Link> / instrument
-      </p>
+      {/*
+        The one masthead (#169), where this page had an `ab-ovo / instrument` crumb of its own.
+        In English, as the author's view is, and home is a bare `/` for the lab's reason.
+      */}
+      <Masthead home="/" language="en" trail={[{ label: 'instrument' }]} />
       <h1 className={styles.title} id={SKIP_TARGET_ID}>The instrument</h1>
       <p className={styles.subtitle}>
         What the book&rsquo;s own readers found hard, frame by frame. Every number carries the

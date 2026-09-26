@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { Masthead } from '@/components/masthead/masthead';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import { signInHref } from '@/lib/account-href';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { indexHref } from '@/lib/index-href';
@@ -88,19 +89,12 @@ export default async function SecondFactorPage({
 
   return (
     <main className="shell" lang={chrome.language}>
-      <SkipLink language={chrome.language} />
-      <header className="masthead">
-        {/* The way home, as on `/login` (issue #166). */}
-        <p className="wordmark">
-          <Link href={indexHref({ edition })} prefetch={false}>
-            ab<span>-</span>ovo
-          </Link>
-        </p>
-        <h1 className="lede" id={SKIP_TARGET_ID}>
-          {strings.lede}
-        </h1>
-        <p className="standfirst">{strings.standfirst}</p>
-      </header>
+      {/* The one masthead and its way home, as on `/login` (#169, issue #166). */}
+      <Masthead home={indexHref({ edition })} language={chrome.language} />
+      <h1 className="lede" id={SKIP_TARGET_ID}>
+        {strings.lede}
+      </h1>
+      <p className="standfirst">{strings.standfirst}</p>
 
       {problemWords ? (
         <section className={styles.problem} aria-live="polite">

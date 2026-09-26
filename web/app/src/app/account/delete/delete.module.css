@@ -3,11 +3,14 @@
  * moved here with it unchanged.
  *
  * A plain HTML form with no client component behind it, so everything here is ordinary CSS
- * against the same tokens the rest of the product uses. Most of it is `credentials-form.module.css`
- * with different class names, and that duplication is deliberate: a shared form stylesheet
- * would couple two pages that have no reason to change together, and CSS Modules give each
- * page its own scope precisely so a rule on one cannot reach the other — which is also why
- * the overview one directory up has a stylesheet of its own rather than this one.
+ * against the same tokens the rest of the product uses. Most of its layout is
+ * `credentials-form.module.css` with different class names, and that duplication is
+ * deliberate: a shared form stylesheet would couple two pages that have no reason to change
+ * together, and CSS Modules give each page its own scope precisely so a rule on one cannot
+ * reach the other — which is also why the overview one directory up has a stylesheet of its
+ * own rather than this one. The CONTROLS are not the layout: the field and the button are the
+ * product's one family (#169), composed from `components/read/controls.module.css`, which is
+ * one source that both pages are meant to change with.
  */
 .form {
   display: grid;
@@ -28,22 +31,14 @@
   letter-spacing: 0.02em;
 }
 
-/* `--control-edge`, for `credentials-form.module.css`'s reason: WCAG 1.4.11, ADR-0063. */
+/*
+ * The field is the shared set's (#169, `components/read/controls.module.css`), as the sign-in
+ * forms' is: its edge `--control-edge` for `credentials-form.module.css`'s reason (WCAG 1.4.11,
+ * ADR-0063), and the buttons' corner and height. The forms' layout stays each page's own, for
+ * this file's header's reason; the controls in them are the product's one family.
+ */
 .input {
-  background: var(--paper-raised);
-  border: 1px solid var(--control-edge);
-  border-radius: 3px;
-  color: var(--ink);
-  font: inherit;
-  font-family: var(--font-ui);
-  font-size: 1rem;
-  padding: 0.5rem 0.625rem;
-}
-
-.input:focus-visible {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  composes: field from '../../../components/read/controls.module.css';
 }
 
 .hint {
@@ -55,42 +50,23 @@
 }
 
 /*
- * The button is `--degraded` rather than `--accent`.
+ * The button is `--degraded` rather than `--accent` — the shared set's `primary danger` (#169).
  *
  * Every other primary button in the product is the accent colour and means "yes, go on".
- * This one ends an account, and it should not be the same shape and colour as the button a
- * reader presses to continue reading — a destructive action that looks exactly like every
- * constructive one is a destructive action somebody presses out of habit.
+ * This one ends an account, and it should not be the same colour as the button a reader
+ * presses to continue reading — a destructive action that looks exactly like every
+ * constructive one is a destructive action somebody presses out of habit. Its SHAPE is every
+ * button's, since #169: the difference that matters is the colour and the word.
  *
  * It is not made SMALL or hidden either. A control that is hard to find is not a safeguard,
  * it is an obstacle to the reader who has decided; the confirmation word is the safeguard,
- * and it is the thing that cannot be done by accident.
+ * and it is the thing that cannot be done by accident. Its focus ring is every button's, in
+ * the accent, where it used to be its own colour: focus is where the keyboard is, and it looks
+ * the same wherever the keyboard is.
  */
 .submit {
-  background: var(--degraded);
-  border: 0;
-  border-radius: 3px;
-  color: var(--paper-raised);
-  cursor: pointer;
-  font-family: var(--font-ui);
-  font-size: 0.9375rem;
+  composes: primary danger from '../../../components/read/controls.module.css';
   justify-self: start;
-  padding: 0.5rem 1.125rem;
-}
-
-.submit:hover {
-  filter: brightness(1.1);
-}
-
-/*
- * A visible ring on focus, in the button's own colour — see frame-view.module.css — and a
- * transparent outline, which forced colours paint in its place (issue #148).
- */
-.submit:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--paper),
-    0 0 0 4px var(--degraded);
-  outline: 2px solid transparent;
 }
 
 .removes {

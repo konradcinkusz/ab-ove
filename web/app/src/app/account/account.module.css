@@ -4,7 +4,7 @@
  * Its own stylesheet, and not the deletion screen's one directory down, for that sheet's own
  * reason: CSS Modules give each page its own scope so a rule on one cannot reach the other,
  * and the two pages have no reason to change together. What they share is the shell —
- * `globals.css`'s masthead, sections and colophon — and the tokens.
+ * `globals.css`'s sections and colophon, and the one masthead (#169) — and the tokens.
  */
 
 /* Whose account, and *Sign out* beside it, under the heading. */

@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSyncExternalStore } from 'react';
 
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { Masthead } from '@/components/masthead/masthead';
+import controls from '@/components/read/controls.module.css';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { indexHref } from '@/lib/index-href';
 import { serverSnapshot, snapshot, subscribe } from '@/lib/language/client';
@@ -39,21 +41,17 @@ export function NotFoundPage({ offered }: NotFoundPageProps): React.JSX.Element 
 
   return (
     <main className="shell" lang={chrome.language}>
-      <SkipLink language={chrome.language} />
-      <header className="masthead">
-        <p className="wordmark">
-          <Link href={programs} prefetch={false}>
-            ab<span>-</span>ovo
-          </Link>
-        </p>
-        <h1 className="lede" id={SKIP_TARGET_ID}>
-          {strings.title}
-        </h1>
-        <p className="standfirst">{strings.standfirst}</p>
-        <p className="enter">
-          <Link href={programs} prefetch={false}>{chrome.openPrograms}</Link>
-        </p>
-      </header>
+      {/* The one masthead, and the filled way back from the shared set (#169). */}
+      <Masthead home={programs} language={chrome.language} />
+      <h1 className="lede" id={SKIP_TARGET_ID}>
+        {strings.title}
+      </h1>
+      <p className="standfirst">{strings.standfirst}</p>
+      <p className="enter">
+        <Link className={controls.primary} href={programs} prefetch={false}>
+          {chrome.openPrograms}
+        </Link>
+      </p>
 
       <section className="section">
         <h2>{strings.followedTitle}</h2>

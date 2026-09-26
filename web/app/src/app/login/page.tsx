@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { Masthead } from '@/components/masthead/masthead';
+import controls from '@/components/read/controls.module.css';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import { registerHref, signInHref } from '@/lib/account-href';
 import { chromeFor, type Chrome } from '@/lib/i18n/chrome';
 import { indexHref } from '@/lib/index-href';
@@ -209,30 +211,23 @@ export default async function LoginPage({
 
   return (
     <main className="shell" lang={chrome.language}>
-      <SkipLink language={chrome.language} />
-      <header className="masthead">
-        {/*
-          The wordmark is the way home — to the programs, in this edition — as it is on
-          `/about` and the 404. On the account's pages it was text (issue #166).
-        */}
-        <p className="wordmark">
-          <Link href={home} prefetch={false}>
-            ab<span>-</span>ovo
-          </Link>
-        </p>
-        {/*
-          What signing in is for, and then that reading does not need it (issue #162). The
-          heading was "Signing in is optional", which is the second half on its own. It
-          states rather than invites, so it stays true on a site with no identity service,
-          where the section below says there is nothing to sign in to. "This browser
-          remembers" is the reader's view of ADR-0061's cookie: the place is on the server,
-          and this browser is what it is kept under.
-        */}
-        <h1 className="lede" id={SKIP_TARGET_ID}>
-          {strings.lede}
-        </h1>
-        <p className="standfirst">{strings.standfirst}</p>
-      </header>
+      {/*
+        The one masthead (#169), whose wordmark is the way home — to the programs, in this
+        edition — as it is on every page outside the reading screens.
+      */}
+      <Masthead home={home} language={chrome.language} />
+      {/*
+        What signing in is for, and then that reading does not need it (issue #162). The
+        heading was "Signing in is optional", which is the second half on its own. It states
+        rather than invites, so it stays true on a site with no identity service, where the
+        section below says there is nothing to sign in to. "This browser remembers" is the
+        reader's view of ADR-0061's cookie: the place is on the server, and this browser is what
+        it is kept under.
+      */}
+      <h1 className="lede" id={SKIP_TARGET_ID}>
+        {strings.lede}
+      </h1>
+      <p className="standfirst">{strings.standfirst}</p>
 
       {problemWords ? (
         <section className={styles.problem} aria-live="polite">
@@ -380,7 +375,9 @@ export default async function LoginPage({
  *
  * The way to sign in is a FRESH `/login`, with no destination: the one this address would
  * have carried is a page that does not exist. It keeps the edition, as every way out of these
- * pages does (issue #166), and it has the skip link and the wordmark home `LoginPage` has.
+ * pages does (issue #166), and it has the masthead `LoginPage` has — the skip link and the
+ * wordmark home. Its two ways on are the shared set's (#169): the programs filled, and signing
+ * in outlined beside it, where it was a link drawn as text.
  */
 function NoPageAt({
   address,
@@ -398,30 +395,25 @@ function NoPageAt({
   const home = indexHref({ edition });
   return (
     <main className="shell" lang={chrome.language}>
-      <SkipLink language={chrome.language} />
-      <header className="masthead">
-        <p className="wordmark">
-          <Link href={home} prefetch={false}>
-            ab<span>-</span>ovo
+      <Masthead home={home} language={chrome.language} />
+      <h1 className="lede" id={SKIP_TARGET_ID}>
+        {chrome.notFound.title}
+      </h1>
+      <p className="standfirst">
+        {strings.noPage.before}
+        <code>{address}</code>
+        {strings.noPage.after}
+      </p>
+      <p className="enter">
+        <Link className={controls.primary} href={home} prefetch={false}>
+          {chrome.openPrograms}
+        </Link>
+        {identityConfigured ? (
+          <Link className={controls.secondary} href={signInHref({ edition })} prefetch={false}>
+            {chrome.signIn}
           </Link>
-        </p>
-        <h1 className="lede" id={SKIP_TARGET_ID}>
-          {chrome.notFound.title}
-        </h1>
-        <p className="standfirst">
-          {strings.noPage.before}
-          <code>{address}</code>
-          {strings.noPage.after}
-        </p>
-        <p className="enter">
-          <Link href={home} prefetch={false}>{chrome.openPrograms}</Link>
-          {identityConfigured ? (
-            <Link className="quiet" href={signInHref({ edition })} prefetch={false}>
-              {chrome.signIn}
-            </Link>
-          ) : null}
-        </p>
-      </header>
+        ) : null}
+      </p>
 
       <section className="section">
         <h2>{strings.whyHereTitle}</h2>

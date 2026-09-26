@@ -1,11 +1,12 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Transcript } from '@/components/lab/transcript';
 import styles from '@/components/lab/lab-pane.module.css';
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { Masthead } from '@/components/masthead/masthead';
+import controls from '@/components/read/controls.module.css';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import { exercisePath, type LabDescriptor } from '@/lib/lab/protocol';
 import { useLabRuntime } from '@/lib/lab/use-lab-runtime';
 
@@ -141,10 +142,12 @@ export function LabPane({
 
   return (
     <main className={styles.page}>
-      <SkipLink language="en" />
-      <p className={styles.crumb}>
-        <Link href="/lab">lab</Link> / {lab.id}
-      </p>
+      {/*
+        The one masthead (#169), in English as the lab is. Its trail is what the crumb here
+        said — `lab / p01` — with the wordmark in front of it, which is the way home this page
+        did not have: its crumb began at the lab.
+      */}
+      <Masthead home="/" language="en" trail={[{ label: 'lab', href: '/lab' }, { label: lab.id }]} />
       <h1 className={styles.title} id={SKIP_TARGET_ID}>
         {lab.program} — {lab.title}
       </h1>
@@ -174,10 +177,15 @@ export function LabPane({
         </p>
       </div>
 
+      {/*
+        The bar's three buttons are the shared set's (#169, `components/read/controls.module.css`):
+        the page's one filled control, then the two outlined ones — *Stop* in the tone of a
+        control that ends something. `lab-pane.module.css` says why each is the weight it is.
+      */}
       <div className={styles.bar}>
         <button
           type="button"
-          className={styles.button}
+          className={controls.primary}
           data-testid="lab-run"
           onClick={onCheck}
           disabled={busy || status === 'failed' || stub === null}
@@ -194,7 +202,7 @@ export function LabPane({
         */}
         <button
           type="button"
-          className={`${styles.button} ${styles.danger}`}
+          className={`${controls.secondary} ${controls.danger}`}
           data-testid="lab-stop"
           onClick={onStop}
           disabled={status !== 'running'}
@@ -203,7 +211,7 @@ export function LabPane({
         </button>
         <button
           type="button"
-          className={`${styles.button} ${styles.secondary}`}
+          className={controls.secondary}
           data-testid="lab-reset"
           onClick={onReset}
           disabled={stub === null}

@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { tagFor } from '@ab-ovo/web-kit';
 
 import { RateRanking } from '@/components/instrument/rate-ranking';
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { Masthead } from '@/components/masthead/masthead';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 
 import styles from '../../instrument.module.css';
 
@@ -44,11 +44,12 @@ export default async function UnitRankingPage({ params }: Params): Promise<React
 
   return (
     <main className={styles.page}>
-      <SkipLink language="en" />
-      <p className={styles.crumb}>
-        {/* Not prefetched: the index titles its tab in the reader's edition (ADR-0067). */}
-        <Link href="/" prefetch={false}>ab-ovo</Link> / <Link href="/instrument">instrument</Link> / {unit}
-      </p>
+      {/* The one masthead (#169), its trail the crumb this page had: the instrument, then the unit. */}
+      <Masthead
+        home="/"
+        language="en"
+        trail={[{ label: 'instrument', href: '/instrument' }, { label: unit }]}
+      />
       <h1 className={styles.title} id={SKIP_TARGET_ID}>{unit}, worst first</h1>
       <p className={styles.subtitle}>
         Frames ranked by how badly the book is doing, at <code>{bundleTag}</code>. A frame&rsquo;s

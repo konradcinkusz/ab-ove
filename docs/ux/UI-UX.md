@@ -138,10 +138,13 @@ question.
 
 Its parts, in order:
 
-1. **The masthead** — the wordmark, the theme switch, and a navigation named *Site* that holds
+1. **The masthead** — the one every page outside the reading screens renders (#169,
+   `components/masthead/masthead.tsx`), which is this page's row made the product's — the
+   wordmark, the theme switch, and a navigation named *Site* that holds
    a link to `/courses`, a link to `/about` and the account control, in that order: one row at
    1280 px with every control a reader can have, and nothing in it that destroys anything
-   (#165, `specs/landing.spec.ts`). The navigation was named *Programs*, the heading's word,
+   (#165, `specs/landing.spec.ts`). The wordmark is the page's name here and not a link: this
+   page is where it leads everywhere else. The navigation was named *Programs*, the heading's word,
    and held the theme switch and both destructive controls as well. *Courses* is offered
    whatever the deployment pins, because a page listing one course states what ab-ovo carries
    where a switch with one position would be a control that cannot move (ADR-0048). The theme
@@ -348,18 +351,22 @@ choosing a course says nothing about which edition the reader reads, and the swi
 page it opens still lights nothing until they choose. The chosen edition rides along on
 every link out, so opening this page and leaving it cannot undo the choice that got here.
 
-Its own chrome is the wordmark, *← Programs* and *About ab-ovo*. The way back is the whole
-index rather than a course: a reader who opened this page has not said which course they
-want.
+Its masthead is the index's (#169): the wordmark home, the language control, and a navigation
+named *Site* holding *← Programs* and *About ab-ovo* — named for what it holds, as the index's
+is since #165, where it was named *Courses*, after this page's own heading. The way back is
+the whole index rather than a course: a reader who opened this page has not said which course
+they want.
 
 ### `/about` — the product's argument
 
 `web/app/src/app/about/page.tsx`. What `/` was, moved whole and in the same order, because
 the order IS the argument:
 
-1. **Masthead** — the wordmark, one line saying what the product is (*a book you work, not a
-   book you read*), and a standfirst naming the book, the 47 programs, both languages, and
-   what a Stroud frame does.
+1. **The masthead and the heading** — the masthead every page has, its wordmark the way back
+   to the programs (#169); under it, one line saying what the product is (*a book you work,
+   not a book you read*), a standfirst naming the book, the 47 programs, both languages, and
+   what a Stroud frame does, and the filled way in to the programs. The heading and the
+   standfirst were inside a masthead of this page's own, with the rule under them.
 2. **The anti-goal**, immediately after, before any feature: *the instrument measures the
    book, never the reader.* It is above the fold of the argument because the pressure to
    misuse a number arrives from somebody who did not read to the end
@@ -957,6 +964,14 @@ The stub is fetched from this origin, the checks are read out of the book's own 
 at boot rather than copied here, and a failure names the frames to re-read and never the
 solution.
 
+**Its header is the one masthead** (#169): `ab-ovo / lab / p01`, the wordmark leading home and
+`lab` to the lab's own index, where the page had a crumb that began at the lab and no way home
+at all. Its bar is the shared set's: *Check* filled, *Reset to the stub* outlined, and *Stop*
+outlined in `--degraded`, the tone of a control that ends something; the editor is the shared
+field, and the transcript beside it takes the same corner. The page is wider than the others'
+frame because it is a workbench of two columns of code, and only as wide as that: the masthead
+stands as far from the top as on every other page.
+
 **It is no longer beside a frame.** `/read/<track>/<unit>/<lang>/lab/<id>/<step>` is deleted
 and so is the check offer that led to it; #53, #54 and #55 are discharged with it. This page
 is reached from one line on P01's summary screen and from nowhere else on the reading
@@ -1027,6 +1042,11 @@ rather than by one failing check. *early, not wrong* appears beside the number o
 whose interval is not disjoint from the row below it. Session-gated, and there is no per-reader
 view on it — by architectural absence rather than by policy.
 
+Its header is the one masthead (#169) — `ab-ovo / instrument / P01` on a unit's ranking — and
+its column is the measure inside the frame every page off the reading screens shares, where the
+whole page used to be the measure wide and centred, with its header in the middle of a
+desktop's screen.
+
 **Two instruments reach it now, and the screen says which produced each cell.** A lab check
 asks whether the reader's code satisfied an assertion; a worksheet answer asks whether the
 number they wrote before the reveal is the number the book prints. They coincide on eleven
@@ -1074,7 +1094,9 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   icon's paths to the brand mark's.
 - **Two semantic colours only** — `--live` green and `--degraded` amber — both with a soft
   companion for backgrounds. They mean *this integration is present* and *this one is
-  absent*, and they are not decoration to be borrowed for anything else.
+  absent*, and they are not decoration to be borrowed for anything else. `--degraded` is also
+  the tone of a button that ends something — the deletion screen's, the lab's *Stop* — which is
+  the same meaning turned into a warning: what follows the press is not a healthy state (#169).
 - **`--accent` is a single blue**, used for links and emphasis.
 - **Dark mode as a full token swap, and a three-position switch over it.** Not an
   afterthought: a reader working through a program at night is the normal case, and so is
@@ -1087,17 +1109,55 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   panel with the key map, opened from the top bar and drawn over the page, so opening it
   pushes nothing a reader is looking at
   ([ADR-0063](../adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)).
-- **One family of buttons, in the UI face** (`components/read/controls.module.css`). Filled
-  for the way on — the pager's `Next`, the contents page's start — outlined for the way back
-  and the panes, and plain for the position, the settings and a panel's close. Every one of
-  them is set in sans rather than inheriting the book's serif, which is half of why the old
-  chrome read as a line of faint prose.
+- **One family of buttons, on every page, in the UI face** (`components/read/controls.module.css`).
+  Filled for the way on — the pager's `Next`, the contents page's start, the index's card, a
+  form's submit, *Open the programs*, the error page's *Try again*; outlined for the way back,
+  the panes and every other place to go — `Previous`, the consent's *No thanks*, the account's
+  *Sign out*, the error page's way back, the lab's *Reset*; and plain for the position, the
+  settings and a panel's close. A button that ends something is the same shape in `--degraded`:
+  filled on the deletion screen, outlined for the lab's *Stop*. Every one of them is set in sans
+  rather than inheriting the book's serif, which is half of why the old chrome read as a line of
+  faint prose. Until #169 the pages off the reading screens drew a second family by hand — a
+  3 px corner, about 34 px tall, a brightness under the pointer — and the lab a third; they
+  compose from the shared set now, and so do the form fields, which take the buttons' corner and
+  height, and the skip link, which is the outlined button once it shows. The link-weight controls
+  are not buttons and stay words: the theme switch, the account's *Sign in*, the quiet controls in
+  *Your data in this browser*. `lib/theme/tokens.test.ts` fails any stylesheet outside the
+  reading screens' own modules that paints a control's fill, edge or corner itself, and names
+  its one exception: the index's edition choice (#163), two addresses drawn as joined boxes with
+  the set's tokens and its ring. `specs/buttons.spec.ts` holds every button off the reading
+  screens to the shape of the index's *Start*.
+- **A hover is a change of fill or edge, never a brightness** (#169). A filled button's fill
+  leans toward the ink under the pointer and further while it is pressed (`color-mix()`, which
+  darkens the light scheme's blue and lightens the dark scheme's, so the label's contrast only
+  grows); an outlined one's edge and label take the accent. `filter: brightness()` was the
+  hover of both families, the reading screens' `Next` included, and it is a change of a few
+  percent the eye barely separates from the button at rest. The same test fails a filter on any
+  control in any state, and computes the label's contrast on each hovered fill in both schemes.
+- **One page header off the reading screens** (`components/masthead/masthead.tsx`, #169). The
+  index's row, on every page: the wordmark, which is the way home in the page's edition —
+  except on the index, which is home — then, on the lab's and the author's pages, the trail to
+  where the page sits (`ab-ovo / lab / p01`), and at the row's far end whatever the page puts
+  there: the index's theme switch, the courses page's language control, and a navigation named
+  *Site*. A rule under it, and the page's heading after it, outside it, which is where the skip
+  link it renders first lands. There were three before: the index's and `/courses`' row; a block on the
+  pages of `.shell`, the wordmark an underlined link over the page's heading, 32 px lower and
+  20 px further in at 1280 px; and an `ab-ovo / …` crumb on `/lab` and `/instrument`, which on
+  a lab's own page had no way home. The pages of `.shell` share the index's frame now, so the
+  wordmark does not move as a reader goes between them; the lab is wider, because it is a
+  workbench, and the instrument sets its column at the measure inside that frame.
+  `components/masthead/masthead.test.ts` fails a page outside the reading screens that renders a
+  `<main>` without the masthead or writes a header, a wordmark or a crumb of its own, and
+  `specs/masthead.spec.ts` holds what a reader sees: one header, first in `<main>`, leading home
+  in the page's edition, in one place.
 - **Focus is a ring, never a brightness.** Every control on the reading screens wears a
   two-colour ring on `:focus-visible` (paper, then the accent), because a ten-percent
   brightness on a blue block is invisible to the keyboard reader it was for (WCAG 2.4.7).
   Since #148 that includes the answer line and the pad, which showed focus only by their
   dashed rule turning blue, the pad's *Do the sums*, and the consent's two answers, which
-  brightened. The ring's other half is a transparent outline: Windows' forced colours paint no
+  brightened; since #169 every button off the reading screens wears the same ring as part of
+  the shared set, the deletion screen's included, whose ring was in its own amber. The ring's
+  other half is a transparent outline: Windows' forced colours paint no
   box-shadow, and they do paint an outline, in the system's colour — so a focus rule that sets
   `outline: none` leaves a reader in high contrast with no focus at all.
   `lib/theme/tokens.test.ts` fails any stylesheet's focus rule that takes the outline away or
@@ -1121,19 +1181,23 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   other button and the map's rows take 44 px (`--control-min`) directly, and the top bar's
   links are 44 px by their line and padding. The language control, a pair of words on a line,
   is padded to about 44 px and given the space back with a matching negative margin, so its
-  hit area grew and nothing moved. Off the reading screens the same pattern holds the index's
-  and the courses page's top-row links and the account's quiet buttons beside them, the
-  consent line's toggle and the sync notice's *Got it* (#147), *Go to frame N* (#157), the
-  shut notice's way on (#163), and the index's controls that #165 moved or added: the reader's
-  own in *Your data in this browser* (*Export my worksheets*, *Clear my worksheets*, *Forget
-  where I am*), the link under the card and the quiet line's *Sign in to carry it to another
-  device*. The index's filled *Continue* needs no such pattern: since #165 it is the card's
-  button, 44 px as drawn, where it used to be a padded link round a painted span. The index's
-  language control is not an exception but a different shape: it is drawn as outlined boxes
-  44 px tall, so its target is the box a reader sees (#163).
+  hit area grew and nothing moved. Off the reading screens the same pattern holds the
+  masthead's links — its navigation's (#147), and since #169 the wordmark and the trail's
+  steps, 44 px by their line and padding as the reading bar's mark is — and the account's quiet
+  buttons beside them, the consent line's toggle and the sync notice's *Got it* (#147), *Go to
+  frame N* (#157), the shut notice's way on (#163), and the index's controls that #165 moved or
+  added: the reader's own in *Your data in this browser* (*Export my worksheets*, *Clear my
+  worksheets*, *Forget where I am*), the link under the card and the quiet line's *Sign in to
+  carry it to another device*. The buttons off the reading screens need no such pattern: since
+  #169 they are the shared set's, 44 px as drawn — the index's card, the consent's answers, the
+  sign-in and deletion forms' buttons and fields, *Sign out*, the lab's bar and the 404's and
+  the error page's ways on, which were about 34. The index's language control is not an
+  exception but a different shape: it is drawn as outlined boxes 44 px tall, so its target is
+  the box a reader sees (#163).
   `specs/reading.spec.ts` and `specs/pager.spec.ts` measure the box on the reading screens, and
   `specs/targets.spec.ts` off them, at 390 px and 1280 px — where it also checks that a press
-  on a control's words lands on that control, since grown boxes overlap wherever a row wraps.
+  on a control's words lands on that control, since grown boxes overlap wherever a row wraps;
+  `specs/masthead.spec.ts` measures the wordmark, and `specs/buttons.spec.ts` the buttons.
 - **A move made from a frame's pager or its program map, or from *Not there yet*, says when
   it is under way** (#160). A frame is rendered on the server, per request, from live calls to
   the API, so each move to one is a round trip, and the page being left stays on screen until
@@ -1199,10 +1263,12 @@ it. They are listed here rather than left to be rediscovered per screen.
    renders `components/skip/skip-link.tsx` first, in the edition its own controls speak, and
    puts `SKIP_TARGET_ID` where its content begins: the `<main>` of a reading screen, whose
    bar is outside it, and the `<h1>` of every other page, whose masthead is inside its
-   `<main>`. The link is hidden until it has focus and is then drawn over the page, so it
-   moves nothing. The root layout cannot render it, because it does not know the edition;
-   a new page that forgets it is a page a keyboard reader tabs through the masthead of
-   (`specs/skip-link.spec.ts`).
+   `<main>`. A reading screen renders it through `ReadingScreen`, and every other page through
+   its masthead (`components/masthead/masthead.tsx`, #169), so a page that has the one cannot
+   forget the other — the legal documents' pages had none until they had the masthead. The
+   link is hidden until it has focus and is then drawn over the page, so it moves nothing. The
+   root layout cannot render it, because it does not know the edition; a new page that forgets
+   it is a page a keyboard reader tabs through the masthead of (`specs/skip-link.spec.ts`).
 10. **A page says which language it is in, wherever a reader or a screen reader meets it.**
     Its `<main lang>`, from the first byte; its tab, titled in that language, because the tab
     is what the router's announcer reads out after every client navigation; and the

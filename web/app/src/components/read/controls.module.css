@@ -1,5 +1,6 @@
 /*
- * ONE FAMILY OF BUTTONS FOR THE READING SCREENS — ADR-0063.
+ * ONE FAMILY OF BUTTONS — THE READING SCREENS' (ADR-0063), AND SINCE ISSUE #169 EVERY OTHER
+ * PAGE'S TOO.
  *
  * Before this file every module carried its own button: the reveal, the foot's outlined
  * links, the pane openers, the run button and the sketch's controls had five radii between
@@ -8,19 +9,33 @@
  * owner could look at a frame and report that it had no buttons. It had them; they did not
  * look like anything.
  *
- * So there is one shape here and three weights of it, and the other modules `composes:` from
- * this file rather than restating it:
+ * THE SAME WAS TRUE A SECOND TIME OUTSIDE THE READING SCREENS (#169). The index's and the
+ * 404's *Open the programs*, the error page's *Try again*, the sign-in forms' submit, the
+ * consent's answers, the account's *Sign out* and the deletion screen's button each drew their
+ * own — a 3 px radius, about 34 px tall, a brightness on hover — and the lab's buttons yet
+ * another shape at 4 px. They compose from this file now, as the reading screens' modules do,
+ * and `lib/theme/tokens.test.ts` refuses a control painted as a button anywhere outside it and
+ * the reading screens' own modules. It lives beside the screens it was first drawn for, which
+ * is where `composes:` has always found it.
+ *
+ * So there is one shape here, in weights, with a tone and a field beside it:
  *
  *   `.primary`    filled — the move a screen is built around (`Next`, a program's entry,
- *                 the summary's way on). One per screen, which is ADR-0057's rule kept.
+ *                 the summary's way on, a form's submit, *Open the programs*). One per
+ *                 screen, which is ADR-0057's rule kept.
  *   `.secondary`  outlined in `--control-edge` (≥ 3:1, WCAG 1.4.11) — every other place to go
  *                 and every tool the frame offers.
  *   `.ghost`      no border until hovered — a readout that is also a control, like the
  *                 pager's `3 of 45`, which opens the program map.
+ *   `.danger`     not a weight but a tone: a primary or a secondary that ENDS something is
+ *                 drawn in `--degraded` — the deletion screen's button filled, the lab's Stop
+ *                 outlined — so a destructive action never looks like the constructive ones.
+ *   `.field`      a place to type, off the reading screens: the same corner, height and edge.
  *
- * Every one of them is a finger tall (`--control-min`, 44 px), sets its label in the UI face
- * rather than the book's serif, shows a pointer, and wears the same two-colour focus ring —
- * UI-UX.md's "focus is a ring, never a brightness".
+ * Every button is a finger tall (`--control-min`, 44 px), sets its label in the UI face rather
+ * than the book's serif, shows a pointer, and wears the same two-colour focus ring —
+ * UI-UX.md's "focus is a ring, never a brightness". Its hover is never a brightness either
+ * (#169): `.primary` leans its fill toward the ink, and the other two bring in the accent.
  */
 
 .button {
@@ -60,18 +75,39 @@
   outline: 2px solid transparent;
 }
 
+/*
+ * A button that cannot be pressed yet — the lab's Check while Python boots, its Stop while
+ * nothing runs. Faded, and the pointer says no; the hovers below leave it alone, so a disabled
+ * button never answers the pointer as if it would act. (A link is never `:disabled`, so the
+ * guard costs the links nothing.)
+ */
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .primary {
   composes: button;
   background: var(--accent);
   color: var(--paper-raised);
 }
 
-.primary:hover {
-  filter: brightness(1.08);
+/*
+ * THE FILL LEANS TOWARD THE INK UNDER THE POINTER, AND FURTHER WHILE PRESSED — NOT A
+ * BRIGHTNESS (#169). This was `filter: brightness(1.08)`, and the family it replaced brightened
+ * too; a filter is a change of a few percent that the eye barely separates from the button at
+ * rest, and it is the one hover `lib/theme/tokens.test.ts` now refuses everywhere. Mixed with
+ * `--ink`, the light scheme's blue darkens and the dark scheme's lightens, so in both the
+ * label's contrast only grows — the same file computes it from the percentages here. A
+ * browser without `color-mix()` drops the declaration and the button keeps its fill: a hover
+ * lost and nothing else (P8).
+ */
+.primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--accent) 86%, var(--ink));
 }
 
-.primary:active {
-  filter: brightness(0.94);
+.primary:not(:disabled):active {
+  background: color-mix(in srgb, var(--accent) 72%, var(--ink));
 }
 
 .secondary {
@@ -81,7 +117,7 @@
   color: var(--ink);
 }
 
-.secondary:hover {
+.secondary:not(:disabled):hover {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -93,9 +129,46 @@
   font-weight: 500;
 }
 
-.ghost:hover {
+.ghost:not(:disabled):hover {
   background: var(--accent-soft);
   color: var(--ink);
+}
+
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * THE TONE OF A BUTTON THAT ENDS SOMETHING — `--degraded`, this product's colour for a state
+ * that is not healthy, and never `--accent`, which is "yes, go on" (#169).
+ *
+ * The deletion screen's button is `primary danger`: filled, because it is that page's one act,
+ * and it is not made small or hidden either — the confirmation word is its safeguard, and a
+ * button that is hard to find is an obstacle to the reader who has decided (ADR-0021). The
+ * lab's Stop is `secondary danger`: outlined, because a solid warning block beside Check would
+ * read as the thing to press, and it is armed only while a run is in flight (ADR-0034). Both
+ * wear the same ring as every other button. The label on the fill is held to 4.5:1 in both
+ * schemes by `lib/theme/tokens.test.ts`, at rest and under the pointer.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
+.primary.danger {
+  background: var(--degraded);
+}
+
+.primary.danger:not(:disabled):hover {
+  background: color-mix(in srgb, var(--degraded) 86%, var(--ink));
+}
+
+.primary.danger:not(:disabled):active {
+  background: color-mix(in srgb, var(--degraded) 72%, var(--ink));
+}
+
+.secondary.danger {
+  border-color: var(--degraded);
+  color: var(--degraded);
+}
+
+.secondary.danger:not(:disabled):hover {
+  background: var(--degraded-soft);
+  border-color: var(--degraded);
+  color: var(--degraded);
 }
 
 /* The pinned pager's own size: pressed on every frame, so a step larger than the rest. */
@@ -127,6 +200,39 @@
   .button {
     display: none;
   }
+}
+
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * A PLACE TO TYPE, OFF THE READING SCREENS (#169) — the sign-in, second-factor, registration
+ * and deletion forms, and the lab's editor, which compose it.
+ *
+ * The buttons' corner and height, so a form reads as one thing with its submit under it: the
+ * fields were a 3 px box above an 8 px button, and the lab's editor a 4 px one. The edge is
+ * `--control-edge`, because a text field is found by its boundary and nothing else once a
+ * reader has typed in it (WCAG 1.4.11, ADR-0063, #146). Focus is a ring here too — an outline,
+ * which forced colours paint in the system's colour. The reading screens' own fields (the
+ * answer line, the pad, the program map's box) are drawn by their modules, as their buttons
+ * were before ADR-0063, and ask different things of a field.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
+.field {
+  background: var(--paper-raised);
+  border: 1px solid var(--control-edge);
+  border-radius: var(--radius-control);
+  box-sizing: border-box;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  min-height: var(--control-min);
+  padding: 0.5rem 0.625rem;
+}
+
+.field:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 /*

@@ -5,7 +5,8 @@ import { groupsOf, say, sectionSpans, unitBefore, type Bundle } from '@ab-ovo/we
 import { AccountControl } from '@/components/account/account-control';
 import { ConsentControl } from '@/components/consent/consent-control';
 import { LanguageChoice } from '@/components/language/language-choice';
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { Masthead } from '@/components/masthead/masthead';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { signInHref as signInPageHref } from '@/lib/account-href';
 import { editionsOffered } from '@/lib/content/chosen-edition';
@@ -223,15 +224,12 @@ export function ProgramGrid({
   return (
     <main className={styles.page} lang={chrome.language}>
       {/*
-        THE WAY PAST THE ROW BELOW (issue #149), which a keyboard reader otherwise tabs
-        through control by control — the theme, the destinations and the account — before the
-        first program. It lands on the heading rather than on `<main>`, because the row is
-        inside `<main>`.
-      */}
-      <SkipLink language={chrome.language} />
-      {/*
         ────────────────────────────────────────────────────────────────────────────────────
-        THE MASTHEAD IS ONE ROW, AND NOTHING IN IT DESTROYS ANYTHING (issue #165).
+        THE MASTHEAD IS ONE ROW, AND NOTHING IN IT DESTROYS ANYTHING (issue #165) — and since
+        #169 it is the one every page outside the reading screens renders
+        (`components/masthead/masthead.tsx`), with the skip link before it (#149): a keyboard
+        reader otherwise tabs through the theme, the destinations and the account before the
+        first program, and the link lands on the heading, because the row is inside `<main>`.
 
         It held the wordmark, the two destinations, the theme switch, the resume link, *Export
         my worksheets*, *Clear my worksheets*, *Forget where I am* and the account — two rows at
@@ -241,6 +239,8 @@ export function ProgramGrid({
         in this browser* at the foot, and what is left fits one row at a desktop's width:
         `landing.spec.ts` measures it.
 
+        NO WAY HOME: this is home, so the wordmark is the page's name here and not a link.
+
         The theme switch is outside the `<nav>` — it goes nowhere — and before it, so what
         arrives after the first paint arrives at the row's end. On a phone the wordmark and
         the switch share the first line and the navigation has the second to itself, where
@@ -249,58 +249,50 @@ export function ProgramGrid({
         for them is a line that does not wrap under the reader when they land.
         ────────────────────────────────────────────────────────────────────────────────────
       */}
-      <header className={styles.top}>
-        <p className={styles.wordmark}>
-          ab<span>-</span>ovo
-        </p>
-
-        {/*
-          HOW A READER TURNS ON LIGHT MODE (ADR-0048), fully rendered on the server — so it is
-          in the first paint and nothing that arrives later can push it sideways.
-
-          It is three words of furniture and not a filled control: a reader touches it once
-          and then wants it out of the way, and the reading screens keep it one press down in
-          *Reading settings* (ADR-0058). The language control is quiet words of the same
-          weight on every other screen, but this page draws it `offered` (issue #163) —
-          outlined boxes, the current one filled — because the edition is the choice a
-          first-time reader makes here, so on this page the two deliberately differ. Both are
-          remembered: the theme in `localStorage`, the edition there and on the account
-          (ADR-0052).
-        */}
-        <ThemeSwitch language={chrome.language} />
-
-        {/*
-          THE WAYS OFF THIS PAGE, AND A NAME THAT SAYS SO (issue #165) — `chrome.siteNav`,
-          where it was `chrome.programs`, the heading's own word.
-
-          The account sits at the top of the first screen, which is a change of position and
-          not of policy: signing in still buys exactly one thing, progress that follows the
-          reader between machines, and the page behind it still works with no account at all
-          (ADR-0004). `AccountControl` renders nothing until it knows, so this row is one
-          link shorter on the first paint and does not move when the answer arrives — the
-          reason it is at the END of the row rather than the start.
-        */}
-        <nav className={styles.chrome} aria-label={chrome.siteNav}>
-          {/*
-            THE COURSES, FIRST, AND BEFORE THE ARGUMENT (ADR-0048). It is offered whatever
-            the deployment pins — a page listing one course states what ab-ovo carries, where
-            a SWITCH with one position would be a control that cannot move. It carries the
-            chosen edition so the page it opens is in the language this one is in.
-          */}
-          <Link className={styles.chromeLink} href={coursesHref(chosen)} prefetch={false}>
-            {chrome.courses}
-          </Link>
-          {/*
-            Neither link prefetches: both pages title their tab in the edition, and a head
-            prefetched before *polski* was pressed titled the Polish page in English (ADR-0067,
-            `index-href.ts`).
-          */}
-          <Link className={styles.chromeLink} href={aboutHref(chosen)} prefetch={false}>
-            {chrome.about}
-          </Link>
+      <Masthead
+        account={
+          /*
+            The account sits at the top of the first screen, which is a change of position and
+            not of policy: signing in still buys exactly one thing, progress that follows the
+            reader between machines, and the page behind it still works with no account at
+            all (ADR-0004). `AccountControl` renders nothing until it knows, so this row is one
+            link shorter on the first paint and does not move when the answer arrives — the
+            reason it is at the END of the row rather than the start.
+          */
           <AccountControl language={chrome.language} returnTo={returnTo} />
-        </nav>
-      </header>
+        }
+        language={chrome.language}
+        /*
+          THE WAYS OFF THIS PAGE, in the navigation named for what it holds (issue #165) —
+          `chrome.siteNav`, where it was `chrome.programs`, the heading's own word.
+
+          THE COURSES, FIRST, AND BEFORE THE ARGUMENT (ADR-0048). It is offered whatever the
+          deployment pins — a page listing one course states what ab-ovo carries, where a
+          SWITCH with one position would be a control that cannot move. Both links carry the
+          chosen edition so the page each opens is in the language this one is in, and neither
+          prefetches — the masthead's rule (ADR-0067).
+        */
+        links={[
+          { href: coursesHref(chosen), label: chrome.courses },
+          { href: aboutHref(chosen), label: chrome.about },
+        ]}
+        tools={
+          /*
+            HOW A READER TURNS ON LIGHT MODE (ADR-0048), fully rendered on the server — so it is
+            in the first paint and nothing that arrives later can push it sideways.
+
+            It is three words of furniture and not a filled control: a reader touches it once
+            and then wants it out of the way, and the reading screens keep it one press down in
+            *Reading settings* (ADR-0058). The language control is quiet words of the same
+            weight on every other screen, but this page draws it `offered` (issue #163) —
+            outlined boxes, the current one filled — because the edition is the choice a
+            first-time reader makes here, so on this page the two deliberately differ. Both are
+            remembered: the theme in `localStorage`, the edition there and on the account
+            (ADR-0052).
+          */
+          <ThemeSwitch language={chrome.language} />
+        }
+      />
 
       {/*
         THE HEADING AND THE LANGUAGE CONTROL, SHARING A LINE — this page's one language

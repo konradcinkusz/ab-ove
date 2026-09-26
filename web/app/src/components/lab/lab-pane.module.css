@@ -7,19 +7,15 @@
  * here loads a font, an icon set or a stylesheet from anywhere (FRONTEND-BFF.md §1).
  */
 
+/*
+ * Wider than globals.css's .shell (62rem), because at full width this page is two columns of
+ * code rather than one column of prose. The padding is `.shell`'s, so the masthead sits as far
+ * from the top and the frame's edge as on every other page (#169); only the width is the lab's.
+ */
 .page {
-  /* Wider than globals.css's .shell (62rem), because at full width this page is two
-     columns of code rather than one column of prose. */
   max-width: 76rem;
   margin: 0 auto;
-  padding: clamp(1.5rem, 4vw, 3.5rem) clamp(1.15rem, 4vw, 2.5rem) 5rem;
-}
-
-.crumb {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  color: var(--ink-faint);
-  margin: 0 0 0.5rem;
+  padding: 2rem 1.25rem 5rem;
 }
 
 .title {
@@ -87,43 +83,16 @@
   margin-left: auto;
 }
 
-.button {
-  font-family: var(--font-ui);
-  font-size: 0.9rem;
-  font-weight: 600;
-  padding: 0.45rem 1.1rem;
-  border-radius: 4px;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: var(--paper-raised);
-  cursor: pointer;
-}
-
-.button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.secondary {
-  background: transparent;
-  color: var(--accent);
-}
-
 /*
- * Stop is the only control on this page that ENDS something, so it does not wear the
- * accent every other control wears. It borrows --degraded, which is already this site's
- * colour for a state that is not healthy (.statusFailed below, .traceback, and the
- * degraded integration badge in globals.css) — no colour is declared here, so the button
- * follows the light and dark schemes with everything else.
- *
- * Outlined rather than filled: a solid warning-coloured button beside Check would read as
- * the thing to press, and it is offered only for the seconds a run is in flight.
+ * THE BAR'S BUTTONS ARE THE SHARED SET'S (#169, `components/read/controls.module.css`), which
+ * `lab-pane.tsx` applies: *Check* the page's one filled control, *Reset to the stub* outlined,
+ * and *Stop* outlined in `--degraded` — `secondary danger` — because it is the only control on
+ * this page that ENDS something, and a solid warning-coloured button beside Check would read
+ * as the thing to press; it is offered only for the seconds a run is in flight (ADR-0034). They
+ * were drawn here, with a 4 px corner and no minimum height, beside reading screens whose
+ * buttons had an 8 px corner and a finger's height. The set's disabled state is theirs too:
+ * faded, and a pointer that says no.
  */
-.danger {
-  background: transparent;
-  color: var(--degraded);
-  border-color: var(--degraded);
-}
 
 /*
  * Mobile first: one column. The two-column arrangement is opted into at 900px, which is
@@ -176,7 +145,13 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * A place to type, so the shared set's field (#169): the edge of somewhere to type,
+ * `--control-edge` (WCAG 1.4.11, ADR-0063), the controls' corner, and a ring on focus. What is
+ * the editor's own is below it — the face and the size of code, and the height of a stub.
+ */
 .editor {
+  composes: field from '../read/controls.module.css';
   width: 100%;
   min-height: 26rem;
   /* Tall enough to show the whole stub on a laptop, and resizable for anything longer. */
@@ -186,22 +161,15 @@
   line-height: 1.55;
   tab-size: 4;
   padding: 0.85rem 1rem;
-  /* The edge of somewhere to type: `--control-edge`, WCAG 1.4.11 (ADR-0063). The transcript
-     beside it keeps `--rule` — it is read, not written in. */
-  border: 1px solid var(--control-edge);
-  border-radius: 4px;
-  background: var(--paper-raised);
-  color: var(--ink);
   white-space: pre;
   overflow-wrap: normal;
   overflow-x: auto;
 }
 
-.editor:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
+/*
+ * The transcript keeps `--rule` — it is read, not written in — and takes the editor's corner,
+ * so the two panes side by side are one shape.
+ */
 .transcript {
   margin: 0;
   min-height: 26rem;
@@ -209,7 +177,7 @@
   overflow: auto;
   padding: 0.85rem 1rem;
   border: 1px solid var(--rule);
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   background: var(--paper-raised);
   font-family: var(--font-mono);
   font-size: 0.83rem;
