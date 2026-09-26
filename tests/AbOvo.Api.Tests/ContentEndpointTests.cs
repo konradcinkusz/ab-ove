@@ -268,11 +268,13 @@ public sealed class ContentEndpointTests
     }
 
     /// <summary>
-    /// ADR-0063 — the case the browser cannot answer by itself. Its own record is the frame
-    /// last VIEWED, so a reader who has read to step 3 and gone back to step 1 is "at 1" as far
-    /// as the browser knows; only the cursor says they may still open 2 and 3. A successful
-    /// read of the earlier step carries that cursor, which is what lets the program map offer
-    /// every section the reader has reached rather than only the ones before where they stand.
+    /// ADR-0063 — the case the browser cannot answer by itself. Since #157 its own record keeps
+    /// a furthest frame beside the frame last viewed, but that furthest is this browser's and
+    /// the account's, and a signed-out reader's can be past the anonymous cursor the gate asks
+    /// (ADR-0061). So only the cursor says whether a reader back on step 1 may still open 2 and
+    /// 3. A successful read of the earlier step carries that cursor, which is what lets the
+    /// program map offer every section the reader has reached rather than only the ones before
+    /// where they stand.
     /// </summary>
     [Fact]
     public async Task A_read_of_an_earlier_step_still_says_how_far_the_reader_has_reached()
