@@ -85,22 +85,35 @@ końcowy tylko dla administratora, `POST /api/v1/admin/content/bundles`, a świe
 tego zestawu, a nie do serwisu tożsamości AppHosta. Dopóki
 książki tam nie ma, indeks wymienia każdy program, a ramka odpowiada *nie znaleziono*.
 
-**Nie wyślesz jej też jeszcze ręcznie.** Oczywista droga to zalogować się jako
-`admin@ab-ovo.test`, SuperAdmin, którego `authservice` AppHosta zakłada sam, i wysłać
-`web/content/bundle/bundle.json` z tym tokenem. `AbOvo.Api` odmawia odpowiedzią `401`.
-`authservice` buduje `jwks_uri` w swoim dokumencie discovery z `Jwt:PublicBaseUrl`, którego
-wartością domyślną jest pusty napis i którego `AppHost.cs` nie ustawia, więc publikowany adres
-jest gołą ścieżką, a API nie znajduje klucza, którym mogłoby sprawdzić token. Zmierzono to
-2026-09-25 na `authservice` v0.3.1 skonfigurowanym tak, jak konfiguruje go `AppHost.cs`; z
-ustawionym adresem bazowym te same dwa żądania wczytują książkę. Obie luki należą do AppHosta i
-ich zamknięcie jest zmianą w nim, a nie w tym samouczku.
+**Możesz ją jednak wysłać ręcznie.** Zaloguj się jako `admin@ab-ovo.test` — SuperAdmin,
+którego `authservice` AppHosta zakłada sam — i wyślij `web/content/bundle/bundle.json` na
+`POST /api/v1/admin/content/bundles` z tym tokenem. To te same dwa żądania, które
+`tests/e2e/fixtures/ingest-content.mts` kieruje do własnej zaślepki zestawu, skierowane
+zamiast tego do AppHosta; oba adresy są w panelu. Hasło jest generowane przy pierwszym
+uruchomieniu, więc odczytaj je, zamiast zgadywać:
+
+```bash
+dotnet user-secrets list --project src/AbOvo.AppHost
+```
+
+Przed 2026-09-26 ta droga też kończyła się odpowiedzią `401`. `authservice` buduje `jwks_uri`
+w swoim dokumencie discovery z `Jwt:PublicBaseUrl` i traktuje nieustawioną wartość domyślną
+jak pusty napis, więc publikowany adres był gołą ścieżką, której żaden klient nie rozwiąże;
+`AbOvo.Api` nie miał klucza i odmawiał każdemu tokenowi słowami *The signature key was not
+found*. `AppHost.cs` ustawia teraz ten adres bazowy na adres, pod którym publikowany jest
+kontener. `issuer` w tym dokumencie pochodzi z `Jwt:Issuer`, a nie stamtąd, więc gołe `iss`,
+które zapisuje [ADR-0004](../adr/0004-identity-authservice-and-anonymous-reader.md) §4, i
+każdy jego walidator pozostają nietknięte.
+
+Luka, która zostaje — że nic w AppHoście nie wczytuje książki za ciebie — należy do AppHosta i
+jej zamknięcie jest zmianą w nim, a nie w tym samouczku.
 
 ## Krok 4 — zobacz, jak produkt odmawia ci powiedzenia czegoś
 
-> **Na świeżym AppHoście nie przejdziesz jeszcze ani tego kroku, ani następnego.** Oba
-> potrzebują ramki, a ramka potrzebuje książki wewnątrz API, której — jak wyjaśnia krok 3 —
-> AppHost nie umie dziś tam umieścić. Czytaj je jako to, co AppHost pokaże, gdy już
-> będzie umiał; indeks i `/about` to jest to, co świeży klon pokazuje teraz.
+> **Ten krok i następny potrzebują książki wewnątrz API**, której — jak wyjaśnia krok 3 —
+> AppHost nie umieszcza tam za ciebie. Wyślij ją ręcznie, tak jak pokazuje krok 3, a oba
+> kroki pójdą tak, jak je opisano; pomiń to, a świeży klon poda tylko indeks i `/about`, a
+> każda ramka odpowie *nie znaleziono*.
 
 Patrzysz na indeks programów. Wybierz **F01 — Numbers, powers and roots** i czytaj do ramki 3.
 

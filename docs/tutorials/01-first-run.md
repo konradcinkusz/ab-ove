@@ -84,22 +84,35 @@ Nothing in the AppHost ingests it today. The acceptance suite does, in
 rather than the AppHost's identity service. Until the book is in, the index lists every
 program and a frame answers *not found*.
 
-**Nor can you post it by hand yet.** The obvious route is to sign in as `admin@ab-ovo.test`,
-the SuperAdmin the AppHost's `authservice` seeds itself, and post
-`web/content/bundle/bundle.json` with that bearer. `AbOvo.Api` refuses it with `401`.
-`authservice` builds the `jwks_uri` in its discovery document from `Jwt:PublicBaseUrl`, which
-defaults to an empty string and which `AppHost.cs` does not set, so the address it publishes
-is a bare path and the API finds no key to check the token with. That was measured on
-2026-09-25 against `authservice` v0.3.1 configured as `AppHost.cs` configures it; with the
-base URL set, the same two requests ingest the book. Both gaps are the AppHost's, and closing
-them is a change to it rather than to this tutorial.
+**You can post it by hand, though.** Sign in as `admin@ab-ovo.test` — the SuperAdmin the
+AppHost's `authservice` seeds itself — and post `web/content/bundle/bundle.json` to
+`POST /api/v1/admin/content/bundles` with that bearer. Those are the two requests
+`tests/e2e/fixtures/ingest-content.mts` makes against the suite's own stub, aimed at the
+AppHost instead; both addresses are on the dashboard. The password is generated on the first
+run, so read it back rather than guess it:
+
+```bash
+dotnet user-secrets list --project src/AbOvo.AppHost
+```
+
+Before 2026-09-26 that route ended in `401` as well. `authservice` builds its discovery
+document's `jwks_uri` from `Jwt:PublicBaseUrl` and treats the unset default as an empty
+string, so the address it published was a bare path no client can resolve; `AbOvo.Api` held
+no key and refused every bearer with *The signature key was not found*. `AppHost.cs` now sets
+that base URL to the address the container is published on. The document's `issuer` comes
+from `Jwt:Issuer` and not from there, so the bare `iss` that
+[ADR-0004](../adr/0004-identity-authservice-and-anonymous-reader.md) §4 records, and every
+validator of it, is untouched.
+
+The gap that remains — that nothing in the AppHost ingests the book for you — is the
+AppHost's, and closing it is a change to it rather than to this tutorial.
 
 ## Step 4 — watch the product refuse to tell you something
 
-> **On a fresh AppHost you cannot follow this step or the next one yet.** Both need a frame,
-> and a frame needs the book inside the API, which step 3 explains the AppHost cannot put
-> there today. Read them as what the AppHost shows once it can; the index and `/about` are
-> what a fresh clone shows now.
+> **This step and the next one need the book inside the API**, which step 3 explains the
+> AppHost does not put there for you. Post it by hand as step 3 shows and both steps follow
+> as written; skip that and the index and `/about` are all a fresh clone serves, with every
+> frame answering *not found*.
 
 You are looking at the index of programs. Pick **F01 — Numbers, powers and roots**, and read
 to frame 3.
