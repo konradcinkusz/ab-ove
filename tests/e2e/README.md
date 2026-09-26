@@ -67,13 +67,13 @@ was first written with.
 | `frame-loading.spec.ts` | a frame on its way says so where the reader pressed — `Previous`, clicked or pressed as `←`, or the program map's door — while the API is held back for that one reader, and the pager does not move (#160) |
 | `frame-view.spec.ts` | the answer is absent before the reveal, asserted in both directions and both editions |
 | `furthest-frame.spec.ts` | going back to re-read: *Continue* keeps the furthest frame, the sync tells only reading done elsewhere and offers a way to that frame, and a frame refused after signing out says why — the signed-in half against an account registered for the test and a real `AbOvo.Api` |
-| `gate.spec.ts` | the book is entered at the beginning: a program opens when the one before it has |
+| `gate.spec.ts` | the book is entered at the beginning: a program opens when the one before it has, and a reader turned away is given a way on |
 | `hydration.spec.ts` | every page hydrates — the one defect that leaves no trace on screen |
 | `instrument-view.spec.ts` | the author's view, and the promise it must not break |
 | `instrument.spec.ts` | the instrument, which a reader is entitled never to notice |
 | `integration-report.spec.ts` | the integration report, P8 seen from a browser |
 | `lab-p01.spec.ts` | the Lab P1 pane, Python in the browser |
-| `landing.spec.ts` | the landing page is the programs, one click from one of them |
+| `landing.spec.ts` | the landing page is the programs, one click from one of them, and a first-time reader is told what they are looking at |
 | `language-choice.spec.ts` | the same frame in the other edition, and the choice remembered |
 | `narrow-screen.spec.ts` | the reading surface at 360 px: nothing scrolls sideways, and the loop still runs |
 | `navigation.spec.ts` | finding a program, opening it, and coming back to the same frame; the contents lock what the gate would refuse, and the summary opens only from the last frame |
@@ -150,6 +150,19 @@ only one: a heading list that reads as a tree is the property, and a second `<h1
 pass every other assertion here. The returning reader's half of the index — the tile that
 says `at frame N`, the filled resume control, and the layout not moving when either arrives
 — is in `specs/progress.spec.ts`, because it needs a place to have been recorded first.
+
+The first visit has a block of its own, which seeds nothing (#163). On a phone's first
+screen, with nothing hovered, a reader who has never been here sees the standfirst — what a
+program and a frame are — and the legend above the grid, which says why most tiles are shut
+([ADR-0065](../../docs/adr/0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md)).
+The words come from `web/app/src/lib/i18n/chrome.ts` itself, so what the block asserts is
+where they are: inside the viewport and at least a line of their own type tall, because a
+sentence collapsed to a strip a pixel high is inside the viewport too; not in a tooltip; and
+not a `status`. The part about the book is relational: the legend names the run headings the
+grid is divided under. The Polish edition says the same in Polish, also on its first screen,
+and the other edition is drawn as a control with an edge.
+The notice a reader gets when the gate turns them away, and its way on, are
+`specs/gate.spec.ts`'s.
 
 ### 2. `GET /api/config` returns runtime-resolved addresses — `specs/runtime-config.spec.ts`
 

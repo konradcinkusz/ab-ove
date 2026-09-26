@@ -1,10 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 
 import { chromeFor } from '@/lib/i18n/chrome';
 import { serverSnapshot, snapshot, subscribe } from '@/lib/progress/client';
-import { isOpen } from '@/lib/progress/gate';
+import { isOpen, wayOn } from '@/lib/progress/gate';
 
 import styles from './program-grid.module.css';
 
@@ -14,6 +15,13 @@ export interface ShutNoticeProps {
   readonly unit: string;
   /** The program the book puts before it — the one that opens it (ADR-0051). */
   readonly previous: string | undefined;
+  /**
+   * Every program the book puts before `unit`, in its order, ending with `previous` — ids
+   * only (`refused-program.ts`). The way on is walked back through them.
+   */
+  readonly before: readonly string[];
+  /** The edition the way on opens in: the one the index shows this course in. */
+  readonly edition: string;
   /** The index's edition, which this sentence is written in. */
   readonly language: string;
 }
@@ -52,6 +60,21 @@ export interface ShutNoticeProps {
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
+ * AND IT ENDS WITH A WAY ON, BECAUSE AN EXPLANATION WITH NOTHING TO PRESS IS HALF OF ONE
+ * (issue #163).
+ *
+ * The sentence told the reader which program opens the one they asked for and left them to
+ * find its tile. The link under it is that move: the program's contents, where its filled
+ * control starts the frame that opens the next door. It is worked out from the same record
+ * as the sentence, by `wayOn`, and it is the program that opens the refused one only when
+ * this reader can open THAT — a link into the middle of the book, followed in a fresh
+ * browser, would otherwise send them to a program that is shut too, and bounce them here
+ * again one program further back. In that case the notice says so in a further sentence and
+ * the link is the nearest program behind the refused one that is open to them, which for a
+ * new reader is the first.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
  * IT TAKES FOCUS, ONCE, AND THAT IS THE POINT RATHER THAN A FLOURISH.
  *
  * The address carries `#p-F02` as well, so the browser's own behaviour is to scroll the
@@ -65,21 +88,35 @@ export interface ShutNoticeProps {
  * announces it to a screen reader in the same breath, so the two ways of noticing agree.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * THE SERVER RENDERS NOTHING HERE, and deliberately: `serverSnapshot` is the empty record
- * (`lib/progress/client.ts`), under which every program but the first is shut — so a
- * server-rendered notice would be right for a new reader and wrong for the returning one,
- * printed into the markup a crawler keeps. The sentence arrives with the reader's own
- * record, like the tiles it is about.
+ * THE SERVER RENDERS IT AS FOR A READER WITH NO RECORD. This header used to say the server
+ * rendered nothing here; measured for issue #163, a page loaded at `/?shut=F05` carries the
+ * notice in its markup. `serverSnapshot` is the empty record (`lib/progress/client.ts`), under
+ * which every program but the first is shut, so a LOADED `?shut=` address has the notice, and
+ * a way on to the first program, in its first paint. The gate's own bounce never meets that
+ * paint: `program-gate.tsx` moves the reader with a client navigation, and this renders from
+ * their record straight away. It is wrong for two readers who reload a `?shut=` address, and
+ * both are put right as their record arrives — the tiles' first-paint trade
+ * (`tile-entry.tsx`), at the size of a block, on the one visit ADR-0056 lets a block move the
+ * grid:
+ *
+ *   - a reader who has since opened the program. The notice leaves.
+ *   - a reader part of the way to it. The first paint's way on is the first program, with the
+ *     sentence that says why; their record moves it to the nearest program they can open, and
+ *     that sentence changes with it or, where that program is the one that opens the refused
+ *     one, goes. With places in F01–F03, a reloaded `/?shut=F05` paints *Go to F01* and
+ *     settles on *Go to F04*, and the notice is shorter by the sentence it drops.
  */
 export function ShutNotice({
   track,
   unit,
   previous,
+  before,
+  edition,
   language,
 }: ShutNoticeProps): React.JSX.Element | null {
   const progress = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   const chrome = chromeFor(language);
-  const notice = useRef<HTMLParagraphElement>(null);
+  const notice = useRef<HTMLDivElement>(null);
   const announced = useRef(false);
 
   // `previous` is re-tested rather than asserted, as on the tile: `isOpen` is true when
@@ -94,15 +131,27 @@ export function ShutNotice({
 
   if (!shut || previous === undefined) return null;
 
+  // Always a program, because the first of a track is always open; `previous` stands in only
+  // for a caller that handed over no run at all, which `refused-program.ts` never does.
+  const way = wayOn(progress, track, before) ?? previous;
+
   return (
-    <p
+    <div
       className={styles.shutNotice}
       lang={chrome.language}
       ref={notice}
       role="status"
       tabIndex={-1}
     >
-      {chrome.shutNotice(unit, previous)}
-    </p>
+      <p>
+        {chrome.shutNotice(unit, previous)}
+        {way === previous ? null : ` ${chrome.shutNoticeFurther(unit, previous, way)}`}
+      </p>
+      <p>
+        <Link className={styles.shutWayOn} href={`/read/${track}/${way}/${edition}`}>
+          {chrome.shutNoticeWayOn(way)}
+        </Link>
+      </p>
+    </div>
   );
 }

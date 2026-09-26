@@ -23,6 +23,12 @@ export interface LanguageChoiceProps {
   readonly label: string;
   /** Which language `label` is in, which is not necessarily `current`. */
   readonly labelLanguage: string;
+  /**
+   * Drawn as outlined, finger-sized options rather than as words — on the index only (issue
+   * #163), where a reader who has not chosen yet has to be able to find the choice. The same
+   * control either way: the same links, the same remembering, one per screen.
+   */
+  readonly offered?: boolean;
 }
 
 /**
@@ -42,7 +48,8 @@ export interface LanguageChoiceProps {
  * The fix is not fewer switches in more places. It is ONE control whose answer is kept
  * (`lib/language/store.ts`), so the question is asked once and the rest of the product
  * follows. What the reader sees is the same pair of words in the same corner of every
- * screen, and after the first press they need never look at it again.
+ * screen — except on the index, which draws the pair as boxes at the end of its heading's
+ * line (`offered`, issue #163) — and after the first press they need never look at it again.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * IT IS LINKS, AND THE REMEMBERING IS AN ENHANCEMENT ON TOP OF THEM.
@@ -77,6 +84,17 @@ export interface LanguageChoiceProps {
  * switch keyed on anything but the program and the frame index would be wrong for the same
  * reason.
  * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * QUIET WHERE A READER HAS CHOSEN, VISIBLE WHERE THEY HAVE NOT YET — `offered`, issue #163.
+ *
+ * The quiet shape is right on a reading screen, where the reader is past the choice and the
+ * frame is the thing to look at. On the index it was the one place a first-time reader
+ * could make the choice, and the audit of 2026-09-24 found it easy to miss there: a small
+ * word at the far end of the heading's line. So the index asks for the options drawn as
+ * outlined, finger-sized boxes, the current one filled. English stays the default
+ * (ADR-0052); what changed is that the other edition looks like something to press.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export function LanguageChoice({
   languages,
@@ -84,6 +102,7 @@ export function LanguageChoice({
   hrefs,
   label,
   labelLanguage,
+  offered = false,
 }: LanguageChoiceProps): React.JSX.Element | null {
   // One edition is not a choice, and a control offering it is furniture. A track with a
   // single language renders no control at all rather than a disabled one.
@@ -100,7 +119,11 @@ export function LanguageChoice({
   };
 
   return (
-    <nav aria-label={label} className={styles.choice} lang={labelLanguage}>
+    <nav
+      aria-label={label}
+      className={offered ? `${styles.choice} ${styles.offered}` : styles.choice}
+      lang={labelLanguage}
+    >
       {languages.map((language) => {
         const href = hrefs[language];
 

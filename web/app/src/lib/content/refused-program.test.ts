@@ -35,6 +35,18 @@ test('a program the book carries is resolved with the program that precedes it',
     track: 'math-for-ai-engineers',
     unit: 'F02',
     previous: 'F01',
+    before: ['F01'],
+  });
+});
+
+test('it carries every program ahead of it, in the book’s order, for the notice’s way on', () => {
+  // The way on is the nearest of these the reader can open (issue #163), which only the
+  // browser can say — so the whole run crosses, and its last entry is `previous`.
+  assert.deepEqual(refusedProgram(BUNDLES, 'F03'), {
+    track: 'math-for-ai-engineers',
+    unit: 'F03',
+    previous: 'F02',
+    before: ['F01', 'F02'],
   });
 });
 
@@ -43,6 +55,7 @@ test('it finds the program in whichever course carries it', () => {
     track: 'second-course',
     unit: 'X02',
     previous: 'X01',
+    before: ['X01'],
   });
 });
 
@@ -54,6 +67,7 @@ test('the first program of a course resolves with nothing before it', () => {
     track: 'math-for-ai-engineers',
     unit: 'F01',
     previous: undefined,
+    before: [],
   });
 });
 

@@ -131,7 +131,7 @@ wyboru, i jedyna, która nie potrzebuje JavaScriptu
 
 ### Strona startowa jest indeksem
 
-![Strona startowa. Znak słowny; odnośniki do Courses i About, trójpozycyjny przełącznik trybu z opcjami System, Light i Dark oraz odnośnik do Sign in; dalej nagłówek Programs z wyborem języka — English i polski — na końcu jego wiersza, a pod nim siatka kafelków — po jednym na program, każdy z identyfikatorem, tytułem i liczbą ramek i sekcji. U dołu strony karta zatytułowana "Help fix the book?" z dwoma przyciskami.](assets/screenshots/landing-english.png)
+![Strona startowa. Znak słowny; odnośniki do Courses i About, trójpozycyjny przełącznik trybu z opcjami System, Light i Dark oraz odnośnik do Sign in; dalej nagłówek Programs z wyborem języka na końcu jego wiersza — English i polski jako dwa obramowane pola, English wypełnione. Pod nagłówkiem akapit mówiący, czym są program i ramka; dalej tytuł kursu, a pod nim wiersz mówiący, że programy otwierają się po kolei, że część główna opiera się na programach z Podstaw i że jedna ramka programu otwiera następny. Niżej siatka kafelków — po jednym na program, każdy z identyfikatorem, programem, po którym się otworzy, tytułem i liczbą ramek i sekcji. U dołu strony karta zatytułowana "Help fix the book?" z dwoma przyciskami.](assets/screenshots/landing-english.png)
 
 Pierwszy ekran jest tym, po co czytelnik przyszedł, o jedną nawigację od ramki zamiast o dwie
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). To
@@ -144,6 +144,12 @@ nad programami mówi, że żaden z nich się nie otworzy. Czyta jedno ciasteczko
 origin, w którym trzymana jest wybrana przez czytelnika edycja — dzięki temu pierwsze
 malowanie jest już w niej
 ([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)).
+
+Nad siatką mówi, czym są program i ramka, i dlaczego większość kafelków jest zamknięta:
+programy otwierają się po kolei, część główna opiera się na programach z Podstaw, a jedna
+ramka programu otwiera następny (#163,
+[ADR-0065](adr/0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md)).
+Mówi to tekstem na pierwszym ekranie, a nie podpowiedzią, do której palec nigdy nie sięga.
 
 Karta u dołu to **zaproszenie do zgody** i stoi na końcu celowo: czytelnik, który przyszedł
 czytać, dociera najpierw do programów, a do pytania potem. Jest zaproszeniem, a nie bramką,

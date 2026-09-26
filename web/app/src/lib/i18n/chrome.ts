@@ -110,6 +110,19 @@ interface AccountOverviewStrings {
 }
 
 /**
+ * Why one run of programs comes after the run before it, in the index's legend (ADR-0065).
+ *
+ * `after` is the id prefix of the run the sentence says this one is built on. It is checked
+ * as well as the key, because the sentence names BOTH runs: a course whose `P` run followed
+ * something other than `F` would be told that its main sequence was built on a Foundation
+ * run it does not have (`lib/content/run-reasons.ts`).
+ */
+export interface RunReason {
+  readonly after: string;
+  readonly says: string;
+}
+
+/**
  * The account-deletion screen.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
@@ -345,6 +358,24 @@ interface Strings {
   readonly revealBusy: string;
   readonly languageLabel: string;
   readonly programs: string;
+  /**
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * THE INDEX'S STANDFIRST, UNDER `programs` — issue #163.
+   *
+   * What a program is, what a frame is, and the rule the product works by: most frames end
+   * by asking, the next one opens with the answer, so the answer is written down first. All
+   * of it was said on `/about` and nowhere a first-time reader had to look, because ADR-0036
+   * moved the argument there. A reader arriving met a grid of titles and no word for what
+   * was inside them.
+   *
+   * IT IS A STANDFIRST AND NOT THE ARGUMENT COMING BACK. ADR-0036's index is the programs,
+   * and this is orientation above them, in the book's own terms: "Each program is a stream
+   * of small numbered chunks called frames … The answer is at the top of the next frame"
+   * (the book's *How to use this book*). Why the loop is built that way is still `/about`'s
+   * to say.
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  readonly programsLead: string;
   /**
    * The way to everything the index no longer says, and the reason the index can be a
    * grid of programs at all (ADR-0036).
@@ -636,6 +667,18 @@ interface Strings {
    */
   readonly groupLabels: Readonly<Record<string, string>>;
   /**
+   * WHY A RUN COMES WHERE IT DOES, keyed like `groupLabels` by the prefix of the run the
+   * sentence is about — the legend's middle sentence (`orderLegend`, ADR-0065).
+   *
+   * ADR-0065 kept the Foundation programs in the reading order and gave the index a sentence
+   * to say why: the Main sequence is built on them. It is a claim about THIS book's runs, so
+   * it is keyed to them and to their order, and a course whose runs are named differently
+   * — or grouped by the book's own parts, whose titles are the content's words rather than
+   * this table's — gets no sentence rather than one about somebody else's book. Polish cannot
+   * build it from the two labels either: `Podstawy` has to be declined inside it.
+   */
+  readonly runReasons: Readonly<Record<string, RunReason>>;
+  /**
    * The accessible name of the program map's list of headings — every heading of the program,
    * one hop from any frame (ADR-0041), in the panel the pager's position opens (ADR-0063).
    */
@@ -677,6 +720,23 @@ interface Strings {
    */
   readonly shutExplain: (previous: string) => string;
   /**
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * THE SAME RULE, ON THE FIRST SCREEN AND WITHOUT A HOVER — the index's legend, above the
+   * grid (issue #163, ADR-0065).
+   *
+   * `shutExplain` is a `title` and a screen-reader description, so a reader on a touch
+   * screen or a keyboard never met it: what they met was a grid of faint tiles marked
+   * `opens after …`, and the reassurance that nothing is paid for or hidden was a tooltip.
+   * ADR-0065 decided what the visible line says, and it says it in this order: the programs
+   * open in order; why this order (`runReasons`, when the course has the runs a reason is
+   * about); how small the step is — one frame; and that nothing is paid for or hidden.
+   *
+   * It takes the reasons rather than looking them up, because which runs a course has is the
+   * bundle's to say and this table knows only words.
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  readonly orderLegend: (reasons: readonly string[]) => string;
+  /**
    * WHAT HAPPENED, said where the reader landed — the sentence `shut-notice.tsx` renders
    * when the gate has just moved somebody off a program they asked for (ADR-0051, and
    * `program-gate.tsx` for why the move cannot be a server redirect).
@@ -688,6 +748,21 @@ interface Strings {
    * then found one tile in forty-seven.
    */
   readonly shutNotice: (unit: string, previous: string) => string;
+  /**
+   * WHEN THE PROGRAM THAT OPENS IT IS SHUT TOO, which is the usual case for a link into the
+   * middle of the book: `previous` is named by `shutNotice`, and a way on that pointed at it
+   * would bounce the reader again, one program further back, until they reached the one they
+   * could open. So the notice says so, and names that one — `way`, the nearest program before
+   * `unit` that this reader can open (`wayOn`, in `lib/progress/gate.ts`).
+   */
+  readonly shutNoticeFurther: (unit: string, previous: string, way: string) => string;
+  /**
+   * The notice's way on (issue #163): a link to the program named just above it, which is
+   * the move the notice has told the reader to make. It explained and offered nothing to
+   * press, so the reader had to find the tile it named. `Go to`, `goToFrameNumber`'s verb,
+   * because it goes somewhere; the program's own contents are where it lands.
+   */
+  readonly shutNoticeWayOn: (way: string) => string;
   /**
    * The contents page's foot, where the next program is shut.
    *
@@ -836,6 +911,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     revealBusy: 'Too many requests at once. Wait a moment, then try again.',
     languageLabel: 'Language',
     programs: 'Programs',
+    programsLead:
+      'Each program is a chapter of the course, made of frames: short, numbered steps, one screen each. Most frames end with a question, and the next frame opens with its answer — so write yours down before you go on.',
     about: 'About ab-ovo',
     courses: 'Courses',
     coursesLead:
@@ -919,16 +996,31 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     nextProgramLabel: 'Next program',
     previousProgramLabel: 'Previous program',
     groupLabels: { F: 'Foundation', P: 'Main sequence' },
+    runReasons: {
+      P: {
+        after: 'F',
+        says: 'The Main sequence is built on the Foundation programs, which is why they come first.',
+      },
+    },
     sectionsLabel: 'Sections',
     atFrame: (n) => `at frame ${n}`,
     opensAfter: (unit) => `opens after ${unit}`,
     shutExplain: (previous) =>
       `Not open yet. It opens as soon as you have read any frame of ${previous} — one frame ` +
       `is enough, and nothing here is paid for or hidden.`,
+    orderLegend: (reasons) =>
+      [
+        'Programs open in order.',
+        ...reasons,
+        'Reading any one frame of a program opens the next one, and nothing here is paid for or hidden.',
+      ].join(' '),
     shutNotice: (unit, previous) =>
       `${unit} is not open yet, so this page opened instead of it. The book is read in ` +
       `order: ${unit} opens as soon as you have a place in ${previous}, and one frame of ` +
       `${previous} is enough. ${unit} is marked in the list below.`,
+    shutNoticeFurther: (unit, previous, way) =>
+      `${previous} is not open yet either, so the way to ${unit} starts at ${way}.`,
+    shutNoticeWayOn: (way) => `Go to ${way}`,
     shutNextProgram: (unit) => `${unit} opens once you have read any frame of this program.`,
     renderError: {
       unavailableTitle: 'The book\u2019s server did not answer.',
@@ -1045,6 +1137,12 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     revealBusy: 'Zbyt wiele żądań naraz. Odczekaj chwilę i spróbuj ponownie.',
     languageLabel: 'Język',
     programs: 'Programy',
+    // `napisz`, never `zapisz`, for `writeItDown`'s reason (issue #152): `zapisz` is the word
+    // on every Save button. An imperative and a future tense, which choose no gender for the
+    // reader (ADR-0016's rule, which a past tense cannot keep); `ramka`, `program` and `kurs`
+    // are this table's own words (docs/how-to/translate-a-document.md).
+    programsLead:
+      'Każdy program to rozdział kursu złożony z ramek: krótkich, ponumerowanych kroków, po jednym na ekran. Większość ramek kończy się pytaniem, a następna ramka zaczyna się od odpowiedzi — więc napisz swoją, zanim przejdziesz dalej.',
     about: 'O ab-ovo',
     courses: 'Kursy',
     coursesLead:
@@ -1165,6 +1263,14 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     nextProgramLabel: 'Następny program',
     previousProgramLabel: 'Poprzedni program',
     groupLabels: { F: 'Podstawy', P: 'Część główna' },
+    // `z Podstaw`: the run's heading, declined, which is why this cannot be built from
+    // `groupLabels` (the key's own note). `to one` points back at the Foundation programs.
+    runReasons: {
+      P: {
+        after: 'F',
+        says: 'Część główna opiera się na programach z Podstaw, dlatego to one są pierwsze.',
+      },
+    },
     sectionsLabel: 'Sekcje',
     // `przy ramce` rather than `na ramce`, which is spoken Polish rather than written (issue
     // #152). Still a position and nothing more (ADR-0041).
@@ -1177,10 +1283,22 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     shutExplain: (previous) =>
       `Jeszcze nieotwarty. Otworzy się, gdy przeczytasz dowolną ramkę ${previous} — wystarczy ` +
       `jedna, nic tu nie jest płatne ani ukryte.`,
+    // `shutExplain`'s own words for the size of the step and for what is not behind it, so the
+    // tile's description and the line above the grid say one thing.
+    orderLegend: (reasons) =>
+      [
+        'Programy otwierają się po kolei.',
+        ...reasons,
+        'Wystarczy przeczytać dowolną ramkę programu, a otworzy się następny — nic tu nie jest płatne ani ukryte.',
+      ].join(' '),
     shutNotice: (unit, previous) =>
       `${unit} nie jest jeszcze otwarty, dlatego zamiast niego otworzyła się ta strona. ` +
       `Książkę czyta się po kolei: ${unit} otworzy się, gdy będzie zapisane miejsce w ` +
       `${previous} — wystarczy jedna ramka ${previous}. ${unit} jest zaznaczony na liście niżej.`,
+    shutNoticeFurther: (unit, previous, way) =>
+      `${previous} też nie jest jeszcze otwarty, więc droga do ${unit} zaczyna się od ${way}.`,
+    // `Przejdź`, the table's word for *go to* (`goToFrame`, `go`, `skipToContent`).
+    shutNoticeWayOn: (way) => `Przejdź do ${way}`,
     shutNextProgram: (unit) =>
       `${unit} otworzy się, gdy przeczytasz dowolną ramkę tego programu.`,
     renderError: {
@@ -1300,6 +1418,7 @@ export interface Chrome {
   readonly revealBusy: string;
   readonly languageLabel: string;
   readonly programs: string;
+  readonly programsLead: string;
   readonly about: string;
   readonly courses: string;
   readonly coursesLead: string;
@@ -1378,11 +1497,15 @@ export interface Chrome {
   readonly backToLastFrame: (n: number) => string;
   readonly labOptional: string;
   readonly groupLabels: Readonly<Record<string, string>>;
+  readonly runReasons: Readonly<Record<string, RunReason>>;
   readonly sectionsLabel: string;
   readonly atFrame: (n: number) => string;
   readonly opensAfter: (unit: string) => string;
   readonly shutExplain: (previous: string) => string;
+  readonly orderLegend: (reasons: readonly string[]) => string;
   readonly shutNotice: (unit: string, previous: string) => string;
+  readonly shutNoticeFurther: (unit: string, previous: string, way: string) => string;
+  readonly shutNoticeWayOn: (way: string) => string;
   readonly shutNextProgram: (unit: string) => string;
   readonly renderError: RenderErrorStrings;
   readonly readWhileSignedIn: string;

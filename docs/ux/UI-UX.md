@@ -114,6 +114,15 @@ API, before the reader has pressed anything.
 argument moved whole to `/about`; what a reader arrives at is the thing they came for, one
 navigation from a frame instead of two.
 
+**And it tells a reader who has never been here what they are looking at** (#163). The audit
+of 2026-09-24 watched a first visit at 1280 px and at 390 px: a small uppercase *PROGRAMS*,
+then a grid of tiles nearly all faint and marked `opens after …`, and nothing saying what a
+program or a frame is. The one sentence saying nothing is paid for or hidden was a tooltip,
+which touch and keyboard readers never see. The first screen now says both, in a standfirst
+under the heading and a legend above the grid. Neither is the argument coming back: what a
+program and a frame are is orientation, and why the loop is built the way it is stays on
+`/about`.
+
 Its parts, in order:
 
 1. **The top row** — the wordmark, a link to `/courses`, a link to `/about`, the theme
@@ -160,14 +169,43 @@ Its parts, in order:
    English. A choice is `/?lang=<edition>` — visible, linkable, leaveable, never inferred
    from `Accept-Language` — and it is **remembered**: in this browser, and on the reader's
    account when there is one, so the question is asked once rather than on every screen.
-3. **The course's title**, at level two, in the reader's edition — and beside it the one
+
+   **The heading is set as one** (#163): the reading face, in the ink, at about the size of
+   `/about`'s lede. It was a faint uppercase label at the size of a tile's id. **The language
+   control is drawn here as outlined, finger-sized options**, the current one filled and
+   underlined, because its quiet words at the far end of the line were easy to miss (#163).
+   It is the same control with the same links; every other screen keeps the quiet shape,
+   and English is still the default.
+3. **The standfirst**, under the heading (#163) — what a program is (a chapter of the course,
+   made of frames), what a frame is (a short, numbered step, one screen long), and the rule
+   the loop runs on: most frames end with a question and the next one opens with its answer,
+   so the answer is written down first. In the book's own terms, from its *How to use this
+   book*. It is the same for every reader, so it is rendered on the server and moves nothing.
+4. **The course's title**, at level two, in the reader's edition — and beside it the one
    control that narrows: *Only this course* on the index that is showing every one,
    *All courses* on the index narrowed to one. It is absent entirely while the deployment
    pins a single course, where both labels would lead to the page the reader is on. The
    narrowing is `/?track=<id>`, beside `?lang=` and independent of it: every position of
    the language control carries the chosen course, and the sign-in return address carries
    both, so neither choice can undo the other (ADR-0048).
-4. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
+
+   **Under the title, the legend** — why most of the tiles below are shut, as text rather
+   than a tooltip (#163). What it says is
+   [ADR-0065](../adr/0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md)'s:
+   the programs open in order; the Main sequence is built on the Foundation programs, which is
+   why they come first; reading any one frame of a program opens the next; nothing here is
+   paid for or hidden. The sentence about the runs is said only where the course has a
+   Foundation run followed by a Main sequence run (`lib/content/run-reasons.ts`). A course
+   grouped by its own parts gets the rest of the legend, because why one part follows another
+   is the book's to say. The legend is per course, because the order is a course's.
+
+   It is rendered on the server, and it is on every first paint of a course with more than
+   one program: the server renders a reader with no record, and for that reader every program
+   but the first is shut. It stays for a reader whose record has opened every program,
+   because taking it away after hydration would move the grid up under them — the shift
+   `specs/progress.spec.ts` bounds — and every clause is still true for them. It is not a
+   `status` and never takes focus.
+5. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
    the parts themselves once a bundle carries them (`groupsOf`, in `@ab-ovo/web-kit`'s `bundle.ts`,
    which the MCP server's `list_programs` shares, so the two surfaces divide the book one
    way). Each run is headed at level three, under the track's title. One tile per program,
@@ -178,7 +216,9 @@ Its parts, in order:
    hydration into a row that already has its height. It is a **position and never a
    progress** (ADR-0041): no fraction, no bar, nothing about how far, and not a link,
    because the way back into the frame is the resume control and `progress.spec.ts` holds
-   the page to exactly one.
+   the page to exactly one. The run headings are set at 13 px and a tile's id and its note at
+   12 px (`program-grid.module.css`); the run headings were 11 px until #163 asked for labels
+   of 12–13 px or more.
 
    **A tile the reader has not reached yet carries no link**
    ([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)). A
@@ -197,17 +237,30 @@ Its parts, in order:
    pointer, and as an `aria-describedby` description announced with the title, for a screen
    reader. It says the thing `opens after F01` cannot — that **one frame** of F01 is
    enough — because read alone the short note means "finish F01 first", which is a much
-   larger promise than the rule keeps.
+   larger promise than the rule keeps. Neither of those reaches a reader who does not ask a
+   tile, which is what the legend above the grid is for (#163).
 
    **A reader the gate has just moved is told so, above the grid.** A deep link, a
    bookmark or a shared link to a shut program returns the reader here, and the redirect
    carries `?shut=<unit>`; the page re-asks the gate against this reader's own record and,
-   only if the answer is still shut, renders one sentence in a `role="status"` region that
-   takes focus as it lands — what was refused, why this page opened instead, what opens it
-   and how small that is, and that the program is marked in the list below. It renders on
-   no other visit, and a `?shut=` naming a program the reader can in fact open renders
-   nothing at all.
-5. **The consent invitation**, last, absent from the first paint, and an invitation rather
+   only if the answer is still shut, renders a notice in a `role="status"` region that
+   takes focus as it lands. It says what was refused, why this page opened instead, what
+   opens it and how small that is, and that the program is marked in the list below. It
+   renders on no other visit, and a `?shut=` naming a program the reader can in fact open
+   ends up rendering nothing: the server renders the page for a reader with no record, so
+   a reloaded `?shut=` address paints the notice first and loses it as the reader's own
+   record arrives (`shut-notice.tsx`). The gate's own redirect is a client navigation, and
+   renders from the record straight away.
+
+   **The notice ends with a way on** (#163): a link, *Go to F01*, to the contents of the
+   program that opens the one refused. When that program is shut too — the usual case for a
+   link into the middle of the book — the notice says so, and the link is the nearest program
+   behind it that this reader can open (`wayOn`, in `lib/progress/gate.ts`), which for a
+   reader with no record is the first. A link to a shut program would only bounce them here
+   again, one program further back. A reloaded address paints that first program's link, and
+   the reader's record then moves it to their own nearest one. The link is a finger's target
+   (`specs/targets.spec.ts`).
+6. **The consent invitation**, last, absent from the first paint, and an invitation rather
    than a gate — a reader who came to read reaches the programs first and the question
    afterwards. The same invitation is on a program's summary, below the list, where a
    reader has just finished the frames the instrument is about; one record, so an answer
@@ -932,10 +985,12 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   hit area grew and nothing moved. Off the reading screens the same pattern holds the index's
   and the courses page's top-row links, the quiet buttons beside them (*Forget where I am*,
   *Export my worksheets*, the account's), the consent line's toggle and the sync notice's
-  *Got it* (#147) and *Go to frame N* (#157). The index's filled *Continue* is the one
-  exception to the pattern, because a
-  fill is painted over its padding: the link is the padded target and a span inside it is the
-  button a reader sees, at the size it always had.
+  *Got it* (#147), *Go to frame N* (#157) and the shut notice's way on (#163). The index's
+  filled *Continue* is the one exception to the pattern, because a fill is painted over its
+  padding: the link is the padded target and a span inside it is the button a reader sees, at
+  the size it always had. The index's language control is not an exception but a different
+  shape: it is drawn as outlined boxes 44 px tall, so its target is the box a reader sees
+  (#163).
   `specs/reading.spec.ts` and `specs/pager.spec.ts` measure the box on the reading screens, and
   `specs/targets.spec.ts` off them, at 390 px and 1280 px — where it also checks that a press
   on a control's words lands on that control, since grown boxes overlap wherever a row wraps.

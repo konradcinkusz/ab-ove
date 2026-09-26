@@ -72,6 +72,11 @@ export interface TileEntryProps {
  *
  * ONE FRAME IS ENOUGH, and the sentence says so — `chrome.shutExplain` records why that
  * clause is load-bearing rather than friendly.
+ *
+ * NEITHER WAY OF ASKING REACHES A READER WHO DOES NOT ASK, which is most readers on a touch
+ * screen: a `title` needs a pointer to hover and a description needs a screen reader. So the
+ * index says the same things once, as visible text, in the legend above each grid (issue
+ * #163, `chrome.orderLegend`), and this stays as the long answer for whoever asks one tile.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
