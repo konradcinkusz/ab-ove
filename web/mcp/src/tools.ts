@@ -30,6 +30,7 @@ import {
   unitIn,
 } from './content.ts';
 import type { Bundle, BundleSource, Step, Text, Unit } from './content.ts';
+import { FALLBACK_LANGUAGE, framingFor } from './framing.ts';
 
 /**
  * What the host is told about the server as a whole, before any tool is called.
@@ -580,6 +581,12 @@ type Built =
   | {
       readonly text: string;
       readonly isError?: undefined;
+      /**
+       * The edition its words to the reader are in (#167), which the in-memory note is said
+       * in too. Absent from a result that speaks no edition: the edition question, asked
+       * because no edition is known, and a list with no track to title.
+       */
+      readonly language?: string;
       readonly data: Omit<Structured, 'text' | 'placeIsEphemeral'>;
     };
 
@@ -600,13 +607,16 @@ const problem = (text: string): Failed => ({ text, isError: true });
  * Its kind travels as data (#164), and the step the reader is on with it when the text
  * shows that step.
  */
-const refused = (text: string, refusal: RefusalData, step?: StepData): Built => ({
+const refused = (text: string, refusal: RefusalData, language: string, step?: StepData): Built => ({
   text,
+  language,
   data: { ...(step ? { step } : {}), refusal },
 });
 
-function refusalResult(refusal: Refusal): Built {
-  return refusal.kind === 'no-such-step' ? problem(explain(refusal)) : refused(explain(refusal), refusal);
+/** The gate's refusal in the reader's edition (#167); `explain()` is where its sentences are chosen. */
+function refusalResult(refusal: Refusal, language: string): Built {
+  const said = explain(refusal, language);
+  return refusal.kind === 'no-such-step' ? problem(said) : refused(said, refusal, language);
 }
 
 /**
@@ -620,10 +630,12 @@ function refusalResult(refusal: Refusal): Built {
  * result of a session that is not an error, and every result carries `placeIsEphemeral` in
  * its structured half — the fact, for whatever reads the data, without the sentence again.
  * `handle()` decides which; `Session` is what it remembers.
+ *
+ * IN THE EDITION OF THE RESULT IT ENDS (#167). The words are `framing.ts`'s: the note is
+ * addressed to the reader, so a Polish step is not followed by an English sentence about
+ * the reader's own place.
  */
-export const EPHEMERAL_NOTE =
-  'Your place in the book is kept for this session only: this server has no account to ' +
-  'write it to, so a restart begins the program again. Fine for reading; not a bookmark.';
+export const ephemeralNote = (language: string): string => framingFor(language).placeIsEphemeral;
 
 /**
  * What a reader is told when the deployment has no book, and what fixes it — which depends
@@ -644,6 +656,10 @@ export const EPHEMERAL_NOTE =
  *
  * Every path tried is named, because that is the one thing whoever runs the server can
  * check for themselves.
+ *
+ * ENGLISH IN EVERY EDITION, unlike the note below (#167). Every sentence of it is for
+ * whoever runs the server, whose fix is a script, a variable or a path in an English-only
+ * repository — and with no book there is no edition to speak: the editions are the book's.
  */
 export function noContentNote(missing: ContentUnavailable): string {
   const fetch =
@@ -694,16 +710,18 @@ export function noContentNote(missing: ContentUnavailable): string {
  *
  * `isError`, unlike the gate's refusals: this is not the book working, it is a call that
  * did not do what it was asked.
+ *
+ * WHAT THE READER IS TOLD FOLLOWS THEIR EDITION; WHAT FIXES THE DEPLOYMENT DOES NOT (#167).
+ * That nothing is lost, that a failed write is safe to repeat, and to try again shortly
+ * are the reader's, and are `framing.ts`'s. A fresh token and a corrected address are for
+ * whoever runs the server, and stay English with the variables they name. The edition is
+ * `handle()`'s to choose, because the place that says which edition the reader reads in is
+ * the thing that could not be reached.
  */
-export function placeUnavailableNote(failure: PlaceUnavailable): string {
+export function placeUnavailableNote(failure: PlaceUnavailable, language: string = FALLBACK_LANGUAGE): string {
+  const framing = framingFor(language);
   const status = failure.status === undefined ? '' : ` (HTTP ${failure.status})`;
-  const kept =
-    'Your place in the book could not be reached just now, and nothing is lost: it is kept ' +
-    'on your account, exactly where you left it.' +
-    (failure.writing
-      ? ' This call may not have been recorded; either way, the same call is safe to make ' +
-        'again once the place can be reached — it will not move you twice.'
-      : '');
+  const kept = framing.placeUnreachable + (failure.writing ? ` ${framing.placeMaybeRecorded}` : '');
 
   switch (failure.reason) {
     case 'unauthorised':
@@ -714,7 +732,7 @@ export function placeUnavailableNote(failure: PlaceUnavailable): string {
         'not help.'
       );
     case 'unreachable':
-      return `${kept}\n\nThe service that keeps it is out of reach or not answering right now${status}. Try again shortly.`;
+      return `${kept}\n\n${framing.placeOutOfReach(status)}`;
     case 'refused':
       // No status is the one `refused` where nothing was asked: the address itself is not one.
       return failure.status === undefined
@@ -728,14 +746,8 @@ export function placeUnavailableNote(failure: PlaceUnavailable): string {
 }
 
 /**
- * The names for the id prefixes `groupsOf` divides a track by — the reading surface's
- * `chrome.groupLabels`, in the one language this server's own sentences have (§3 of the
- * sketch). A prefix with no entry is listed without a heading.
- */
-const GROUP_LABELS: Readonly<Record<string, string>> = { F: 'Foundation', P: 'Main sequence' };
-
-/**
- * Where a step is: `P01 · How a computer stores a number › Scientific notation · step 5 of 48`.
+ * Where a step is: `P01 · How a computer stores a number › Scientific notation · step 5 of 48`,
+ * and in the Polish edition `… · ramka 5 z 48` (#167).
  *
  * What the reading surface's top bar and pager say, one transport over — the program's id
  * and title, the section the step is under, the position; the surface said it in one place
@@ -747,30 +759,31 @@ const GROUP_LABELS: Readonly<Record<string, string>> = { F: 'Foundation', P: 'Ma
 export function placeLine(unit: Unit, step: Step, language: string): string {
   const section = unit.sections?.find((candidate) => candidate.id === step.section);
   const where = section ? ` › ${say(section.titles, language)}` : '';
-  return `${unit.id} · ${say(unit.titles, language)}${where} · step ${step.n} of ${unit.steps.length}`;
+  return `${unit.id} · ${say(unit.titles, language)}${where} · ${framingFor(language).position(step.n, unit.steps.length)}`;
 }
 
-/** Render one step for a reader, in their edition. */
+/**
+ * Render one step for a reader, in their edition — the book's words and the server's alike.
+ *
+ * Everything here is the reader's, so every sentence around the step is `framing.ts`'s and
+ * follows the edition the step is in (#167). Until then only the step did, and a Polish
+ * step arrived between English banners that the host's model translated, against the
+ * instruction to show a step as it is served.
+ */
 export function render(unit: Unit, step: Step, language: string): string {
+  const framing = framingFor(language);
   const parts: string[] = [`## ${placeLine(unit, step, language)}`];
 
   if (step.answer) {
     parts.push(
-      `--- The book's answer to step ${step.n - 1} ---\n${say(step.answer, language)}\n` +
-        '--- Compare your own answer with that before reading on ---',
+      `--- ${framing.bookAnswer(step.n - 1)} ---\n${say(step.answer, language)}\n--- ${framing.compare} ---`,
     );
   }
 
   const title = step.titles ? say(step.titles, language) : undefined;
   parts.push(`${title ? `**${title}**\n\n` : ''}${say(step.body, language)}`);
 
-  if (step.check) {
-    parts.push(
-      `This step has an exercise: lab "${step.check.lab}", exercise "${step.check.exercise}". ` +
-        'The exercises run in the reader\'s browser and are not available through this server; ' +
-        'the reading surface has them.',
-    );
-  }
+  if (step.check) parts.push(framing.exercise(step.check.lab, step.check.exercise));
 
   /*
     Reader-facing, and so naming no tool. The first version told the reader the next step
@@ -778,11 +791,7 @@ export function render(unit: Unit, step: Step, language: string): string {
     has the tool's own description for that. What the reader needs is the method's one
     instruction, or to know that this step asks nothing of them.
   */
-  parts.push(
-    step.cue
-      ? 'Write your answer down before going on. The next step opens with the answer to this one.'
-      : 'This step asks nothing; go on when you are ready.',
-  );
+  parts.push(step.cue ? framing.asks : framing.asksNothing);
 
   return parts.join('\n\n');
 }
@@ -832,28 +841,29 @@ function show(
  * frames concluded — the book's own rule is that a label may name the skill and may not
  * carry the finding — and the quiz's `answer` is an answer, which the leak walk in
  * `tools.test.ts` asserts is never emitted at any cursor, this block included.
+ *
+ * IN THE READER'S EDITION, EXCEPT THE CALLS (#167). The heading, the Summary, *Can you?*
+ * and the next program's name are the reader's, and `framing.ts`'s; the `open_program` call
+ * that opens the next program and the pointer to `list_programs` tell the model what to do,
+ * and stay English after the reader's sentence they follow.
  */
 export function completion(unit: Unit, language: string, next: Unit | undefined): string {
+  const framing = framingFor(language);
   const routes = unit.routes ?? [];
   const summary = routes.filter((route) => route.kind === 'summary');
   const outcomes = routes.filter((route) => route.kind === 'outcome');
-  const range = (from: number, to: number): string => (from === to ? `step ${from}` : `steps ${from}–${to}`);
   const item = (route: { labels?: Text; from: number; to: number }): string =>
-    `- ${route.labels ? say(route.labels, language) : ''} (${range(route.from, route.to)})`;
+    `- ${route.labels ? say(route.labels, language) : ''} (${framing.range(route.from, route.to)})`;
 
   const parts: string[] = [
-    `## ${unit.id} · ${say(unit.titles, language)} · finished — all ${unit.steps.length} steps worked.`,
+    `## ${unit.id} · ${say(unit.titles, language)} · ${framing.finished(framing.steps(unit.steps.length))}`,
   ];
-  if (summary.length > 0) {
-    parts.push(`**Summary** — the book's own return index; each item names what a run of steps established, and the steps to re-read for it:\n${summary.map(item).join('\n')}`);
-  }
-  if (outcomes.length > 0) {
-    parts.push(`**Can you?** — what the reader should now be able to do:\n${outcomes.map(item).join('\n')}`);
-  }
+  if (summary.length > 0) parts.push(`${framing.summary}\n${summary.map(item).join('\n')}`);
+  if (outcomes.length > 0) parts.push(`${framing.canYou}\n${outcomes.map(item).join('\n')}`);
   parts.push(
     next
-      ? `**Next program:** ${next.id} · ${say(next.titles, language)}. To open it, call open_program with unit "${next.id}" (edition "${language}").`
-      : 'This was the last program in the track. list_programs shows them all.',
+      ? `${framing.nextProgram(next.id, say(next.titles, language))} To open it, call open_program with unit "${next.id}" (edition "${language}").`
+      : `${framing.lastProgram} list_programs shows them all.`,
   );
   return parts.join('\n\n');
 }
@@ -885,6 +895,10 @@ function handOff(
  * it is not an error — nothing was wrong with the call, the reader simply has not said yet
  * — and a result flagged as one is painted red by a host and apologised for by a model.
  * `isError` stays for an edition the track does not have, which names nothing.
+ *
+ * English, and not only because it tells the assistant what to ask (#167): it is asked
+ * because no edition is known, so there is none to say it in. Each edition is offered by
+ * the track's own title in it, which is the part the reader reads.
  */
 function editionQuestion(unit: Unit, editions: readonly EditionOffered[], declined: boolean): string {
   const choices = editions.map((edition) => `"${edition.language}" (${edition.title})`);
@@ -995,6 +1009,18 @@ function listingEdition(bundle: Bundle, reader: string | undefined): string {
     bundle.track.languages[0] ??
     'en'
   );
+}
+
+/**
+ * The edition a shut program is refused in (#167). No place in the program can say it — a
+ * program with a place is open by that fact alone (`gate.ts`'s valve) — so it is the one
+ * the call named, if the track has it, else the one `list_programs` titles in for this
+ * reader. Asked only once the refusal is certain, so an open program pays no read for it.
+ */
+async function refusalEdition(deps: Deps, bundle: Bundle | undefined, asked: string | undefined): Promise<string> {
+  const named = asked !== undefined && bundle ? languageIn(bundle, asked) : undefined;
+  if (named) return named;
+  return bundle ? listingEdition(bundle, await deps.cursors.edition()) : FALLBACK_LANGUAGE;
 }
 
 /**
@@ -1142,11 +1168,18 @@ export type EditionOutcome =
 
 /**
  * What one MCP session has said already. `server.ts` makes one per server, which over stdio
- * is one per connection; the one thing it remembers is whether the reader has been told
- * `EPHEMERAL_NOTE` yet.
+ * is one per connection; it remembers whether the reader has been told `ephemeralNote()`
+ * yet, and which edition it last spoke to them in.
  */
 export interface Session {
   ephemeralNoteSaid: boolean;
+  /**
+   * The edition of the last result that spoke one (#167). When the reader's place cannot be
+   * reached — the place being where an edition is otherwise read from — `handle()` says
+   * `placeUnavailableNote()` in the edition the call named if the track has it, else in this
+   * one (`unreachableEdition()`). Nothing else reads it.
+   */
+  spokenIn?: string;
 }
 
 export interface Deps {
@@ -1170,8 +1203,10 @@ export interface Deps {
    * bypassing the model — MCP elicitation. Absent on a host that does not support it, which
    * `submit_answer` treats exactly like an `unavailable` outcome: trust the argument, as
    * before. Never called for a step with no cue, because there is nothing to confirm.
+   * `language` is the step's edition, which the form is written in (#167): a host shows it
+   * to the reader with no model in between to translate it.
    */
-  readonly elicit?: (step: number, proposed: string) => Promise<ElicitOutcome>;
+  readonly elicit?: (step: number, proposed: string, language: string) => Promise<ElicitOutcome>;
   /**
    * Ask the reader which edition to read, through the host's UI, with the track's editions
    * as the only choices — the same MCP elicitation as `elicit`, and ADR-0054's reason for
@@ -1190,6 +1225,10 @@ export interface Deps {
  *
  * Anything else still throws, on purpose: an error this file cannot name is a defect in
  * this package, and a sentence would dress it up as the deployment's.
+ *
+ * A PLACE OUT OF REACH IS TOLD IN AN EDITION THE STORE DID NOT HAVE TO SAY (#167) —
+ * `unreachableEdition()`'s. Asking the store which edition the reader reads in would be
+ * asking the thing that has just failed.
  */
 export async function handle(
   name: string,
@@ -1201,10 +1240,43 @@ export async function handle(
     built = await dispatch(name, args, deps);
   } catch (error) {
     if (error instanceof ContentUnavailable) return problem(noContentNote(error));
-    if (error instanceof PlaceUnavailable) return problem(placeUnavailableNote(error));
+    if (error instanceof PlaceUnavailable) return problem(placeUnavailableNote(error, unreachableEdition(args, deps)));
     throw error;
   }
   return delivered(built, deps);
+}
+
+/**
+ * The edition a place out of reach is told in (#167): the one the call named, if a track the
+ * call can mean is published in it; else the one this session last spoke in; else English.
+ *
+ * RESOLVED, NEVER TAKEN AS SENT. The SDK's low-level `Server` checks no argument against a
+ * tool's schema, so `language` is whatever the host passed, and the first version handed it
+ * to `placeUnavailableNote()` as it came: `constructor` threw out of `handle()` on the path
+ * #137 exists to keep a result, and `PL`, or an edition the track does not have, was
+ * honoured where every other call refuses it. So it passes `languageIn`, as an edition a
+ * call names does everywhere else here — and `framingFor()` is total besides.
+ *
+ * THE BOOK IS ASKED, AND MAY BE MISSING TOO. A deployment can lose its book and its store at
+ * once; the note owed is still the place's, and with no book no edition can be named, since
+ * the editions are the book's.
+ */
+function unreachableEdition(args: Record<string, unknown>, deps: Deps): string {
+  const asked = typeof args.language === 'string' && args.language !== '' ? args.language : undefined;
+  let named: string | undefined;
+  if (asked !== undefined) {
+    let carried: readonly Bundle[] = [];
+    try {
+      carried = deps.bundles.all();
+    } catch (error) {
+      if (!(error instanceof ContentUnavailable)) throw error;
+    }
+    // The track the call names, or any this server carries when it names none (`list_programs`).
+    const track = typeof args.track === 'string' && args.track !== '' ? args.track : undefined;
+    const meant = track === undefined ? carried : carried.filter((bundle) => bundle.track.id === track);
+    named = meant.map((bundle) => languageIn(bundle, asked)).find((edition) => edition !== undefined);
+  }
+  return named ?? deps.session?.spokenIn ?? FALLBACK_LANGUAGE;
 }
 
 /**
@@ -1215,13 +1287,17 @@ export async function handle(
  * likeliest to act on without relaying, by correcting its arguments and calling again; a
  * note spent there may never reach the reader. So the note goes on the first result that is
  * not an error, whichever tool gives it — and an error carries no data to flag it in.
+ *
+ * In the result's own edition (#167), and English on a result that speaks none; the session
+ * keeps that edition for the error that is told in it, a place out of reach (`handle()`).
  */
 function delivered(built: Built, deps: Deps): ToolResult {
   if (built.isError) return built;
+  if (deps.session && built.language !== undefined) deps.session.spokenIn = built.language;
   const ephemeral = deps.placeIsEphemeral === true;
   const tell = ephemeral && deps.session?.ephemeralNoteSaid !== true;
   if (tell && deps.session) deps.session.ephemeralNoteSaid = true;
-  const text = tell ? `${built.text}\n\n${EPHEMERAL_NOTE}` : built.text;
+  const text = tell ? `${built.text}\n\n${ephemeralNote(built.language ?? FALLBACK_LANGUAGE)}` : built.text;
   return {
     text,
     structured: { text, ...built.data, ...(ephemeral ? { placeIsEphemeral: true as const } : {}) },
@@ -1289,12 +1365,20 @@ async function dispatch(
         Grouped where the book is — its parts, or the id prefix — by the same function the
         index uses, so the two surfaces never divide the book two ways. One group is a
         list, and gets no heading.
+
+        A HEADING IS A TITLE, AND FOLLOWS THE TITLES' EDITION (#167). A part's title always
+        did, being the book's; a prefix's name is the server's — the reading surface's
+        `groupLabels`, from `framing.ts` — and was English over Polish titles. Nothing else
+        in this list moved: its rule, its states and its notes are what the model reads to
+        choose and offer a program, and they are addressed to it, `open_program` and all.
+        A prefix with no name is listed without a heading.
       */
+      const groupLabels = framingFor(edition).groupLabels;
       for (const group of groupsOf(bundle)) {
         const heading = group.part
           ? say(group.part.titles, edition)
           : group.prefix
-            ? GROUP_LABELS[group.prefix]
+            ? groupLabels[group.prefix]
             : undefined;
         if (heading) lines.push(`  ${heading}`);
         const indent = heading ? '    ' : '  ';
@@ -1349,7 +1433,11 @@ async function dispatch(
     if (folded) notes.push('A folded run is shut; list_programs with "all": true names every program in it.');
     if (notes.length > 0) lines.push(notes.join(' '));
 
-    return { text: lines.join('\n'), data: { programs, folded } };
+    return {
+      text: lines.join('\n'),
+      ...(listedIn !== undefined ? { language: listedIn } : {}),
+      data: { programs, folded },
+    };
   }
 
   const located = locate(deps.bundles, askedTrack, askedUnit);
@@ -1368,7 +1456,7 @@ async function dispatch(
       say the program is not open — a question asked for nothing, in the reader's time.
     */
     const shut = await shutBehind(deps.cursors, bundle, track, unit, existing);
-    if (shut) return refusalResult(shut);
+    if (shut) return refusalResult(shut, await refusalEdition(deps, bundle, asked));
 
     /*
       THE EDITION, ASKED ONCE PER READER AND NOT ONCE PER PROGRAM (#144): the one named, else
@@ -1422,8 +1510,13 @@ async function dispatch(
     const saved = await deps.cursors.save(cursor);
 
     const served = current(unit, saved);
-    if (!served.ok) return refusalResult(served.refusal);
+    if (!served.ok) return refusalResult(served.refusal, saved.language);
 
+    /*
+      THE MODEL'S LINE, AND ENGLISH IN EVERY EDITION (#167): what this call did — started,
+      resumed, switched — told to the assistant, which then shows the step below it. The
+      step, and the hand-off after it, are the reader's, and speak the edition they are in.
+    */
     const opening = !existing
       ? how === 'remembered'
         ? `Starting "${unit.id}" in the "${saved.language}" edition, the one the reader already reads in. ` +
@@ -1439,6 +1532,7 @@ async function dispatch(
     const done = saved.step === unit.steps.length ? handOff(unit, saved.language, nextUnit(bundle, unit)) : undefined;
     return {
       text: `${opening}\n\n${shown.text}${done ? `\n\n${done.text}` : ''}`,
+      language: saved.language,
       data: { step: shown.step, ...(done ? { finished: done.finished } : {}) },
     };
   }
@@ -1452,24 +1546,25 @@ async function dispatch(
       first" is advice that leads straight into a refusal. Asking the gate here is what keeps
       the model from taking a reader round that loop and then reporting a failure.
     */
-    const shut = await shutBehind(deps.cursors, deps.bundles.for(track), track, unit, undefined);
-    if (shut) return refusalResult(shut);
+    const bundle = deps.bundles.for(track);
+    const shut = await shutBehind(deps.cursors, bundle, track, unit, undefined);
+    if (shut) return refusalResult(shut, await refusalEdition(deps, bundle, undefined));
     return problem(`The reader has not opened "${unit.id}" yet. Call open_program first.`);
   }
 
   if (name === 'current_step') {
     const served = current(unit, cursor);
-    if (!served.ok) return refusalResult(served.refusal);
+    if (!served.ok) return refusalResult(served.refusal, cursor.language);
     const shown = show(track, unit, served.step, cursor.language);
-    return { text: shown.text, data: { step: shown.step } };
+    return { text: shown.text, language: cursor.language, data: { step: shown.step } };
   }
 
   if (name === 'review_step') {
     const n = typeof args.step === 'number' ? args.step : Number.NaN;
     const served = serve(unit, cursor, n);
-    if (!served.ok) return refusalResult(served.refusal);
+    if (!served.ok) return refusalResult(served.refusal, cursor.language);
     const shown = show(track, unit, served.step, cursor.language);
-    return { text: shown.text, data: { step: shown.step } };
+    return { text: shown.text, language: cursor.language, data: { step: shown.step } };
   }
 
   if (name === 'submit_answer') {
@@ -1486,8 +1581,14 @@ async function dispatch(
     }
     // Through the gate before anything else, so the step a refusal hands back is one it served.
     const here = current(unit, cursor);
-    if (!here.ok) return refusalResult(here.refusal);
+    if (!here.ok) return refusalResult(here.refusal, cursor.language);
 
+    /*
+      WHAT A CALL RECORDED IS THE MODEL'S TO KNOW, AND ENGLISH IN EVERY EDITION (#167) — the
+      retry below, a declined form, the echo of an answer, a step that asked nothing. Each
+      tells the assistant what became of its call and what to do next; the step each shows
+      after it is the reader's, and in the reader's edition.
+    */
     if (answering !== cursor.step) {
       const shown = show(track, unit, here.step, cursor.language);
       return refused(
@@ -1497,6 +1598,7 @@ async function dispatch(
         answering < cursor.step
           ? { kind: 'already-answered', requested: answering }
           : { kind: 'not-reached', requested: answering, furthest: cursor.step },
+        cursor.language,
         shown.step,
       );
     }
@@ -1522,7 +1624,7 @@ async function dispatch(
     let answer = proposed;
     let confirmedByReader = false;
     if (here.step.cue && deps.elicit) {
-      const outcome = await deps.elicit(cursor.step, proposed);
+      const outcome = await deps.elicit(cursor.step, proposed, cursor.language);
       if (outcome.kind === 'confirmed') {
         answer = outcome.answer.trim();
         confirmedByReader = true;
@@ -1532,6 +1634,7 @@ async function dispatch(
             'and they declined or cancelled. Ask them in the conversation instead, and call ' +
             'submit_answer again once they have.',
           { kind: 'declined' },
+          cursor.language,
         );
       }
       // 'unavailable' falls through: trust the argument, exactly as a host with no
@@ -1562,17 +1665,17 @@ async function dispatch(
       */
       if (moved.refusal.kind === 'program-complete') {
         const done = handOff(unit, cursor.language, nextUnit(deps.bundles.for(track), unit));
-        return { text: recorded + done.text, data: { finished: done.finished } };
+        return { text: recorded + done.text, language: cursor.language, data: { finished: done.finished } };
       }
-      return refusalResult(moved.refusal);
+      return refusalResult(moved.refusal, cursor.language);
     }
 
     const saved = await deps.cursors.save(moved.cursor);
     const served = current(unit, saved);
-    if (!served.ok) return refusalResult(served.refusal);
+    if (!served.ok) return refusalResult(served.refusal, saved.language);
 
     const shown = show(track, unit, served.step, saved.language);
-    return { text: recorded + shown.text, data: { step: shown.step } };
+    return { text: recorded + shown.text, language: saved.language, data: { step: shown.step } };
   }
 
   return problem(`No such tool: ${name}`);

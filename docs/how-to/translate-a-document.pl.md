@@ -32,13 +32,23 @@ nazwie. Diagramy używają tego samego przyrostka na `.mmd`. Edycje LaTeX-owe u�
 
 ## Tłumacz na słownictwo, które już istnieje
 
-Ten produkt już mówi po polsku: `web/app/src/lib/i18n/chrome.ts` trzyma każdy napis, który
-interfejs pokazuje polskiemu czytelnikowi. **Dopasuj się do niego, zamiast wymyślać własne**,
-albo jedno pojęcie zyska dwie nazwy w jednym majątku.
+Ten produkt już mówi po polsku. `web/app/src/lib/i18n/chrome.ts` trzyma każdy napis, który
+powierzchnia lektury pokazuje polskiemu czytelnikowi. Własne zdania serwera MCP do tego
+czytelnika są osobną tabelą, `web/mcp/src/framing.ts` (#167), zbudowaną według wzoru
+`chrome.ts`. Należą do nich słowa wokół ramki, odmowy i przekazanie na końcu programu.
+**Dopasuj się do nich, zamiast wymyślać własne**, albo jedno pojęcie zyska dwie nazwy w
+jednym majątku.
+
+Słowa wspólne dla powierzchni lektury i serwera MCP są **skopiowane** do `framing.ts`, a nie
+zaimportowane, bo serwer MCP nie bierze niczego z aplikacji webowej
+([ADR-0053](../adr/0053-the-web-kit-package-is-extracted-on-its-own-exit-condition.md)). Nic
+nie sprawdza jednej kopii względem drugiej, więc **słowo zmienione w jednej tabeli zmienia się
+w drugiej w tym samym commicie**.
 
 | Po angielsku | Po polsku, tak jak mówi produkt |
 | --- | --- |
 | frame | ramka |
+| step (the MCP server's word for a frame) | ramka |
 | section | sekcja |
 | program | program |
 | course (a whole work; a *track* in the schema) | kurs |

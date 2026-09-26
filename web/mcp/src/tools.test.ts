@@ -4,11 +4,12 @@ import { test } from 'node:test';
 import { ApiCursorStore, MemoryCursorStore } from './cursor.ts';
 import { BundleNotFound, ContentUnavailable, REPOSITORY_ROOT, fixtureBundles, say, unitIn } from './content.ts';
 import type { Bundle, BundleSource, Text, Unit } from './content.ts';
+import { framingFor } from './framing.ts';
 import {
   ANSWER_CONTRACT,
-  EPHEMERAL_NOTE,
   SERVER_INSTRUCTIONS,
   TOOLS,
+  ephemeralNote,
   handle,
 } from './tools.ts';
 import type { ToolResult } from './tools.ts';
@@ -19,6 +20,13 @@ const LANG = 'en';
 
 const BUNDLES = fixtureBundles();
 
+/**
+ * Every edition the fixture is published in. The leak walks run once in each (#167): the
+ * server's own sentences follow the edition now, so the words around a step differ from one
+ * edition to another, and "no answer before its step" is a claim about every one of them.
+ */
+const EDITIONS = BUNDLES.for(TRACK)!.track.languages;
+
 function program() {
   const bundle = BUNDLES.for(TRACK);
   assert.ok(bundle, 'the fixture bundle must load');
@@ -27,11 +35,11 @@ function program() {
   return unit;
 }
 
-/** Every answer the program carries, with the step it belongs to. */
+/** Every answer the program carries, in every edition, with the step it belongs to. */
 function answers(): { n: number; text: string }[] {
   return program()
     .steps.filter((step) => step.answer)
-    .map((step) => ({ n: step.n, text: say(step.answer!, LANG) }));
+    .flatMap((step) => Object.values(step.answer!).map((text) => ({ n: step.n, text })));
 }
 
 const deps = () => ({ cursors: new MemoryCursorStore(), bundles: BUNDLES });
@@ -43,13 +51,12 @@ const deps = () => ({ cursors: new MemoryCursorStore(), bundles: BUNDLES });
  * question, and `Exercise.answer` is required on every Test exercise and Further problem.
  * The gate in reveal.ts governs `Step.answer` and says NOTHING about either, so whether
  * they reach a reader is a property of this tool surface alone -- which makes it something
- * to assert rather than to believe.
+ * to assert rather than to believe. In every edition, whichever one the walk reads in.
  */
 function everyAnswerInTheBundle(): { label: string; text: string }[] {
   const found: { label: string; text: string }[] = [];
   const add = (label: string, text: Text | undefined) => {
-    const written = text?.[LANG];
-    if (written) found.push({ label, text: written });
+    for (const written of Object.values(text ?? {})) if (written) found.push({ label, text: written });
   };
 
   for (const bundle of BUNDLES.all()) {
@@ -179,40 +186,44 @@ test('the server instructions tell the assistant not to answer for the reader', 
   assert.match(SERVER_INSTRUCTIONS, /Nothing here grades an answer, including you/);
 });
 
-test('no tool says an unreached answer, at any point in the program', async () => {
-  const d = deps();
-  await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
+for (const edition of EDITIONS) {
+  test(`no tool says an unreached answer, at any point in the program, in the "${edition}" edition`, async () => {
+    const d = deps();
+    await handle('open_program', { track: TRACK, unit: UNIT, language: edition }, d);
 
-  const total = program().steps.length;
-  for (let furthest = 1; furthest <= total; furthest += 1) {
-    const said = await everythingSaid(d);
+    const total = program().steps.length;
+    for (let furthest = 1; furthest <= total; furthest += 1) {
+      const said = await everythingSaid(d);
+      // The walk is framed in the edition it names, or it is the other walk twice (#167).
+      assert.ok(said.includes(framingFor(edition).position(furthest, total)), `the walk was not framed in "${edition}"`);
 
-    for (const answer of answers()) {
-      if (answer.n > furthest) {
-        assert.ok(
-          !said.includes(answer.text),
-          `the answer opening step ${answer.n} was said to a reader whose furthest is ${furthest}`,
-        );
-      }
-    }
-
-    if (furthest < total) {
-      const moved = await handle(
-        'submit_answer',
-        { track: TRACK, unit: UNIT, step: furthest, answer: 'the reader wrote this' },
-        d,
-      );
-      assert.ok(!moved.isError, moved.text);
-      // The move's own result renders the step just reached, whose opening answers the
-      // step just left — and nothing beyond it, in either half.
       for (const answer of answers()) {
-        if (answer.n > furthest + 1) {
-          assert.ok(!wordsOf(moved).includes(answer.text), `submitting step ${furthest} said the answer opening step ${answer.n}`);
+        if (answer.n > furthest) {
+          assert.ok(
+            !said.includes(answer.text),
+            `the answer opening step ${answer.n} was said to a reader whose furthest is ${furthest}`,
+          );
+        }
+      }
+
+      if (furthest < total) {
+        const moved = await handle(
+          'submit_answer',
+          { track: TRACK, unit: UNIT, step: furthest, answer: 'the reader wrote this' },
+          d,
+        );
+        assert.ok(!moved.isError, moved.text);
+        // The move's own result renders the step just reached, whose opening answers the
+        // step just left — and nothing beyond it, in either half.
+        for (const answer of answers()) {
+          if (answer.n > furthest + 1) {
+            assert.ok(!wordsOf(moved).includes(answer.text), `submitting step ${furthest} said the answer opening step ${answer.n}`);
+          }
         }
       }
     }
-  }
-});
+  });
+}
 
 test('the fixture carries the v2 answers this surface must never emit', () => {
   // Watched in the fixture before it is watched in the output: a leak test with no route
@@ -222,24 +233,27 @@ test('the fixture carries the v2 answers this surface must never emit', () => {
   assert.ok(labels.some((l) => l.startsWith('exercise ')), 'the v2 fixture must carry an exercise answer');
 });
 
-test('no quiz or exercise answer is ever emitted, at any cursor', async () => {
-  const d = deps();
-  await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
+for (const edition of EDITIONS) {
+  test(`no quiz or exercise answer is ever emitted, at any cursor, in the "${edition}" edition`, async () => {
+    const d = deps();
+    await handle('open_program', { track: TRACK, unit: UNIT, language: edition }, d);
 
-  const offLimits = everyAnswerInTheBundle().filter((a) => !a.label.startsWith('step '));
-  assert.ok(offLimits.length > 0);
+    const offLimits = everyAnswerInTheBundle().filter((a) => !a.label.startsWith('step '));
+    assert.ok(offLimits.length > 0);
 
-  const total = program().steps.length;
-  for (let furthest = 1; furthest <= total; furthest += 1) {
-    const said = await everythingSaid(d);
-    for (const answer of offLimits) {
-      assert.ok(!said.includes(answer.text), `${answer.label} was emitted to the reader`);
+    const total = program().steps.length;
+    for (let furthest = 1; furthest <= total; furthest += 1) {
+      const said = await everythingSaid(d);
+      assert.ok(said.includes(framingFor(edition).position(furthest, total)), `the walk was not framed in "${edition}"`);
+      for (const answer of offLimits) {
+        assert.ok(!said.includes(answer.text), `${answer.label} was emitted to the reader`);
+      }
+      if (furthest < total) {
+        await handle('submit_answer', { track: TRACK, unit: UNIT, step: furthest, answer: 'the reader wrote this' }, d);
+      }
     }
-    if (furthest < total) {
-      await handle('submit_answer', { track: TRACK, unit: UNIT, step: furthest, answer: 'the reader wrote this' }, d);
-    }
-  }
-});
+  });
+}
 
 /**
  * A track of programs that share no answer. `sequence()` and `wholeBook()` below copy the
@@ -267,82 +281,90 @@ function distinctBook(ids: readonly string[]): BundleSource {
   return { for: (id) => (id === TRACK ? book : undefined), all: () => [book] };
 }
 
-test('no answer is said before its step, in the text or in the data, at any place in any program', async () => {
-  /*
-    #164: the structured half is a second way out of this package, and "the answer to step
-    k lives only in step k + 1" has to hold for it as it holds for the text. So the walk
-    reads every string of both halves (`wordsOf`), and it walks every place in every program
-    of a three-program track, with every tool asked about every program at each place —
-    open ones, finished ones, and ones not opened yet — because a leak across programs is
-    one a single-program walk cannot see.
-  */
-  const book = distinctBook(['F01', 'F02', 'F03']);
-  const units = book.all()[0]!.units;
-  const session = { ephemeralNoteSaid: false };
-  const d = { cursors: new MemoryCursorStore(), bundles: book, placeIsEphemeral: true, session };
+for (const edition of EDITIONS) {
+  test(`no answer is said before its step, in the text or in the data, at any place in any program, in the "${edition}" edition`, async () => {
+    /*
+      #164: the structured half is a second way out of this package, and "the answer to step
+      k lives only in step k + 1" has to hold for it as it holds for the text. So the walk
+      reads every string of both halves (`wordsOf`), and it walks every place in every program
+      of a three-program track, with every tool asked about every program at each place —
+      open ones, finished ones, and ones not opened yet — because a leak across programs is
+      one a single-program walk cannot see.
 
-  /** Everything every tool says about every program at the present places, without moving anybody. */
-  const askEverything = async (): Promise<ToolResult[]> => {
-    const results = [await handle('list_programs', {}, d), await handle('list_programs', { all: true }, d)];
-    for (const program of units) {
-      const here = await d.cursors.read(TRACK, program.id);
-      if (here) {
-        // A resume writes the place it read, and a retry for the step before is refused.
-        results.push(await handle('open_program', { unit: program.id }, d));
-        if (here.step > 1) {
-          results.push(await handle('submit_answer', { unit: program.id, step: here.step - 1, answer: 'again' }, d));
+      Once per edition (#167): the refusals, the hand-off and the notes it passes through are
+      worded per edition now, and every one of them is a way out too.
+    */
+    const book = distinctBook(['F01', 'F02', 'F03']);
+    const units = book.all()[0]!.units;
+    const session = { ephemeralNoteSaid: false };
+    const d = { cursors: new MemoryCursorStore(), bundles: book, placeIsEphemeral: true, session };
+
+    /** Everything every tool says about every program at the present places, without moving anybody. */
+    const askEverything = async (): Promise<ToolResult[]> => {
+      const results = [await handle('list_programs', {}, d), await handle('list_programs', { all: true }, d)];
+      for (const program of units) {
+        const here = await d.cursors.read(TRACK, program.id);
+        if (here) {
+          // A resume writes the place it read, and a retry for the step before is refused.
+          results.push(await handle('open_program', { unit: program.id }, d));
+          if (here.step > 1) {
+            results.push(await handle('submit_answer', { unit: program.id, step: here.step - 1, answer: 'again' }, d));
+          }
+        }
+        results.push(await handle('current_step', { unit: program.id }, d));
+        for (let n = 1; n <= program.steps.length + 1; n += 1) {
+          results.push(await handle('review_step', { unit: program.id, step: n }, d));
         }
       }
-      results.push(await handle('current_step', { unit: program.id }, d));
-      for (let n = 1; n <= program.steps.length + 1; n += 1) {
-        results.push(await handle('review_step', { unit: program.id, step: n }, d));
-      }
-    }
-    return results;
-  };
+      return results;
+    };
 
-  const check = async (results: readonly ToolResult[], where: string): Promise<void> => {
-    const furthest = new Map((await d.cursors.readAll()).map((cursor) => [cursor.unit, cursor.step]));
-    const said = results.map(wordsOf).join('\n');
-    const never = (words: string, what: string): void => assert.ok(!said.includes(words), `${where}: ${what} was said`);
-    for (const program of units) {
-      const reached = furthest.get(program.id) ?? 0;
-      for (const step of program.steps) {
-        for (const words of step.answer && step.n > reached ? Object.values(step.answer) : []) {
-          never(words, `the answer opening ${program.id} step ${step.n}, the furthest there being ${reached},`);
+    const check = async (results: readonly ToolResult[], where: string): Promise<void> => {
+      const furthest = new Map((await d.cursors.readAll()).map((cursor) => [cursor.unit, cursor.step]));
+      const said = results.map(wordsOf).join('\n');
+      const never = (words: string, what: string): void => assert.ok(!said.includes(words), `${where}: ${what} was said`);
+      for (const program of units) {
+        const reached = furthest.get(program.id) ?? 0;
+        for (const step of program.steps) {
+          for (const words of step.answer && step.n > reached ? Object.values(step.answer) : []) {
+            never(words, `the answer opening ${program.id} step ${step.n}, the furthest there being ${reached},`);
+          }
+        }
+        for (const route of program.routes ?? []) {
+          for (const words of Object.values(route.answer ?? {})) never(words, `a ${program.id} quiz answer`);
+        }
+        for (const exercise of program.exercises ?? []) {
+          for (const words of Object.values(exercise.answer)) never(words, `a ${program.id} exercise answer`);
         }
       }
-      for (const route of program.routes ?? []) {
-        for (const words of Object.values(route.answer ?? {})) never(words, `a ${program.id} quiz answer`);
+      // The data's own claims about where a step is: never past the furthest, and a step
+      // that opens with an answer answers the one before it and no other. And its words are
+      // the text's, word for word, so the halves cannot drift apart.
+      for (const result of results) {
+        if (result.structured) assert.equal(result.structured.text, result.text, where);
+        const shown = result.structured?.step;
+        if (!shown) continue;
+        const reached = furthest.get(shown.unit) ?? 0;
+        assert.ok(shown.step <= reached, `${where}: ${shown.unit} step ${shown.step} was shown past the furthest`);
+        if (shown.answersStep !== undefined) assert.equal(shown.answersStep, shown.step - 1, where);
       }
-      for (const exercise of program.exercises ?? []) {
-        for (const words of Object.values(exercise.answer)) never(words, `a ${program.id} exercise answer`);
-      }
-    }
-    // The data's own claims about where a step is: never past the furthest, and a step
-    // that opens with an answer answers the one before it and no other. And its words are
-    // the text's, word for word, so the halves cannot drift apart.
-    for (const result of results) {
-      if (result.structured) assert.equal(result.structured.text, result.text, where);
-      const shown = result.structured?.step;
-      if (!shown) continue;
-      const reached = furthest.get(shown.unit) ?? 0;
-      assert.ok(shown.step <= reached, `${where}: ${shown.unit} step ${shown.step} was shown past the furthest`);
-      if (shown.answersStep !== undefined) assert.equal(shown.answersStep, shown.step - 1, where);
-    }
-  };
+    };
 
-  let moves: ToolResult[] = [];
-  for (const program of units) {
-    moves.push(await handle('open_program', { unit: program.id, language: LANG }, d));
-    for (let n = 1; n <= program.steps.length; n += 1) {
-      await check([...moves, ...(await askEverything())], `${program.id} at step ${n}`);
-      // The last submit is the hand-off, which moves nobody and is checked with the rest.
-      moves = [await handle('submit_answer', { unit: program.id, step: n, answer: 'the reader wrote this' }, d)];
+    let moves: ToolResult[] = [];
+    for (const program of units) {
+      const opened = await handle('open_program', { unit: program.id, language: edition }, d);
+      // Framed in the edition it names, or this is the other walk twice (#167).
+      assert.ok(opened.text.includes(framingFor(edition).position(1, program.steps.length)), opened.text);
+      moves.push(opened);
+      for (let n = 1; n <= program.steps.length; n += 1) {
+        await check([...moves, ...(await askEverything())], `${program.id} at step ${n}`);
+        // The last submit is the hand-off, which moves nobody and is checked with the rest.
+        moves = [await handle('submit_answer', { unit: program.id, step: n, answer: 'the reader wrote this' }, d)];
+      }
     }
-  }
-  await check([...moves, ...(await askEverything())], 'every program finished');
-});
+    await check([...moves, ...(await askEverything())], 'every program finished');
+  });
+}
 
 test('the fixture opens with a step that asks nothing and follows it with one that does', () => {
   // The shape the submit tests below lean on, asserted before they do: a fixture whose
@@ -790,10 +812,10 @@ test('a place kept in memory is said once per session in the text, on every resu
   // An error does not spend it: its text is a fix the model acts on, not a line it relays.
   const unopened = await handle('current_step', { unit: UNIT }, ephemeral);
   assert.ok(unopened.isError);
-  assert.ok(!unopened.text.includes(EPHEMERAL_NOTE));
+  assert.ok(!unopened.text.includes(ephemeralNote(LANG)));
 
   const listed = await handle('list_programs', {}, ephemeral);
-  assert.ok(listed.text.endsWith(EPHEMERAL_NOTE), 'the first result that is not an error says it');
+  assert.ok(listed.text.endsWith(ephemeralNote(LANG)), 'the first result that is not an error says it');
   assert.equal(listed.structured?.text, listed.text, 'and so do its words in the data');
 
   const later = [
@@ -801,16 +823,16 @@ test('a place kept in memory is said once per session in the text, on every resu
     await handle('current_step', { unit: UNIT }, ephemeral),
     await handle('list_programs', {}, ephemeral),
   ];
-  for (const result of later) assert.ok(!result.text.includes(EPHEMERAL_NOTE), `said twice in a session: ${result.text}`);
+  for (const result of later) assert.ok(!result.text.includes(ephemeralNote(LANG)), `said twice in a session: ${result.text}`);
   for (const result of [listed, ...later]) assert.equal(result.structured?.placeIsEphemeral, true, result.text);
 
   // A new session is told again; with none to remember it, every result says it — told
   // too often rather than too late.
   const renewed = { ...ephemeral, session: { ephemeralNoteSaid: false } };
-  assert.ok((await handle('list_programs', {}, renewed)).text.endsWith(EPHEMERAL_NOTE));
+  assert.ok((await handle('list_programs', {}, renewed)).text.endsWith(ephemeralNote(LANG)));
   const forgetful = { ...deps(), placeIsEphemeral: true };
   for (const name of ['list_programs', 'list_programs']) {
-    assert.ok((await handle(name, {}, forgetful)).text.endsWith(EPHEMERAL_NOTE));
+    assert.ok((await handle(name, {}, forgetful)).text.endsWith(ephemeralNote(LANG)));
   }
 
   // A place that is kept is said in neither half.
@@ -819,7 +841,7 @@ test('a place kept in memory is said once per session in the text, on every resu
     await handle('list_programs', {}, durable),
     await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, durable),
   ]) {
-    assert.ok(!result.text.includes(EPHEMERAL_NOTE));
+    assert.ok(!result.text.includes(ephemeralNote(LANG)));
     assert.equal(result.structured?.placeIsEphemeral, undefined);
   }
 });
@@ -990,6 +1012,256 @@ test('switching edition keeps the step, says so, and renders in the new one', as
 
   const cursor = await d.cursors.read(TRACK, UNIT);
   assert.deepEqual([cursor?.step, cursor?.language], [2, 'pl']);
+});
+
+/*
+  ──────────────────────────────────────────────────────────────────────────────────────
+  THE READER'S EDITION AROUND THE STEP, NOT ONLY IN IT (#167).
+
+  Measured on 2026-09-24 through a real MCP client: in the Polish edition the step was
+  Polish and everything the server said around it English — the place line, the banners,
+  the closing line, the refusals, the hand-off, the note — which the host's model then
+  translated. The Polish below is written out rather than read from `framing.ts`, because
+  what is under test is that it IS Polish; that each sentence is the table's, whole and in
+  both editions, is `framing.test.ts`'s.
+  ──────────────────────────────────────────────────────────────────────────────────────
+*/
+
+test('a Polish place renders Polish framing: the place line, the banners, the closing lines, the exercise', async () => {
+  const d = deps();
+  const opened = await handle('open_program', { unit: UNIT, language: 'pl' }, d);
+  assert.ok(
+    opened.text.includes('## P01 · Jak komputer przechowuje liczbę › Notacja naukowa o podstawie dwa · ramka 1 z 4'),
+    opened.text,
+  );
+  assert.ok(opened.text.includes('Ta ramka o nic nie pyta — przejdź dalej, kiedy zechcesz.'), opened.text);
+
+  await handle('submit_answer', { unit: UNIT, step: 1 }, d);
+  const third = await handle('submit_answer', { unit: UNIT, step: 2, answer: 'x' }, d);
+  assert.ok(third.text.includes('--- Odpowiedź książki do ramki 2 ---'), third.text);
+  assert.ok(third.text.includes('--- Porównaj z nią swoją odpowiedź, zanim przejdziesz dalej ---'), third.text);
+  assert.ok(
+    third.text.includes('Napisz odpowiedź, zanim przejdziesz dalej. Następna ramka zaczyna się od odpowiedzi na tę.'),
+    third.text,
+  );
+
+  const fourth = await handle('submit_answer', { unit: UNIT, step: 3, answer: 'y' }, d);
+  assert.ok(fourth.text.includes('Ta ramka ma ćwiczenie komputerowe: zestaw „P01”, ćwiczenie „gap”.'), fourth.text);
+
+  // None of the English framing is left. What stays English is the model's — `Starting "P01".`,
+  // the recorded answer — so this holds the framing, phrase by phrase, and not the whole text.
+  const english = [
+    /· step \d+ of \d+/,
+    /The book's answer/,
+    /Compare your own answer/,
+    /Write your answer down/,
+    /asks nothing/,
+    /This step has an exercise/,
+  ];
+  for (const result of [opened, third, fourth]) {
+    for (const phrase of english) assert.doesNotMatch(result.text, phrase);
+  }
+
+  // The data does not change shape (#164): the edition is a field, and the words are `text`.
+  assert.deepEqual(third.structured?.step, {
+    track: TRACK,
+    unit: UNIT,
+    step: 3,
+    total: 4,
+    asks: true,
+    language: 'pl',
+    answersStep: 2,
+  });
+  assert.equal(third.structured?.text, third.text);
+});
+
+test('the refusals follow the reader\'s edition, and what they tell the assistant stays English', async () => {
+  const { bundles } = sequence();
+  const d = { cursors: new MemoryCursorStore(), bundles };
+  await handle('open_program', { unit: 'F01', language: 'pl' }, d);
+
+  // The step gate: a step past the furthest is the method working, in Polish.
+  const ahead = await handle('review_step', { unit: 'F01', step: 3 }, d);
+  assert.ok(!ahead.isError, ahead.text);
+  assert.match(ahead.text, /^Ramka 3 nie jest jeszcze dostępna\. Najdalsza przeczytana ramka w tym programie: 1\./);
+  assert.match(ahead.text, /To nie błąd, tylko metoda/);
+  assert.deepEqual(ahead.structured?.refusal, { kind: 'not-reached', requested: 3, furthest: 1 });
+
+  // A step the program does not have: still an error, and still the reader's sentence.
+  const nowhere = await handle('review_step', { unit: 'F01', step: 900 }, d);
+  assert.ok(nowhere.isError);
+  assert.equal(nowhere.text, 'Ten program kończy się na ramce 4 — ramki 900 w nim nie ma.');
+
+  // The reading order, with no edition named: the one the reader reads in, from the record.
+  const shut = await handle('open_program', { unit: 'F03' }, d);
+  assert.ok(!shut.isError, shut.text);
+  assert.match(shut.text, /^F03 nie jest jeszcze otwarty — to kolejność książki, a nie błąd\./);
+  assert.match(shut.text, /Wystarczy jedna ramka F02, nie cały program/);
+  assert.match(shut.text, /nic tu nie jest ukryte, brakujące ani płatne/i);
+  // What the model is to do is the model's, after the reader's sentences and in English.
+  assert.match(shut.text, /\n\nWhat opens it: call open_program with unit "F02"\. Tell the reader what opens it/);
+  assert.deepEqual(shut.structured?.refusal, { kind: 'not-open', unit: 'F03', after: 'F02' });
+  for (const name of ['current_step', 'review_step', 'submit_answer']) {
+    assert.match((await handle(name, { unit: 'F03', step: 1 }, d)).text, /^F03 nie jest jeszcze otwarty/, name);
+  }
+
+  // An edition the call names is the one it is refused in.
+  const named = await handle('open_program', { unit: 'F03', language: 'en' }, d);
+  assert.match(named.text, /^"F03" is not open to this reader yet/);
+  assert.match(named.text, /ONE step of it is enough/);
+});
+
+test('a Polish reader who finishes a program is handed off in Polish, and the call that opens the next stays English', async () => {
+  const bundle = BUNDLES.for(TRACK)!;
+  const unit = bundle.units[0]!;
+  const two: Bundle = {
+    ...bundle,
+    units: [unit, { ...unit, id: 'P02', titles: { en: 'The second program', pl: 'Drugi program' } }],
+  };
+  const d = {
+    cursors: new MemoryCursorStore(),
+    bundles: { for: (id: string) => (id === TRACK ? two : undefined), all: () => [two] },
+  };
+  await handle('open_program', { unit: UNIT, language: 'pl' }, d);
+  const total = program().steps.length;
+  for (let n = 1; n < total; n += 1) await handle('submit_answer', { unit: UNIT, step: n, answer: 'x' }, d);
+
+  const last = await handle('submit_answer', { unit: UNIT, step: total, answer: 'x' }, d);
+  assert.ok(!last.isError, last.text);
+  assert.ok(last.text.includes('## P01 · Jak komputer przechowuje liczbę · ukończony — 4 ramki, każda przerobiona.'), last.text);
+  assert.match(last.text, /\*\*Podsumowanie\*\* z samej książki/);
+  assert.match(last.text, /\*\*Czy potrafisz\?\*\*/);
+  assert.ok(last.text.includes('(ramki 3–4)'), 'a Summary item names its frames in the edition');
+  for (const route of unit.routes ?? []) {
+    if (route.kind === 'quiz') continue;
+    assert.ok(last.text.includes(say(route.labels!, 'pl')), `the ${route.kind} label was not offered in Polish`);
+    if (route.answer) assert.ok(!wordsOf(last).includes(say(route.answer, 'pl')), 'a route ANSWER was emitted');
+  }
+  assert.ok(
+    last.text.includes(
+      '**Następny program:** P02 · Drugi program. To open it, call open_program with unit "P02" (edition "pl").',
+    ),
+    last.text,
+  );
+  assert.deepEqual(last.structured?.finished, { unit: UNIT, total, next: { unit: 'P02', title: 'Drugi program' } });
+});
+
+test('the in-memory note is said in the edition of the result it ends, and English where none is known', async () => {
+  const d = { ...deps(), placeIsEphemeral: true, session: { ephemeralNoteSaid: false } };
+  const opened = await handle('open_program', { unit: UNIT, language: 'pl' }, d);
+  assert.ok(opened.text.endsWith(`\n\n${ephemeralNote('pl')}`), opened.text);
+  assert.match(ephemeralNote('pl'), /^Twoja pozycja w lekturze jest zapamiętana tylko na czas tej sesji/);
+  assert.equal(opened.structured?.text, opened.text);
+
+  // The edition question is asked because no edition is known, so its note has none to follow.
+  const fresh = { ...deps(), placeIsEphemeral: true, session: { ephemeralNoteSaid: false } };
+  const asked = await handle('open_program', { unit: UNIT }, fresh);
+  assert.ok(asked.text.endsWith(`\n\n${ephemeralNote('en')}`), asked.text);
+});
+
+test('a Polish list heads its groups in Polish; its rule, states and notes stay the assistant\'s', async () => {
+  const d = { cursors: new MemoryCursorStore(), bundles: wholeBook() };
+  const asked = (await handle('list_programs', { language: 'pl' }, d)).text;
+  assert.match(asked, /\n {2}Podstawy\n/);
+  assert.match(asked, /\n {2}Część główna\n/);
+  assert.doesNotMatch(asked, /\n {2}(Foundation|Main sequence)\n/);
+  assert.match(asked, /Programs open in order/, "the list's rule is the model's, and English");
+
+  // With no edition named, the reader's own heads it too.
+  await handle('open_program', { unit: 'F01', language: 'pl' }, d);
+  assert.match((await handle('list_programs', {}, d)).text, /\n {2}Podstawy\n/);
+});
+
+test('a place out of reach is told in the edition the session last spoke in, and the fix for whoever runs it in English', async () => {
+  let failing: number | undefined;
+  const placed = { track: TRACK, unit: UNIT, step: 1, language: 'pl', updatedAt: '2026-09-26T00:00:00Z' };
+  const cursors = new ApiCursorStore('https://api.example', () => 'the-token', (async (input: string | URL | Request) =>
+    failing !== undefined
+      ? new Response('', { status: failing })
+      : String(input).endsWith('/progress')
+        ? Response.json({ records: [placed] })
+        : Response.json(placed)) as typeof fetch);
+  const d = { cursors, bundles: BUNDLES, session: { ephemeralNoteSaid: false } };
+
+  const here = await handle('current_step', { unit: UNIT }, d);
+  assert.ok(here.text.includes('ramka 1 z 4'), here.text);
+
+  failing = 503;
+  const down = await handle('current_step', { unit: UNIT }, d);
+  assert.ok(down.isError);
+  assert.match(down.text, /^Nie udało się teraz dotrzeć do twojej pozycji w lekturze, ale nic nie przepadło/);
+  assert.match(down.text, /\(HTTP 503\)\. Spróbuj ponownie za chwilę\.$/);
+
+  failing = 401;
+  const refused = await handle('current_step', { unit: UNIT }, d);
+  assert.match(refused.text, /nic nie przepadło/);
+  assert.match(refused.text, /Whoever runs the server should give it a fresh AB_OVO_READER_TOKEN/);
+
+  // An edition the call names is the one it is told in, with no session to remember one.
+  const named = await handle('list_programs', { language: 'pl' }, { cursors, bundles: BUNDLES });
+  assert.match(named.text, /nic nie przepadło/);
+});
+
+test('a language no track is published in is not the edition a place out of reach is told in, and never throws', async () => {
+  /*
+    #137's guarantee, kept through #167's note. The SDK's low-level server checks no argument,
+    so `language` is whatever a host sent, and the note used to take it raw: `constructor`
+    found Object.prototype's member in framing.ts's table and threw out of handle() on a 503,
+    and printed "undefined" to the reader on a 401 or a 404. `PL`, and an edition the track
+    does not have, were honoured where every other call refuses them.
+  */
+  const english = /^Your place in the book could not be reached just now, and nothing is lost/;
+  for (const status of [401, 404, 503]) {
+    const cursors = apiAnswering(async () => new Response('', { status }));
+    for (const language of ['constructor', '__proto__', 'toString', 'valueOf', 'hasOwnProperty']) {
+      const where = `HTTP ${status}, "${language}"`;
+      // Resolving at all is the first assertion: it used to reject, as a protocol error.
+      const result = await handle('list_programs', { language }, { cursors, bundles: BUNDLES });
+      assert.ok(result.isError, where);
+      assert.match(result.text, english, where);
+      assert.doesNotMatch(result.text, /undefined/, where);
+    }
+  }
+
+  // A name `languageIn` does not resolve falls through to the edition the session last spoke.
+  const down = apiAnswering(async () => new Response('', { status: 503 }));
+  const spokePolish = { cursors: down, bundles: BUNDLES, session: { ephemeralNoteSaid: false, spokenIn: 'pl' } };
+  for (const language of ['PL', 'pl-PL', 'de']) {
+    const result = await handle('list_programs', { language }, spokePolish);
+    assert.match(result.text, /^Nie udało się teraz dotrzeć do twojej pozycji w lekturze/, `"${language}"`);
+  }
+  // An edition the track does not have is not honoured either, though the table has words for it.
+  const bundle = BUNDLES.for(TRACK)!;
+  const englishOnly: Bundle = { ...bundle, track: { ...bundle.track, languages: ['en'] } };
+  const onlyEnglish: BundleSource = { for: (id) => (id === TRACK ? englishOnly : undefined), all: () => [englishOnly] };
+  const lacked = await handle('open_program', { unit: UNIT, language: 'pl' }, { cursors: down, bundles: onlyEnglish });
+  assert.match(lacked.text, english);
+  // The positive control: the same call on the track that has it is told in Polish.
+  const had = await handle('open_program', { unit: UNIT, language: 'pl' }, { cursors: down, bundles: BUNDLES });
+  assert.match(had.text, /^Nie udało się teraz dotrzeć do twojej pozycji w lekturze/);
+
+  // With no book either, no edition can be named, and the note owed is still the place's.
+  const neither = { cursors: down, bundles: failingWith(notFound([`${REPOSITORY_ROOT}/web/content/bundle/bundle.json`])) };
+  const lost = await handle('list_programs', { language: 'pl' }, neither);
+  assert.ok(lost.isError);
+  assert.match(lost.text, english);
+});
+
+test('the form that confirms an answer is asked in the edition of the step it confirms', async () => {
+  const d = deps();
+  await handle('open_program', { unit: UNIT, language: 'pl' }, d);
+  await handle('submit_answer', { unit: UNIT, step: 1 }, d);
+
+  const asked: string[] = [];
+  const elicited = {
+    ...d,
+    elicit: async (_step: number, _proposed: string, language: string) => {
+      asked.push(language);
+      return { kind: 'unavailable' as const };
+    },
+  };
+  await handle('submit_answer', { unit: UNIT, step: 2, answer: 'x' }, elicited);
+  assert.deepEqual(asked, ['pl']);
 });
 
 test('the track can be left out when the server carries one', async () => {

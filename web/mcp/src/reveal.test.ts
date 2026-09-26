@@ -131,7 +131,40 @@ test('advancing at the last step refuses rather than inventing one', () => {
 test('a refusal to serve an unreached step says the method is working', () => {
   const served = serve(UNIT, at(1), 2);
   assert.ok(!served.ok);
-  const sentence = explain(served.refusal);
+  const sentence = explain(served.refusal, 'en');
   assert.match(sentence, /not a fault/);
   assert.ok(!sentence.includes(WITHHELD));
+});
+
+test('a refusal is said in the reader\'s edition, and an edition with no sentences here gets English', () => {
+  // #167: the refusal used to be English whatever the edition, and the host's model
+  // translated it — the rewrite `explain()` exists to make unnecessary.
+  const served = serve(UNIT, at(1), 2);
+  assert.ok(!served.ok);
+  const polish = explain(served.refusal, 'pl');
+  assert.match(polish, /^Ramka 2 nie jest jeszcze dostępna/);
+  assert.match(polish, /To nie błąd, tylko metoda/);
+  assert.ok(!polish.includes(WITHHELD));
+
+  // A track may publish an edition this server has no sentences for (ADR-0016's two sets).
+  assert.equal(explain(served.refusal, 'de'), explain(served.refusal, 'en'));
+
+  const complete = advance(UNIT, at(UNIT.steps.length));
+  assert.ok(!complete.ok);
+  assert.equal(explain(complete.refusal, 'en'), 'This program is finished — all 4 steps have been worked.');
+  assert.equal(explain(complete.refusal, 'pl'), 'Ten program jest ukończony — 4 ramki, każda przerobiona.');
+});
+
+test('what opens a shut program is told to the reader in their edition, and the call to the assistant in English', () => {
+  const shut = { kind: 'not-open', unit: 'F02', after: 'F01' } as const;
+  const call =
+    /\n\nWhat opens it: call open_program with unit "F01"\. Tell the reader what opens it rather than reporting that something failed, and offer them the program that does\.$/;
+  for (const language of ['en', 'pl']) assert.match(explain(shut, language), call, language);
+
+  // The reader's half names no tool, in either edition: the call is said once, at the end.
+  for (const language of ['en', 'pl']) {
+    assert.doesNotMatch(explain(shut, language).replace(call, ''), /open_program/, language);
+  }
+  assert.match(explain(shut, 'pl'), /^F02 nie jest jeszcze otwarty — to kolejność książki, a nie błąd\./);
+  assert.match(explain(shut, 'en'), /^"F02" is not open to this reader yet/);
 });
