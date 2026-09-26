@@ -24,6 +24,11 @@ Constrained by these, and amends none of them:
 - [ADR-0061](0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md) (the
   anonymous cursor).
 
+The probe §3 waits for was run on 2026-09-26
+([`AUTHSERVICE-OAUTH-PROBE.md`](../architecture/AUTHSERVICE-OAUTH-PROBE.md)): the pinned
+`authservice` cannot be the authorization server for a third-party host, so #173 stays blocked
+as §3 decides. The unknowns it answers are annotated below; the decision is unchanged.
+
 ## Context
 
 Measured for #155 on 2026-09-24, and read again on 2026-09-25.
@@ -226,6 +231,16 @@ Both routes, in this order:
    - what the hosted server presents to `AbOvo.Api`. The specification forbids a server to
      pass the host's token on to an upstream API, and the shape in `MCP-SERVER-SKETCH.md` §4
      does exactly that: the reader's bearer, per call, handed to `ApiCursorStore`.
+
+> **Answered on 2026-09-26 by the probe
+> ([`AUTHSERVICE-OAUTH-PROBE.md`](../architecture/AUTHSERVICE-OAUTH-PROBE.md)):** v0.3.1 grants
+> no authorization code to any client, registers none and publishes no authorization-server
+> metadata. v0.3.2 added an authorization server, unchanged in v0.3.4, the latest tag: an
+> authorization code with PKCE for a client the operator pre-registers with a secret, RFC 8414
+> metadata under an https issuer that only its MCP tokens carry, and one resource per token as
+> its audience. Every `AbOvo` token, and every validator of one, stays as it is. No host can
+> register itself, at any tag. The fourth question stays #173's, narrowed: authservice mints
+> nothing the hosted server could present to `AbOvo.Api` in the host token's place.
 
 **If the probe says no, #173 stays blocked, and no OAuth server is built here.**
 

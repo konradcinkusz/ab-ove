@@ -333,8 +333,10 @@ and it is deliberately a separate commit:
 - the token must arrive **per call**, not from the environment. `ApiCursorStore` already
   takes a `() => string` rather than holding one, for exactly this reason: a field would be
   one reader's bearer answering another reader's request;
-- `authservice` is adopted, pinned at a published image (ADR-0004), and whether it can act
-  as an OAuth provider for a third-party MCP host is an open question, not an assumption;
+- `authservice` is adopted, pinned at a published image (ADR-0004), and the pinned `v0.3.1`
+  cannot act as the OAuth authorization server for a third-party MCP host. Later tags can, for
+  a host the operator pre-registers with a secret, and none lets a host register itself
+  ([`AUTHSERVICE-OAUTH-PROBE.md`](AUTHSERVICE-OAUTH-PROBE.md));
 - a deployed server is a fifth Fly app in a topology none of whose `fly.toml` files has ever
   been applied, and it needs its own address row in `flyio/README.md`.
 
@@ -349,12 +351,16 @@ answers the questions this section left open:**
   that reader an anonymous read of every place and a write that records opening a program,
   so `open_program` keeps a place without `PUT`.
 - **The order.** A one-command package comes first (#172). This Streamable HTTP shape comes
-  after the first deploy, and only if a probe shows that `authservice` can be the
-  authorization server for a third-party host (#173).
+  after the first deploy, and only once `authservice` can be the authorization server for a
+  third-party host (#173). [The probe](AUTHSERVICE-OAUTH-PROBE.md) found that the pinned
+  `v0.3.1` cannot, and that `v0.3.2` to `v0.3.4` can for a host the operator pre-registers.
+  For such a host this shape waits on moving the pin, a decision of its own; for a host that
+  registers itself, on an upstream release.
 - **Taking the token per call is a caution as well as a plan.** The shape above passes the
   reader's bearer on to the API, and the MCP authorization specification forbids a server to
   do that with a token a host gave it. #173 has to settle what the hosted server presents
-  instead.
+  instead. The probe found that `authservice` mints nothing for it to present: no grant
+  exchanges a host's token for one the API accepts.
 
 ---
 
