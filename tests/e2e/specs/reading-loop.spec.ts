@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+import { FRAME_HEADING_ID } from '../../../web/app/src/components/read/reading-focus.ts';
 import { chromeFor } from '../../../web/app/src/lib/i18n/chrome.ts';
 
 import { languages, probe, track, unitNamed } from './support/bundle.ts';
@@ -18,11 +19,12 @@ import { answerFormulas, formulas, openWideAnswer, openWideFrame } from './suppo
  * The one instruction on a frame that asks was the answer line's placeholder, and it vanished
  * at the first keystroke. `Next` reads the same on every frame (ADR-0063), and nothing near it
  * said that here it reveals the answer — `chrome.cue` said so in both editions and was on no
- * screen. After a turn of the page focus was on `<body>`, and neither the new frame nor its
- * answer was announced. `→` revealed the frame from a focused button or a pane's summary;
- * `←` on frame 1 did nothing while the button beside it led to the contents. A formula wider
- * than the column scrolled, and only under a pointer; and the frame's section title was a
- * styled paragraph, so a reader moving by headings found only the hidden one.
+ * screen. After a turn of the page focus was on `<body>`: the router's own announcer said the
+ * new page's title, and nothing said the answer the frame opens with. `→` revealed the frame
+ * from a focused button or a pane's summary; `←` on frame 1 did nothing while the button beside
+ * it led to the contents. A formula wider than the column scrolled, and only under a pointer;
+ * and the frame's section title was a styled paragraph, so a reader moving by headings found
+ * only the hidden one.
  * ──────────────────────────────────────────────────────────────────────────────────────────
  *
  * WHAT STAYS AS IT WAS, AND IS HELD HERE TOO: there is no gate (ADR-0039) — the cue is the same
@@ -124,6 +126,86 @@ async function open(page: Page, language: string, n: number): Promise<void> {
   await keysReady(page);
 }
 
+/**
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ * WHAT THE PAGE SAYS ON A TURN, AND WHEN — logged from inside the page, from before its own
+ * scripts run, on `runtime-cost.spec.ts`'s reasoning: the harness's clock carries a poll
+ * interval and two round trips, and what is measured here is milliseconds.
+ *
+ * `announced` is a change to Next's route announcer, the `<next-route-announcer>` the App
+ * Router appends to `<body>`: its open shadow root holds the `role="alert"` region the router
+ * writes each new page's title into (`next/dist/client/components/app-router-announcer.js`).
+ * `focused` is focus arriving on the frame's heading. `turn` is this spec's own mark, made
+ * before each turn, so the log reads as one list per turn.
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ */
+interface Heard {
+  readonly kind: 'turn' | 'announced' | 'focused';
+  /** `performance.now()`, in the page. */
+  readonly at: number;
+  /** An announcement's only: whether the document had finished loading — see below. */
+  readonly loaded?: boolean;
+}
+
+/** Where the page keeps its log: `window[HEARD]`. */
+const HEARD = '__abOvoHeard';
+
+/**
+ * Chromium's interval between two accessibility updates: 150 ms once the document has loaded,
+ * 350 ms while it is still loading (`GetDeferredEventsDelay`, `ax_object_cache_impl.cc`). A
+ * focus that comes sooner than this after the router's announcement can reach a screen reader
+ * in the same update as the announcement — and then ahead of it (`frame-focus.tsx`).
+ */
+const betweenUpdatesMs = (loaded: boolean): number => (loaded ? 150 : 350);
+
+async function listenToTheTurn(page: Page): Promise<void> {
+  await page.addInitScript(
+    ([key, headingId]) => {
+      const log: Heard[] = [];
+      (window as unknown as Record<string, Heard[]>)[key] = log;
+      document.addEventListener(
+        'focusin',
+        (event) => {
+          if (event.target instanceof Element && event.target.id === headingId) {
+            log.push({ kind: 'focused', at: performance.now() });
+          }
+        },
+        true,
+      );
+      // The announcer is made by the router as it hydrates, so it is waited for.
+      new MutationObserver((records) => {
+        for (const record of records) {
+          for (const node of Array.from(record.addedNodes)) {
+            if (!(node instanceof Element) || node.localName !== 'next-route-announcer' || !node.shadowRoot) continue;
+            new MutationObserver(() =>
+              log.push({ kind: 'announced', at: performance.now(), loaded: document.readyState === 'complete' }),
+            ).observe(node.shadowRoot, { characterData: true, childList: true, subtree: true });
+          }
+        }
+      }).observe(document, { childList: true, subtree: true });
+    },
+    [HEARD, FRAME_HEADING_ID] as const,
+  );
+}
+
+/** Mark, in the page's log, that a turn starts here. */
+async function markTurn(page: Page): Promise<void> {
+  await page.evaluate((key) => {
+    (window as unknown as Record<string, Heard[] | undefined>)[key]?.push({ kind: 'turn', at: performance.now() });
+  }, HEARD);
+}
+
+/** What the page heard, one list per marked turn. */
+async function heardByTurn(page: Page): Promise<Heard[][]> {
+  const log = await page.evaluate((key) => (window as unknown as Record<string, Heard[] | undefined>)[key] ?? [], HEARD);
+  const turns: Heard[][] = [];
+  for (const entry of log) {
+    if (entry.kind === 'turn') turns.push([]);
+    else turns.at(-1)?.push(entry);
+  }
+  return turns;
+}
+
 test.describe('the cue', () => {
   test('a frame that asks says, under the answer line and for good, that the next frame answers it @smoke', async ({
     page,
@@ -199,6 +281,89 @@ test.describe('a turn of the page', () => {
     // And `Enter` from it opens the answer line, as it does with nothing focused.
     await page.keyboard.press('Enter');
     await expect(page.locator('#answer-line')).toBeFocused();
+  });
+
+  test('the heading takes focus after the router has announced the page, an accessibility update later @core', async ({
+    page,
+  }) => {
+    /*
+      THE ROUTER SPEAKS ON EVERY TURN TOO — the new page's title, in an assertive alert — and
+      the heading, which says the frame and the answer it opens with, must be what a screen
+      reader is given last (`frame-focus.tsx`). Measured before: the alert changed a few
+      milliseconds AFTER the heading took focus, on every turn. And just after is not enough:
+      Chromium sends a change of focus on at once, with every change waiting beside it, and
+      fires the focus first. So on each turn — by Next, `→` and `←` — the router spoke, and the
+      heading took focus once, a whole update interval after it, by the page's own clock.
+    */
+    await listenToTheTurn(page);
+    await open(page, 'en', asks.n);
+
+    const turns: readonly (readonly [string, () => Promise<void>, number])[] = [
+      ['Next', () => reveal(page).click(), asks.n + 1],
+      ['→', () => page.keyboard.press('ArrowRight'), asks.n + 2],
+      ['←', () => page.keyboard.press('ArrowLeft'), asks.n + 1],
+    ];
+    for (const [how, turn, to] of turns) {
+      await markTurn(page);
+      await turn();
+      // The address first: until the page has turned, the heading that has focus is the old one.
+      await expect(page).toHaveURL(new RegExp(`${at('en', to)}$`));
+      await expect(heading(page), `after ${how}, focus is not on the new frame’s heading`).toBeFocused();
+    }
+
+    const heard = await heardByTurn(page);
+    expect(heard, 'a turn went unlogged').toHaveLength(turns.length);
+    heard.forEach((entries, i) => {
+      const how = turns[i]![0];
+      const said = entries.filter((entry) => entry.kind === 'announced').at(-1);
+      const focused = entries.filter((entry) => entry.kind === 'focused').map((entry) => entry.at);
+      // A guard, not a skip: if Next stops announcing this way, `frame-focus.tsx` waits on nothing.
+      expect(said, `after ${how}, the router announced nothing: has Next's route announcer changed?`).toBeDefined();
+      expect(focused, `after ${how}, the heading took focus other than once`).toHaveLength(1);
+      expect(
+        focused[0]! - said!.at,
+        `after ${how}, the heading took focus within one accessibility update of the router's announcement`,
+      ).toBeGreaterThanOrEqual(betweenUpdatesMs(said!.loaded === true));
+    });
+  });
+
+  test('a reader who writes straight after a turn keeps the caret: the waiting heading does not take it @core', async ({
+    page,
+  }) => {
+    /*
+      THE HEADING WAITS FOR THE ROUTER, AND A READER DOES NOT WAIT FOR THE HEADING. `→` and
+      then `Enter` at once is a reader writing before focus would have reached the heading, and
+      the heading must not take the caret from them when that moment comes (`frame-focus.tsx`).
+      So `Enter` and a first digit go in as soon as the router has spoken, a second digit once
+      the page's clock is well past the moment, and the line has both.
+    */
+    await listenToTheTurn(page);
+    await open(page, 'en', asks.n);
+
+    await markTurn(page);
+    await page.keyboard.press('ArrowRight');
+    /*
+      When the router has spoken, by the page's clock — which is after the new frame's effects
+      have run, its keys' among them. Checked on every animation frame (`waitForFunction`'s
+      own polling), so the keys below go in within a few frames of it: a poll that backs off
+      could let the moment pass first, and then this would prove nothing.
+    */
+    const spoken = await page.waitForFunction((key) => {
+      const log = (window as unknown as Record<string, Heard[] | undefined>)[key] ?? [];
+      const turn = log.findLastIndex((entry) => entry.kind === 'turn');
+      return log.slice(turn + 1).findLast((entry) => entry.kind === 'announced') ?? false;
+    }, HEARD);
+    const said = (await spoken.jsonValue()) as Heard;
+
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('4');
+    await page.waitForFunction((until) => performance.now() >= until, said.at + 3 * betweenUpdatesMs(said.loaded === true));
+    await page.keyboard.type('2');
+
+    await expect(page).toHaveURL(new RegExp(`${at('en', asks.n + 1)}$`));
+    const line = page.locator('#answer-line');
+    await expect(line, 'the heading took the caret from a reader who was writing').toBeFocused();
+    await expect(line).toHaveValue('42');
   });
 
   test('the section a frame is in is a heading under the frame’s own @core', async ({ page }) => {
@@ -370,7 +535,7 @@ test.describe('wide content', () => {
     await expect(formula).toHaveAttribute('tabindex', '0');
     await expect(formula).toHaveAccessibleName(en.wideFormula);
 
-    const said = await describedAs(page, '#frame-heading');
+    const said = await describedAs(page, `#${FRAME_HEADING_ID}`);
     expect(flat(said), `the new frame's heading is described as “${said}”`).toContain(maths.slice(0, OPENING));
   });
 });

@@ -291,11 +291,13 @@ export function FrameView({
           A HEADING NOBODY SEES, for the reader who navigates by headings: the program's title
           and the position — the same two facts the bars show, said once for the landmark.
 
-          AND WHERE FOCUS LANDS WHEN THE PAGE TURNS (#159, `frame-focus.tsx`), so a screen
-          reader says which frame this is — and, through `aria-describedby`, the answer the
-          frame opens with, which is what the turn was for. The description is the answer's
-          content, walked, so nothing inside the answer box may carry an `aria-label`: the walk
-          would say the label instead of the maths (`wide-content.tsx` names its blocks with
+          AND WHERE FOCUS LANDS WHEN THE PAGE TURNS (#159, `frame-focus.tsx`, which waits for
+          the router's own announcement to go first), so a screen reader says which frame this
+          is — and, through `aria-describedby`, the answer the frame opens with, which is what
+          the turn was for; a long answer in part, because Chromium computes a description from
+          about its first hundred nodes and stops. The description is the answer's content,
+          walked, so nothing inside the answer box may carry an `aria-label`: the walk would
+          say the label instead of the maths (`wide-content.tsx` names its blocks with
           `aria-labelledby` for that reason). `tabIndex={-1}`: focusable from script and never
           a Tab stop. Off the page, so a pointer cannot land on it either.
         */}

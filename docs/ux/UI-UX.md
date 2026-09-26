@@ -535,13 +535,34 @@ press ([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment
 
 A heading nobody sees — the program's title and the position, in a visually-hidden `<h1>` — is
 for the reader who navigates by headings, **and it is where focus goes when the page turns**
-(#159, `frame-focus.tsx`). Before, focus fell to `<body>` on every turn and nothing announced
-the new frame; now a screen reader says which frame this is and, as the heading's description,
-the answer the frame opens with. It is `tabIndex="-1"`, so it is never a Tab stop, the keys
-count it as the page, and the next Tab goes into the new frame. A frame the browser loaded —
-a deep link, a reload — leaves focus where every page starts, so the skip link is still the
-first Tab; only a frame the router brought takes it. The section's line was a styled `<p>`,
-so heading navigation found only the hidden `<h1>`; it is a real heading now.
+(#159, `frame-focus.tsx`). Before, focus fell to `<body>` on every turn; the router's own
+announcer (below) said the new page's title, and nothing said the answer. Now a screen reader
+says which frame this is and, as the heading's description, the answer the frame opens with — a
+long answer only in part, because Chromium computes a description from about its first hundred
+nodes and stops there. It is `tabIndex="-1"`, so it is never a Tab stop, the keys count it as
+the page, and the next Tab goes into the new frame. A frame the browser loaded — a deep link, a
+reload — leaves focus where every page starts, so the skip link is still the first Tab; only a
+frame the router brought takes it. The section's line was a styled `<p>`, so heading navigation
+found only the hidden `<h1>`; it is a real heading now.
+
+**The heading takes focus after the router has spoken, never beside it.** Next's App Router
+announces every client navigation itself: `<next-route-announcer>` holds a `role="alert"`,
+`aria-live="assertive"` region, and on each turn the router writes the new page's title into
+it, or the heading's own text while the title is still empty. With focus moved at once, that
+announcement came a few milliseconds after the heading took focus, on every turn; and the order
+a screen reader gets is not the DOM's. Chromium passes a page's accessibility changes on to a
+screen reader at most once every 150 ms after the page has loaded (350 ms before), but a change
+of focus goes at once and takes everything waiting with it, and within one update the focus is
+fired first — so the alert came after the heading and its answer, and an assertive alert may
+cut into them. The heading therefore waits until the announcement has gone out in an update of
+its own: that interval and a margin after the announcer's region last changes, or after the
+frame arrives when it does not. The screen reader, which generally speaks a new focus over
+whatever it was saying, then gives the heading and the answer last. A reader who moves in the
+meantime — a Tab, `Enter` into the answer line — keeps where they went.
+`specs/reading-loop.spec.ts` holds the order and the interval by the page's own clock, and that
+a reader who writes straight after a turn keeps the caret. No screen reader was run: what one
+hears rests on Chromium's source (`ax_object_cache_impl.cc` and
+`browser_accessibility_manager.cc`, read at Chromium 141).
 
 **Wide content is reachable from the keyboard.** A display formula, a table or a code block
 wider than the column scrolls inside it rather than widening the page, and one that actually
