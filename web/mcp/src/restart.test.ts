@@ -100,7 +100,8 @@ test("an anonymous reader's place survives a restart of the process", { timeout:
     const [id] = [...ids];
     assert.ok(id, 'no reader id was sent');
     const kept = readFileSync(join(state, 'ab-ovo', 'reader-ids'), 'utf8');
-    assert.match(kept, new RegExp(`^${api.url.replace(/[.]/g, '\\.')} ${id}$`, 'm'));
+    // The line compared whole, not through a pattern built from the URL.
+    assert.ok(kept.split('\n').includes(`${api.url} ${id}`), `no line "${api.url} <id>" in the file`);
 
     // And said nowhere: not in a result, not on stderr.
     for (const words of [...results, first.stderr(), second.stderr()]) {

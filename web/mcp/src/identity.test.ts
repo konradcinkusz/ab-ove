@@ -77,7 +77,7 @@ test('the id is minted once, from a CSPRNG, and every later look finds the same 
 
   const text = readFileSync(first.file, 'utf8');
   assert.match(text, /^# ab-ovo MCP server/m, 'the file says what it is');
-  assert.equal(text.split('\n').filter((line) => line.startsWith(ORIGIN)).length, 1);
+  assert.equal(text.split('\n').filter((line) => line.split(' ')[0] === ORIGIN).length, 1);
 });
 
 test('the directory and the file are readable by their user alone', () => {
@@ -149,7 +149,8 @@ test('a process that loses the race reads the file again and adopts the winner\'
   );
   assert.deepEqual([held.id, held.kept], [winner, true]);
 
-  const lines = readFileSync(held.file, 'utf8').split('\n').filter((line) => line.startsWith(ORIGIN));
+  // The origin field compared whole, as `idIn` does: a prefix would also count another origin's line.
+  const lines = readFileSync(held.file, 'utf8').split('\n').filter((line) => line.split(' ')[0] === ORIGIN);
   assert.equal(lines.length, 2, "the loser's line was not appended, so this lost no race");
   assert.equal(readerIdFor(ORIGIN, directory).id, winner);
 });
