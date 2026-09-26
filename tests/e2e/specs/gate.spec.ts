@@ -185,7 +185,7 @@ test.describe('a program opens when the one before it has been opened', () => {
     await expect(page.getByRole('status').getByRole('link')).toHaveAttribute('href', contentsOf(third!.id));
   });
 
-  test('an ordinary visit to the index says nothing about shut programs @core', async ({
+  test('an ordinary visit to the index carries no shut notice @core', async ({
     page,
   }) => {
     // The notice is for the reader who was moved: it is a status, and it takes focus. A

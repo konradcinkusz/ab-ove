@@ -73,7 +73,12 @@
   padding: 0.75rem 0.5rem;
 }
 
-/* The page's one level-one heading, in the register the index gives its own. */
+/*
+ * The page's one level-one heading, in the label register: faint, small, in capitals. The
+ * index's heading wore the same until issue #163 set that one as a heading, for a first visit
+ * that met nothing on the first screen saying what the page was. This one was left as it
+ * stood, so here the two sibling pages no longer match.
+ */
 .heading {
   color: var(--ink-faint);
   font-family: var(--font-ui);

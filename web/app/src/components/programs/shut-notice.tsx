@@ -94,9 +94,17 @@ export interface ShutNoticeProps {
  * which every program but the first is shut, so a LOADED `?shut=` address has the notice, and
  * a way on to the first program, in its first paint. The gate's own bounce never meets that
  * paint: `program-gate.tsx` moves the reader with a client navigation, and this renders from
- * their record straight away. The reader it is wrong for is one who reloads a `?shut=`
- * address for a program they have since opened: the notice leaves as their record arrives —
- * the tiles' first-paint trade (`tile-entry.tsx`), at the size of a block.
+ * their record straight away. It is wrong for two readers who reload a `?shut=` address, and
+ * both are put right as their record arrives — the tiles' first-paint trade
+ * (`tile-entry.tsx`), at the size of a block, on the one visit ADR-0056 lets a block move the
+ * grid:
+ *
+ *   - a reader who has since opened the program. The notice leaves.
+ *   - a reader part of the way to it. The first paint's way on is the first program, with the
+ *     sentence that says why; their record moves it to the nearest program they can open, and
+ *     that sentence changes with it or, where that program is the one that opens the refused
+ *     one, goes. With places in F01–F03, a reloaded `/?shut=F05` paints *Go to F01* and
+ *     settles on *Go to F04*, and the notice is shorter by the sentence it drops.
  */
 export function ShutNotice({
   track,

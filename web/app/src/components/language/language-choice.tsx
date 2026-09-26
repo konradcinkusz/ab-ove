@@ -48,7 +48,8 @@ export interface LanguageChoiceProps {
  * The fix is not fewer switches in more places. It is ONE control whose answer is kept
  * (`lib/language/store.ts`), so the question is asked once and the rest of the product
  * follows. What the reader sees is the same pair of words in the same corner of every
- * screen, and after the first press they need never look at it again.
+ * screen — except on the index, which draws the pair as boxes at the end of its heading's
+ * line (`offered`, issue #163) — and after the first press they need never look at it again.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * IT IS LINKS, AND THE REMEMBERING IS AN ENHANCEMENT ON TOP OF THEM.

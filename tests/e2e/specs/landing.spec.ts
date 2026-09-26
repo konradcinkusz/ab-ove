@@ -397,5 +397,19 @@ test.describe('the first visit', () => {
       return { width: style.borderTopWidth, style: style.borderTopStyle };
     });
     expect(edge, 'the Polish choice has no visible edge').toEqual({ width: '1px', style: 'solid' });
+
+    /*
+      AND THE TWO SHARE ONE EDGE, so the line between them is as thin as the line around them:
+      the second is pulled one pixel over the first's border (`language-choice.module.css`).
+      Measured as the overlap of the two boxes, because the rule that does it has to win on
+      specificity, and a rule that loses changes nothing but that pixel — the two borders then
+      stand side by side as a divider twice the outline's width.
+    */
+    const english = page.locator('[aria-current="true"][lang="en"]');
+    const [first, second] = await Promise.all([english.boundingBox(), polish.boundingBox()]);
+    if (!first || !second) throw new Error('an edition choice has no box');
+    const overlap =
+      Math.min(first.x + first.width, second.x + second.width) - Math.max(first.x, second.x);
+    expect(overlap, 'the two choices do not share an edge').toBeCloseTo(1, 1);
   });
 });

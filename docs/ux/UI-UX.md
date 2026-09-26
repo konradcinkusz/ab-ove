@@ -224,18 +224,23 @@ Its parts, in order:
    **A reader the gate has just moved is told so, above the grid.** A deep link, a
    bookmark or a shared link to a shut program returns the reader here, and the redirect
    carries `?shut=<unit>`; the page re-asks the gate against this reader's own record and,
-   only if the answer is still shut, renders one sentence in a `role="status"` region that
-   takes focus as it lands — what was refused, why this page opened instead, what opens it
-   and how small that is, and that the program is marked in the list below. It renders on
-   no other visit, and a `?shut=` naming a program the reader can in fact open renders
-   nothing at all.
+   only if the answer is still shut, renders a notice in a `role="status"` region that
+   takes focus as it lands. It says what was refused, why this page opened instead, what
+   opens it and how small that is, and that the program is marked in the list below. It
+   renders on no other visit, and a `?shut=` naming a program the reader can in fact open
+   ends up rendering nothing: the server renders the page for a reader with no record, so
+   a reloaded `?shut=` address paints the notice first and loses it as the reader's own
+   record arrives (`shut-notice.tsx`). The gate's own redirect is a client navigation, and
+   renders from the record straight away.
 
-   **Under the sentence is a way on** (#163): a link, *Go to F01*, to the contents of the
+   **The notice ends with a way on** (#163): a link, *Go to F01*, to the contents of the
    program that opens the one refused. When that program is shut too — the usual case for a
    link into the middle of the book — the notice says so, and the link is the nearest program
    behind it that this reader can open (`wayOn`, in `lib/progress/gate.ts`), which for a
    reader with no record is the first. A link to a shut program would only bounce them here
-   again, one program further back. The link is a finger's target (`specs/targets.spec.ts`).
+   again, one program further back. A reloaded address paints that first program's link, and
+   the reader's record then moves it to their own nearest one. The link is a finger's target
+   (`specs/targets.spec.ts`).
 6. **The consent invitation**, last, absent from the first paint, and an invitation rather
    than a gate — a reader who came to read reaches the programs first and the question
    afterwards. The same invitation is on a program's summary, below the list, where a

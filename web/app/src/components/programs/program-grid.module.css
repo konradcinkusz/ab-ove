@@ -128,15 +128,19 @@
  * accent again rather than the browser's default, which is a blue that belongs to no other
  * control on this page.
  *
- * IT DOES PUSH THE GRID DOWN, AND THAT IS THE ONE PLACE ON THIS PAGE WHERE THAT IS RIGHT.
+ * IT DOES PUSH THE GRID DOWN, AND THAT IS THE ONE PLACE ON THIS PAGE WHERE THAT IS RIGHT
+ * (ADR-0056).
  *
- * Everything else that arrives after hydration here extends a line rather than adding a
- * block, because `progress.spec.ts` holds this page's layout shift at zero — a page that
- * moves under a reader mid-scan. This is a block and it moves what is below it, on the one
- * visit where the reader did not ask for this page at all: they are not scanning the grid
- * yet, the component moves focus to itself as it lands, and the alternative — an overlay,
- * or a fixed strip — would cover the tiles it is telling them to look at. It renders on no
- * other visit, so the bound the rest of the page is held to is untouched.
+ * Everything that arrives after hydration here extends a line, or comes last on the page,
+ * rather than adding a block above anything, because `progress.spec.ts` bounds this page's
+ * layout shift — a page that moves under a reader mid-scan. This is a block above the grid,
+ * and what is below it starts lower for it, on the one visit where the reader did not ask
+ * for this page at all: they are not scanning the grid yet, the component moves focus to
+ * itself as it lands, and the alternative — an overlay, or a fixed strip — would cover the
+ * tiles it is telling them to look at. It arrives with the page rather than after it
+ * (`program-grid.tsx` says how); a reloaded `?shut=` address is where it can still shrink or
+ * go once the page is up (`shut-notice.tsx`). It renders on no other visit, so the bound the
+ * rest of the page is held to is untouched.
  */
 .shutNotice {
   border-left: 2px solid var(--accent);

@@ -325,8 +325,9 @@ export function ProgramGrid({
         nothing at all, because the component renders nothing without a refusal to explain.
         It arrives with the page — the gate's bounce is a client navigation, and a loaded
         `?shut=` address is rendered for a reader with no record — so it moves nothing for the
-        reader it is for; `shut-notice.tsx` names the one reader it can move the grid under,
-        and the stylesheet's `.shutNotice` why a block is allowed here at all.
+        reader it is for; `shut-notice.tsx` names the readers it can move the grid under, both
+        of whom reloaded a `?shut=` address, and the stylesheet's `.shutNotice` why a block is
+        allowed here at all.
       */}
       {shut ? (
         <ShutNotice

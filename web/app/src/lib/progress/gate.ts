@@ -11,7 +11,8 @@
  * WHAT STAYS HERE IS THE RECORD'S SHAPE, which is this application's and nobody else's:
  * `Progress.positions`, keyed `track/unit`, read out of `localStorage`. The shared rule
  * asks one question — *has this reader a place in this program?* — and that question is the
- * only thing this file answers.
+ * only thing this file answers. `wayOn`, below, asks it again of the programs behind a shut
+ * one and adds no rule of its own (issue #163).
  *
  * THE BOOK IS READ FROM THE BEGINNING, SO THE INDEX STOPS OFFERING THE MIDDLE OF IT.
  *

@@ -1,7 +1,8 @@
 /*
  * THE edition control — one per screen (ADR-0052). Deliberately quiet: it is a control a
  * reader uses once and then does not want in the way of the frame, so it reads as a pair of
- * words at the measure's edge rather than as a pair of buttons.
+ * words at the measure's edge rather than as a pair of buttons — except on the index, which
+ * draws it `offered` (below, issue #163).
  *
  * NO MARGIN OF ITS OWN any more, which is what lets it sit in the top row of four different
  * screens without any of them having to undo a block-level gap. Every one of those rows is
@@ -85,8 +86,14 @@
   background: var(--paper-raised);
 }
 
-/* Neighbours share an edge: each is pulled over the right-hand border of the one before it. */
-.offered > * + * {
+/*
+ * Neighbours share an edge: each is pulled over the right-hand border of the one before it.
+ *
+ * `:not(:first-child)` RATHER THAN `* + *`, AND AFTER THE RULE ABOVE. It weighs two classes,
+ * as that rule does, and so its later place is what beats that rule's `margin: 0`. `* + *`
+ * weighs one and loses, and the two 1 px borders then stand side by side as a 2 px divider.
+ */
+.offered > :not(:first-child) {
   margin-left: -1px;
 }
 
