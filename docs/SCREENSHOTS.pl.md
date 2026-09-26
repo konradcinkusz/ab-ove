@@ -223,10 +223,10 @@ jednego wiersza na podsumowaniu P01 i znikąd indziej.
 
 ## Czego tu nie ma na obrazku i dlaczego
 
-- **`/account` i `/instrument/<track>/<unit>`** potrzebują konta, a konto potrzebuje serwisu
-  tożsamości. Pakiet akceptacyjny taki ma — atrapę, którą sam uruchamia — ale sfotografowanie
-  ekranu, którego każda liczba pochodzi z fikstury, ilustrowałoby fiksturę, a nie produkt. Co
-  robią te ekrany, opisuje [`ux/UI-UX.md`](ux/UI-UX.md), a rysuje
+- **`/account`, `/account/delete` i `/instrument/<track>/<unit>`** potrzebują konta, a konto
+  potrzebuje serwisu tożsamości. Pakiet akceptacyjny taki ma — atrapę, którą sam uruchamia —
+  ale sfotografowanie ekranu, którego każda liczba pochodzi z fikstury, ilustrowałoby
+  fiksturę, a nie produkt. Co robią te ekrany, opisuje [`ux/UI-UX.md`](ux/UI-UX.md), a rysuje
   [`DIAGRAMS.pl.md`](DIAGRAMS.pl.md) §B6 i §C3.
 - **Wdrożona instancja.** Nie ma żadnej, pod żadnym adresem, dla nikogo. Każdy ekran powyżej
   podał lokalny build produkcyjny.

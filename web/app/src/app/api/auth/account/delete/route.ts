@@ -100,19 +100,24 @@ const PROBLEM_STATUS: Readonly<Record<DeletionProblemCode, number>> = {
 };
 
 /**
- * The account page, carrying what went wrong and the language it was asked in.
+ * The deletion screen, carrying what went wrong and the language it was asked in.
+ *
+ * THE SCREEN THE FORM WAS ON, which since issue #161 is `/account/delete` and not
+ * `/account`: the account's address is its overview now, and a failure sent there would
+ * land the reader one page away from the form they have to fill in again, with the reason
+ * rendered nowhere — the overview reads no `?error=`.
  *
  * A PATH rather than an absolute URL, for the reason `loginPagePath` records: the only
  * absolute origin available server-side is `request.url`, which names this server's own
  * origin rather than the address the browser used.
  */
-function accountPagePath(problem: DeletionProblemCode, language: string): string {
+function deletionPagePath(problem: DeletionProblemCode, language: string): string {
   const query = new URLSearchParams({ error: problem });
   // Passed through rather than validated against the chrome table: `chromeFor` already
   // falls back to English for anything it does not know, and the page renders the code
   // rather than the language, so there is nothing here an arbitrary value could reach.
   if (language) query.set('lang', language);
-  return `/account?${query.toString()}`;
+  return `/account/delete?${query.toString()}`;
 }
 
 /** 303: the browser must follow it with GET, or a reload re-posts the password. */
@@ -153,7 +158,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const fail = (problem: DeletionProblemCode): NextResponse =>
     confirmation.wantsRedirect
-      ? seeOther(accountPagePath(problem, confirmation.language))
+      ? seeOther(deletionPagePath(problem, confirmation.language))
       : NextResponse.json(
           { problem },
           { status: PROBLEM_STATUS[problem], headers: { 'cache-control': 'no-store' } },

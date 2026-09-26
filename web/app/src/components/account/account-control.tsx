@@ -100,15 +100,16 @@ export function AccountControl({
 
   /*
     Signed in, or unverifiable. Both get the account link as well as sign-out, and for the
-    same reason sign-out is offered on `unavailable`: the deletion screen is a page on this
-    origin, so it renders whatever the identity service is doing, and a reader who has
-    decided to close their account should not be told to come back when a machine is warm.
-    The route behind it reports honestly if authservice cannot be reached.
+    same reason sign-out is offered on `unavailable`: the account's pages are pages on this
+    origin — the overview this links to, and the deletion screen one link beyond it — and a
+    reader who has decided to close their account should not be told to come back when a
+    machine is warm. The deletion route reports honestly if authservice cannot be reached.
 
     The language rides the href. It is the edition the reading chrome is already in — the
-    same signal that decided the word on this link — and it is what makes the deletion
-    screen's four paragraphs readable by the reader they are for. See `app/account/page.tsx`
-    for why that page follows an edition where `/login` declines to.
+    same signal that decided the word on this link — and the overview hands it on to the
+    deletion screen, which is what makes that screen's four paragraphs readable by the reader
+    they are for. See `app/account/delete/page.tsx` for why those pages follow an edition
+    where `/login` declines to.
   */
   return (
     <span className={styles.group}>

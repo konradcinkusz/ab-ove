@@ -172,6 +172,20 @@ test('an address the gate opens is not the gate sending the reader to sign in', 
   }
 });
 
+/*
+ * THE ACCOUNT'S THREE PAGES, AND THE ONE OF THEM THAT HAS TO BE OPEN (issue #161). The
+ * overview and the deletion screen are the account's and need a session; the page a deletion
+ * ends on is reached after the session has been ended, so it cannot. The walk above holds
+ * PRIVATE_PAGES to whatever the gate closes, which would still agree if the deletion screen
+ * were opened and dropped from the list together — so the design is pinned here by name.
+ */
+test('the overview and the deletion screen need a session; the page after them needs none', () => {
+  assert.equal(closed('/account'), true);
+  assert.equal(closed('/account/delete'), true);
+  assert.equal(closed('/account/deleted'), false);
+  assert.equal(destinationAt('/account/delete?lang=pl&error=confirm'), 'private-page');
+});
+
 test('the address is resolved as the request would have been', () => {
   // Dot segments are resolved before the middleware sees a path, so they are here too.
   assert.equal(destinationAt('/read/../account'), 'private-page');

@@ -81,8 +81,10 @@ const PUBLIC_PATHS = new Set<string>([
   // deleted. Nothing warns: the route answers 303 and succeeds, and the page renders
   // perfectly well for anybody who still has a session.
   //
-  // `/account` itself is deliberately NOT here. It is the only page under this prefix that
-  // is public, which is why there is no `/account/` entry in PUBLIC_PREFIXES.
+  // `/account` and `/account/delete` are deliberately NOT here: the overview and the deletion
+  // screen are the account's, and both need a session. This is the only page under the
+  // prefix that is public, which is why there is no `/account/` entry in PUBLIC_PREFIXES —
+  // and why the deletion screen's address, one letter shorter than this one, is gated.
   '/account/deleted',
 ]);
 
@@ -172,7 +174,8 @@ export function opensWithoutSession(pathname: string): boolean {
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export const PRIVATE_PAGES: readonly string[] = [
-  '/account', // the reader's own progress, export and deletion
+  '/account', // the reader's overview: who is signed in, their place, export, sign-out
+  '/account/delete', // the deletion screen, one link from the overview (issue #161)
   '/instrument', // the author's view: frames ranked by how badly the book is doing
   '/instrument/[track]/[unit]', // one program's frames, under that view
 ];

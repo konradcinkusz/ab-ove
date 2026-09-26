@@ -1,6 +1,8 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 import { READER } from '../fixtures/accounts.mts';
+
+import { freshEmail, GOOD_PASSWORD, register } from './support/register.ts';
 
 /**
  * JOURNEY — a reader with no account gets one, against an identity service this suite
@@ -36,28 +38,10 @@ import { READER } from '../fixtures/accounts.mts';
 /** A page behind the middleware — in neither PUBLIC_PATHS nor PUBLIC_PREFIXES. */
 const GATED = '/instrument';
 
-/**
- * A fresh address per test, because the fixture REMEMBERS: an account registered by one
- * test is still there for the next, exactly as a real one would be. A fixed address would
- * make every test after the first fail on "already taken", and — worse — would make them
- * pass or fail depending on the order the runner chose.
+/*
+ * The form's own helper — `register`, a fresh address per test and a password the policy
+ * accepts — is in `support/register.ts`, which says why the address has to be fresh.
  */
-const freshEmail = (): string => `new-reader-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.test`;
-
-/** Satisfies the identity service's policy: eight or more, upper, lower, digit, symbol. */
-const GOOD_PASSWORD = 'Fixture-password-1!';
-
-async function register(
-  page: Page,
-  email: string,
-  password: string,
-  destination: RegExp,
-): Promise<void> {
-  await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', password);
-  await page.check('input[name="accept"]');
-  await Promise.all([page.waitForURL(destination), page.click('button[type="submit"]')]);
-}
 
 test.describe('a reader with no account can get one', () => {
   test('the page offers a form, and the consent names the versions the service requires @identity', async ({

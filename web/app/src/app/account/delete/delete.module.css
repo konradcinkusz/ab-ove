@@ -1,0 +1,123 @@
+/*
+ * The deletion screen — `/account` until the overview took that address (issue #161), and
+ * moved here with it unchanged.
+ *
+ * A plain HTML form with no client component behind it, so everything here is ordinary CSS
+ * against the same tokens the rest of the product uses. Most of it is `credentials-form.module.css`
+ * with different class names, and that duplication is deliberate: a shared form stylesheet
+ * would couple two pages that have no reason to change together, and CSS Modules give each
+ * page its own scope precisely so a rule on one cannot reach the other — which is also why
+ * the overview one directory up has a stylesheet of its own rather than this one.
+ */
+.form {
+  display: grid;
+  gap: 1rem;
+  margin: 1.5rem 0 0;
+  max-width: 24rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.label {
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+}
+
+/* `--control-edge`, for `credentials-form.module.css`'s reason: WCAG 1.4.11, ADR-0063. */
+.input {
+  background: var(--paper-raised);
+  border: 1px solid var(--control-edge);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  padding: 0.5rem 0.625rem;
+}
+
+.input:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.hint {
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  margin: 0;
+  max-width: var(--measure);
+}
+
+/*
+ * The button is `--degraded` rather than `--accent`.
+ *
+ * Every other primary button in the product is the accent colour and means "yes, go on".
+ * This one ends an account, and it should not be the same shape and colour as the button a
+ * reader presses to continue reading — a destructive action that looks exactly like every
+ * constructive one is a destructive action somebody presses out of habit.
+ *
+ * It is not made SMALL or hidden either. A control that is hard to find is not a safeguard,
+ * it is an obstacle to the reader who has decided; the confirmation word is the safeguard,
+ * and it is the thing that cannot be done by accident.
+ */
+.submit {
+  background: var(--degraded);
+  border: 0;
+  border-radius: 3px;
+  color: var(--paper-raised);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  justify-self: start;
+  padding: 0.5rem 1.125rem;
+}
+
+.submit:hover {
+  filter: brightness(1.1);
+}
+
+/*
+ * A visible ring on focus, in the button's own colour — see frame-view.module.css — and a
+ * transparent outline, which forced colours paint in its place (issue #148).
+ */
+.submit:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--degraded);
+  outline: 2px solid transparent;
+}
+
+.removes {
+  color: var(--ink);
+  margin: 0.75rem 0 0;
+  max-width: var(--measure);
+  padding-left: 1.25rem;
+}
+
+.removes li + li {
+  margin-top: 0.375rem;
+}
+
+/*
+ * The problem panel. `--degraded` rather than an alarm colour, for `login-form`'s reason:
+ * most of what lands here is this deployment saying it could not do something.
+ */
+.problem {
+  background: var(--degraded-soft);
+  border-left: 3px solid var(--degraded);
+  margin: 1.5rem 0 0;
+  padding: 0.875rem 1.125rem;
+}
+
+.problemDetail {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  margin: 0;
+  max-width: var(--measure);
+}
