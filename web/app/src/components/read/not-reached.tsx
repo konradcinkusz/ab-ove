@@ -5,6 +5,7 @@ import { editionHrefs } from '@/lib/language/hrefs';
 
 import styles from './contents.module.css';
 import { ArrowRight, List } from './icons.tsx';
+import { PendingLabel } from './pending-label.tsx';
 import foot from './reading-foot.module.css';
 import { ReadingFoot } from './reading-foot.tsx';
 import { ReadingScreen } from './reading-screen.tsx';
@@ -80,16 +81,17 @@ export function NotReached({
       overlays={<ReadingSettings chrome={chrome} />}
       pager={
         <ReadingFoot
+          // Both ways out say when their page is on its way, as a frame's pager does (#160).
           back={
             <Link className={foot.pagerButton} href={contentsHref}>
               <List className={foot.arrow} />
-              <span>{chrome.backToContents}</span>
+              <PendingLabel>{chrome.backToContents}</PendingLabel>
             </Link>
           }
           chrome={chrome}
           forward={
             <Link className={foot.reveal} href={furthestHref} prefetch={false}>
-              <span>{chrome.goToFrameNumber(furthest)}</span>
+              <PendingLabel>{chrome.goToFrameNumber(furthest)}</PendingLabel>
               <ArrowRight className={foot.arrow} />
             </Link>
           }

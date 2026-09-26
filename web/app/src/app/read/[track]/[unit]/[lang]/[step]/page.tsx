@@ -12,9 +12,10 @@ import { chromeFor } from '@/lib/i18n/chrome';
 import { contentUnavailable } from '@/lib/read/render-failure';
 import { READER_ID_COOKIE } from '@/lib/reader-cookie';
 import { backendConfigured } from '@/lib/server/backends';
-import { fetchStep, fetchTrackContent, fetchUnitSummary } from '@/lib/server/content';
+import type { ReaderIdentity } from '@/lib/server/content';
+import { fetchFrame, fetchProgram, frameNumberOf, type ProgramFetch } from '@/lib/server/frame';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/session-cookies';
-import type { TrackContent, UnitSummary } from '@/lib/content/wire';
+import type { TrackContent } from '@/lib/content/wire';
 
 /**
  * One frame of one program, in one language.
@@ -43,52 +44,46 @@ interface RouteParams {
   readonly step: string;
 }
 
-type Resolved =
-  | { readonly kind: 'ok'; readonly trackContent: TrackContent; readonly unit: UnitSummary; readonly language: string }
-  | { readonly kind: 'not-found' }
-  | { readonly kind: 'unavailable'; readonly reason: string };
-
-/**
- * The track and unit's navigation metadata, or why there is none — shared by the page and
- * `generateMetadata` so the title can never describe a different program from the body.
- *
- * Deliberately does NOT fetch the step: metadata needs only the unit's title and its step
- * count, both ungated, and fetching the gated step here would be a second network call this
- * function's only two callers do not both need (`generateMetadata` never renders the step).
- *
- * WRAPPED IN `cache()` SO ITS TWO CALLERS SHARE ONE PAIR OF REQUESTS, NOT TWO. Next.js runs
- * `generateMetadata` and the page component as separate calls within the same request, and
- * without this, "shared by both" meant "called by both" — `fetchTrackContent` and
- * `fetchUnitSummary` each ran twice per frame, real requests against `AbOvo.Api` doubled
- * for no reason either caller needed, on top of the one `fetchStep` call below and the
- * `postAdvance` a reveal already made (`reveal.ts`). Measured directly: the API's own request
- * log showed every `GET /content/{track}` and `GET /content/{track}/{unit}` pair back to
- * back, every frame, in a suite whose one real end-to-end walk (`reading.spec.ts`) is exactly
- * the spec that turns "twice as many requests as necessary" into "enough extra load to make
- * an otherwise rare transient failure show up reliably". `cache()` is React's own answer to
- * this exact shape of problem — request-scoped memoization, reset between requests, so two
- * calls with the same arguments inside one render become one.
- */
-const resolveUnit = cache(async (params: RouteParams): Promise<Resolved> => {
+/** Who is asking: a signed-in reader's bearer, or an anonymous one's cursor cookie (ADR-0061). */
+async function readerIdentity(): Promise<ReaderIdentity> {
   const store = await cookies();
-  const identity = {
+  return {
     bearer: store.get(ACCESS_TOKEN_COOKIE)?.value,
     readerId: store.get(READER_ID_COOKIE)?.value,
   };
+}
 
-  const trackOutcome = await fetchTrackContent(params.track, identity);
-  if (trackOutcome.kind === 'unavailable') return trackOutcome;
-  if (trackOutcome.kind === 'not-found') return { kind: 'not-found' };
-
-  const language = trackOutcome.data.languages.includes(params.lang) ? params.lang : undefined;
-  if (!language) return { kind: 'not-found' };
-
-  const unitOutcome = await fetchUnitSummary(params.track, params.unit, identity);
-  if (unitOutcome.kind === 'unavailable') return unitOutcome;
-  if (unitOutcome.kind === 'not-found') return { kind: 'not-found' };
-
-  return { kind: 'ok', trackContent: trackOutcome.data, unit: unitOutcome.data, language };
-});
+/**
+ * The track and the program at this address, asked for together (`lib/server/frame.ts`,
+ * issue #160) — shared by `generateMetadata` and the page, so the title can never describe a
+ * different program from the body.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ * ONE PAIR OF CALLS PER REQUEST, AND THE KEY IS THREE STRINGS, NOT THE ROUTE'S PARAMS OBJECT.
+ *
+ * Next runs `generateMetadata` and the page as separate calls within one request, and
+ * `cache()` is React's request-scoped memo that makes two such calls one. It compares its
+ * arguments by identity, though, and the two callers are handed two different params
+ * objects — so the version of this that took `params` whole never once hit its cache.
+ * Measured on 2026-09-25 through a pass-through that held every call to `AbOvo.Api` 300 ms:
+ * one frame cost FIVE calls in THREE rounds — the track twice, then the program twice, then
+ * the step — about 930 ms before anything could render. It costs three calls now, leaving
+ * together: this pair, shared, and the page's step beside it (`fetchFrame`). Strings compare
+ * by value, so the segments are the key, and anything added to it must be a primitive for
+ * the same reason.
+ *
+ * THE STEP IS NOT IN IT. The title does not need it, and `generateMetadata` also runs where
+ * the page does not: Next prefetches the head of a frame a link points at, unless the link
+ * opts out, and the head is `generateMetadata`, which asks for this pair and nothing else.
+ * With the step in here each of those prefetches made the gated read too, for a page nobody
+ * had opened. Measured on 2026-09-26, the same way: a prefetched frame link on the contents
+ * page asks for the track and the program, and not the step.
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ */
+const programAt = cache(
+  async (track: string, unit: string, lang: string): Promise<ProgramFetch> =>
+    fetchProgram({ track, unit, lang }, await readerIdentity()),
+);
 
 /**
  * The program the book puts immediately before this one — ADJACENCY IN THE MANIFEST,
@@ -107,10 +102,9 @@ export async function generateMetadata({
 }: {
   params: Promise<RouteParams>;
 }): Promise<Metadata> {
-  const resolvedParams = await params;
-  const resolved = await resolveUnit(resolvedParams);
-  const step = Number(resolvedParams.step);
-  const numbered = Number.isInteger(step) && step >= 1;
+  const { track, unit, lang, step: segment } = await params;
+  const program = await programAt(track, unit, lang);
+  const n = frameNumberOf(segment);
 
   /*
    * THE SERVER DID NOT ANSWER, SO NOTHING IS KNOWN ABOUT THIS ADDRESS — and the title says
@@ -120,20 +114,20 @@ export async function generateMetadata({
    * safe to repeat, in the edition the address asks for (English where there are no words
    * for it); the program's title came from the server that did not answer, so it is not.
    */
-  if (resolved.kind === 'unavailable') {
-    return { title: numbered ? `${chromeFor(resolvedParams.lang).frameNumbered(step)} — ab-ovo` : 'ab-ovo' };
+  if (program.kind === 'unavailable') {
+    return { title: n === undefined ? 'ab-ovo' : `${chromeFor(lang).frameNumbered(n)} — ab-ovo` };
   }
-  if (resolved.kind === 'not-found' || !numbered || step > resolved.unit.stepCount) {
+  if (program.kind === 'not-found' || n === undefined || n > program.unit.stepCount) {
     return { title: 'Not found — ab-ovo' };
   }
 
-  const chrome = chromeFor(resolved.language);
+  const chrome = chromeFor(program.language);
   return {
-    title: `${chrome.frameNumbered(step)} — ${say(resolved.unit.titles, resolved.language)} — ab-ovo`,
+    title: `${chrome.frameNumbered(n)} — ${say(program.unit.titles, program.language)} — ab-ovo`,
     // Deliberately not the body: a description is served to crawlers and to link previews,
     // and a frame's body is the question. The answer is already structurally absent; the
     // question does not need to be handed out either.
-    description: `${chrome.frameNumbered(step)} ${chrome.ofTotal(resolved.unit.stepCount)}.`,
+    description: `${chrome.frameNumbered(n)} ${chrome.ofTotal(program.unit.stepCount)}.`,
   };
 }
 
@@ -142,37 +136,30 @@ export default async function FramePage({
 }: {
   params: Promise<RouteParams>;
 }): Promise<React.JSX.Element> {
-  const resolvedParams = await params;
-  const resolved = await resolveUnit(resolvedParams);
+  const { track, unit: unitId, lang, step: segment } = await params;
+  // The pair the title asked for (or asks for it now), and the step beside it: all three on
+  // their way before either half is awaited (`fetchFrame`).
+  const program = programAt(track, unitId, lang);
+  const identity = await readerIdentity();
+  const frame = await fetchFrame({ track, unit: unitId, lang, step: segment }, identity, fetch, program);
 
-  if (resolved.kind === 'unavailable') {
+  if (frame.kind === 'unavailable') {
     // Caught by `app/error.tsx` — a deployment fault (the content API could not be
     // reached), never a reader's problem. `bundleFor`'s own doc comment drew this line
     // first: "nothing a reader typed can cause either and nothing a reader does can fix
     // it," carried from a missing file on disk to an unreachable service. The error is
     // MARKED as this failure, so that page can say so and not guess (issue #139).
-    throw contentUnavailable(resolved.reason);
+    throw contentUnavailable(frame.reason);
   }
-  if (resolved.kind === 'not-found') notFound();
+  // A track, an edition or a program that is not there, or a segment that is no frame number.
+  if (frame.kind === 'not-found') notFound();
 
-  const requestedStep = Number(resolvedParams.step);
-  if (!Number.isInteger(requestedStep) || requestedStep < 1) notFound();
-
-  const store = await cookies();
-  const identity = {
-    bearer: store.get(ACCESS_TOKEN_COOKIE)?.value,
-    readerId: store.get(READER_ID_COOKIE)?.value,
-  };
-
-  const stepOutcome = await fetchStep(resolvedParams.track, resolvedParams.unit, requestedStep, identity);
+  const { unit, trackContent, language, n: requestedStep, step: stepOutcome } = frame;
 
   if (stepOutcome.kind === 'unavailable') {
     throw contentUnavailable(stepOutcome.reason);
   }
   if (stepOutcome.kind === 'not-found') notFound();
-
-  const { unit, trackContent, language } = resolved;
-  const track = resolvedParams.track;
 
   if (!stepOutcome.data.ok || !stepOutcome.data.step) {
     const refusal = stepOutcome.data.refusal;

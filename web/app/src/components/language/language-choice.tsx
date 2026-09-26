@@ -112,12 +112,21 @@ export function LanguageChoice({
             {endonym(language)}
           </span>
         ) : (
+          /*
+            `prefetch={false}` — AN EDITION IS A PAGE NEXT CANNOT KEEP AHEAD OF THE PRESS (#160).
+            Every page this control switches between is dynamic, and a dynamic page's prefetch
+            is not kept: the press asks the server again whatever was fetched before it. So the
+            prefetch was all cost — on a frame, the head of the same frame in the other edition,
+            which is its `generateMetadata` and that function's calls to `AbOvo.Api`, on every
+            frame a reader opened, for a page nobody had asked for (measured on 2026-09-25).
+          */
           <Link
             className={styles.other}
             href={href}
             key={language}
             lang={language}
             onClick={() => remember(language)}
+            prefetch={false}
           >
             {endonym(language)}
           </Link>

@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 
 import { jumpTarget } from '@/lib/read/place';
 
 import controls from './controls.module.css';
+import { PendingLabel } from './pending-label.tsx';
 import { PROGRAM_MAP_ID, hidePopover } from './popover.ts';
 import styles from './program-map.module.css';
 
@@ -63,6 +64,12 @@ export interface FrameJumperProps {
  *
  * `Esc` resets, closes the map and leaves: nothing typed is kept, because a jump is a move and
  * not a draft.
+ *
+ * A JUMP IS A ROUND TRIP, AND IT SAYS SO UNTIL IT LANDS (#160). The push runs inside a
+ * transition, which Next's own navigation joins, so `going` holds from the press until the
+ * frame it asked for is on screen. The map shuts on the press as before; the flag it leaves on
+ * `Go` is what the pager's position reads to say the jump is under way
+ * (`reading-foot.module.css`), as it reads a pressed heading's (`pending-label.tsx`).
  */
 export function FrameJumper({
   base,
@@ -78,6 +85,7 @@ export function FrameJumper({
   goToFurthest,
 }: FrameJumperProps): React.JSX.Element {
   const router = useRouter();
+  const [going, startGoing] = useTransition();
   const [value, setValue] = useState(String(current));
   const [syncedTo, setSyncedTo] = useState(current);
   const [refusal, setRefusal] = useState<'out-of-range' | 'not-reached' | null>(null);
@@ -96,7 +104,7 @@ export function FrameJumper({
     }
     setRefusal(null);
     hidePopover(PROGRAM_MAP_ID);
-    if (jump.kind === 'go') router.push(`${base}/${jump.n}`);
+    if (jump.kind === 'go') startGoing(() => router.push(`${base}/${jump.n}`));
   };
 
   const message =
@@ -141,7 +149,12 @@ export function FrameJumper({
         value={value}
       />
       <span className={styles.jumpOf}>{ofTotal}</span>
-      <button className={controls.secondary} type="submit">
+      <button
+        aria-busy={going || undefined}
+        className={controls.secondary}
+        data-pending={going ? 'yes' : 'no'}
+        type="submit"
+      >
         {go}
       </button>
       {/*
@@ -159,7 +172,7 @@ export function FrameJumper({
               onClick={() => hidePopover(PROGRAM_MAP_ID)}
               prefetch={false}
             >
-              {goToFurthest}
+              <PendingLabel>{goToFurthest}</PendingLabel>
             </Link>
           </>
         ) : null}

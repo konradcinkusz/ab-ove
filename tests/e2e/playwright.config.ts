@@ -102,18 +102,19 @@ const apiBaseUrl = process.env.E2E_API_BASE_URL?.trim();
  *
  * A frame whose server-side call to `AbOvo.Api` fails lands on `app/error.tsx`, and nothing
  * a browser can intercept reaches that call. The fixture forwards every request unchanged,
- * except for a reader a spec has cut, whose requests it drops — so `error-page.spec.ts` can
- * take the API away from its own reader, and give it back, while every other spec reads
+ * except for a reader a spec has cut, whose requests it drops, or slowed, whose requests it
+ * holds first — so `error-page.spec.ts` can take the API away from its own reader, and
+ * `frame-loading.spec.ts` can make it late for its own (#160), while every other spec reads
  * through the same process as if it were not there.
  *
- * ONLY THE FIRST DEPLOYMENT, because the reader it cuts is the anonymous one (ADR-0061's
- * cookie, sent as a header only when there is no bearer) and that is who reads on `:3000`.
- * `:3100` keeps its direct address: nothing there needs a cut, and a hop nothing needs is a
- * hop that can only add a way to fail.
+ * ONLY THE FIRST DEPLOYMENT, because the reader it cuts or slows is the anonymous one
+ * (ADR-0061's cookie, sent as a header only when there is no bearer) and that is who reads on
+ * `:3000`. `:3100` keeps its direct address: nothing there needs either, and a hop nothing
+ * needs is a hop that can only add a way to fail.
  *
  * Its port is derived from the web app's like the other two, and it runs only when there is
- * an API to stand in front of. Without one, `error-page.spec.ts` is skipped with the reason
- * rather than made conditional.
+ * an API to stand in front of. Without one, `error-page.spec.ts` and `frame-loading.spec.ts`
+ * are skipped with the reason rather than made conditional.
  */
 const faultPort = webPort + 300;
 const faultBaseUrl = `http://127.0.0.1:${faultPort}`;
@@ -330,7 +331,8 @@ export default defineConfig({
            * `reuseExistingServer` as the web app has it, and for the web app's reason: it holds
            * no key, and the only state it keeps is keyed by reader ids nobody else holds, so a
            * fixture an earlier local run left forwarding to the same API is indistinguishable
-           * from a new one.
+           * from a new one — unless it predates a control a spec now sends, which is why a
+           * delay is echoed back and `frame-loading.spec.ts` reads the echo (#160).
            */
           ...(faultUpstream
             ? [

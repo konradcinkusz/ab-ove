@@ -16,6 +16,7 @@ import { FrameFocus } from './frame-focus.tsx';
 import { FrameKeys } from './frame-keys.tsx';
 import styles from './frame-view.module.css';
 import { ArrowLeft, ArrowRight, ChevronUp, List } from './icons.tsx';
+import { PendingLabel } from './pending-label.tsx';
 import { PROGRAM_MAP_ID } from './popover.ts';
 import { ProgramGate } from './program-gate.tsx';
 import { ProgramMap } from './program-map.tsx';
@@ -27,7 +28,6 @@ import { ReadingSettings } from './reading-settings.tsx';
 import { ReadingTop } from './reading-top.tsx';
 import { RememberPosition } from './remember-position.tsx';
 import { RevealForm } from './reveal-form.tsx';
-import { RevealLabel } from './reveal-label.tsx';
 import { RichInline, RichText } from './rich-text.tsx';
 import { Sketch } from './sketch.tsx';
 import { WideContent } from './wide-content.tsx';
@@ -189,14 +189,27 @@ export function FrameView({
               as well, where `←` opens the contents too (`frame-keys.tsx`, #159).
             */
             step.n > 1 ? (
+              /*
+                A ROUND TRIP ON EVERY PRESS, AND IT SAYS SO WHILE IT LASTS (#160): the label is
+                `useLinkStatus`'s, so the arrow leans the way it goes until the frame arrives
+                (`pending-label.tsx`).
+
+                `prefetch={false}` BECAUSE THE PREFETCH WAS ALL COST. Next prefetched this link
+                on every frame — the head of the frame before, which is its `generateMetadata`
+                and that function's calls to the API (measured on 2026-09-25) — and a dynamic
+                page's prefetch is not kept, so the press asked the server again anyway.
+                Nothing prefetched also means nothing lets the press skip its pending state,
+                which `useLinkStatus` does for a route Next already holds.
+              */
               <Link
                 aria-keyshortcuts="ArrowLeft"
                 className={foot.pagerButton}
                 href={at(step.n - 1)}
+                prefetch={false}
                 title={`${chrome.previous} (←)`}
               >
                 <ArrowLeft className={foot.arrow} />
-                <span>{chrome.previous}</span>
+                <PendingLabel>{chrome.previous}</PendingLabel>
               </Link>
             ) : (
               /*
@@ -212,7 +225,7 @@ export function FrameView({
                 title={`${chrome.backToContents} (←)`}
               >
                 <List className={foot.arrow} />
-                <span>{chrome.backToContents}</span>
+                <PendingLabel>{chrome.backToContents}</PendingLabel>
               </Link>
             )
           }
@@ -242,7 +255,7 @@ export function FrameView({
                 prefetch={false}
                 title={`${chrome.toSummary} (→)`}
               >
-                <RevealLabel label={chrome.toSummary} />
+                <PendingLabel>{chrome.toSummary}</PendingLabel>
                 <ArrowRight className={foot.arrow} />
               </Link>
             )

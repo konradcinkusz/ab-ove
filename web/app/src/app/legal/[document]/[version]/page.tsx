@@ -48,10 +48,11 @@ export const dynamic = 'force-dynamic';
 type Params = Promise<{ document: string; version: string }>;
 
 /**
- * One fetch per request, shared by the title and the body — the step page's `resolveUnit`
+ * One fetch per request, shared by the title and the body — the step page's `programAt`
  * pattern and its reason: Next calls `generateMetadata` and the page separately, and
  * "shared by both" would otherwise mean "fetched by both". It also keeps the tab from being
- * titled with a document the body then answers 404 for.
+ * titled with a document the body then answers 404 for. Keyed on strings, as `programAt` is:
+ * `cache()` compares its arguments by identity, and the two callers' params objects differ.
  */
 const documentAt = cache(
   (document: LegalDocumentId, version: string): Promise<LegalDocumentOutcome> =>
