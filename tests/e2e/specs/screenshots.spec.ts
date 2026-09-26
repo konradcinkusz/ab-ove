@@ -4,6 +4,9 @@ import { fileURLToPath } from 'node:url';
 
 import { expect, test, type Page } from '@playwright/test';
 
+import { chromeFor } from '../../../web/app/src/lib/i18n/chrome.ts';
+import { P01 } from '../../../web/app/src/lib/lab/protocol.ts';
+
 import { track, unitNamed } from './support/bundle.ts';
 import { walkTo } from './support/walk.ts';
 
@@ -65,9 +68,21 @@ const ASKS = 3;
 const REVEALS = ASKS + 1;
 
 const unit = unitNamed(UNIT);
+const en = chromeFor('en');
 
 const read = (language: string, step: number | string): string =>
   `/read/${track}/${UNIT}/${language}/${step}`;
+
+/**
+ * THE PAGES OFF THE READING SCREENS ARE THEIR OWN, NOT THE ERROR PAGE WEARING THEIR MASTHEAD
+ * (#169). Every one of them renders the one masthead now, so the wordmark on screen proves
+ * nothing about which page it is: the heading does, read from `chrome.ts` where the page's own
+ * words are, and so does the page having exactly one masthead above it.
+ */
+async function isThePage(page: Page, heading: string | RegExp): Promise<void> {
+  await expect(page.locator('header')).toHaveCount(1);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(heading);
+}
 
 /**
  * Open a page and wait until it is worth photographing.
@@ -117,8 +132,10 @@ test.describe('@screenshots the documentation set', () => {
   test('the argument, and the live integration panel at the foot of it', async ({ page }) => {
     await ready(page, '/about');
     // The panel is the one live thing on the page and it is deliberately last, so a
-    // full-page capture is the only one that carries it.
-    await expect(page.locator('body')).toContainText(/ab-ovo/i);
+    // full-page capture is the only one that carries it — once it has an answer to show,
+    // rather than its "Asking the API what it has…", which a capture taken on arrival caught.
+    await isThePage(page, en.aboutPage.lede);
+    await expect(page.locator('section.panel .pulse'), 'the panel never finished asking the API').toHaveCount(0);
     await shoot(page, 'about');
   });
 
@@ -199,7 +216,7 @@ test.describe('@screenshots the documentation set', () => {
 
   test('the exercises, which are no longer in the reader loop', async ({ page }) => {
     await ready(page, '/lab/p01');
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await isThePage(page, `${P01.program} — ${P01.title}`);
     // The lab pane boots Pyodide lazily. The screenshot is of the pane as a reader first
     // meets it, so it is taken without waiting for an interpreter that may not be wanted.
     await shoot(page, 'lab-p01');
@@ -207,7 +224,7 @@ test.describe('@screenshots the documentation set', () => {
 
   test('sign-in, which says plainly when there is no identity service', async ({ page }) => {
     await ready(page, '/login');
-    await expect(page.locator('body')).toBeVisible();
+    await isThePage(page, en.signInPage.lede);
     await shoot(page, 'login');
   });
 });

@@ -1,0 +1,139 @@
+/*
+ * The one page header outside the reading screens — `masthead.tsx` says what is in it and why
+ * there is one (#169).
+ *
+ * THE INDEX'S ROW, WHICH THE COURSES PAGE ALREADY SHARED, FOR EVERY PAGE. A rule under it and
+ * the space after, the wordmark at the start and whatever the page puts in the row at the far
+ * end, on one baseline. `flex-wrap`, for the reason the index gives: what is read from the
+ * session arrives after the first paint, and it has to extend a line rather than add a block
+ * (`progress.spec.ts` bounds the shift).
+ *
+ * THE ROW'S TYPE IS SET HERE for everything in it but the wordmark: the theme switch has no
+ * font of its own (`theme-switch.module.css` says why), and nor does the account control.
+ *
+ * Its PLACE on the page is each page's frame: the index, `/courses` and the pages of `.shell`
+ * (`app/globals.css`) share one, so the wordmark does not move as a reader goes between them;
+ * the lab's workbench is wider and the instrument's column starts at the same edge.
+ */
+.masthead {
+  align-items: baseline;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-faint);
+  display: flex;
+  flex-wrap: wrap;
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  gap: 0.75rem 1.5rem;
+  margin: 0 0 2.25rem;
+  padding-bottom: 1.25rem;
+}
+
+/*
+ * The wordmark, and where the page sits under it on the pages that have a place below one —
+ * `ab-ovo / lab / p01`. The `auto` margin sets everything after it at the row's far end.
+ */
+.wordmark {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  letter-spacing: 0.06em;
+  margin: 0;
+  margin-inline-end: auto;
+}
+
+.hyphen {
+  color: var(--ink-faint);
+}
+
+/*
+ * THE WAY HOME, AND A FINGER'S TARGET (UI-UX.md, "every control is a finger tall"). It was a
+ * bare link on every page that had one — an underlined blue word on the pages of `.shell`, a
+ * 21 px box on `/courses` — and it is the reading bar's own mark now (`reading-top.module.css`):
+ * the ink, no underline, the accent under the pointer and on focus, a line of 1.25rem and
+ * three-quarters of a rem above and below it, which is 44 px. An inline block, so the padding is
+ * in the box a press lands in, and given back as margin, so the row is no taller for it.
+ */
+.home {
+  color: inherit;
+  display: inline-block;
+  line-height: 1.25rem;
+  margin: -0.75rem -0.5rem;
+  padding: 0.75rem 0.5rem;
+  text-decoration: none;
+}
+
+.home:hover,
+.home:focus-visible {
+  color: var(--accent);
+}
+
+/* Between two steps of the trail: drawn, and not read out — the links say where they go. */
+.slash {
+  color: var(--ink-faint);
+  margin: 0 0.5rem;
+}
+
+/*
+ * A step of the trail that leads somewhere — `lab` on a lab's own page. Underlined, as a link in
+ * this row is, and a finger's target by the home link's pattern: the half-rem each side is what
+ * takes `lab` past 44 px across, by a pixel or two, which `specs/masthead.spec.ts` measures; and
+ * the slash's margins keep two neighbours' boxes apart.
+ */
+.crumb {
+  color: inherit;
+  display: inline-block;
+  line-height: 1.25rem;
+  margin: -0.75rem -0.5rem;
+  padding: 0.75rem 0.5rem;
+}
+
+.crumb:hover,
+.crumb:focus-visible {
+  color: var(--accent);
+}
+
+/* The page itself, at the end of the trail: named, and not a link to where the reader is. */
+.here {
+  color: var(--ink-faint);
+}
+
+/*
+ * The ways off the page, named *Site* on every page that has them (`chrome.siteNav`, #165).
+ * Links, and on the index the account control after them.
+ */
+.nav {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
+/*
+ * ON A PHONE THE NAVIGATION HAS A LINE OF ITS OWN, FROM THE FIRST PAINT (#165).
+ *
+ * The wordmark and the control before the navigation share the first line and the links the
+ * second. Left to wrap by itself, the `<nav>` fitted beside the index's theme switch at some
+ * widths before the session answered and not after — *Sign in* is a word longer than nothing,
+ * *Account* and *Sign out* two — and dropped to a new line under the reader when it did. A
+ * line of its own is as wide as the page, which is room for the links and either answer in
+ * both editions.
+ */
+@media (max-width: 40rem) {
+  .nav {
+    flex-basis: 100%;
+  }
+}
+
+/*
+ * A FINGER'S TARGET ON A LINE OF SMALL TYPE (#147). The words are 13 px and were a 21 px box to
+ * press. The padding grows the box to 44 px and the matching negative margin gives the space
+ * back, so the row lays out exactly as it did — the language and theme controls' pattern. Half
+ * a rem across rather than their three-eighths, because `Kursy` is a short word and the target
+ * has to be a finger WIDE as well; the navigation's 1.25rem gap still keeps two neighbours'
+ * boxes apart.
+ */
+.link {
+  color: inherit;
+  margin: -0.75rem -0.5rem;
+  padding: 0.75rem 0.5rem;
+}

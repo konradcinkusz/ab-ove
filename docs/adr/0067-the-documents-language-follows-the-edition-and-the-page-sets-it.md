@@ -52,6 +52,12 @@ the language of its own words — so no page has a second thing to remember. The
 pages are the exception: they render no `SkipLink`, and they are English. The root layout stays
 static and says English, which is the server's answer and not the last word.
 
+> **Amended by issue #169:** the legal documents' pages are no longer the exception. They render
+> the one masthead (`components/masthead/masthead.tsx`), and with it a `SkipLink` in English, so
+> they set `<html lang="en">` themselves. Every page a reader meets renders `SkipLink` once: a
+> reading screen through `ReadingScreen`, and every other page through the masthead, which
+> `components/masthead/masthead.test.ts` requires of each `<main>` outside the reading screens.
+
 **A page that speaks an edition titles its tab in it.** The title is what the announcer reads,
 and it is spoken in the document's language, so a Polish page with the site's English title
 would be read out in a Polish voice. The index, the account's pages, the sign-in pages,
@@ -114,5 +120,10 @@ reading address names its edition and is right from the first paint.
 
 **A page that renders no `SkipLink` keeps the root layout's English.** The legal documents'
 pages render none, and for them that is right: they are English, and so the document says.
+
+> **Amended by issue #169:** the legal documents' pages render a `SkipLink` now, in English,
+> with the masthead, so they say their English themselves rather than by rendering none. What
+> this paragraph describes still holds for a page that renders none; no page a reader meets
+> is one.
 
 Not a deviation from the reference architecture; no register row.

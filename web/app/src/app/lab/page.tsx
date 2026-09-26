@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import styles from '@/components/lab/lab-pane.module.css';
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { Masthead } from '@/components/masthead/masthead';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import { LABS } from '@/lib/lab/protocol';
 
 /**
@@ -26,11 +27,12 @@ export const metadata: Metadata = {
 export default function LabIndexPage(): React.JSX.Element {
   return (
     <main className={styles.page}>
-      <SkipLink language="en" />
-      <p className={styles.crumb}>
-        {/* Not prefetched: the index titles its tab in the reader's edition (ADR-0067). */}
-        <Link href="/" prefetch={false}>ab-ovo</Link> / lab
-      </p>
+      {/*
+        The one masthead (#169), where this page had an `ab-ovo / lab` crumb of its own. In
+        English, as the lab is; the way home is a bare `/`, so the index opens in the edition
+        this browser remembers.
+      */}
+      <Masthead home="/" language="en" trail={[{ label: 'lab' }]} />
       <h1 className={styles.title} id={SKIP_TARGET_ID}>The lab</h1>
       <p className={styles.subtitle}>
         The book&rsquo;s computer exercises, worked in the browser. Every expected value a

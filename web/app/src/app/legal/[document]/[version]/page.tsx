@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
 
+import { Masthead } from '@/components/masthead/masthead';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import {
   LEGAL_DOCUMENT_TITLES,
   isLegalDocumentId,
@@ -99,23 +101,21 @@ export default async function LegalDocumentPage({
 
   return (
     <main className="shell">
-      <header className="masthead">
-        {/*
-          English, as the document is — and its links to the index do not prefetch, because
-          the index titles its tab in the edition this browser remembers (ADR-0067).
-        */}
-        <p className="wordmark">
-          <Link href="/" prefetch={false}>
-            ab<span>-</span>ovo
-          </Link>
-        </p>
-        <h1 className="lede">{LEGAL_DOCUMENT_TITLES[document]}</h1>
-        <p className="standfirst">
-          Version <span className={styles.version}>{version}</span> — the text an account made
-          here is recorded as accepting under that version. If you came from the registration
-          form, it is still open where you left it, with what you typed.
-        </p>
-      </header>
+      {/*
+        The one masthead (#169), in English as the page's own words are, with the skip link it
+        brings — which this page had none of — landing on the document's title. Its way home is
+        a bare `/`, so the index opens in the edition this browser remembers, and it does not
+        prefetch, because the index titles its tab in that edition (ADR-0067).
+      */}
+      <Masthead home="/" language="en" />
+      <h1 className="lede" id={SKIP_TARGET_ID}>
+        {LEGAL_DOCUMENT_TITLES[document]}
+      </h1>
+      <p className="standfirst">
+        Version <span className={styles.version}>{version}</span> — the text an account made
+        here is recorded as accepting under that version. If you came from the registration
+        form, it is still open where you left it, with what you typed.
+      </p>
 
       <article className={styles.document}>
         {paragraphs(outcome.text).map((paragraph, index) => (

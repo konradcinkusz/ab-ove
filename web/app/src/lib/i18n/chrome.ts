@@ -582,15 +582,16 @@ interface Strings {
    */
   readonly about: string;
   /**
-   * The accessible name of the index's masthead navigation (issue #165) — the landmark that
-   * holds `courses`, `about` and the account's own control, which is what a reader hears it
-   * called in a screen reader's list of landmarks.
+   * The accessible name of the masthead's navigation (issue #165) — on the index, the landmark
+   * that holds `courses`, `about` and the account's own control, and on `/courses` its way back
+   * and `about` — which is what a reader hears it called in a screen reader's list of landmarks.
    *
    * It was `programs`, the index heading's word, on a `<nav>` that also held the theme switch
    * and both of the reader's destructive controls: a landmark named after the page and holding
    * neither navigation alone nor the page. It is named for what it is now — the site's own
    * ways off this page — and the language control beside it keeps its own name, so the list
-   * reads two different landmarks rather than one word twice.
+   * reads two different landmarks rather than one word twice. `/courses` named its own after
+   * its heading too, `courses`, until the one masthead (#169) gave both pages this name.
    */
   readonly siteNav: string;
   /**

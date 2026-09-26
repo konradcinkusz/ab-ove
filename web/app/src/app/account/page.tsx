@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { allBundles } from '@ab-ovo/web-kit';
 
 import { SignOut } from '@/components/account/sign-out';
+import { Masthead } from '@/components/masthead/masthead';
 import { ExportWorksheets } from '@/components/read/clear-controls';
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { indexHref } from '@/lib/index-href';
 import { fetchAccountPlaces, placesInBookOrder } from '@/lib/server/account-places';
@@ -117,29 +118,25 @@ export default async function AccountPage({
 
   return (
     <main className="shell" lang={chrome.language}>
-      <SkipLink language={chrome.language} />
-      <header className="masthead">
-        {/* The way home, to the programs in this edition — it was text (issue #166). */}
-        <p className="wordmark">
-          <Link href={programs} prefetch={false}>
-            ab<span>-</span>ovo
-          </Link>
+      {/*
+        The one masthead (#169), and its way home: the programs, in this edition — it was text
+        here until issue #166.
+      */}
+      <Masthead home={programs} language={chrome.language} />
+      <h1 className="lede" id={SKIP_TARGET_ID}>
+        {strings.title}
+      </h1>
+      {/*
+        Whose account, and the way to stop it being this browser's — together, because the one
+        is the reason for the other. The address is text and never a control: it is not editable
+        here, and a field that looked editable would promise a feature there is not.
+      */}
+      <div className={styles.holder}>
+        <p className={styles.address}>
+          {address ? strings.signedInAs(address) : strings.signedIn}
         </p>
-        <h1 className="lede" id={SKIP_TARGET_ID}>
-          {strings.title}
-        </h1>
-        {/*
-          Whose account, and the way to stop it being this browser's — together, because the
-          one is the reason for the other. The address is text and never a control: it is not
-          editable here, and a field that looked editable would promise a feature there is not.
-        */}
-        <div className={styles.holder}>
-          <p className={styles.address}>
-            {address ? strings.signedInAs(address) : strings.signedIn}
-          </p>
-          <SignOut label={chrome.signOut} language={chrome.language} then={programs} />
-        </div>
-      </header>
+        <SignOut label={chrome.signOut} language={chrome.language} then={programs} />
+      </div>
 
       <section className="section">
         <h2>{strings.placesTitle}</h2>
