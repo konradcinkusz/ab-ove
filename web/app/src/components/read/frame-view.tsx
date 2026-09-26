@@ -19,12 +19,12 @@ import { ArrowLeft, ArrowRight, ChevronUp, List } from './icons.tsx';
 import { PROGRAM_MAP_ID } from './popover.ts';
 import { ProgramGate } from './program-gate.tsx';
 import { ProgramMap } from './program-map.tsx';
+import { FRAME_ANSWER_ID, FRAME_HEADING_ID, FRAME_ID } from './reading-focus.ts';
 import foot from './reading-foot.module.css';
 import { ReadingFoot } from './reading-foot.tsx';
 import { ReadingScreen } from './reading-screen.tsx';
 import { ReadingSettings } from './reading-settings.tsx';
 import { ReadingTop } from './reading-top.tsx';
-import { FRAME_ANSWER_ID, FRAME_HEADING_ID, FRAME_ID } from './reading-focus.ts';
 import { RememberPosition } from './remember-position.tsx';
 import { RevealForm } from './reveal-form.tsx';
 import { RevealLabel } from './reveal-label.tsx';
@@ -293,8 +293,11 @@ export function FrameView({
 
           AND WHERE FOCUS LANDS WHEN THE PAGE TURNS (#159, `frame-focus.tsx`), so a screen
           reader says which frame this is — and, through `aria-describedby`, the answer the
-          frame opens with, which is what the turn was for. `tabIndex={-1}`: focusable from
-          script and never a Tab stop. Off the page, so a pointer cannot land on it either.
+          frame opens with, which is what the turn was for. The description is the answer's
+          content, walked, so nothing inside the answer box may carry an `aria-label`: the walk
+          would say the label instead of the maths (`wide-content.tsx` names its blocks with
+          `aria-labelledby` for that reason). `tabIndex={-1}`: focusable from script and never
+          a Tab stop. Off the page, so a pointer cannot land on it either.
         */}
         <h1
           aria-describedby={step.answer ? FRAME_ANSWER_ID : undefined}
@@ -308,9 +311,15 @@ export function FrameView({
         <FrameFocus />
         {/*
           Every block of the text that scrolls sideways becomes a named Tab stop, and only
-          those (`wide-content.tsx`, #159). Three chrome strings, never the text itself.
+          those (`wide-content.tsx`, #159). Handed the names in the chrome's language, and
+          never the text itself; it renders them hidden, for the blocks to point at.
         */}
-        <WideContent code={chrome.wideCode} formula={chrome.wideFormula} table={chrome.wideTable} />
+        <WideContent
+          code={chrome.wideCode}
+          formula={chrome.wideFormula}
+          language={chrome.language}
+          table={chrome.wideTable}
+        />
 
         {/*
           WHICH PART OF THE PROGRAM THIS IS — the heading the frame falls under, or *Opening*

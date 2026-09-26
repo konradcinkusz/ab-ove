@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
-import { track, unitNamed } from './bundle.ts';
+import { served, track, unitNamed } from './bundle.ts';
+import { openThrough } from './gate.ts';
 import { walkTo } from './walk.ts';
 
 /** The book's display maths: `$$…$$`, which KaTeX renders as a `.katex-display` block. */
@@ -53,4 +54,46 @@ export async function openWideFrame(page: Page, unitId: string, language: string
     if (wide) return step.n;
   }
   throw new Error(`no display formula of ${unitId} is wider than the screen at this size, so this proves nothing`);
+}
+
+/** The display formulas in the answer a frame opens with — `frame-view.tsx`'s answer box. */
+export const answerFormulas = (page: Page): Locator => page.locator('#frame-answer .katex-display');
+
+/**
+ * OPEN A FRAME WHOSE ANSWER OPENS WITH A FORMULA WIDER THAN THE SCREEN, AT THE VIEWPORT THE
+ * PAGE HAS.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ * `openWideFrame`'s search, over the answers rather than the text, and over the whole book —
+ * the first program's answers carry no display maths at all. Only an answer that OPENS with
+ * display maths is tried, so that its formula is the first thing a screen reader reads of it;
+ * longest formula first, and the first one wider than its box is the frame. Found, never
+ * named, for the reason `openWideFrame` gives, and it throws, for the same reason, when none
+ * is wide.
+ *
+ * Each is opened as a reader who got there would open it: the programs before it walked
+ * (`gate.ts`), and the cursor raised to it through the real `advance` endpoint (`walk.ts`).
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * It returns the program and the frame, and leaves the page on that frame.
+ */
+export async function openWideAnswer(page: Page, language: string): Promise<{ unitId: string; n: number }> {
+  const candidates = served.units
+    .flatMap((unit) => unit.steps.map((step) => ({ unitId: unit.id, n: step.n, answer: step.answer?.[language] ?? '' })))
+    .filter((candidate) => candidate.answer.trimStart().startsWith('$$'))
+    .sort((a, b) => longestDisplay(b.answer) - longestDisplay(a.answer));
+  expect(candidates.length, 'no answer in the book opens with display maths, so none can be wide').toBeGreaterThan(0);
+
+  for (const { unitId, n } of candidates) {
+    await openThrough(page, unitId);
+    await walkTo(page, unitId, language, n);
+    await page.goto(`/read/${track}/${unitId}/${language}/${n}`);
+    // The maths' own faces decide the width, so the question is asked once they are in.
+    await page.evaluate(() => document.fonts.ready);
+    const wide = await answerFormulas(page)
+      .first()
+      .evaluate((block) => block.scrollWidth > block.clientWidth);
+    if (wide) return { unitId, n };
+  }
+  throw new Error('no answer that opens with display maths is wider than the screen at this size, so this proves nothing');
 }

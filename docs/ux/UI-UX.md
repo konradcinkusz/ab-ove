@@ -504,20 +504,23 @@ buttons.
 
 **The keys stay and are not advertised.** `→` and `←` move, and on frame 1 `←` opens the
 contents, where the button in `Previous`'s place leads; `Enter` with nothing focused puts the
-caret in the answer line; `Ctrl+Enter` — spelt `⌘+Enter` on an Apple keyboard, from a flag
-the page sets rather than a string it rewrites — keeps the answer and goes on; `Esc` returns
-to reading; `g` opens the map with the caret in its frame number; `?` opens *Reading settings*
-with focus in the panel, on every screen that has one. The frame used to print a line of them
-under every question, one state at a time; it prints none now. Every move is a labelled
-button, the pager's buttons carry their key in their tooltip and in `aria-keyshortcuts`, which
-a screen reader says with the name, and the whole map is in *Reading settings* — where `→`'s
-row says that it reveals the answer. While a panel is open the page's keys stand aside,
-because the arrows' forward is a write. **The arrows and `Enter` are the page's only while the
-reader is reading** — focus on nothing, or on the frame's heading (below): a key pressed at a
-button, a link, a pane's button or a formula wide enough to scroll is that element's. Until
-#159 `→` revealed the frame from any of them, and `←` on frame 1 did nothing while the button
-beside it went somewhere. `specs/reading.spec.ts` still reads a program end to end by pressing
-`→`, and `specs/reading-loop.spec.ts` holds the rest.
+caret in the answer line; `Ctrl+Enter` — spelt `⌘+Enter` on an Apple keyboard, from a flag the
+page sets rather than a string it rewrites — keeps the answer and goes on; `Esc` returns to
+reading; `g` opens the map with the caret in its frame number; `?` opens *Reading settings* with
+focus in the panel, on every screen that has one, and when the panel closes focus goes back
+where `?` found it — for a reader who was reading, the page, at once, so `→` straight after Esc
+turns the page (`settings-key.tsx`). The frame used to print a line of them under every
+question, one state at a time; it prints none now. Every move is a labelled button, the pager's
+buttons carry their key in their tooltip and in `aria-keyshortcuts`, which a screen reader says
+with the name, and the whole map is in *Reading settings* — where `→`'s row says that it reveals
+the answer. The key a button names is the page's, pressed while reading; at the button itself,
+`Enter` presses it. While a panel is open the page's keys stand aside, because the arrows'
+forward is a write. **The arrows and `Enter` are the page's only while the reader is reading** —
+focus on nothing, or on the frame's heading (below): a key pressed at a button, a link, a pane's
+button or a formula wide enough to scroll is that element's. Until #159 `→` revealed the frame
+from any of them, and `←` on frame 1 did nothing while the button beside it went somewhere.
+`specs/reading.spec.ts` still reads a program end to end by pressing `→`, and
+`specs/reading-loop.spec.ts` holds the rest.
 
 **The frame itself** is quiet: the heading it is under, a real `<h2>` set small in the UI
 face; the answer box labelled with the frame it answers; the book's text; and, on a frame that
@@ -548,6 +551,16 @@ is measured in the browser as the width and the maths' faces change, so a formul
 never a stop between the skip link and the answer line. Chromium already made such a scroller
 a Tab stop, with no name; another browser left it out of reach. `specs/accessibility.spec.ts`
 scans a frame whose formula is wider than a phone.
+
+**The name is a hidden element the block points at (`aria-labelledby`), never an `aria-label`**,
+because the heading's description is the answer box walked, and a walk that meets an
+`aria-label` says the label instead of what is under it. With one, a turn onto a frame whose
+answer is a formula too wide for the column was announced as *Answer to frame 23 Formula* — on a
+phone, and on the widest at desktop width. An `aria-labelledby` is not followed inside a
+description, so the maths is read, and the block is still named when it takes focus.
+`specs/reading-loop.spec.ts` asks the browser's own accessibility tree what such a turn says,
+because Playwright's own computation follows the `aria-labelledby` there and would report the
+word the browser does not say.
 
 A new frame fades in over a fifth of a second, the one sign with the pager standing still that
 the page turned; a reader who asks for less motion gets none.

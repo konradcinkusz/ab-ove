@@ -5,7 +5,7 @@ import { chromeFor } from '../../../web/app/src/lib/i18n/chrome.ts';
 import { languages, probe, track, unitNamed } from './support/bundle.ts';
 import { reveal } from './support/reveal.ts';
 import { walkTo } from './support/walk.ts';
-import { formulas, openWideFrame } from './support/wide.ts';
+import { answerFormulas, formulas, openWideAnswer, openWideFrame } from './support/wide.ts';
 
 /**
  * JOURNEY — the reading loop explains itself: what `Next` does on a frame that asks, where
@@ -70,6 +70,47 @@ const literally = (text: string): RegExp => new RegExp(text.replace(/[.*+?^${}()
 
 const heading = (page: Page): Locator => page.getByRole('heading', { level: 1 });
 const pager = (page: Page): Locator => page.locator('[data-pager]');
+
+/**
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ * WHAT CHROMIUM SAYS AN ELEMENT'S DESCRIPTION IS — read from the browser's own accessibility
+ * tree, which is what a screen reader is handed.
+ *
+ * NOT `toHaveAccessibleDescription`, because Playwright computes a description itself and here
+ * it disagrees with the browser: inside a description it follows a descendant's
+ * `aria-labelledby`, where accname 1.2 (the LabelledBy step, 2B) and Chromium do not. Measured
+ * on a heading described by a box holding a group named that way: the browser's tree read the
+ * group's content, and the matcher read its name — the one difference `wide-content.tsx` rests
+ * on. The suite runs in Chromium alone (`playwright.config.ts`, deviation 1), so the browser can
+ * be asked.
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ */
+async function describedAs(page: Page, selector: string): Promise<string> {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const { root } = await cdp.send('DOM.getDocument', { depth: 0 });
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector });
+    const { nodes } = await cdp.send('Accessibility.getPartialAXTree', { nodeId, fetchRelatives: false });
+    return String(nodes[0]?.description?.value ?? '');
+  } finally {
+    await cdp.detach();
+  }
+}
+
+/**
+ * Maths as the tree spells it and as the DOM does, made comparable. Chromium reads a one-letter
+ * identifier in its mathematical italic — `𝑥`, not `x` — which NFKC folds back; it puts a space
+ * between tokens; and KaTeX writes invisible operators, the function application after `\ln`
+ * among them. The spaces and the invisible characters go from both sides.
+ */
+const flat = (text: string): string => text.normalize('NFKC').replace(/[\s\p{Cf}]/gu, '');
+
+/**
+ * How much of a formula is asked for. Chromium reads a description's content only so far —
+ * measured, about the first hundred nodes of it — so the book's longest formula is said in
+ * part, and it is its opening that must be the maths rather than a word.
+ */
+const OPENING = 12;
 
 async function keysReady(page: Page): Promise<void> {
   // `reading.spec.ts`'s wait: a key pressed before the handler binds is a key pressed at nothing.
@@ -241,11 +282,17 @@ test.describe('the keys', () => {
       await expect(keys).toContainText(entry.does);
     }
 
+    /*
+      AND `→` STRAIGHT AFTER ESC TURNS THE PAGE. Focus goes back where `?` found it — on
+      nothing, the page — as the panel closes (`settings-key.tsx`). It used to stay on the
+      hidden panel until the browser's own fix-up, which comes when the page is next updated,
+      and a key pressed before that was pressed at the panel and turned nothing. So nothing is
+      awaited between the two keys: any wait there is the gap this is about.
+    */
     await page.keyboard.press('Escape');
-    await expect(settings).toBeHidden();
-    // Focus is back where it was — on the page — so the arrows are live again.
     await page.keyboard.press('ArrowRight');
-    await expect(page).toHaveURL(new RegExp(`${at('en', asks.n + 1)}$`));
+    await expect(settings).toBeHidden();
+    await expect(page, '`→` straight after Esc did not turn the page').toHaveURL(new RegExp(`${at('en', asks.n + 1)}$`));
 
     // In a field, a `?` is what the reader typed.
     const line = page.locator('#answer-line');
@@ -295,5 +342,35 @@ test.describe('wide content', () => {
     await expect.poll(() => wide.evaluate((node) => node.scrollLeft), 'the arrow did not scroll the formula').toBeGreaterThan(before);
     await page.waitForTimeout(300);
     expect(page.url(), '→ at a wide formula turned the page').toContain(at('en', n));
+  });
+
+  test('a turn onto a frame whose answer is a formula wider than the screen says the maths, not the word @core', async ({
+    page,
+  }) => {
+    /*
+      THE HEADING FOCUS LANDS ON IS DESCRIBED BY THE ANSWER BOX (`frame-view.tsx`), and a
+      description is the box's content, walked — a wide formula in it included, which is a
+      named Tab stop too. Named with `aria-label`, the walk said the name where the maths was:
+      a turn onto such a frame was announced as *Answer to frame 23 Formula*, at this width
+      and on the widest at 1280 px. So a frame whose answer opens with a formula wider than the
+      screen is found (`support/wide.ts`), turned onto with Next, and the browser is asked.
+    */
+    const { unitId, n } = await openWideAnswer(page, 'en');
+    const formula = answerFormulas(page).first();
+    const maths = flat((await formula.locator('.katex-mathml semantics > :first-child').textContent()) ?? '');
+    expect(maths.length, 'the formula has too little text to tell from a word').toBeGreaterThan(OPENING);
+
+    await page.goto(`/read/${track}/${unitId}/en/${n - 1}`);
+    await keysReady(page);
+    await reveal(page).click();
+    await expect(page).toHaveURL(new RegExp(`/read/${track}/${unitId}/en/${n}$`));
+    await expect(heading(page)).toBeFocused();
+
+    // Still a named Tab stop once the page has looked at it — the name is the block's own.
+    await expect(formula).toHaveAttribute('tabindex', '0');
+    await expect(formula).toHaveAccessibleName(en.wideFormula);
+
+    const said = await describedAs(page, '#frame-heading');
+    expect(flat(said), `the new frame's heading is described as “${said}”`).toContain(maths.slice(0, OPENING));
   });
 });

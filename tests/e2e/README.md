@@ -79,7 +79,7 @@ was first written with.
 | `program-ends.spec.ts` | the summary's return index and its way on, and the contents page's way back |
 | `progress.spec.ts` | coming back to where one was, with no account |
 | `reader-identity.spec.ts` | an anonymous reader's place is held in a cookie the page cannot read, and no header can claim it (ADR-0061) |
-| `reading-loop.spec.ts` | the reading loop explains itself: the cue under the answer line, focus on the new frame's heading, the keys standing aside at a control, `?`, and a formula wider than a phone reachable from the keyboard (#159) |
+| `reading-loop.spec.ts` | the reading loop explains itself: the cue under the answer line, focus on the new frame's heading and the answer said with it — a formula wider than a phone included, asked of the browser's own accessibility tree — the keys standing aside at a control, `?` and Esc, and a formula wider than a phone reachable from the keyboard (#159) |
 | `reading.spec.ts` | reading a program end to end from the keyboard, the frame's ergonomics, and the frame on paper |
 | `registration.spec.ts` | a reader with no account gets one, and can read the two documents it accepts first |
 | `reveal-failure.spec.ts` | a reveal the API does not take says so beside `Next` and keeps the frame — with the mouse, `→`, `Ctrl+Enter` and no JavaScript (#138) |

@@ -9,6 +9,8 @@ export interface WideContentProps {
   readonly formula: string;
   readonly table: string;
   readonly code: string;
+  /** The chrome's own language, for those names; the blocks they name are in the book's. */
+  readonly language: string;
 }
 
 /**
@@ -16,6 +18,13 @@ export interface WideContentProps {
  * `.katex-display`), and the table and code blocks `rich-text.tsx` marks with `data-wide`.
  */
 const WIDE = '.katex-display, [data-wide]';
+
+/** The hidden element that names each kind of block — the header says why an element. */
+const NAMED_BY = {
+  formula: 'wide-name-formula',
+  table: 'wide-name-table',
+  code: 'wide-name-code',
+} as const;
 
 /**
  * A BLOCK TOO WIDE FOR THE MEASURE BECOMES SOMETHING A KEYBOARD CAN REACH (#159).
@@ -38,14 +47,33 @@ const WIDE = '.katex-display, [data-wide]';
  * click in a focusable formula takes the arrows away from the page. Whether a block scrolls is
  * known only in a browser, and it changes: with the window, which the `ResizeObserver` sees,
  * and when the maths' faces arrive (`font-display: swap`), which the font set announces. The
- * three attributes follow it both ways.
+ * attributes follow it both ways.
  * ──────────────────────────────────────────────────────────────────────────────────────────
  *
- * Inside the frame's keyed `<article>`, so it looks again on every frame. It renders nothing,
- * and its props are three chrome strings: a Client Component's props are in the document
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ * THE NAME IS AN `aria-labelledby`, NEVER AN `aria-label`, AND THE DIFFERENCE IS WHETHER THE
+ * ANSWER IS HEARD.
+ *
+ * The frame's heading is described by the answer box (`frame-view.tsx`), and a description is
+ * computed by walking the box's content. Where that walk meets an `aria-label` it says the
+ * label INSTEAD of what is under it (accname 1.2, the AriaLabel step, 2D). With one here, a
+ * frame opening with a formula wide enough to scroll was announced as *Answer to frame 9
+ * Formula* — the word where the maths should be, and on a frame whose answer IS the formula,
+ * the whole answer. Measured in Chromium's accessibility tree at 360 px, and at 1280 px on the
+ * widest. An `aria-labelledby` is not followed while another element's `aria-describedby` or
+ * `aria-labelledby` is being walked (the LabelledBy step, 2B), so the walk goes on into the
+ * maths — and the block that takes focus is still named `Formula`, because the element an
+ * `aria-labelledby` points at may be hidden (the Hidden Not Referenced step, 2A).
+ *
+ * So this component renders the names, hidden, in the chrome's language, and the blocks point
+ * at them. They are outside the answer box, and hidden, so no walk through the frame reads them.
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Inside the frame's keyed `<article>`, so it looks again on every frame. Its props are chrome
+ * strings and never the book's text: a Client Component's props are in the document
  * (`frame-keys.tsx` says why that is a rule).
  */
-export function WideContent({ formula, table, code }: WideContentProps): null {
+export function WideContent({ formula, table, code, language }: WideContentProps): React.JSX.Element {
   useEffect(() => {
     const frame = document.getElementById(FRAME_ID);
     if (!frame) return;
@@ -54,7 +82,7 @@ export function WideContent({ formula, table, code }: WideContentProps): null {
 
     const nameOf = (block: HTMLElement): string => {
       const kind = block.dataset.wide;
-      return kind === 'table' ? table : kind === 'code' ? code : formula;
+      return kind === 'table' ? NAMED_BY.table : kind === 'code' ? NAMED_BY.code : NAMED_BY.formula;
     };
 
     const update = (): void => {
@@ -62,11 +90,11 @@ export function WideContent({ formula, table, code }: WideContentProps): null {
         if (block.scrollWidth > block.clientWidth) {
           block.tabIndex = 0;
           block.setAttribute('role', 'group');
-          block.setAttribute('aria-label', nameOf(block));
+          block.setAttribute('aria-labelledby', nameOf(block));
         } else {
           block.removeAttribute('tabindex');
           block.removeAttribute('role');
-          block.removeAttribute('aria-label');
+          block.removeAttribute('aria-labelledby');
         }
       }
     };
@@ -85,7 +113,19 @@ export function WideContent({ formula, table, code }: WideContentProps): null {
       observer?.disconnect();
       document.fonts.removeEventListener('loadingdone', update);
     };
-  }, [formula, table, code]);
+  }, []);
 
-  return null;
+  return (
+    <>
+      <span hidden id={NAMED_BY.formula} lang={language}>
+        {formula}
+      </span>
+      <span hidden id={NAMED_BY.table} lang={language}>
+        {table}
+      </span>
+      <span hidden id={NAMED_BY.code} lang={language}>
+        {code}
+      </span>
+    </>
+  );
 }
