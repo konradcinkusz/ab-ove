@@ -348,8 +348,9 @@ closed set (§7). Two things about them are authservice's to decide, not this ap
 - **A reset form sent twice before the first answer arrives can report a spent link for a
   password it changed.** It is a plain form with no script, so a double press can send two
   POSTs. The first changes the password, and authservice refuses the second's token as used.
-  The page then says nothing was changed, which is untrue. `lib/server/account-recovery.ts`
-  records the same sentence for a timeout after authservice has acted. The new password works,
-  and the page offers a new link.
+  The page says the link no longer works, and that a link just used has already done what it
+  was for, which is true here. It does not say nothing was changed. `lib/server/account-recovery.ts`
+  records the same answer for a timeout after authservice has acted. The new password works,
+  and the page also offers a new link.
 
 Not a deviation from the reference architecture; no register row.

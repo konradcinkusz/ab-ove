@@ -29,8 +29,10 @@ import { readerEdition } from '@/lib/server/reader-edition';
  * used only by the POST from the form on the page this leads to, which a mail program that
  * fetches links to scan them never makes.
  *
- * A link that carries no usable pair still arrives on the page, which then says no reset is
- * open and how to get one. A pair already held is replaced, never kept beside a newer one.
+ * A link that carries no usable pair still arrives on the page. With no pair held from an
+ * earlier link, the page says no reset is open and how to get one; a pair an earlier link left
+ * is kept, and the page offers its form, because a link with no usable pair names nothing newer.
+ * A usable pair replaces one already held, and is never kept beside it.
  *
  * The edition is the one this browser remembers — a link from an email names none — and the
  * redirect names it, as every way into these pages does (issue #166). The page is the same

@@ -1612,7 +1612,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       },
       'link-invalid': {
         title: 'That link no longer works.',
-        detail: 'A link works once, and not for ever. Nothing was changed; a new link is one step away.',
+        detail: 'A link works once, and not for ever. If this one was just used, what it was for is already done; if not, a new link is one step away.',
       },
       'link-lapsed': {
         title: 'That took longer than this page holds the link.',
@@ -2375,7 +2375,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       },
       'link-invalid': {
         title: 'Ten link już nie działa.',
-        detail: 'Link działa jeden raz i nie bez końca. Nic nie zostało zmienione; nowy link jest o krok stąd.',
+        detail: 'Link działa jeden raz i nie bez końca. Jeśli właśnie go użyto, to, do czego służył, jest już zrobione; jeśli nie, nowy link jest o krok stąd.',
       },
       'link-lapsed': {
         title: 'Minęło więcej czasu, niż ta strona przechowuje link.',

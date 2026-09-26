@@ -27,7 +27,7 @@ import { sessionCookieAttributes } from '@/lib/session-cookies';
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * `SameSite=Lax`, WHERE EVERY OTHER COOKIE THIS APP SETS ON ITS SERVER IS `Strict`.
+ * `SameSite=Lax`, AGAINST THIS APP'S RULE THAT A COOKIE ITS SERVER SETS IS `Strict`.
  *
  * A link in an email is followed FROM ANOTHER SITE — the reader's mail — and a browser does
  * not send a `Strict` cookie on a navigation another site started, nor on the redirects that
