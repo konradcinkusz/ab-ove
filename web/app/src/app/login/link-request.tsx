@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { Masthead } from '@/components/masthead/masthead';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import {
   forgotPasswordHref,
   resendConfirmationHref,
@@ -131,19 +132,15 @@ export async function LinkRequestPage({
 
   return (
     <main className="shell" lang={chrome.language}>
-      <SkipLink language={chrome.language} />
-      <header className="masthead">
-        {/* The way home, as on `/login` (issue #166). */}
-        <p className="wordmark">
-          <Link href={home} prefetch={false}>
-            ab<span>-</span>ovo
-          </Link>
-        </p>
-        <h1 className="lede" id={SKIP_TARGET_ID}>
-          {strings.lede}
-        </h1>
-        <p className="standfirst">{strings.standfirst}</p>
-      </header>
+      {/*
+        The one masthead (#169), as on `/login`: its wordmark is the way home, to the programs in
+        this edition (#166), and it renders the skip link.
+      */}
+      <Masthead home={home} language={chrome.language} />
+      <h1 className="lede" id={SKIP_TARGET_ID}>
+        {strings.lede}
+      </h1>
+      <p className="standfirst">{strings.standfirst}</p>
 
       {problemWords ? (
         <section className={styles.problem} aria-live="polite">
