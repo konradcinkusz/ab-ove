@@ -3,7 +3,8 @@
  *
  * Everything worth asserting about the gate and the tool surface is asserted at the layer
  * with the logic (P13) in reveal.test.ts and tools.test.ts. What only this file can say is
- * that the wiring in server.ts exposes it: the annotations reach a client's `listTools`,
+ * that the wiring in server.ts exposes it: the annotations and the output schemas reach a
+ * client's `listTools`, every result a client receives matches its tool's output schema,
  * the prompt is listed and renders, and a completion answers with ids. A capability
  * declared wrongly throws at registration, which is the one failure this catches before a
  * host does.
@@ -14,18 +15,42 @@ import { test } from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ElicitRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv';
 
 import { MemoryCursorStore } from './cursor.ts';
 import { fixtureBundles } from './content.ts';
+import type { Bundle, BundleSource, Unit } from './content.ts';
 import { createServer } from './server.ts';
 
-async function connected(): Promise<Client> {
+/**
+ * A client of a server whose place is kept in memory. `declines` makes it a host that can
+ * ask the reader directly, and a reader who declines whatever is asked.
+ */
+async function connected(
+  bundles: BundleSource = fixtureBundles(),
+  options: { readonly declines?: boolean } = {},
+): Promise<Client> {
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
-  const server = createServer(new MemoryCursorStore(), { bundles: fixtureBundles(), placeIsEphemeral: true });
+  const server = createServer(new MemoryCursorStore(), { bundles, placeIsEphemeral: true });
   await server.connect(serverSide);
-  const client = new Client({ name: 'server.test', version: '0.0.0' });
+  const client = options.declines
+    ? new Client({ name: 'server.test', version: '0.0.0' }, { capabilities: { elicitation: { form: {} } } })
+    : new Client({ name: 'server.test', version: '0.0.0' });
+  if (options.declines) client.setRequestHandler(ElicitRequestSchema, async () => ({ action: 'decline' as const }));
   await client.connect(clientSide);
   return client;
+}
+
+/**
+ * Three programs from the fixture's one, so the reading order has a program to refuse and
+ * the hand-off has a next program to name. `tools.test.ts`'s `sequence()`, one file over.
+ */
+function threePrograms(): BundleSource {
+  const bundle = fixtureBundles().all()[0]!;
+  const bare: { -readonly [K in keyof Unit]?: Unit[K] } = { ...bundle.units[0]! };
+  delete bare.part;
+  const three: Bundle = { ...bundle, units: ['F01', 'F02', 'F03'].map((id) => ({ ...(bare as Unit), id })) };
+  return { for: (track) => (track === three.track.id ? three : undefined), all: () => [three] };
 }
 
 // `callTool` may answer the legacy `toolResult` shape as well as `content`; only the latter is read.
@@ -58,7 +83,106 @@ test('a tool call answers through the same wiring', async () => {
   const listed = await client.callTool({ name: 'list_programs', arguments: {} });
   assert.match(text(listed), /P01 · How a computer stores a number/);
   assert.match(text(listed), /kept for this session only/);
+
+  // #164: once per session in the words, and on every result in the data.
+  const opened = await client.callTool({ name: 'open_program', arguments: { unit: 'P01', language: 'en' } });
+  assert.doesNotMatch(text(opened), /kept for this session only/);
+  for (const result of [listed, opened]) {
+    assert.equal((result.structuredContent as { placeIsEphemeral?: boolean }).placeIsEphemeral, true);
+  }
   await client.close();
+});
+
+/** A result as a client receives it, read loosely: `callTool` may also answer a legacy shape. */
+interface Received {
+  readonly content?: readonly { readonly type: string; readonly text?: string }[];
+  readonly structuredContent?: Record<string, unknown>;
+  readonly isError?: boolean;
+}
+
+test("every result a client receives validates against its tool's output schema, and carries the text's words", async () => {
+  /*
+    #164's first done-when. The SDK's client already validates a result against the schema
+    `listTools` gave it, and throws on a mismatch; this asks the same validator itself, so the
+    assertion is this file's rather than a default of the SDK's that a later version could
+    change. The walk goes through every shape a tool can answer with — and then checks it
+    did, member by member, so it validates the schemas and not one corner of them.
+  */
+  const client = await connected(threePrograms());
+  const { tools } = await client.listTools();
+  const validator = new AjvJsonSchemaValidator();
+  const validate = new Map(
+    tools.map((tool) => {
+      assert.equal(tool.outputSchema?.type, 'object', `${tool.name} declares no output schema`);
+      return [tool.name, validator.getValidator(tool.outputSchema!)] as const;
+    }),
+  );
+  const sent = new Map(tools.map((tool) => [tool.name, new Set<string>()] as const));
+  const kinds = new Set<string>();
+
+  const call = async (name: string, args: Record<string, unknown> = {}, through: Client = client): Promise<void> => {
+    const result = (await through.callTool({ name, arguments: args })) as Received;
+    const where = `${name} ${JSON.stringify(args)}`;
+    const words = (result.content ?? []).map((part) => part.text ?? '').join('');
+    if (result.isError) {
+      assert.equal(result.structuredContent, undefined, `${where}: an error carries its text alone`);
+      return;
+    }
+    const data = result.structuredContent;
+    assert.ok(data, `${where} answered with no structured content`);
+    const verdict = validate.get(name)!(data);
+    assert.ok(verdict.valid, `${where}: ${verdict.errorMessage}\n${JSON.stringify(data)}`);
+    assert.equal(data['text'], words, `${where}: the data does not carry the text's words`);
+    for (const member of Object.keys(data)) sent.get(name)!.add(member);
+    const refusal = data['refusal'] as { readonly kind: string } | undefined;
+    if (refusal) kinds.add(refusal.kind);
+  };
+
+  // A new reader: the list, a program the order keeps shut, and a first opening's question.
+  await call('list_programs');
+  await call('list_programs', { all: true });
+  await call('list_programs', { language: 'pl' });
+  await call('open_program', { unit: 'F02' });
+  await call('current_step', { unit: 'F02' });
+  await call('review_step', { unit: 'F02', step: 1 });
+  await call('submit_answer', { unit: 'F02', step: 1 });
+  await call('open_program', { unit: 'F01' });
+  // Through F01, with a re-read, a retry, a submit ahead and a switch of edition on the way.
+  await call('open_program', { unit: 'F01', language: 'en' });
+  await call('current_step', { unit: 'F01' });
+  await call('review_step', { unit: 'F01', step: 3 });
+  await call('review_step', { unit: 'F01', step: 900 });
+  await call('submit_answer', { unit: 'F01', step: 1 });
+  await call('submit_answer', { unit: 'F01', step: 1, answer: 'again' });
+  await call('submit_answer', { unit: 'F01', step: 4, answer: 'ahead' });
+  await call('submit_answer', { unit: 'F01', step: 2, answer: 'the reader wrote this' });
+  await call('review_step', { unit: 'F01', step: 2 });
+  await call('open_program', { unit: 'F01', language: 'pl' });
+  await call('submit_answer', { unit: 'F01', step: 3, answer: 'and this' });
+  // The end of a program, and the program it opens.
+  await call('submit_answer', { unit: 'F01', step: 4 });
+  await call('open_program', { unit: 'F01' });
+  await call('open_program', { unit: 'F02' });
+  await call('submit_answer', { unit: 'F02' });
+  await call('list_programs');
+  await client.close();
+
+  // A reader who declines what the host asks them directly: the edition, then an answer.
+  const declining = await connected(threePrograms(), { declines: true });
+  await call('open_program', { unit: 'F01' }, declining);
+  await call('open_program', { unit: 'F01', language: 'en' }, declining);
+  await call('submit_answer', { unit: 'F01', step: 1 }, declining);
+  await call('submit_answer', { unit: 'F01', step: 2, answer: 'x' }, declining);
+  await declining.close();
+
+  for (const tool of tools) {
+    assert.deepEqual(
+      [...sent.get(tool.name)!].sort(),
+      Object.keys(tool.outputSchema!.properties ?? {}).sort(),
+      `${tool.name}: a member its schema declares was never sent, so never validated`,
+    );
+  }
+  assert.deepEqual([...kinds].sort(), ['already-answered', 'declined', 'not-open', 'not-reached']);
 });
 
 test('a host that can elicit is asked for the edition with the track\'s editions as the choices', async () => {

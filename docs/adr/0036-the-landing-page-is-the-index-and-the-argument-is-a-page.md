@@ -8,6 +8,10 @@ Amends [ADR-0015](0015-the-reading-index-has-no-default-language.md), which anti
 this in its own last paragraph and is not superseded: its refusal of a default edition
 holds, and this file is what keeps it holding once a switch exists.
 
+Amended on 2026-09-26 by issue #158, with no ADR of its own: the index asks the API, from the
+browser, whether a program would open, and says so when none will. The sentence this
+overtakes is annotated below; the decision is unchanged.
+
 ## Context
 
 `/` was the product's argument — a masthead, the anti-goal, the reader loop in four steps,
@@ -82,6 +86,13 @@ only component reading `/api/config`, so `specs/runtime-config.spec.ts` drives `
 the no-`NEXT_PUBLIC_*` property (FRONTEND-BFF.md §2). A version of that test left pointed at
 `/` would have gone green on a page that had stopped asking, which is the failure mode it
 exists to catch.
+
+> **Amended by issue #158:** the landing page does make requests of its own. The account
+> control asks this origin whether there is a session, which it already did when this was
+> written, and since issue #158 the index asks the API, through this origin's proxy, whether a
+> program would open (`web/app/src/components/programs/reading-unavailable.tsx`). What holds
+> is the property this paragraph is about: nothing on it asks for `/api/config`, so
+> `specs/runtime-config.spec.ts` still drives `/about`.
 
 **The anti-goal is now stated on one page and enforced on two.** `specs/about.spec.ts`
 asserts the promise where it is made; `specs/landing.spec.ts` keeps the two negative

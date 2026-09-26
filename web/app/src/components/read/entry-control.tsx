@@ -58,8 +58,8 @@ const useEntry = ({ track, unit, last, language }: EntryControlProps) => {
  *
  * A POSITION OF N DOES NOT MEAN FINISHED. The store holds a frame number, so "read the
  * last frame" and "opened the summary" are the same record; `program-summary.tsx` declines
- * to write one at all precisely because N would be a lie on a deep link. Branching a
- * control on a value that cannot carry the distinction is guessing with extra steps.
+ * to write one at all, because the summary is not a frame. Branching a control on a value
+ * that cannot carry the distinction is guessing with extra steps.
  *
  * AND THE TWO RESUME CONTROLS MUST AGREE. `ResumeLast` on the index and this one look
  * alike and mean the same thing, so one of them quietly leading somewhere else is worse
@@ -68,9 +68,11 @@ const useEntry = ({ track, unit, last, language }: EntryControlProps) => {
  * has just finished is actually looking.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * It links to the edition the reader was actually in, which may not be the edition of the
- * contents page they are looking at — that is the record being right rather than the
- * control being inconsistent, and #6 made the edition part of the position for this reason.
+ * It links to the furthest frame the reader reached in this program, not the one they last
+ * looked at (issue #157, `positionIn`), in the edition they read it in — which may not be the
+ * edition of the contents page they are looking at. That is the record being right rather
+ * than the control being inconsistent, and #6 made the edition part of the position for this
+ * reason.
  */
 export function EntryControl(props: EntryControlProps): React.JSX.Element {
   const { chrome, here, startAt } = useEntry(props);

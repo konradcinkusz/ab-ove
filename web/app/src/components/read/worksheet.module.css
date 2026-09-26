@@ -108,6 +108,19 @@
   color: var(--ink-soft);
 }
 
+/*
+ * THE CUE, UNDER THE LINE FOR GOOD — `answer-line.tsx` says why (#159). The note's face and
+ * size, so the two read as one voice under the field, but upright: the note's italic is for a
+ * remark about what the reader wrote, and this is the frame's own sentence. `--ink-faint`
+ * clears 4.5:1 on the paper in both schemes (`tokens.test.ts`), so it is quiet and legible.
+ */
+.cue {
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  margin: 0.25rem 0 0;
+}
+
 /* Always a line tall, and empty until there is something to say — answer-line.tsx says why. */
 .note {
   color: var(--ink-faint);

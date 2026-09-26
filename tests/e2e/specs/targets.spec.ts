@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
 
-import { languages, track, unitNamed } from './support/bundle.ts';
+import { languages, served, track, unitNamed } from './support/bundle.ts';
 
 /**
  * THE SMALL CONTROLS OFF THE READING SCREENS ARE A FINGER’S TARGET NOW — issue #147.
@@ -32,6 +32,9 @@ import { languages, track, unitNamed } from './support/bundle.ts';
  * `progress.spec.ts`'s shift bound goes on holding the part a reader can feel: the row not
  * growing when its controls arrive.
  * ────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * The controls issue #163 added off the reading screens are held here from the start: the
+ * index's language choice, drawn as boxes rather than words, and the shut notice's way on.
  *
  * The controls are found by where they go rather than by their words wherever that is enough,
  * so the index runs in every edition the book has without a copy of either one's strings —
@@ -154,8 +157,9 @@ const topRow = (page: Page): Locator => page.locator('header nav');
 
 for (const [screen, viewport] of SCREENS) {
   for (const language of languages) {
-    // One run in the smoke layer — the phone, where the row wraps and the overlap is — so a
-    // pull request is gated on the case most likely to break; the rest are regression.
+    // One run of each test below in the smoke layer — the phone, where the row wraps and the
+    // overlap is — so a pull request is gated on the case most likely to break; the rest are
+    // regression.
     const layer = screen === 'a phone' && language === 'en' ? '@smoke' : '@core';
 
     test(`on ${screen}, in ${language}, the index's top-row links and quiet buttons are finger's targets ${layer}`, async ({
@@ -191,7 +195,38 @@ for (const [screen, viewport] of SCREENS) {
       // And *Sign in*, which renders once the session has answered.
       await isAFingersTarget(row.locator('a[href^="/login"]'), where);
     });
+
+    test(`on ${screen}, in ${language}, the index's edition choice is a finger's target ${layer}`, async ({
+      page,
+    }) => {
+      /*
+        The other edition, on the heading's line rather than in the top row: drawn as a control
+        on the index since issue #163, where its quiet words were easy to miss. Found by where
+        it goes, like the rest — the index in the other edition, and nothing else on the page
+        links there. A fresh browser, because the reader it was drawn for has not chosen yet.
+      */
+      await page.setViewportSize(viewport);
+      await page.goto(`/?lang=${language}`);
+
+      const other = languages.find((candidate) => candidate !== language);
+      expect(other, 'the book has one edition, so there is no choice to measure').toBeDefined();
+      await isAFingersTarget(page.locator(`a[href="/?lang=${other}"]`), `on ${screen}, in ${language}`);
+    });
   }
+
+  test(`on ${screen}, the shut notice's way on is a finger's target @core`, async ({ page }) => {
+    /*
+      The link issue #163 added under the notice, to the program that opens the one the
+      reader was turned away from. A fresh browser asking for the second program is bounced,
+      and the way on is the first.
+    */
+    await page.setViewportSize(viewport);
+    const second = served.units[1]!.id;
+    await page.goto(`/read/${track}/${second}/en`);
+    await page.waitForURL((url) => url.searchParams.get('shut') === second);
+
+    await isAFingersTarget(page.getByRole('status').getByRole('link'), `on ${screen}, in the shut notice`);
+  });
 
   test(`on ${screen}, a signed-in reader's account controls and the sync notice are finger's targets @core`, async ({
     page,
@@ -208,6 +243,8 @@ for (const [screen, viewport] of SCREENS) {
     const notice = page.getByRole('status');
     await expect(notice, 'the account never told this browser it was behind').toContainText(UNIT);
     await isAFingersTarget(notice.getByRole('button'), where);
+    // Its `Go to frame N` too (issue #157), in a column of its own so neither covers the other.
+    await isAFingersTarget(notice.getByRole('link'), where);
   });
 
   test(`on ${screen}, the consent line's toggle is a finger's target @core`, async ({ page }) => {

@@ -9,8 +9,8 @@
  * delete, and **no aggregate may ever be computed from it**. That is issue #12's clause and
  * the cheapest moment to honour it is now, before a store exists to query — which is also
  * why this module has no timestamp, no counter, no streak and no percentage. It records one
- * position per program and the program a reader was last in. Nothing here can be turned
- * into a score, because there is nothing here to score.
+ * position per program — the furthest frame reached in it — and the frame a reader last
+ * viewed. Nothing here can be turned into a score, because there is nothing here to score.
  *
  * ADR-0004's other half is why this comes BEFORE sign-in rather than after: the reader loop
  * must work with no account at all, and building sign-in first produces a product whose
@@ -48,10 +48,41 @@ export interface ProgramRef {
   readonly unit: string;
 }
 
+/**
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * TWO POSITIONS, AND THEY ANSWER TWO QUESTIONS — ISSUE #157.
+ *
+ * `positions` is HOW FAR: the furthest frame reached in each program, here or on the
+ * account, in the edition it was reached in. It only ever moves forward, it is what the sync
+ * sends and merges (ADR-0019 governs it, tie rule and all), and it is what every control
+ * that offers a place offers — the index's *Continue*, the contents page's, a tile's `at
+ * frame 12`. `last` is WHERE THIS BROWSER WAS: the frame it last showed, and so which
+ * program to offer. It is written by reading; the sync writes it only for a browser that has
+ * none, to point at the program the account touched last (ADR-0019's pointer).
+ *
+ * They were one number until #157, and going back from frame 20 to frame 19 overwrote the
+ * 20. The account still held it, so the next sync raised this browser back to 20 and told
+ * the reader it had been read on another device, which was false: they had gone back one
+ * frame, here. With the furthest kept on its own, re-reading an earlier frame lowers
+ * nothing, sends nothing and announces nothing.
+ *
+ * Both are positions (ADR-0041): a frame number says where a reader is, and neither is a
+ * count of frames read. The stored shape did not change, so `PROGRESS_VERSION` did not
+ * either: a record written before #157 holds the frame last viewed where the furthest now
+ * goes, which is a furthest that may be behind, and reading past it — or a sync, for a
+ * signed-in reader — puts it right.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
 export interface Progress {
-  /** The program the reader was last in, so an index can offer one control rather than a list. */
+  /**
+   * The frame this browser last showed. Its program is the one the index offers a control
+   * for, at that program's furthest frame — at `last`'s own frame and edition only for a
+   * record that holds no furthest there (`ResumeLast`). Its frame is what the sync notice asks
+   * of a raise: whether it could be this browser's own reveal on its way, and whether it has
+   * been shown here since (`couldBeOwnReveal` and `shownHere` in `reconcile.ts`).
+   */
   readonly last?: ProgramRef & Position;
-  /** One position per program, keyed by `track/unit`. */
+  /** The furthest frame reached in each program, keyed by `track/unit`. */
   readonly positions: Readonly<Record<string, Position>>;
 }
 
@@ -146,7 +177,12 @@ export function read(slot: Slot | undefined): Progress {
 }
 
 /**
- * Record where a reader is, and return what was stored.
+ * Record the frame a reader is looking at, and return what was stored.
+ *
+ * `last` becomes this frame whatever it is. The program's furthest moves only when this
+ * frame is at or past it — at it, so a reader who switches edition on their furthest frame
+ * takes the furthest with them; behind it, and nothing about how far they got changes (issue
+ * #157, and see `Progress` above).
  *
  * Returning the new record rather than nothing is what lets the caller render from it
  * without a second read — and it is what makes this function testable without a browser.
@@ -159,9 +195,14 @@ export function remember(
   position: Position,
 ): Progress {
   const current = read(slot);
+  const key = keyOf(program);
+  const furthest = current.positions[key];
   const next: Progress = {
     last: { ...program, ...position },
-    positions: { ...current.positions, [keyOf(program)]: position },
+    positions: {
+      ...current.positions,
+      [key]: furthest && furthest.step > position.step ? furthest : position,
+    },
   };
 
   write(slot, next);
@@ -235,7 +276,12 @@ export function forget(slot: Slot | undefined): Progress {
 }
 
 /**
- * The reader's place in one program, clamped to what that program still has.
+ * The furthest frame reached in one program, clamped to what that program still has.
+ *
+ * This is the place every control offers — the index's *Continue*, the contents page's, a
+ * tile's `at frame 12` — so a reader who went back to re-read is still offered the frame they
+ * had got to (issue #157). Not the gate's furthest: a signed-out reader's record can hold a
+ * frame the API's anonymous cursor has not reached, which `signed-out-hint.tsx` explains.
  *
  * A bundle can get shorter — a program is revised, a tag moves — and a stored frame 40 in a
  * program that now has 30 would be a resume control leading to a 404. Clamping rather than

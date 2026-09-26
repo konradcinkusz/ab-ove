@@ -146,10 +146,15 @@ export default async function SecondFactorPage({
 
       <section className="section">
         <h2>If you have lost both</h2>
+        {/*
+          Whose the reset is, in the reader's terms: the service that holds their account.
+          It said "the identity service this deployment is configured against", which is how
+          an operator finds it (issue #162).
+        */}
         <p>
           Recovery codes are the way back when the authenticator is gone, and they run out.
-          ab-ovo cannot reset a second factor or issue new recovery codes — that belongs to
-          the identity service this deployment is configured against, not to the reader.
+          ab-ovo cannot reset a second factor or issue new recovery codes; only the identity
+          service that holds your account can.
         </p>
         <p>
           Nothing except progress that follows you between machines needs an account at all,

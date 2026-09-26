@@ -26,19 +26,20 @@ import { signIn } from './support/sign-in.ts';
 /**
  * The gate, and the hole a gate would have punched in this feature.
  *
- * `/account` is private by default — it is in neither list in the middleware — and
- * `/account/deleted` has an entry of its own. That asymmetry is the whole of a defect that
- * is invisible in any single file: the deletion route's last act is to clear the session,
- * so the page the reader is redirected to is reached WITHOUT one. Private, it would bounce
- * them to a sign-in form for the account they had just deleted, and every part in
- * isolation would look correct.
+ * The deletion screen is `/account/delete` since issue #161 — `/account` is the account's
+ * overview now, and `account-overview.spec.ts` holds it. Both are private by default — in
+ * neither list in the middleware — and `/account/deleted` has an entry of its own. That
+ * asymmetry is the whole of a defect that is invisible in any single file: the deletion
+ * route's last act is to clear the session, so the page the reader is redirected to is
+ * reached WITHOUT one. Private, it would bounce them to a sign-in form for the account they
+ * had just deleted, and every part in isolation would look correct.
  */
 test.describe('the gate, and the page on the other side of it', () => {
   test('the deletion screen needs a session @smoke', async ({ page }) => {
-    await page.goto('/account');
+    await page.goto('/account/delete');
     await expect(page).toHaveURL(/\/login\?/);
     // Carried through, so signing in returns the reader to the screen they asked for.
-    expect(new URL(page.url()).searchParams.get('redirect')).toBe('/account');
+    expect(new URL(page.url()).searchParams.get('redirect')).toBe('/account/delete');
   });
 
   test('the page a deletion ends on does NOT need a session @smoke', async ({ request }) => {
@@ -60,17 +61,21 @@ test.describe('the gate, and the page on the other side of it', () => {
  * folded into a rate... A deletion screen that implies otherwise is claiming a capability
  * the schema was designed not to have."
  *
- * It is asserted on `/account/deleted` rather than on `/account` because that page is
- * public and this suite has no session — which is a real property of the design and not a
- * workaround: the sentence is on BOTH screens deliberately, since the moment a reader most
- * needs to know what a deletion did not reach is after it has happened.
+ * It is asserted on `/account/deleted` rather than on the deletion screen because that page
+ * is public and this suite has no session — which is a real property of the design and not
+ * a workaround: the sentence is on BOTH screens deliberately, since the moment a reader most
+ * needs to know what a deletion did not reach is after it has happened. The deletion screen
+ * itself is read below, signed in, under the identity project.
  */
 test.describe('what a deletion cannot reach is on the page, in the reader’s language', () => {
   test('in English @core', async ({ page }) => {
     await page.goto('/account/deleted');
 
+    // The same property in the reader's words since issue #162, which are the consent's
+    // (#153): what is counted, and that nothing can tell which counts came from them. It
+    // said "no row of it" and "folded into a rate", which is the schema describing itself.
     const main = page.locator('main');
-    await expect(main).toContainText('no row of it knows it was yours');
+    await expect(main).toContainText('nothing can tell which counts came from you');
     await expect(main).toContainText('cannot be taken back out');
     // What survives, which a reader is as entitled to know as what does not.
     await expect(main).toContainText('This browser keeps its own copy');
@@ -81,7 +86,7 @@ test.describe('what a deletion cannot reach is on the page, in the reader’s la
 
     const main = page.locator('main');
     await expect(main).toHaveAttribute('lang', 'pl');
-    await expect(main).toContainText('żaden jego wiersz nie wie');
+    await expect(main).toContainText('nic nie wie, które liczby pochodzą od ciebie');
   });
 
   test('an unknown language falls back rather than failing @core', async ({ page }) => {
@@ -89,7 +94,7 @@ test.describe('what a deletion cannot reach is on the page, in the reader’s la
     // has no words for gets English chrome, never `undefined` rendered into a paragraph.
     await page.goto('/account/deleted?lang=xx-nonsense');
     await expect(page.locator('main')).toHaveAttribute('lang', 'en');
-    await expect(page.locator('main')).toContainText('no row of it knows it was yours');
+    await expect(page.locator('main')).toContainText('nothing can tell which counts came from you');
   });
 });
 
@@ -183,17 +188,18 @@ test('an unconfigured deployment says so rather than claiming a deletion @core',
  * THE FOUR THINGS ADR-0021 SAYS THE SCREEN MUST SAY BEFORE THE BUTTON — and the one that
  * went unsaid for a whole release without anything noticing.
  *
- * A JSX comment in `app/account/page.tsx` was opened and never closed. The parser swallowed
- * the section that says the account is marked and scheduled rather than erased, the page
- * compiled, and every gate stayed green, because no gate read the screen a reader would.
- * This block reads it. It needs a session, so it runs under the identity project, and it
- * asserts the HEADINGS: they are the four questions the screen exists to answer, and a
+ * A JSX comment in the deletion screen's page — `app/account/page.tsx` then, and
+ * `app/account/delete/page.tsx` since issue #161 — was opened and never closed. The parser
+ * swallowed the section that says the account is marked and scheduled rather than erased,
+ * the page compiled, and every gate stayed green, because no gate read the screen a reader
+ * would. This block reads it. It needs a session, so it runs under the identity project, and
+ * it asserts the HEADINGS: they are the four questions the screen exists to answer, and a
  * heading that is present with its paragraph missing is not a shape this page can produce.
  */
 test.describe('the deletion screen says all four things before the button', () => {
   test('in English @identity', async ({ page }) => {
-    await page.goto('/login?redirect=%2Faccount');
-    await signIn(page, READER, /\/account(\?|$)/);
+    await page.goto('/login?redirect=%2Faccount%2Fdelete');
+    await signIn(page, READER, /\/account\/delete(\?|$)/);
 
     const main = page.locator('main');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Delete your account');
@@ -214,12 +220,61 @@ test.describe('the deletion screen says all four things before the button', () =
   });
 
   test('in Polish @identity', async ({ page }) => {
-    await page.goto('/login?redirect=%2Faccount%3Flang%3Dpl');
-    await signIn(page, READER, /\/account\?lang=pl/);
+    await page.goto('/login?redirect=%2Faccount%2Fdelete%3Flang%3Dpl');
+    await signIn(page, READER, /\/account\/delete\?lang=pl/);
 
     await expect(page.locator('main')).toHaveAttribute('lang', 'pl');
     await expect(page.getByRole('heading', { name: 'Co zostaje' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Czego to nie dosięgnie' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Konto nie znika od razu' })).toBeVisible();
+  });
+});
+
+/**
+ * WHERE A REFUSAL LANDS, NOW THAT THE SCREEN HAS MOVED (issue #161).
+ *
+ * The route answers a plain form with a 303, and the address it names is its only channel
+ * back to the reader. It named `/account` while the deletion screen lived there. The overview
+ * holds that address now and reads no `?error=`, so a refusal sent to it would put the reader
+ * one page away from the form they have to fill again, with the reason on no page at all —
+ * and nothing would fail: the redirect succeeds and the overview renders.
+ *
+ * A wrong confirmation word is the one refusal this suite can cause while being sure nothing
+ * is deleted: the route refuses it before it reads the session or calls either service
+ * (`app/api/auth/account/delete/route.ts`), and the smoke test above holds "never succeeds"
+ * for it. So it is typed into the real form, signed in, and the redirect followed.
+ */
+test.describe('a refused deletion comes back to the deletion screen', () => {
+  test('with the reason, in the reader’s edition, and the account intact @identity', async ({
+    page,
+  }) => {
+    await page.goto('/login?redirect=%2Faccount%2Fdelete%3Flang%3Dpl');
+    await signIn(page, READER, /\/account\/delete\?lang=pl/);
+
+    // A word that means nothing in either edition — `DELETE` and `USUŃ` are the two that do.
+    await page.fill('input[name="confirm"]', 'NIE');
+    await Promise.all([
+      page.waitForURL(/\/account\/delete\?.*error=/),
+      page.getByRole('button', { name: 'Usuń moje konto' }).click(),
+    ]);
+
+    const landed = new URL(page.url());
+    expect(landed.pathname, 'a refusal was sent somewhere other than the deletion screen').toBe(
+      '/account/delete',
+    );
+    expect(landed.searchParams.get('error')).toBe('confirm');
+    expect(landed.searchParams.get('lang')).toBe('pl');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Usuń konto');
+    await expect(page.getByRole('main')).toContainText(
+      'To nie jest słowo potwierdzenia. Nic nie zostało usunięte.',
+    );
+
+    // The session survived the refusal: the route clears the cookies on success and only
+    // then (ADR-0021), so a reader who mistyped is not also signed out.
+    const session = await page.evaluate(async () => {
+      const response = await fetch('/api/auth/session', { credentials: 'same-origin' });
+      return (await response.json()) as { authenticated: boolean };
+    });
+    expect(session.authenticated).toBe(true);
   });
 });

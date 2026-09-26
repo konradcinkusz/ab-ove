@@ -57,10 +57,11 @@ id and title, which lead to its contents; the language control; and *Reading set
 pager at the bottom edge carries **Previous**, where you are — `3 of 45` — and **Next**, in the
 same place on every frame and on screen while the frame scrolls under it
 ([ADR-0063](adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)). The keys work too
-(`→`, `←`, `g`), and nothing on the frame advertises them. **The position shows where you are
-and never progress** ([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md))
-— a percentage over a book of 47 programs would be a number about the reader, and this product
-does not make those.
+(`→`, `←`, `g`, and `?` for the list of them), and nothing on the frame advertises them. **The
+position shows where you are and never progress**
+([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md)) — a percentage
+over a book of 47 programs would be a number about the reader, and this product does not make
+those.
 
 ### The program map
 
@@ -128,17 +129,25 @@ is the one that needs no JavaScript
 
 ### The landing page is the index
 
-![The landing page. A wordmark; links to Courses and About, a three-position theme switch reading System, Light and Dark, and a link to Sign in; then the Programs heading with the language control offering English and polski at the end of its line, and a grid of tiles — one per program, each with its id, the program that opens it, its title, and how many frames and sections it has. At the foot of the page, a card headed "Help fix the book?" with two buttons.](assets/screenshots/landing-english.png)
+![The landing page. A wordmark; links to Courses and About, a three-position theme switch reading System, Light and Dark, and a link to Sign in; then the Programs heading, with the language control at the end of its line — English and polski as two outlined boxes, English filled. Under the heading, a paragraph saying what a program and a frame are; then the course's title, and under it a line saying that programs open in order, that the Main sequence is built on the Foundation programs, and that one frame of a program opens the next. Then a grid of tiles — one per program, each with its id, the program that opens it, its title, and how many frames and sections it has. At the foot of the page, a card headed "Help fix the book?" with two buttons.](assets/screenshots/landing-english.png)
 
 The first screen is the thing a reader came for, one navigation from a frame instead of two
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). It is a
 Server Component that reads the bundle compiled into the web app and calls no API while
 rendering — still true since
 [ADR-0060](adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md) moved
-the frames onto the API, and 580 in [the order](ux/UI-UX.md#the-order) decides whether it stays
-so. It reads one cookie, this origin's own, which is where the reader's chosen edition is kept
+the frames onto the API, and a recorded deviation from it
+([the register](architecture/00-ARCHITECTURE.md#deviation-register)); when the API does not
+answer, a line above the programs says that none of them will open. It reads one cookie, this
+origin's own, which is where the reader's chosen edition is kept
 so that the first paint is already in it
 ([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)).
+
+Above the grid it says what a program and a frame are, and why most of the tiles are shut:
+the programs open in order, the Main sequence is built on the Foundation programs, and one
+frame of a program opens the next (#163,
+[ADR-0065](adr/0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md)).
+It says so in text on the first screen, not in a tooltip a finger never reaches.
 
 The card at the foot is the **consent invitation**, and it is last on purpose: a reader who
 came to read reaches the programs first and the question afterwards. It is an invitation
@@ -159,11 +168,11 @@ screen (ADR-0052).
 
 ### A program's contents
 
-![The contents of program F01: the same top bar, the program's title, a filled "Start at frame 1" button, and its sections listed with the range of frames each one covers. At the foot, "← Programs" and the sentence saying when F02 opens.](assets/screenshots/program-contents-english.png)
+![The contents of program F01 for a reader who has not started it: the same top bar, the program's title, a filled "Start at frame 1" button, and its sections listed with the range of frames each one covers — the first one a link, and every one after it in faint type with a lock and "not reached yet". At the foot, "← Programs" and the sentence saying when F02 opens.](assets/screenshots/program-contents-english.png)
 
 ### And its summary
 
-![The end of program F01: a Summary section, a "Can you?" checklist restating what the program set out to teach, and, pinned at the bottom, "← Back to the frame" and a filled "Next program: F02 →".](assets/screenshots/program-summary-english.png)
+![The end of program F01: a Summary section, a "Can you?" checklist restating what the program set out to teach, and, pinned at the bottom, "← Back to frame 45" and a filled button reading "Next program" over "F02 · The language of algebra", with an arrow.](assets/screenshots/program-summary-english.png)
 
 *Summary* and *Can you?* are the book's own closing sections, not something this application
 invented.
@@ -217,10 +226,10 @@ summary and from nowhere else.
 
 ## What is not pictured here, and why
 
-- **`/account` and `/instrument/<track>/<unit>`** need an account, which needs an identity
-  service. The acceptance suite has one — a stub it starts itself — but photographing a screen
-  whose every number came from a fixture would illustrate the fixture rather than the product.
-  What those screens do is described in [`ux/UI-UX.md`](ux/UI-UX.md) and drawn in
-  [`DIAGRAMS.md`](DIAGRAMS.md) §B6 and §C3.
+- **`/account`, `/account/delete` and `/instrument/<track>/<unit>`** need an account, which
+  needs an identity service. The acceptance suite has one — a stub it starts itself — but
+  photographing a screen whose every number came from a fixture would illustrate the fixture
+  rather than the product. What those screens do is described in [`ux/UI-UX.md`](ux/UI-UX.md)
+  and drawn in [`DIAGRAMS.md`](DIAGRAMS.md) §B6 and §C3.
 - **A deployed instance.** There is none, at any address, for anybody. Every screen above was
   served by a local production build.

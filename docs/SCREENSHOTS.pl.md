@@ -60,10 +60,11 @@ programu, które prowadzą do jego spisu treści; wybór języka; i *Reading set
 nawigacji przy dolnej krawędzi niesie **Previous**, to, gdzie jesteś — `3 of 45` — i
 **Next**, w tym samym miejscu na każdej ramce i na ekranie, gdy ramka przewija się pod nim
 ([ADR-0063](adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)). Klawisze też działają
-(`→`, `←`, `g`), a nic na ramce ich nie reklamuje. **Pozycja pokazuje, gdzie jesteś, nigdy
-postęp** ([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md)) —
-procent z książki o czterdziestu siedmiu programach byłby liczbą o czytelniku, a ten produkt
-takich nie produkuje.
+(`→`, `←`, `g` i `?`, który pokazuje ich listę), a nic na ramce ich nie reklamuje. **Pozycja
+pokazuje, gdzie jesteś, nigdy postęp**
+([ADR-0041](adr/0041-the-reading-surface-shows-position-and-never-progress.md)) — procent z
+książki o czterdziestu siedmiu programach byłby liczbą o czytelniku, a ten produkt takich nie
+produkuje.
 
 ### Mapa programu
 
@@ -130,17 +131,25 @@ wyboru, i jedyna, która nie potrzebuje JavaScriptu
 
 ### Strona startowa jest indeksem
 
-![Strona startowa. Znak słowny; odnośniki do Courses i About, trójpozycyjny przełącznik trybu z opcjami System, Light i Dark oraz odnośnik do Sign in; dalej nagłówek Programs z wyborem języka — English i polski — na końcu jego wiersza, a pod nim siatka kafelków — po jednym na program, każdy z identyfikatorem, tytułem i liczbą ramek i sekcji. U dołu strony karta zatytułowana "Help fix the book?" z dwoma przyciskami.](assets/screenshots/landing-english.png)
+![Strona startowa. Znak słowny; odnośniki do Courses i About, trójpozycyjny przełącznik trybu z opcjami System, Light i Dark oraz odnośnik do Sign in; dalej nagłówek Programs z wyborem języka na końcu jego wiersza — English i polski jako dwa obramowane pola, English wypełnione. Pod nagłówkiem akapit mówiący, czym są program i ramka; dalej tytuł kursu, a pod nim wiersz mówiący, że programy otwierają się po kolei, że część główna opiera się na programach z Podstaw i że jedna ramka programu otwiera następny. Niżej siatka kafelków — po jednym na program, każdy z identyfikatorem, programem, po którym się otworzy, tytułem i liczbą ramek i sekcji. U dołu strony karta zatytułowana "Help fix the book?" z dwoma przyciskami.](assets/screenshots/landing-english.png)
 
 Pierwszy ekran jest tym, po co czytelnik przyszedł, o jedną nawigację od ramki zamiast o dwie
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). To
 komponent serwerowy, który czyta paczkę treści wkompilowaną w aplikację webową i nie woła API
 podczas renderowania — wciąż, choć
 [ADR-0060](adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
-przeniósł ramki do API, a to, czy tak zostanie, rozstrzyga 580 w
-[kolejności](ux/UI-UX.md#the-order). Czyta jedno ciasteczko, własne tego origin, w którym
-trzymana jest wybrana przez czytelnika edycja — dzięki temu pierwsze malowanie jest już w niej
+przeniósł ramki do API, i jest to odstępstwo od niego zapisane w
+[rejestrze](architecture/00-ARCHITECTURE.md#deviation-register); gdy API nie odpowiada, wiersz
+nad programami mówi, że żaden z nich się nie otworzy. Czyta jedno ciasteczko, własne tego
+origin, w którym trzymana jest wybrana przez czytelnika edycja — dzięki temu pierwsze
+malowanie jest już w niej
 ([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)).
+
+Nad siatką mówi, czym są program i ramka, i dlaczego większość kafelków jest zamknięta:
+programy otwierają się po kolei, część główna opiera się na programach z Podstaw, a jedna
+ramka programu otwiera następny (#163,
+[ADR-0065](adr/0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md)).
+Mówi to tekstem na pierwszym ekranie, a nie podpowiedzią, do której palec nigdy nie sięga.
 
 Karta u dołu to **zaproszenie do zgody** i stoi na końcu celowo: czytelnik, który przyszedł
 czytać, dociera najpierw do programów, a do pytania potem. Jest zaproszeniem, a nie bramką,
@@ -161,11 +170,11 @@ ekranie (ADR-0052).
 
 ### Spis treści programu
 
-![Spis treści programu F01: ten sam pasek u góry, tytuł programu, wypełniony przycisk "Start at frame 1" i wypisane sekcje z zakresem ramek, które każda obejmuje. Na dole "← Programs" i zdanie mówiące, kiedy otwiera się F02.](assets/screenshots/program-contents-english.png)
+![Spis treści programu F01 dla czytelnika, który go jeszcze nie zaczął: ten sam pasek u góry, tytuł programu, wypełniony przycisk "Start at frame 1" i wypisane sekcje z zakresem ramek, które każda obejmuje — pierwsza jako link, a każda następna bladsza, pokazana z kłódką i napisem "not reached yet". Na dole "← Programs" i zdanie mówiące, kiedy otwiera się F02.](assets/screenshots/program-contents-english.png)
 
 ### I jego podsumowanie
 
-![Koniec programu F01: sekcja Summary, lista "Can you?" powtarzająca, czego program miał nauczyć, a przypięte na dole "← Back to the frame" i wypełnione "Next program: F02 →".](assets/screenshots/program-summary-english.png)
+![Koniec programu F01: sekcja Summary, lista "Can you?" powtarzająca, czego program miał nauczyć, a przypięte na dole "← Back to frame 45" i wypełniony przycisk ze strzałką, na którym "Next program" stoi nad "F02 · The language of algebra".](assets/screenshots/program-summary-english.png)
 
 *Summary* i *Can you?* to własne sekcje zamykające książki, a nie coś, co ta aplikacja
 wymyśliła.
@@ -220,10 +229,10 @@ jednego wiersza na podsumowaniu P01 i znikąd indziej.
 
 ## Czego tu nie ma na obrazku i dlaczego
 
-- **`/account` i `/instrument/<track>/<unit>`** potrzebują konta, a konto potrzebuje serwisu
-  tożsamości. Pakiet akceptacyjny taki ma — atrapę, którą sam uruchamia — ale sfotografowanie
-  ekranu, którego każda liczba pochodzi z fikstury, ilustrowałoby fiksturę, a nie produkt. Co
-  robią te ekrany, opisuje [`ux/UI-UX.md`](ux/UI-UX.md), a rysuje
+- **`/account`, `/account/delete` i `/instrument/<track>/<unit>`** potrzebują konta, a konto
+  potrzebuje serwisu tożsamości. Pakiet akceptacyjny taki ma — atrapę, którą sam uruchamia —
+  ale sfotografowanie ekranu, którego każda liczba pochodzi z fikstury, ilustrowałoby
+  fiksturę, a nie produkt. Co robią te ekrany, opisuje [`ux/UI-UX.md`](ux/UI-UX.md), a rysuje
   [`DIAGRAMS.pl.md`](DIAGRAMS.pl.md) §B6 i §C3.
 - **Wdrożona instancja.** Nie ma żadnej, pod żadnym adresem, dla nikogo. Każdy ekran powyżej
   podał lokalny build produkcyjny.

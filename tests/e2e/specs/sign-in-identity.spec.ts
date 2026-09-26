@@ -237,7 +237,7 @@ test.describe('a reader with an account reaches the page the gate was keeping', 
     await expect(page.locator('form[action="/api/auth/login"]')).toHaveCount(1);
 
     await page.goto('/login?error=token-rejected');
-    await expect(page.getByRole('main')).toContainText('configuration fault');
+    await expect(page.getByRole('main')).toContainText('how this site is set up');
     await expect(
       page.locator('form[action="/api/auth/login"]'),
       'a retry that cannot work was offered anyway',
@@ -250,6 +250,41 @@ test.describe('a reader with an account reaches the page the gate was keeping', 
     // retryable — the distinction `startsOver` carries.
     await page.goto('/login?error=second-factor-expired');
     await expect(page.locator('form[action="/api/auth/login"]')).toHaveCount(1);
+  });
+
+  /**
+   * WHAT "ABOVE" POINTS AT, under a withdrawn form (issue #162).
+   *
+   * A private page is named in every state of the sign-in page, and in this one its sentence
+   * first landed between the problem panel and the paragraph explaining why there is no form
+   * — which then said "that answer" and "the sentence above", and so read as a remark about
+   * `/account`. The address is the one the route builds (`loginPagePath`) for a reader
+   * bounced off `/account` whose attempt came back locked; the fixture has no lockout, so the
+   * test starts where the route would have sent them.
+   *
+   * Asserted as ORDER and as WORDING, because each alone lets the defect back: the paragraph
+   * names the panel it is about, it comes first under the heading, the destination comes
+   * after it, and the fresh sign-in page still carries that destination.
+   */
+  test('a withdrawn form says why before it names where the reader was going @identity', async ({
+    page,
+  }) => {
+    await page.goto('/login?error=locked&redirect=%2Faccount');
+    await expect(page.getByRole('main')).toContainText('The account is locked');
+    await expect(page.locator('form[action="/api/auth/login"]')).toHaveCount(0);
+
+    const signIn = page
+      .locator('section')
+      .filter({ has: page.getByRole('heading', { name: 'Sign in', exact: true, level: 2 }) });
+    const paragraphs = signIn.locator('p');
+    await expect(paragraphs).toHaveCount(2);
+    await expect(paragraphs.nth(0)).toContainText('the problem described above');
+    await expect(paragraphs.nth(1)).toContainText('You asked for /account');
+    await expect(paragraphs.nth(1)).toContainText('Starting again will still take you there.');
+    await expect(signIn.getByRole('link', { name: 'start again' })).toHaveAttribute(
+      'href',
+      '/login?redirect=%2Faccount',
+    );
   });
 
   test('a wrong password is refused and says nothing about which field was wrong @identity', async ({

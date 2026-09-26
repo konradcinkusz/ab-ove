@@ -1,4 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
+
+import { chromeFor } from '../../../web/app/src/lib/i18n/chrome.ts';
 
 import { track, unitNamed } from './support/bundle.ts';
 import { openThrough } from './support/gate.ts';
@@ -24,10 +26,11 @@ import { openThrough } from './support/gate.ts';
  *
  * IT MUST HOLD WITH NO ACCOUNT, which is why almost everything here is `@smoke`. It also
  * holds with the API unreachable, because the page reads the bundle compiled into the app
- * and calls no API while rendering — today's placement since ADR-0060 made every FRAME a
- * live call to `AbOvo.Api`, pending 580 rather than the requirement it was (`app/page.tsx`
- * says why).
- * `specs/no-backend.spec.ts` is where the same grid is asserted with the API unreachable.
+ * and calls no API while rendering — a deviation from ADR-0060, which made every read of a
+ * program a live call to `AbOvo.Api`, recorded with its exit in the architecture document's
+ * register since issue #158 (`app/page.tsx` says why).
+ * `specs/no-backend.spec.ts` is where the same grid is asserted with the API unreachable,
+ * and where the index says that no program will open.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * AND IT IS THE PAGE OF A READER WHO HAS WALKED TO P01 — ADR-0051.
@@ -41,6 +44,11 @@ import { openThrough } from './support/gate.ts';
  * The fresh browser's index — one open tile, forty-six saying `opens after …` — is
  * `specs/gate.spec.ts`, and P01 is still the program asserted here because it is the one
  * deep enough in the book to prove the reaching.
+ *
+ * EXCEPT THE LAST DESCRIBE BLOCK, which is the first visit itself (issue #163): what a reader
+ * who has never been here is told before they touch anything — what a program and a frame
+ * are, and why nearly every tile is shut. It seeds nothing, because the reader it is about
+ * has nothing.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * LOCATORS. Role plus accessible name, then text — preferences 1 and 2 of
@@ -289,5 +297,138 @@ test.describe('landing page', () => {
     expect(new URL(page.url()).pathname, '/read must land on the index').toBe('/');
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Programs');
+  });
+});
+
+/*
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE FIRST VISIT — issue #163, and ADR-0065 for what the legend says.
+ *
+ * Measured on 2026-09-24: a first-time reader got a small uppercase heading, a grid of faint
+ * tiles marked `opens after …`, and nothing saying what a program or a frame is. The one
+ * sentence that said nothing is paid for or hidden was a `title` on each shut tile, which a
+ * finger and a keyboard never reach. What is asserted here is that both things are now TEXT
+ * ON THE FIRST SCREEN: visible, inside the viewport of a phone, at least a line tall, with
+ * nothing hovered.
+ *
+ * THE WORDS ARE READ FROM `chrome.ts` ITSELF, on `skip-link.spec.ts`'s reasoning: a copy here
+ * would be a second source for a string that has one. What would let a wrong page pass that
+ * way is a page rendering the right string somewhere nobody sees it, which is why every
+ * assertion below is about visibility — and the part of the claim that is about the BOOK is
+ * relational: the legend names the runs whose headings are on the page under it.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+test.describe('the first visit', () => {
+  const en = chromeFor('en');
+  const pl = chromeFor('pl');
+
+  /** The legend as the book's own runs make it: the Main sequence, built on Foundation. */
+  const legendFor = (chrome: typeof en): string => chrome.orderLegend([chrome.runReasons['P']!.says]);
+
+  /**
+   * ON THE FIRST SCREEN, AND READABLE THERE: wholly inside the viewport, and at least one line
+   * of its own type tall. The halves catch different things. `toBeInViewport` measures how
+   * much of the box is on screen, not how big the box is. The `.offScreen` idiom
+   * (`program-grid.module.css`) already fails it, because its clip leaves the box no area on
+   * screen. A sentence collapsed to a strip a pixel high, its overflow hidden, is wholly on
+   * screen and passes it; only the height says that nobody can read it. Both were watched:
+   * the first fails the viewport half, and the second fails only the height half.
+   */
+  const onTheFirstScreen = async (text: Locator, what: string): Promise<void> => {
+    await expect(text, `${what} is not on the first screen`).toBeInViewport({ ratio: 1 });
+    const { height, size } = await text.evaluate((node) => ({
+      height: node.getBoundingClientRect().height,
+      size: parseFloat(getComputedStyle(node).fontSize),
+    }));
+    expect(height, `${what} is ${height.toFixed(1)} px tall, under a line of its ${size} px type`).toBeGreaterThanOrEqual(size);
+  };
+
+  test('a new reader is told what programs and frames are, and why the tiles are shut, without hovering @smoke', async ({
+    page,
+  }) => {
+    // A phone, because it is the smallest first screen, and a touch screen is the reader a
+    // hover never reaches.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    // A real heading, and the page's only one at level one.
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(en.programs);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+
+    await onTheFirstScreen(page.getByText(en.programsLead, { exact: true }), 'the standfirst');
+
+    const legend = page.getByText(legendFor(en), { exact: true });
+    await onTheFirstScreen(legend, 'the legend');
+
+    /*
+      WHY THE FOUNDATION PROGRAMS COME FIRST, said about the runs on this page: the legend
+      names both headings the grid is divided under. `textContent` rather than `innerText`,
+      because the headings are drawn in capitals and the words are not.
+    */
+    const runs = await page.getByRole('heading', { level: 3 }).allTextContents();
+    expect(runs, 'the grid is no longer divided into the book’s runs').toEqual([
+      en.groupLabels['F'],
+      en.groupLabels['P'],
+    ]);
+    for (const run of runs) await expect(legend).toContainText(run);
+
+    // And neither is a status: a standing fact is read rather than announced, and the status
+    // on this page is the shut notice, for a reader who was moved here (`specs/gate.spec.ts`).
+    await expect(page.getByRole('status')).toHaveCount(0);
+  });
+
+  test('the Polish edition says the same things in Polish @core', async ({ page }) => {
+    await page.goto('/?lang=pl');
+
+    await expect(page.locator('main')).toHaveAttribute('lang', 'pl');
+    await onTheFirstScreen(page.getByText(pl.programsLead, { exact: true }), 'the Polish standfirst');
+    const legend = page.getByText(legendFor(pl), { exact: true });
+    await onTheFirstScreen(legend, 'the Polish legend');
+
+    // The Main sequence by the name its heading has here. `Podstawy` is declined inside the
+    // sentence, which is why the reason is a sentence of its own and not built from labels.
+    await expect(page.getByRole('heading', { level: 3, name: pl.groupLabels['P']! })).toBeVisible();
+    await expect(legend).toContainText(pl.groupLabels['P']!);
+
+    // And nothing of the English is left beside it.
+    await expect(page.getByText(en.programsLead)).toHaveCount(0);
+    await expect(page.getByText(legendFor(en))).toHaveCount(0);
+  });
+
+  test('the other edition is offered as something to press, and English is still the default @core', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    // ADR-0052: a reader who has chosen nothing reads English.
+    await expect(page.locator('[aria-current="true"][lang="en"]')).toHaveCount(1);
+
+    /*
+      THE POLISH CHOICE, DRAWN AS A CONTROL — issue #163 found it a small word at the far end
+      of a line. Asserted by what makes it one: an edge a reader can see (a border, which the
+      quiet shape does not have) around a box a finger can hit. The box's size is
+      `targets.spec.ts`'s to measure at both widths; this is the edge.
+    */
+    const polish = page.getByRole('link', { name: 'polski' });
+    await expect(polish).toBeVisible();
+    const edge = await polish.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return { width: style.borderTopWidth, style: style.borderTopStyle };
+    });
+    expect(edge, 'the Polish choice has no visible edge').toEqual({ width: '1px', style: 'solid' });
+
+    /*
+      AND THE TWO SHARE ONE EDGE, so the line between them is as thin as the line around them:
+      the second is pulled one pixel over the first's border (`language-choice.module.css`).
+      Measured as the overlap of the two boxes, because the rule that does it has to win on
+      specificity, and a rule that loses changes nothing but that pixel — the two borders then
+      stand side by side as a divider twice the outline's width.
+    */
+    const english = page.locator('[aria-current="true"][lang="en"]');
+    const [first, second] = await Promise.all([english.boundingBox(), polish.boundingBox()]);
+    if (!first || !second) throw new Error('an edition choice has no box');
+    const overlap =
+      Math.min(first.x + first.width, second.x + second.width) - Math.max(first.x, second.x);
+    expect(overlap, 'the two choices do not share an edge').toBeCloseTo(1, 1);
   });
 });

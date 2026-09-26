@@ -27,26 +27,30 @@ any account.
 
 | Route | What it is | Needs |
 | --- | --- | --- |
-| `/` | the landing page: every program as a tile, in the book's own runs, in the reader's edition, and the narrowing to one course | nothing — it reads the compiled bundle |
-| `/courses` | the courses this deployment carries, each with its length and its editions, and the way into one ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) | nothing — it reads the compiled bundle |
+| `/` | the landing page: every program as a tile, in the book's own runs, in the reader's edition, and the narrowing to one course | nothing to render — it reads the compiled bundle, a recorded deviation; once it is up, the browser asks the API, through this origin's proxy, whether a program would open, and each open tile's link, prefetched, has this app's server ask it for that program's contents |
+| `/courses` | the courses this deployment carries, each with its length and its editions, and the way into one ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) | nothing — it reads the compiled bundle, a recorded deviation |
 | `/about` | what the product is, the anti-goal, the loop, the integration panel | nothing |
-| `/read/<track>/<unit>/<lang>` | a program's contents: its headings, and the filled way in — frame 1, or the reader's own place | nothing — it reads the compiled bundle |
+| `/read/<track>/<unit>/<lang>` | a program's contents: its headings, those past the reader's furthest frame locked, and the filled way in — frame 1, or the reader's own place | the API, and no account |
 | `/read/<track>/<unit>/<lang>/<step>` | one frame at a time; the reveal is a form that raises the reader's place on the API | the API, and no account |
-| `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, the consent invitation, and the way into the next one | nothing — it reads the compiled bundle |
+| `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, the consent invitation, and the way into the next one — once the reader has reached the last frame | the API, and no account |
 | `/lab/<id>` | the book's exercises under Pyodide — reached from P01's summary only, and on its way out ([ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md)) | nothing |
 | `/login` | a form that posts credentials to this app's own BFF | an identity service |
 | `/register` | the same form one step earlier: an address, a password, and the consent the identity service records | an identity service, and the two documents the consent names |
 | `/legal/<document>/<version>` | the Terms of Use or the Privacy Policy at one version, as this deployment publishes it: what the consent links to | a document host (`AB_OVO_LEGAL_URL`) |
-| `/account` | deleting the account, and nothing else | an account |
+| `/account` | the reader's overview: who is signed in, the place the account holds in each program, the export of their worksheets, sign-out, and the way to deletion | an account, and the API for the places |
+| `/account/delete` | deleting the account, and nothing else | an account |
 | `/instrument` | the author's view: frames ranked by how badly the book is doing | an account |
 | `/healthz` | the app's own liveness | nothing |
 | `/api/*` | the BFF: config, auth, session, and the one proxy to any backend | — |
 
 **The first six are the whole product for a reader who never signs in**, and that is a
 requirement rather than an accident. They are not the whole product for a deployment with no
-API: the rows that read the compiled bundle still render from the bundle built into the web
-app and call no API while rendering, but no frame does. That split is today's rather than
-a rule — 580 in [the order](#the-order) moves the contents and the summary onto the API.
+API: the index and `/courses` still render from the bundle built into the web app and call no
+API while rendering, but no program's contents, no summary and no frame does. That split is a
+deviation from [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+recorded with its exit in
+[the register](../architecture/00-ARCHITECTURE.md#deviation-register), and the index is the
+page that says so to a reader: when the API does not answer, it says that no program will open.
 
 **A *course* is a whole work and a *program* is one of its forty-seven units.** The two
 words are minutes apart in the same chrome row, so they are worth separating once here: a
@@ -58,9 +62,11 @@ the index. The content layer calls a course a *track*, which is the word in the 
 **An address that is not a page gets a page of this product's.** `app/not-found.tsx` and
 `app/error.tsx` stand behind the two statuses the routes already answer: a frame number
 past the end of a program, a program the book does not have or an edition it is not
-published in is a 404 with the wordmark, one sentence about the shape of a right address
-and the filled way back to the programs. A frame whose content API did not answer — the
-usual 500 since [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
+published in is a 404 with the wordmark, one sentence on reaching a program's contents from
+a frame's address — in words, since it printed the placeholder `<track>` no screen says
+(issue #162) — and the filled way back to the programs. A frame whose content API did not
+answer — the usual 500 since
+[ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
 — says exactly that: the book's server did not answer, nothing written is lost and neither
 is the place in the book, try again in a moment. Its *Try again* asks the server again and
 brings the frame back into the same page once it answers, and its way back is the program's
@@ -83,19 +89,39 @@ that needs an account.
 that renders from the bundle compiled into the app: it calls no API while rendering, and the
 one cookie it reads is this origin's own, the reader's chosen edition
 ([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md)). **That is
-still true after ADR-0060, as today's placement rather than a requirement.** The requirement
-it used to follow from joined two halves — no account, and no server behind the loop — and
+still true after ADR-0060, and it is a recorded deviation from it.** The requirement it used
+to follow from joined two halves — no account, and no server behind the loop — and
 [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
-kept the first and reversed the second: a frame needs the API and the index does not. So a
-reader who arrives while the API is down still sees the programs, and the frame they open is
-the one that says the fault is on this side. ADR-0060's Decision counts every read of a
-program as a live call, which this page is not, so the placement is pending rather than
-settled: 580 in [the order](#the-order) decides whether the index stays off the API.
+kept the first and reversed the second: a frame, a program's contents and its summary need the
+API, and the index does not. ADR-0060's Decision counts every read of a program as a live call,
+which this page is not; 580 in [the order](#the-order) decided that it stays so for now, and
+[the register](../architecture/00-ARCHITECTURE.md#deviation-register) says why and what ends
+it. So a reader who arrives while the API is down still sees the programs — and **the index
+says, above them, that no program will open right now**, rather than leaving every tile to lead
+to the error page. The line is asked for from the browser, after the page is up and through
+this origin's proxy, with the question a program's contents would ask
+(`components/programs/reading-unavailable.tsx`): the first paint never waits on the API, and
+while the API answers the line is empty and has no box, so nothing on the page moves.
+`specs/no-backend.spec.ts` holds both halves.
+
+That line is not the index's only cost to the API. Next prefetches a link as it comes into
+view, and an open tile links to a program's contents, which come from the API since #158: so
+each open tile on screen has this app's server render that page, and make its calls to the
+API, before the reader has pressed anything.
 
 **It used to be the product's argument and is now the programs**
 ([ADR-0036](../adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). The
 argument moved whole to `/about`; what a reader arrives at is the thing they came for, one
 navigation from a frame instead of two.
+
+**And it tells a reader who has never been here what they are looking at** (#163). The audit
+of 2026-09-24 watched a first visit at 1280 px and at 390 px: a small uppercase *PROGRAMS*,
+then a grid of tiles nearly all faint and marked `opens after …`, and nothing saying what a
+program or a frame is. The one sentence saying nothing is paid for or hidden was a tooltip,
+which touch and keyboard readers never see. The first screen now says both, in a standfirst
+under the heading and a legend above the grid. Neither is the argument coming back: what a
+program and a frame are is orientation, and why the loop is built the way it is stays on
+`/about`.
 
 Its parts, in order:
 
@@ -112,8 +138,10 @@ Its parts, in order:
    constraint issue #7 put on the resume controls). The
    resume control — `F01 · Continue at frame 12` — is the index's one filled control: for
    a reader who has been here before it is the page's primary action, and it used to be
-   the faintest thing on it. It is padded outwards and the padding given back as margin,
-   so the row it arrives in does not grow. *Export my worksheets* is one press and sits
+   the faintest thing on it. It names the program last read and that program's furthest
+   frame, not the frame last looked at, so going back to re-read does not move it (#157).
+   It is padded outwards and the padding given back as margin, so the row it arrives in
+   does not grow. *Export my worksheets* is one press and sits
    before the two ways to lose something, because nothing it does is destructive
    ([ADR-0055](../adr/0055-the-notebook-exports-what-stands-today-never-a-history.md)); it
    renders nothing when there is nothing to export. *Clear my worksheets* and *Forget where
@@ -141,14 +169,43 @@ Its parts, in order:
    English. A choice is `/?lang=<edition>` — visible, linkable, leaveable, never inferred
    from `Accept-Language` — and it is **remembered**: in this browser, and on the reader's
    account when there is one, so the question is asked once rather than on every screen.
-3. **The course's title**, at level two, in the reader's edition — and beside it the one
+
+   **The heading is set as one** (#163): the reading face, in the ink, at about the size of
+   `/about`'s lede. It was a faint uppercase label at the size of a tile's id. **The language
+   control is drawn here as outlined, finger-sized options**, the current one filled and
+   underlined, because its quiet words at the far end of the line were easy to miss (#163).
+   It is the same control with the same links; every other screen keeps the quiet shape,
+   and English is still the default.
+3. **The standfirst**, under the heading (#163) — what a program is (a chapter of the course,
+   made of frames), what a frame is (a short, numbered step, one screen long), and the rule
+   the loop runs on: most frames end with a question and the next one opens with its answer,
+   so the answer is written down first. In the book's own terms, from its *How to use this
+   book*. It is the same for every reader, so it is rendered on the server and moves nothing.
+4. **The course's title**, at level two, in the reader's edition — and beside it the one
    control that narrows: *Only this course* on the index that is showing every one,
    *All courses* on the index narrowed to one. It is absent entirely while the deployment
    pins a single course, where both labels would lead to the page the reader is on. The
    narrowing is `/?track=<id>`, beside `?lang=` and independent of it: every position of
    the language control carries the chosen course, and the sign-in return address carries
    both, so neither choice can undo the other (ADR-0048).
-4. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
+
+   **Under the title, the legend** — why most of the tiles below are shut, as text rather
+   than a tooltip (#163). What it says is
+   [ADR-0065](../adr/0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md)'s:
+   the programs open in order; the Main sequence is built on the Foundation programs, which is
+   why they come first; reading any one frame of a program opens the next; nothing here is
+   paid for or hidden. The sentence about the runs is said only where the course has a
+   Foundation run followed by a Main sequence run (`lib/content/run-reasons.ts`). A course
+   grouped by its own parts gets the rest of the legend, because why one part follows another
+   is the book's to say. The legend is per course, because the order is a course's.
+
+   It is rendered on the server, and it is on every first paint of a course with more than
+   one program: the server renders a reader with no record, and for that reader every program
+   but the first is shut. It stays for a reader whose record has opened every program,
+   because taking it away after hydration would move the grid up under them — the shift
+   `specs/progress.spec.ts` bounds — and every clause is still true for them. It is not a
+   `status` and never takes focus.
+5. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
    the parts themselves once a bundle carries them (`groupsOf`, in `@ab-ovo/web-kit`'s `bundle.ts`,
    which the MCP server's `list_programs` shares, so the two surfaces divide the book one
    way). Each run is headed at level three, under the track's title. One tile per program,
@@ -159,7 +216,9 @@ Its parts, in order:
    hydration into a row that already has its height. It is a **position and never a
    progress** (ADR-0041): no fraction, no bar, nothing about how far, and not a link,
    because the way back into the frame is the resume control and `progress.spec.ts` holds
-   the page to exactly one.
+   the page to exactly one. The run headings are set at 13 px and a tile's id and its note at
+   12 px (`program-grid.module.css`); the run headings were 11 px until #163 asked for labels
+   of 12–13 px or more.
 
    **A tile the reader has not reached yet carries no link**
    ([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)). A
@@ -178,17 +237,30 @@ Its parts, in order:
    pointer, and as an `aria-describedby` description announced with the title, for a screen
    reader. It says the thing `opens after F01` cannot — that **one frame** of F01 is
    enough — because read alone the short note means "finish F01 first", which is a much
-   larger promise than the rule keeps.
+   larger promise than the rule keeps. Neither of those reaches a reader who does not ask a
+   tile, which is what the legend above the grid is for (#163).
 
    **A reader the gate has just moved is told so, above the grid.** A deep link, a
    bookmark or a shared link to a shut program returns the reader here, and the redirect
    carries `?shut=<unit>`; the page re-asks the gate against this reader's own record and,
-   only if the answer is still shut, renders one sentence in a `role="status"` region that
-   takes focus as it lands — what was refused, why this page opened instead, what opens it
-   and how small that is, and that the program is marked in the list below. It renders on
-   no other visit, and a `?shut=` naming a program the reader can in fact open renders
-   nothing at all.
-5. **The consent invitation**, last, absent from the first paint, and an invitation rather
+   only if the answer is still shut, renders a notice in a `role="status"` region that
+   takes focus as it lands. It says what was refused, why this page opened instead, what
+   opens it and how small that is, and that the program is marked in the list below. It
+   renders on no other visit, and a `?shut=` naming a program the reader can in fact open
+   ends up rendering nothing: the server renders the page for a reader with no record, so
+   a reloaded `?shut=` address paints the notice first and loses it as the reader's own
+   record arrives (`shut-notice.tsx`). The gate's own redirect is a client navigation, and
+   renders from the record straight away.
+
+   **The notice ends with a way on** (#163): a link, *Go to F01*, to the contents of the
+   program that opens the one refused. When that program is shut too — the usual case for a
+   link into the middle of the book — the notice says so, and the link is the nearest program
+   behind it that this reader can open (`wayOn`, in `lib/progress/gate.ts`), which for a
+   reader with no record is the first. A link to a shut program would only bounce them here
+   again, one program further back. A reloaded address paints that first program's link, and
+   the reader's record then moves it to their own nearest one. The link is a finger's target
+   (`specs/targets.spec.ts`).
+6. **The consent invitation**, last, absent from the first paint, and an invitation rather
    than a gate — a reader who came to read reaches the programs first and the question
    afterwards. The same invitation is on a program's summary, below the list, where a
    reader has just finished the frames the instrument is about; one record, so an answer
@@ -206,8 +278,8 @@ Its parts, in order:
 Component on the index's own terms: it calls no API while rendering, reads one cookie of this
 origin's own for the edition, and takes everything else from the bundles compiled into the app
 ([ADR-0048](../adr/0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)). That still
-holds after ADR-0060, as today's placement rather than a requirement, and is pending 580 for
-the index's reason above.
+holds after ADR-0060, and it is the index's recorded deviation, with the same exit. It says
+nothing about an API that does not answer: the index every entry leads to does.
 
 One entry per pinned course, carrying its title in each edition it is published in, and a
 line of measured facts under it — how many programs, how many frames across them, and the
@@ -238,11 +310,17 @@ the order IS the argument:
    promise here, and `specs/landing.spec.ts` keeps the two negative assertions on `/`,
    which is the page a leaderboard would actually appear on.
 3. **The loop** — the four steps, numbered.
-4. **What it needs from you** — that reading needs no account, and what an account does buy.
-   What it says about a server is 420's to correct in [the order](#the-order): the page was
-   written when frames needed no backend, and ADR-0060 made every frame need the API.
+4. **What it needs from you** — that reading needs no account but does need this site's book
+   server, the two halves of ADR-0060 said as two (#142), and what an account is for — no
+   longer that it buys "exactly one thing", which the next section contradicted: the edition
+   choice is kept on the account too (issue #162).
 5. **Which edition you read** — that the choice is the reader's and that nothing is guessed.
-6. **Where the work is** — the four phases, named.
+6. **The computer exercises** — that the book's Python exercises run in the browser and are
+   offered after a program that has them, never beside a frame (ADR-0040). This was *Where
+   the work is*, a roadmap of the phases this document still ranks its backlog by: the
+   order the product was built in, which a reader can do nothing with. Issue #162 kept the
+   one fact in it a reader can use, and took the ADR numbers out of the page's sentences —
+   the records are cited in its comments, where the reasoning lives.
 7. **The integration report** — the one live thing on the page, deliberately last. It is the
    only component in this app that reads `/api/config`, which is why the runtime-config
    acceptance spec drives this page rather than `/`.
@@ -268,6 +346,17 @@ It still branches on whether an identity service is configured at all, and says 
 rather than offering a button that cannot work (P8) — a deployment with no identity service is
 a supported configuration, not a broken one.
 
+**It speaks to the reader, not to whoever runs it** (issue #162). Its heading said *Signing in
+is optional*, its form asked for the password registered "with the identity service this
+deployment is configured against", a "What happened" section told a reader who had simply
+pressed *Sign in* that "no destination was carried into this page", and a refused token was
+explained by "the issuer or audience this app expects". The heading now says what signing in
+is for, a site with no identity service says it has no accounts, and a fault in the setup is
+called that, with the mechanism kept in `lib/sign-in-problem.ts`. `/login/2fa` and
+`/register` had the same sentences and were rewritten with it, and so were
+`lib/registration-problem.ts`'s. They are still English only; 660 in
+[the order](#the-order) moves them into `chrome.ts`.
+
 **It says what stands at the address it was handed**, because the gate cannot. The middleware
 is private by default, so a mistyped `/nope` is redirected here exactly as `/account` is, and
 until issue #140 the page told that reader they had asked for "one of the few pages that needs
@@ -280,7 +369,10 @@ question to one answer — and one more, `PRIVATE_PAGES`, the pages the gate clo
   address's shape, not to the content: `/instrument/wrong-track/P99` has the shape of a page
   the gate closes, and is told so;
 - **an address the gate opens** is one the reader chose to sign in from — every *Sign in* link
-  carries where the reader was — and is carried as before;
+  carries where the reader was — and is carried as before. The page says it will take them
+  *back to where they were* and offers that as its way out, rather than printing the path; it
+  used to call the index "one of the few pages that needs to know who you are", on the most
+  travelled way onto this page (issue #162);
 - **an address the gate closes with no page behind it** gets *There is no page at this
   address*, the address itself, the filled way to the programs and — where an identity
   service is configured — a fresh sign-in with no destination attached. No form: signing in
@@ -346,8 +438,12 @@ reader whose sign-in failed on a locked account, an unreachable identity service
 token this deployment refuses was handed the form and invited to try again — "the
 interface telling the reader the fault is theirs", in the field's own words. Under those
 problems the page now shows the sentence and a link to a fresh sign-in page instead. The
-two second-factor codes that send a reader back here to start from the password keep the
-form, because on this page the password *is* the way back in; `startsOver` names them.
+sentence names *the problem described above* and comes first in the *Sign in* section; a
+private page the reader was bounced off is named after it, and the fresh sign-in page still
+carries them there. Placed before it, that name once made the sentence read as a remark about
+`/account` (issue #162). The two second-factor codes that send a reader back here to start
+from the password keep the form, because on this page the password *is* the way back in;
+`startsOver` names them.
 
 ### The integration panel
 
@@ -367,20 +463,29 @@ the panel say so.
 
 ### `/read/<track>/<unit>/<lang>` — a program's contents
 
-`components/read/program-contents.tsx`. The program's headings, each linking at the frame it
-opens on, and nothing from any frame — a heading carries no question and no answer, which is
-the contents page's own rule. **Its one filled control follows the reader**: *Start at
-frame 1* for a reader who has not, *Continue at frame N* for one who has, in the edition
-they were actually in. Server-rendered as the start and swapped after hydration in place —
-same element, same class — so the page moves by nothing when the record is read
+`components/read/program-contents.tsx`. The program's headings, each with the frames it
+covers, and nothing from any frame — a heading carries no question and no answer, which is
+the contents page's own rule. **It comes from `AbOvo.Api`, as a frame does** (#158): the page
+asks for the course and the program as the reader, so an API that does not answer is the
+error page a frame gets — before the reader has clicked into anything — and the program comes
+back with the reader's furthest frame (`UnitSummary.Furthest`). **A heading the reader has
+reached links at the frame it opens on; one past their furthest frame is named, locked, and
+says *not reached yet***, as the program map draws it — every heading used to be a link, and
+a new reader who pressed the third one landed on *Not there yet*. **Its one filled control
+follows the reader**: *Start at frame 1* for a reader who has not, *Continue at frame N* for
+one who has — the furthest frame they reached, in the edition they read it in, as on the
+index. Server-rendered as the start and swapped after hydration in place — same element,
+same class — so the page moves by nothing when the record is read
 (`progress.spec.ts` holds it to the index's shift bound). The crumb row's quiet *Start at
 frame 1* appears only beside a *Continue*, so the page has exactly one link to the reader's
-frame and always one to the first. The foot carries the two neighbouring programs — the key
-map is in *Reading settings*, opened from the top bar
+frame and always one to the first. The foot carries the two neighbouring programs, each an
+id beside the pager's drawn arrow rather than a typed one, and each named for a screen reader
+with its direction in words (*F01, Previous program*), which the hidden arrow cannot say — the
+key map is in *Reading settings*, opened from the top bar
 ([ADR-0063](../adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)) — and **the next
 one only once this program has been opened**
-([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)): a
-`F03 →` that led somewhere the reader would be sent back from is a control that is reliably
+([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)): an
+`F03` that led somewhere the reader would be sent back from is a control that is reliably
 refused. **In its place the foot states the fact**
 ([ADR-0056](../adr/0056-the-reading-order-is-gated-on-every-surface-and-every-refusal-says-what-opens-it.md)):
 *F03 opens once you have read any frame of this program.* A control stays absent; a fact is
@@ -388,10 +493,24 @@ owed, and this was the one screen where the next program's existence was withhel
 page itself is gated on the same rule.** A reader who has not reached this program is
 returned to the index, at the tile that says which program opens it, with the sentence that
 says why they were moved. It happens
-after hydration, because this rule is asked of the browser's own record: the page reads the
-compiled bundle and calls no API, and `AbOvo.Api`'s gate refuses a frame past the reader's
-furthest one without carrying the program-level rule (`src/AbOvo.Api/Content/Reveal.cs` says
-why). A first paint of a shut program is the honest cost of that.
+after hydration, because this rule is asked of the browser's own record: `AbOvo.Api`'s gate
+refuses a frame past the reader's furthest one without carrying the program-level rule
+(`src/AbOvo.Api/Content/Reveal.cs` says why), so it serves this page whether or not the
+program is open. A first paint of a shut program is the honest cost of that.
+
+**The summary, `/read/<track>/<unit>/<lang>/summary`, is the program's other end** — its
+Summary, its *Can you?*, the lab where the book has one, the consent invitation, and the way on
+— and it opens only once the reader has reached the last frame. `AbOvo.Api` serves it under the
+last frame's own gate (`Reveal.ServeReturnIndex`, #158): a Summary item paraphrases what a run
+of frames concluded, and before this it printed the whole program's findings at frame 3 of 45
+to anybody with the address. Before the last frame it is the frame's own *Not there yet*, with
+a sentence naming the frame it opens after and the way on to the reader's furthest one. Its
+pager goes back to the last frame by number — *Back to frame 45*, where it used to say *Back
+to the frame* and name none — and on to the next program by its id and its title, under the
+words *Next program*, which stay whole: the title takes up to two lines before it is cut, which
+is the whole of a typical title on a desktop and its opening on a phone. It used to be only in
+a tooltip, which a touch screen never shows. Its tab and its description are in the reader's
+edition.
 
 ### `/read/<track>/<unit>/<lang>/<step>` — one frame
 
@@ -412,14 +531,21 @@ their bearer when they are signed in, and otherwise the opaque cookie
 defines, so reading still needs no account. An API that does not answer is the 500 described
 above, never a frame rendered from something else (`lib/server/content.ts`). The web app's
 image still carries the compiled bundle, every answer in it (`web/app/Dockerfile`), because
-the index, `/courses`, a program's contents and its summary read it, and `/instrument` takes
-its list of programs from it; 580 in [the order](#the-order) moves the contents and the
-summary onto the API. Nothing on the frame route reads it.
+the index and `/courses` read it — the deviation `/` above describes — and `/instrument` takes its
+list of programs from it. Nothing under `/read/` reads it: a program's contents and its summary
+came off it in #158 (580 in [the order](#the-order)).
 
 The URL is the position, so it survives a reload with no account: the furthest frame the gate
 allows is held by the API under that cookie, not by a session. `/read/` is in the
 middleware's public-prefix list, and so is `/katex/`, without which every font request from a
 reader with no session redirects to `/login` and the system-font fallback hides the break.
+
+**The calls a frame needs leave together.** The step, the program's headings and the track's
+editions do not wait on one another, so a frame costs the slowest of them rather than their
+sum (`lib/server/frame.ts`, #160). The tab's title shares the track and the program with the
+page rather than asking again, and never asks for the step. That holds beyond the page: Next
+prefetches the head of a frame that a link without `prefetch={false}` points at, the head is
+the title's calls alone, and so such a prefetch makes no gated read.
 
 **The body is the book's own Markdown and KaTeX**, rendered on the server through an
 allow-list that throws on anything it does not know — tables, code fences, the six admonition
@@ -450,9 +576,10 @@ one keeps it there. It is a grid of three cells, the same on every frame:
   ([ADR-0041](../adr/0041-the-reading-surface-shows-position-and-never-progress.md)).
 - **`Next →`**, filled, 48 px — the reveal's form, reading `Next` on every frame, a frame that
   asks included. The instruction the mechanic runs on is where the reader acts on it: the
-  answer line's placeholder says *Write it down before you read on*, and the next frame
-  opens with the answer under *Answer to frame 3*. On the last frame the same button reads
-  `Summary` and is the one link to `/summary`.
+  answer line's placeholder says *Write it down before you read on*, the line under it says
+  *The next frame answers this.* and does not go away when the placeholder does (#159), and
+  the next frame opens with the answer under *Answer to frame 3*. On the last frame the same
+  button reads `Summary` and is the one link to `/summary`.
 
 It is the one element on these pages positioned over the text, and the page pays for it:
 `scroll-padding-bottom` keeps a field reached by Tab clear of it (WCAG 2.4.11), and the sync
@@ -495,28 +622,98 @@ rule and the reason the list leaks nothing; every link in it is `prefetch={false
 reveal's reasoning. **What the gate would refuse is not offered**: a heading that starts past
 the reader's furthest frame is shown locked, with the reason, instead of linked, and a frame
 number past it is answered in place with a link to the furthest frame, rather than landing on
-*Not there yet*. Only the gate's cursor knows the furthest frame — the browser's record is the
-frame last viewed — so the API sends it with each frame (`StepResponse.Furthest`). Both panels
-are native popovers: they open with no script, close on Esc or a click elsewhere, and a
-browser without the Popover API renders them in flow at the end of the page and hides their
-buttons.
+*Not there yet*. Only the gate's cursor knows the furthest frame the gate will serve — the
+browser's record keeps a furthest of its own, but a signed-out reader's can be past the
+anonymous cursor — so the API sends it with each frame (`StepResponse.Furthest`). That same
+gap is what *Not there yet* explains to a signed-out reader whose record reaches the frame:
+*You read this while signed in.*, with *Sign in to continue* returning them to it (#157).
+Both panels are native popovers: they open with no script, close on Esc or a click
+elsewhere, and a browser without the Popover API renders them in flow at the end of the page
+and hides their buttons.
 
-**The keys stay and are not advertised.** `→` and `←` move; `Enter` with nothing focused puts
-the caret in the answer line; `Ctrl+Enter` — spelt `⌘+Enter` on an Apple keyboard, from a flag
-the page sets rather than a string it rewrites — keeps the answer and goes on; `Esc` returns
-to reading; `g` opens the map with the caret in its frame number. The frame used to print a
-line of them under every question, one state at a time; it prints none now. Every move is a
-labelled button, the pager's buttons carry their key in their tooltip, and the whole map is in
-*Reading settings*. While a panel is open the page's keys stand aside, because the arrows'
-forward is a write. `specs/reading.spec.ts` still reads a program end to end by pressing `→`.
+**The keys stay and are not advertised.** `→` and `←` move, and on frame 1 `←` opens the
+contents, where the button in `Previous`'s place leads; `Enter` with nothing focused puts the
+caret in the answer line; `Ctrl+Enter` — spelt `⌘+Enter` on an Apple keyboard, from a flag the
+page sets rather than a string it rewrites — keeps the answer and goes on; `Esc` returns to
+reading; `g` opens the map with the caret in its frame number; `?` opens *Reading settings* with
+focus in the panel, on every screen that has one, and when the panel closes focus goes back
+where `?` found it — for a reader who was reading, the page, at once, so `→` straight after Esc
+turns the page (`settings-key.tsx`). The frame used to print a line of them under every
+question, one state at a time; it prints none now. Every move is a labelled button, the pager's
+buttons carry their key in their tooltip and in `aria-keyshortcuts`, which a screen reader says
+with the name, and the whole map is in *Reading settings* — where `→`'s row says that it reveals
+the answer. The key a button names is the page's, pressed while reading; at the button itself,
+`Enter` presses it. While a panel is open the page's keys stand aside, because the arrows'
+forward is a write. **The arrows and `Enter` are the page's only while the reader is reading** —
+focus on nothing, or on the frame's heading (below): a key pressed at a button, a link, a pane's
+button or a formula wide enough to scroll is that element's. Until #159 `→` revealed the frame
+from any of them, and `←` on frame 1 did nothing while the button beside it went somewhere.
+`specs/reading.spec.ts` still reads a program end to end by pressing `→`, and
+`specs/reading-loop.spec.ts` holds the rest.
 
-**The frame itself** is quiet: a line naming the heading it is under; the answer box labelled
-with the frame it answers; the book's text; and, on a frame that asks, the answer line under a
-visible `Your answer` label with `Clear my answer` beside it, and the two pane buttons. A
-heading nobody sees — the program's title and the position, in a visually-hidden `<h1>` — is
-for the reader who navigates by headings. A new frame fades in over a fifth of a second, the
-one sign with the pager standing still that the page turned; a reader who asks for less motion
-gets none.
+**The frame itself** is quiet: the heading it is under, a real `<h2>` set small in the UI
+face; the answer box labelled with the frame it answers; the book's text; and, on a frame that
+asks, the answer line under a visible `Your answer` label with `Clear my answer` beside it, the
+cue under the line, and the two pane buttons. **The cue is *The next frame answers this.*** —
+on every frame that asks, for good, and tied to the line as its description
+(`aria-describedby`), so a screen reader hears it with `Your answer`. It is what `Next` does
+there, said where the reader acts on it, because the placeholder that used to be the frame's
+one instruction vanished at the first keystroke; and it is information and not a gate — the
+same words under an empty line and a full one, and an empty line's frame turns on the first
+press ([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)).
+
+A heading nobody sees — the program's title and the position, in a visually-hidden `<h1>` — is
+for the reader who navigates by headings, **and it is where focus goes when the page turns**
+(#159, `frame-focus.tsx`). Before, focus fell to `<body>` on every turn; the router's own
+announcer (below) said the new page's title, and nothing said the answer. Now a screen reader
+says which frame this is and, as the heading's description, the answer the frame opens with — a
+long answer only in part, because Chromium computes a description from about its first hundred
+nodes and stops there. It is `tabIndex="-1"`, so it is never a Tab stop, the keys count it as
+the page, and the next Tab goes into the new frame. A frame the browser loaded — a deep link, a
+reload — leaves focus where every page starts, so the skip link is still the first Tab; only a
+frame the router brought takes it. The section's line was a styled `<p>`, so heading navigation
+found only the hidden `<h1>`; it is a real heading now.
+
+**The heading takes focus after the router has spoken, never beside it.** Next's App Router
+announces every client navigation itself: `<next-route-announcer>` holds a `role="alert"`,
+`aria-live="assertive"` region, and on each turn the router writes the new page's title into
+it, or the heading's own text while the title is still empty. With focus moved at once, that
+announcement came a few milliseconds after the heading took focus, on every turn; and the order
+a screen reader gets is not the DOM's. Chromium passes a page's accessibility changes on to a
+screen reader at most once every 150 ms after the page has loaded (350 ms before), but a change
+of focus goes at once and takes everything waiting with it, and within one update the focus is
+fired first — so the alert came after the heading and its answer, and an assertive alert may
+cut into them. The heading therefore waits until the announcement has gone out in an update of
+its own: that interval and a margin after the announcer's region last changes, or after the
+frame arrives when it does not. The screen reader, which generally speaks a new focus over
+whatever it was saying, then gives the heading and the answer last. A reader who moves in the
+meantime — a Tab, `Enter` into the answer line — keeps where they went.
+`specs/reading-loop.spec.ts` holds the order and the interval by the page's own clock, and that
+a reader who writes straight after a turn keeps the caret. No screen reader was run: what one
+hears rests on Chromium's source (`ax_object_cache_impl.cc` and
+`browser_accessibility_manager.cc`, read at Chromium 141).
+
+**Wide content is reachable from the keyboard.** A display formula, a table or a code block
+wider than the column scrolls inside it rather than widening the page, and one that actually
+scrolls is a Tab stop, named `Formula`, `Table` or `Code` in the reader's edition, wearing the
+shared ring; its arrows scroll it (`wide-content.tsx`). Only one that scrolls: whether it does
+is measured in the browser as the width and the maths' faces change, so a formula that fits is
+never a stop between the skip link and the answer line. Chromium already made such a scroller
+a Tab stop, with no name; another browser left it out of reach. `specs/accessibility.spec.ts`
+scans a frame whose formula is wider than a phone.
+
+**The name is a hidden element the block points at (`aria-labelledby`), never an `aria-label`**,
+because the heading's description is the answer box walked, and a walk that meets an
+`aria-label` says the label instead of what is under it. With one, a turn onto a frame whose
+answer is a formula too wide for the column was announced as *Answer to frame 23 Formula* — on a
+phone, and on the widest at desktop width. An `aria-labelledby` is not followed inside a
+description, so the maths is read, and the block is still named when it takes focus.
+`specs/reading-loop.spec.ts` asks the browser's own accessibility tree what such a turn says,
+because Playwright's own computation follows the `aria-labelledby` there and would report the
+word the browser does not say.
+
+A new frame fades in over a fifth of a second, the one sign with the pager standing still that
+the page turned; a reader who asks for less motion gets none.
 
 <!-- Superseded, and kept for the trail: ADR-0041's place row (`F01 · <title> › <section ▾>
 English · polski [12] / 45`, the frame number an input styled as text, the sections a
@@ -639,15 +836,50 @@ check offer that ADR-0040 removed.
 
 ### `/account` — the reader's own record
 
-Today it is deletion that deletes, and nothing else. The reader's place, the export of their
-worksheets and *Sign out* are on the index's top row (the account control), not here; 610 in
-[the order](#the-order) makes this page the reader's overview, sign-out included, and gives
-deletion its own page. The deletion screen says
-what goes, what stays, what no deletion can reach — an anonymous outcome already folded into
-a rate cannot be retracted, because nothing can find the rows that were yours — and that the
-account is marked and scheduled rather than erased. That fourth sentence was off the page for a
-while, swallowed by a comment nobody closed, and the acceptance suite now signs in against
-the identity fixture to read all four (ADR-0021, Consequences).
+`web/app/src/app/account/page.tsx`, the page the index's *Account* link opens, in the edition
+that link is labelled in. **It is the reader's overview** (#161); until then it was the
+deletion screen and nothing else, so a reader who opened their account found only the way to
+end it. It answers what a reader asks of an account, in the order they ask it:
+
+1. **Whose it is.** *Signed in as* the address the session's token carries — verified on the
+   server rather than decoded — with *Sign out* beside it. Signing out is the index's own
+   sign-out, which drops the cookies and nothing else; then the reader is taken to the
+   programs, in the same edition, and this page is replaced in the history, because every
+   line on it was about the session that has just ended.
+2. **Where the account has them.** The furthest frame the account holds in each program, in
+   the book's order, each line the way back into that frame. These are the rows `AbOvo.Api`
+   files under the reader's own subject, fetched on the server with the reader's own token —
+   the one question [ADR-0020](../adr/0020-no-aggregate-touches-the-progress-store.md) leaves
+   open, because it names one reader by equality. A position and never a progress
+   ([ADR-0041](../adr/0041-the-reading-surface-shows-position-and-never-progress.md)): a
+   program, its title and *at frame 12*, and no count, fraction or date. It is not the
+   per-reader view the second of the [rules every screen inherits](#rules-every-screen-inherits)
+   forbids — that rule is about the instrument, which has no reader in it to show — and it
+   shows a reader nothing but where they left off. A program this deployment no longer
+   carries is left out, as the index's resume control leaves it out; an API that does not
+   answer is a sentence saying so, never an account shown as holding nothing
+   (`lib/server/account-places.ts`).
+3. **What it does not hold.** The worksheets stay in this browser and never reach the
+   account, which the page says, and *Export my worksheets* beside that sentence is the
+   index's own control
+   ([ADR-0055](../adr/0055-the-notebook-exports-what-stands-today-never-a-history.md)). It
+   reads the browser, so it arrives after the first paint, into a line held open for it.
+4. **The way to deletion**, a quiet link named by the deletion screen's own heading.
+
+**The deletion screen is `/account/delete`, unchanged in substance.** It says what goes, what
+stays, what no deletion can reach — an anonymous outcome already folded into a rate cannot be
+retracted, because nothing can find the rows that were yours — and that the account is marked
+and scheduled rather than erased, all before the button. That fourth sentence was off the page
+for a while, swallowed by a comment nobody closed, and the acceptance suite now signs in
+against the identity fixture to read all four (ADR-0021, Consequences). A refusal — a wrong
+confirmation word, a password not accepted — comes back to this screen with its reason, in the
+reader's edition, and *Keep my account* returns to the overview. `/account/deleted`, where a
+deletion ends, is the one page under `/account` that needs no session, because the deletion
+has just ended the one that reached it.
+
+`specs/account-overview.spec.ts` holds the overview — the address, where *Sign out* leads, the
+edition carried to the deletion screen and back, and a frame read on a new account listed and
+opening — and `specs/account-deletion.spec.ts` the deletion screen at its own address.
 
 ### `/instrument` — the author's view
 
@@ -753,17 +985,32 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   hit area grew and nothing moved. Off the reading screens the same pattern holds the index's
   and the courses page's top-row links, the quiet buttons beside them (*Forget where I am*,
   *Export my worksheets*, the account's), the consent line's toggle and the sync notice's
-  *Got it* (#147). The index's filled *Continue* is the one exception to the pattern, because a
-  fill is painted over its padding: the link is the padded target and a span inside it is the
-  button a reader sees, at the size it always had.
+  *Got it* (#147), *Go to frame N* (#157) and the shut notice's way on (#163). The index's
+  filled *Continue* is the one exception to the pattern, because a fill is painted over its
+  padding: the link is the padded target and a span inside it is the button a reader sees, at
+  the size it always had. The index's language control is not an exception but a different
+  shape: it is drawn as outlined boxes 44 px tall, so its target is the box a reader sees
+  (#163).
   `specs/reading.spec.ts` and `specs/pager.spec.ts` measure the box on the reading screens, and
   `specs/targets.spec.ts` off them, at 390 px and 1280 px — where it also checks that a press
   on a control's words lands on that control, since grown boxes overlap wherever a row wraps.
-- **The reveal says when it is under way.** It is the one move that is never prefetched, so
-  it always costs a round trip; while the next frame is on its way the button dims, its arrow
-  nudges and its cursor says so (`reveal-button-label.tsx`, the form's `useFormStatus`; the
-  last frame's `Summary` link reads `useLinkStatus`). Nothing lays out, so the reveal's
-  shift bound holds.
+- **A move made from a frame's pager or its program map, or from *Not there yet*, says when
+  it is under way** (#160). A frame is rendered on the server, per request, from live calls to
+  the API, so each move to one is a round trip, and the page being left stays on screen until
+  it ends. The reveal's arrow nudges forward and its cursor says so (`reveal-button-label.tsx`,
+  the form's `useFormStatus`); `Previous` leans back the same way, and so does `Contents` in
+  that cell (`pending-label.tsx`, the link's `useLinkStatus`), as do the ways out of *Not there
+  yet*. On a frame, `→` and `←` press `Next` and `Previous` rather than moving by themselves,
+  so a key shows what its button shows. A heading or a frame number chosen in the program map
+  is said on the map's door: the map shuts on the press, and the pager's position pulses until
+  the frame arrives. What does not say it yet: the top bar's links, on every reading screen;
+  `→` on a program's last frame, which opens the summary by itself (`frame-keys.tsx`); and
+  every move from the summary or the contents page — their pagers, their links to frames and
+  the summary's `←` and `→` (`program-summary.tsx`, `program-contents.tsx`,
+  `summary-keys.tsx`). There is no `loading.tsx`, so no skeleton replaces the frame. Nothing
+  lays out, so the pager stays pinned and the shift bounds hold; `specs/frame-loading.spec.ts`
+  holds the API back for one reader and watches the wait, and the pager, from the press — a
+  click or a key — to the frame's arrival.
 - **No keyboard hint on the page.** The keys are an option (ADR-0063): the frame prints no
   line of them, every move is a labelled button, the pager's buttons name their key in a
   tooltip, and the whole map is inside *Reading settings* for whoever wants it — a tablet
@@ -959,10 +1206,11 @@ commits, 4.61 MB, zero findings, audit committed under `docs/architecture/`.
 
 ## The ranked backlog
 
-Ranked, not estimated. The order is the delivery order and the phases are the ones named on
-`/about`, so the page and this document cannot drift. (They were named on the landing page
-until ADR-0036 moved the argument there; `specs/about.spec.ts` followed, and is still what
-makes the drift fail a build rather than go unnoticed.)
+Ranked, not estimated. The order is the delivery order. The phases were named on `/about`
+(on the landing page before ADR-0036) until issue #162 took the roadmap off a reader's screen,
+and `specs/about.spec.ts` stopped holding the page and this document together with it. This
+document is where they are named now. The feature-request template still lists them as a hint
+to a contributor, and no test holds either list to the other.
 
 Each item says what it is, what it must not do, and what "done" looks like. Where an item is
 blocked, the blocker is named — not left to be discovered by the person who picks it up.

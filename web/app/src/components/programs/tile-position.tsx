@@ -32,7 +32,9 @@ export interface TilePositionProps {
  * The returning reader's question at this page is "which one was I in", and forty-seven
  * tiles answered it with nothing; the only sign was the resume control naming the LAST
  * program, in the header, in the faintest type on the page. This says where they are in
- * every program they have opened, in the id's own register. It says nothing about how far
+ * every program they have opened, in the id's own register — the furthest frame they reached
+ * there, which is the frame *Continue* offers, so that going back to re-read does not make
+ * the tile and the control disagree (issue #157). It says nothing about how far
  * that is: no fraction, no bar, no count of frames read, because any of those is the
  * embellishment ADR-0009 §1 forbids and the frame's own `12 of 45` is the test of it.
  *

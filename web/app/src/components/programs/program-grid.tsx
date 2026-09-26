@@ -9,6 +9,7 @@ import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { editionsOffered } from '@/lib/content/chosen-edition';
 import { shownBundles } from '@/lib/content/chosen-track';
+import { runReasons } from '@/lib/content/run-reasons';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { coursesHref, indexHref } from '@/lib/index-href';
 import { editionHrefs } from '@/lib/language/hrefs';
@@ -17,6 +18,7 @@ import { ClearWorksheets, ExportWorksheets } from '../read/clear-controls.tsx';
 import { ForgetProgress, ResumeLast, type Limits } from '../read/resume.tsx';
 
 import styles from './program-grid.module.css';
+import { ReadingUnavailable } from './reading-unavailable.tsx';
 import { ShutNotice } from './shut-notice.tsx';
 import { TileEntry } from './tile-entry.tsx';
 import { TilePosition } from './tile-position.tsx';
@@ -54,7 +56,15 @@ export interface ProgramGridProps {
    * what the reader asked for and never about what they may have: `ShutNotice` puts it back
    * to the gate before it says a word.
    */
-  readonly shut?: { readonly track: string; readonly unit: string; readonly previous: string | undefined } | undefined;
+  readonly shut?:
+    | {
+        readonly track: string;
+        readonly unit: string;
+        readonly previous: string | undefined;
+        /** Every program ahead of `unit`, in the book's order — the notice's way on is one. */
+        readonly before: readonly string[];
+      }
+    | undefined;
 }
 
 /**
@@ -67,6 +77,16 @@ export interface ProgramGridProps {
  * phases of the work. All of it is true and none of it is a step in the reader loop, so it
  * now lives at `/about` and this page is the programs. A reader arriving at ab-ovo is one
  * move from working one, which is the thing the old first screen asked them to read past.
+ *
+ * A LITTLE OF IT CAME BACK, AS ORIENTATION RATHER THAN ARGUMENT (issue #163).
+ * The audit of 2026-09-24 watched a first visit: a small `PROGRAMS`, and a grid of tiles
+ * nearly all of them faint and marked `opens after …`, with nothing saying what a program or
+ * a frame is, and the reassurance that nothing is paid for or hidden in a tooltip that touch
+ * and keyboard readers never see. So the heading is a heading again, a standfirst under it
+ * says what a program and a frame are and how the loop goes (`chrome.programsLead`), and a
+ * legend above each course's grid says why its programs open in order (`chrome.orderLegend`,
+ * whose content ADR-0065 decided). Neither says why the loop is built that way; `/about`
+ * still does.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ONE EDITION, ONE TITLE PER TILE, AND THE CONTROL FOR IT IS IN THE TOP ROW.
@@ -108,6 +128,21 @@ export function ProgramGrid({
     what it needs is a fact about the deployment rather than about what is on screen.
   */
   const courses = shownBundles(bundles, chosenTrack);
+
+  /*
+    ONE EDITION PER COURSE, AND IT IS READ FROM THE COURSE RATHER THAN FROM THE CONTROL.
+
+    A course that does not publish the chosen edition falls back to its own first declared
+    one instead of rendering an empty tile — the bundle's order, not this application's
+    opinion. It cannot happen on a NARROWED index, where the control offers only what the
+    course on screen has; it can happen on the unnarrowed one, the day a deployment pins a
+    second course in one language, and the honest answer then is the edition that course HAS
+    rather than a blank where a title should be. The shut notice's way on opens in it too, so
+    the program it names is read in the edition its tile is shown in.
+  */
+  const shownIn = (bundle: Bundle): string =>
+    bundle.track.languages.includes(chosen) ? chosen : (bundle.track.languages[0] ?? chosen);
+  const refusedIn = shut ? courses.find((course) => course.track.id === shut.track) : undefined;
 
   /*
     How long each program is, so a reader whose stored place is past the end of a shortened
@@ -190,10 +225,13 @@ export function ProgramGrid({
             when it lands. A control that is in the markup from the start belongs before
             them, where nothing can push it sideways.
 
-            It is three words of furniture and not a filled control, on the language
-            control's reasoning (`language-choice.tsx`): a reader touches it once and then
-            wants it out of the way. Both are now that shape, and both are remembered — the
-            theme in `localStorage`, the edition there and on the account (ADR-0052).
+            It is three words of furniture and not a filled control: a reader touches it
+            once and then wants it out of the way. The language control is quiet words of
+            the same weight on every other screen, but this page draws it `offered` (issue
+            #163) — outlined boxes, the current one filled — because the edition is the
+            choice a first-time reader makes here, so on this page the two deliberately
+            differ. Both are remembered: the theme in `localStorage`, the edition there and
+            on the account (ADR-0052).
           */}
           <ThemeSwitch language={chrome.language} />
           <ResumeLast language={chrome.language} limits={limits} />
@@ -242,10 +280,16 @@ export function ProgramGrid({
 
         It is the line the edition switch has always been on, and it still qualifies the grid
         below rather than introducing it — every title on this screen is in the edition it
-        names.
+        names. It is drawn `offered` here and nowhere else (issue #163): this is where a
+        first-time reader makes the choice, and the audit found its quiet words easy to miss
+        at the end of a line.
       */}
       <div className={styles.headingRow}>
-        {/* `tabIndex={-1}`: reachable by script and not by Tab — see `HEADING_ID`. */}
+        {/*
+          `tabIndex={-1}`: reachable by script and not by Tab — see `HEADING_ID`. A heading
+          set as one since issue #163, where it was a faint uppercase label the size of a
+          tile's id, so the page's first line of content did not read as its title.
+        */}
         <h1 className={styles.heading} id={HEADING_ID} tabIndex={-1}>
           {chrome.programs}
         </h1>
@@ -265,21 +309,46 @@ export function ProgramGrid({
           label={chrome.languageLabel}
           labelLanguage={chrome.language}
           languages={editionsOffered(courses)}
+          offered
         />
       </div>
 
       {/*
+        WHAT A PROGRAM AND A FRAME ARE, under the heading and before anything else on the page
+        (issue #163) — `chrome.programsLead` says why it is here and why it stops at that. On
+        the server, like the heading: it is the same for every reader, so it is in the first
+        paint and moves nothing when the reader's own controls arrive.
+      */}
+      <p className={styles.standfirst}>{chrome.programsLead}</p>
+
+      {/*
+        THAT NO PROGRAM WILL OPEN, WHEN THE BOOK'S SERVER DOES NOT ANSWER (issue #158) — under
+        the heading and above the grid it is about, so a reader the skip link sends to the
+        heading meets it before the first tile. Empty, with no box, on every visit the server
+        answers (`reading-unavailable.tsx`).
+      */}
+      <ReadingUnavailable
+        language={chrome.language}
+        message={chrome.readingUnavailable}
+        tracks={courses.map((course) => course.track.id)}
+      />
+
+      {/*
         WHY THIS PAGE, WHEN THE READER ASKED FOR ANOTHER ONE.
 
-        Above the grid and below the heading: a reader who has just been moved here without
-        asking reads the reason before the forty-seven tiles, and a reader who arrived
-        normally sees nothing at all, because the component renders nothing without a
-        refusal to explain. It cannot shift anything either — it is absent from the first
-        paint, like everything else on this page that is about the reader, and it is above a
-        grid rather than inside a row.
+        Above the grid and below the standfirst: a reader who has just been moved here without
+        asking reads the reason before the tiles, and a reader who arrived normally sees
+        nothing at all, because the component renders nothing without a refusal to explain.
+        It arrives with the page — the gate's bounce is a client navigation, and a loaded
+        `?shut=` address is rendered for a reader with no record — so it moves nothing for the
+        reader it is for; `shut-notice.tsx` names the readers it can move the grid under, both
+        of whom reloaded a `?shut=` address, and the stylesheet's `.shutNotice` why a block is
+        allowed here at all.
       */}
       {shut ? (
         <ShutNotice
+          before={shut.before}
+          edition={refusedIn ? shownIn(refusedIn) : chosen}
           language={chrome.language}
           previous={shut.previous}
           track={shut.track}
@@ -288,19 +357,9 @@ export function ProgramGrid({
       ) : null}
 
       {courses.map((bundle) => {
-        /*
-          ONE EDITION PER COURSE, AND IT IS READ FROM THE COURSE RATHER THAN FROM THE CONTROL.
-
-          A course that does not publish the chosen edition falls back to its own first
-          declared one instead of rendering an empty tile — the bundle's order, not this
-          application's opinion. It cannot happen on a NARROWED index, where the control
-          offers only what the course on screen has; it can happen on the unnarrowed one, the
-          day a deployment pins a second course in one language, and the honest answer then is
-          the edition that course HAS rather than a blank where a title should be.
-        */
-        const shown = bundle.track.languages.includes(chosen)
-          ? chosen
-          : (bundle.track.languages[0] ?? chosen);
+        // The course's own edition — `shownIn`, above, says why it is not simply `chosen`.
+        const shown = shownIn(bundle);
+        const groups = groupsOf(bundle);
 
         return (
           <section key={bundle.track.id}>
@@ -333,6 +392,40 @@ export function ProgramGrid({
                   )}
                 </p>
               ) : null}
+              {/*
+                ────────────────────────────────────────────────────────────────────────────
+                THE LEGEND — WHY THE TILES BELOW ARE SHUT, SAID WITHOUT A HOVER (issue #163,
+                ADR-0065).
+
+                Per course and under its title, because the order is a course's: the gate
+                reads one bundle (ADR-0051), and the sentence about which run is built on
+                which is said only where this course has those runs (`run-reasons.ts`).
+
+                IT IS ON THE SERVER, AND IT STAYS, which is how "whenever a tile is shut" is
+                kept without moving the page. The server renders a reader with no record, so
+                on the first paint every program of a course but its first IS shut, and the
+                line is there wherever there is a second program. A reader whose own record
+                has opened every program learns that after hydration, and taking the line away
+                then would move the whole grid up under them — the shift `progress.spec.ts`
+                bounds, which ADR-0056 relaxed for the shut notice's visit and for nothing
+                else. Every clause is still true for that reader, so it stays: a sentence they
+                no longer need costs them less than a page that jumps on every visit.
+
+                Not a `status` and never focused: it is a standing fact about the course, not
+                news. What speaks when it arrives is the notice above, for a reader who was
+                moved here.
+                ────────────────────────────────────────────────────────────────────────────
+              */}
+              {bundle.units.length > 1 ? (
+                <p className={styles.legend}>
+                  {chrome.orderLegend(
+                    runReasons(
+                      groups.map((group) => group.prefix),
+                      chrome.runReasons,
+                    ),
+                  )}
+                </p>
+              ) : null}
             </div>
 
             {/*
@@ -343,7 +436,7 @@ export function ProgramGrid({
               edition, or this application's word for the prefix; a prefix it has no word
               for is grouped without one. One group is a list, and gets no heading.
             */}
-            {groupsOf(bundle).map((group) => {
+            {groups.map((group) => {
               const label = group.part
                 ? say(group.part.titles, shown)
                 : group.prefix

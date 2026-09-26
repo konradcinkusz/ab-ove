@@ -1,7 +1,8 @@
 /*
  * THE edition control — one per screen (ADR-0052). Deliberately quiet: it is a control a
  * reader uses once and then does not want in the way of the frame, so it reads as a pair of
- * words at the measure's edge rather than as a pair of buttons.
+ * words at the measure's edge rather than as a pair of buttons — except on the index, which
+ * draws it `offered` (below, issue #163).
  *
  * NO MARGIN OF ITS OWN any more, which is what lets it sit in the top row of four different
  * screens without any of them having to undo a block-level gap. Every one of those rows is
@@ -23,7 +24,8 @@
  * page beside a blue link, which reads as "disabled" beside "choose me": the selected edition
  * looked like the one you could not have. It now says "this one" the way the theme switch
  * already did (`theme-switch.module.css`), so the two switches a reader meets on the same
- * screens mark their current position the same way.
+ * screens mark their current position with the same underline. On the index, the `offered`
+ * shape below also fills the current edition's box.
  */
 .current {
   color: var(--ink);
@@ -43,4 +45,81 @@
 .other:hover,
 .other:focus-visible {
   text-decoration: underline;
+}
+
+/*
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ * THE INDEX'S SHAPE — `offered`, issue #163.
+ *
+ * The same links, drawn as outlined boxes that share their edges, a finger tall
+ * (`--control-min`) and in the UI face a size up from the quiet shape. The quiet shape's
+ * padding-and-negative-margin trick is dropped here rather than kept: that grows a target
+ * without moving the line, and here the point is that the target SHOWS.
+ *
+ * The edge is `--control-edge`, the boundary of something to press (WCAG 1.4.11's 3:1, held by
+ * `lib/theme/tokens.test.ts`). The current edition keeps the underline every other current
+ * position in the product wears, and is filled as well, so the row reads as a choice with
+ * one answer rather than as a label beside a button. Neither mark is colour alone.
+ * ──────────────────────────────────────────────────────────────────────────────────────────
+ */
+.offered {
+  font-size: 0.9375rem;
+  gap: 0;
+}
+
+.offered .current,
+.offered .other {
+  align-items: center;
+  border: 1px solid var(--control-edge);
+  box-sizing: border-box;
+  display: inline-flex;
+  margin: 0;
+  min-height: var(--control-min);
+  padding: 0 1rem;
+}
+
+.offered .current {
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.offered .other {
+  background: var(--paper-raised);
+}
+
+/*
+ * Neighbours share an edge: each is pulled over the right-hand border of the one before it.
+ *
+ * `:not(:first-child)` RATHER THAN `* + *`, AND AFTER THE RULE ABOVE. It weighs two classes,
+ * as that rule does, and so its later place is what beats that rule's `margin: 0`. `* + *`
+ * weighs one and loses, and the two 1 px borders then stand side by side as a 2 px divider.
+ */
+.offered > :not(:first-child) {
+  margin-left: -1px;
+}
+
+.offered > :first-child {
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+}
+
+.offered > :last-child {
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+}
+
+.offered .other:hover {
+  border-color: var(--accent);
+  position: relative;
+}
+
+/*
+ * The shared ring (`components/read/controls.module.css`), raised over the neighbour whose
+ * edge it would otherwise be drawn under. The outline is transparent rather than removed:
+ * forced colours paint it where they drop the box-shadow (issue #148).
+ */
+.offered .other:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--accent);
+  outline: 2px solid transparent;
+  position: relative;
 }

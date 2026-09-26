@@ -1,8 +1,10 @@
 import Link from 'next/link';
 
-import { say, unitBefore, type Bundle, type Route, type Unit } from '@ab-ovo/web-kit';
+import { say } from '@ab-ovo/web-kit';
 
 import { ConsentControl } from '@/components/consent/consent-control';
+import { neighboursOf } from '@/lib/content/neighbours';
+import type { ReturnIndex, ReturnRoute, TrackContent, UnitSummary } from '@/lib/content/wire';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
 import { labFor } from '@/lib/lab/protocol';
@@ -20,11 +22,15 @@ import { RichInline } from './rich-text.tsx';
 import { SummaryKeys } from './summary-keys.tsx';
 
 export interface ProgramSummaryProps {
-  readonly bundle: Bundle;
-  readonly unit: Unit;
+  /** The track's id, as the address carries it. */
+  readonly track: string;
+  /** `GET /api/v1/content/{track}` — the editions, and the programs in the book's order. */
+  readonly trackContent: TrackContent;
+  /** `GET /api/v1/content/{track}/{unit}` — the program's title and how many frames it has. */
+  readonly unit: UnitSummary;
+  /** `GET /api/v1/content/{track}/{unit}/summary`, past its gate — the index itself. */
+  readonly index: ReturnIndex;
   readonly language: string;
-  /** The next unit in this bundle, if any — undefined only for the very last program. */
-  readonly nextUnit: Unit | undefined;
 }
 
 /**
@@ -40,29 +46,30 @@ export interface ProgramSummaryProps {
  * from printing it on an earlier one — and the book's own passes record having to cut this
  * exact leak from openers more than once. Putting the return index on its own screen, reached
  * only after the last frame's reveal, keeps it out of every frame that comes before it.
+ *
+ * "REACHED ONLY AFTER THE LAST FRAME" IS THE API'S RULE NOW, NOT THIS SCREEN'S HOPE (issue
+ * #158). It used to be reachable by URL at any frame; `AbOvo.Api` serves the index under the
+ * last frame's gate, and this component is rendered only with what it served (`page.tsx`
+ * renders the frame's "Not there yet" otherwise).
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * QUIZ ROUTES RENDER NOTHING HERE, on purpose. A Quiz is a triage instrument answered BEFORE
- * frame 1 — the book's own words — so printing its 370 questions on a screen a reader reaches
- * only by finishing the program would be showing them an entry test after they have already
- * done the harder thing it exists to triage. `content-schema.v1.json` has no field for the
- * Quiz's OWN question bodies yet (only its routes), which is a second, independent reason
- * nothing here could render one today.
+ * QUIZ ROUTES RENDER NOTHING HERE, on purpose, and they are no longer sent at all: a Quiz is a
+ * triage instrument answered BEFORE frame 1 — the book's own words — so printing its 370
+ * questions on a screen a reader reaches only by finishing the program would be showing them
+ * an entry test after they have already done the harder thing it exists to triage. The API's
+ * `ReturnIndex` carries the Summary and the outcomes and has no field for a Quiz.
  */
 export function ProgramSummary({
-  bundle,
+  track,
+  trackContent,
   unit,
+  index,
   language,
-  nextUnit,
 }: ProgramSummaryProps): React.JSX.Element {
-  const track = bundle.track.id;
   const chrome = chromeFor(language);
   const at = (n: number): string => `/read/${track}/${unit.id}/${language}/${n}`;
   const contentsAt = `/read/${track}/${unit.id}/${language}`;
-
-  const routes = unit.routes ?? [];
-  const summaryItems = routes.filter((route) => route.kind === 'summary');
-  const outcomes = routes.filter((route) => route.kind === 'outcome');
+  const { previous: previousUnit, next: nextUnit } = neighboursOf(trackContent.programs, unit.id);
 
   /*
     The lab offer, resolved through `labFor` rather than guessed from the id's casing —
@@ -70,10 +77,9 @@ export function ProgramSummary({
     for the same reason: a bundle may name a lab this build does not serve, and the honest
     answer to that is no link at all rather than one that 404s.
   */
-  const bundleLab = bundle.labs?.find((candidate) => candidate.id === unit.id);
-  const lab = bundleLab ? labFor(bundleLab.id) : undefined;
+  const lab = index.lab ? labFor(index.lab) : undefined;
 
-  const lastFrameAt = at(unit.steps.length);
+  const lastFrameAt = at(unit.stepCount);
   const nextProgramAt = nextUnit ? `/read/${track}/${nextUnit.id}/${language}/1` : undefined;
 
   return (
@@ -85,20 +91,16 @@ export function ProgramSummary({
             a program, so a reader who has not reached the program has not reached its return
             index either. It is the only one of the three that records nothing.
           */}
-          <ProgramGate
-            language={language}
-            previous={unitBefore(bundle, unit.id)?.id}
-            track={track}
-            unit={unit.id}
-          />
+          <ProgramGate language={language} previous={previousUnit?.id} track={track} unit={unit.id} />
           {/*
             The two keys this screen has, so a reader who arrived here by pressing `→` on the
             last frame finds the arrows still work.
 
             THIS SCREEN RECORDS NO POSITION, AND THAT IS A CORRECTION RATHER THAN AN OMISSION:
-            the store holds a FRAME NUMBER and there is no number for "the summary", so the
-            only thing it could write is N — the claim that the reader has read every frame,
-            which a deep link here would have invented from a page load.
+            the store holds the FRAME this browser last opened and the summary is not a frame,
+            so the only number it could write, N, would name a frame this page load never
+            showed. (A deep link used to reach it short of frame N as well; since #158
+            `AbOvo.Api` refuses that, and `page.tsx` renders Not there yet instead.)
           */}
           <SummaryKeys back={lastFrameAt} forward={nextProgramAt} />
         </>
@@ -108,14 +110,14 @@ export function ProgramSummary({
       pager={
         /*
           THE HAND-OFF, in the pager a reader has pressed on every frame of this program
-          (ADR-0063): back to the frame they came from, on to the next program. The centre is
-          empty — this screen is the end of a program rather than a place inside one.
+          (ADR-0063): back to the last frame, named by its number, on to the next program. The
+          centre is empty — this screen is the end of a program rather than a place inside one.
         */
         <ReadingFoot
           back={
             <Link className={foot.pagerButton} href={lastFrameAt}>
               <ArrowLeft className={foot.arrow} />
-              <span>{chrome.backToLastFrame}</span>
+              <span>{chrome.backToLastFrame(unit.stepCount)}</span>
             </Link>
           }
           chrome={chrome}
@@ -123,16 +125,23 @@ export function ProgramSummary({
             nextUnit && nextProgramAt ? (
               /*
                 FILLED, AND THE ONE FILLED THING ON THIS PAGE — the reveal's place, on the
-                screen that has no reveal. The next program's title is in the tooltip rather
-                than the label: the label has to fit a phone's third of the pager.
+                screen that has no reveal. THE NEXT PROGRAM IS NAMED BY ITS TITLE AS WELL AS ITS
+                ID (issue #158): the title used to live only in the tooltip, which a touch
+                screen never shows, so a reader was offered `F02` and asked to know what it was.
+                The words `Next program` stay whole and the title under them takes up to two
+                lines before it is cut (`program-summary.module.css` says why two); the tooltip
+                stays for the pointer, over whatever the cell had to cut.
               */
               <Link
                 className={foot.reveal}
                 href={nextProgramAt}
                 title={`${nextUnit.id} · ${say(nextUnit.titles, language)}`}
               >
-                <span className={foot.label}>
-                  {chrome.nextProgramLabel}: {nextUnit.id}
+                <span className={summaryStyles.onward}>
+                  <span className={summaryStyles.onwardKicker}>{chrome.nextProgramLabel}</span>
+                  <span className={summaryStyles.onwardTitle} lang={language}>
+                    {nextUnit.id} · <RichInline language={language} text={say(nextUnit.titles, language)} />
+                  </span>
                 </span>
                 <ArrowRight className={foot.arrow} />
               </Link>
@@ -157,10 +166,10 @@ export function ProgramSummary({
           contentsHref={contentsAt}
           language={language}
           languageHrefs={editionHrefs(
-            bundle.track.languages,
+            trackContent.languages,
             (other) => `/read/${track}/${unit.id}/${other}/summary`,
           )}
-          languages={bundle.track.languages}
+          languages={trackContent.languages}
           unitId={unit.id}
           unitTitle={say(unit.titles, language)}
         />
@@ -173,22 +182,22 @@ export function ProgramSummary({
         {chrome.summaryHeading}
       </p>
 
-      {summaryItems.length > 0 ? (
+      {index.summary.length > 0 ? (
         <ol className={summaryStyles.list}>
-          {summaryItems.map((route, index) => (
-            <SummaryRow at={at} chrome={chrome} index={index} key={`s${index}`} language={language} route={route} />
+          {index.summary.map((route, n) => (
+            <SummaryRow at={at} chrome={chrome} key={`s${n}`} language={language} route={route} />
           ))}
         </ol>
       ) : null}
 
-      {outcomes.length > 0 ? (
+      {index.outcomes.length > 0 ? (
         <>
           <h2 className={styles.heading} lang={chrome.language}>
             {chrome.canYouHeading}
           </h2>
           <ul className={summaryStyles.list}>
-            {outcomes.map((route, index) => (
-              <SummaryRow at={at} chrome={chrome} index={index} key={`o${index}`} language={language} route={route} />
+            {index.outcomes.map((route, n) => (
+              <SummaryRow at={at} chrome={chrome} key={`o${n}`} language={language} route={route} />
             ))}
           </ul>
         </>
@@ -216,24 +225,21 @@ export function ProgramSummary({
 }
 
 interface SummaryRowProps {
-  readonly route: Route;
+  readonly route: ReturnRoute;
   readonly language: string;
   readonly chrome: ReturnType<typeof chromeFor>;
   readonly at: (n: number) => string;
-  readonly index: number;
 }
 
 /** One Summary item or one declared outcome: its label, and the frames it names. */
 function SummaryRow({ route, language, chrome, at }: SummaryRowProps): React.JSX.Element {
-  const labels = route.labels;
-  if (!labels) {
-    throw new Error(`a summary/outcome route has no labels, which a validated bundle cannot do`);
-  }
   const range = route.from === route.to ? `${route.from}` : `${route.from}–${route.to}`;
 
   return (
     <li className={summaryStyles.item}>
-      <RichInline language={language} text={say(labels, language)} />{' '}
+      {/* `say` throws on a label missing this edition, which a validated bundle cannot have —
+          loud rather than a blank row (ADR-0014). */}
+      <RichInline language={language} text={say(route.labels, language)} />{' '}
       {/* `prefetch={false}`: a frame mid-program opens with an answer (frame-view.tsx). */}
       <Link className={summaryStyles.range} href={at(route.from)} lang={chrome.language} prefetch={false}>
         {range}

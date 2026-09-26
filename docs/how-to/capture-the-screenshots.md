@@ -16,8 +16,16 @@ pnpm --dir tests/e2e run browsers      # explicit; no install-time browser downl
 pnpm --dir tests/e2e run screenshots
 ```
 
-The Playwright config starts the web app itself, so there is no server to remember to run. The
-images land in `docs/assets/screenshots/`, overwriting what is there.
+The Playwright config starts the web app itself, but not `AbOvo.Api`, and the tour needs one
+that holds the book: a frame, a program's contents and its summary are all fetched from it
+([ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)),
+and the tour walks to a program's last frame through it before it photographs the summary. Give
+its address as `E2E_API_BASE_URL`. The `e2e` job in
+[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) is the recipe: a Postgres, the API
+started against it, and the bundle ingested with
+[`ingest-content.mts`](../../tests/e2e/fixtures/ingest-content.mts). Without one, those captures
+fail rather than photograph the error page. The images land in `docs/assets/screenshots/`,
+overwriting what is there.
 
 ## What it is, and what it is not
 
@@ -71,9 +79,9 @@ matters; a commit that rewrites every image because the capture ran is noise in 
 
 ## What is not captured, and why
 
-`/account` and `/instrument/<track>/<unit>` need an account, which needs an identity service.
-The suite has one — a stub it starts itself — but photographing a screen whose every number
-came from a fixture would illustrate the fixture rather than the product.
+`/account`, `/account/delete` and `/instrument/<track>/<unit>` need an account, which needs an
+identity service. The suite has one — a stub it starts itself — but photographing a screen
+whose every number came from a fixture would illustrate the fixture rather than the product.
 
 ## See also
 

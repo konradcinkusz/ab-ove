@@ -6,6 +6,7 @@ import { isReachable, openingEnds, type SectionSpan } from '@/lib/read/place';
 import controls from './controls.module.css';
 import { FrameJumper } from './frame-jumper.tsx';
 import { Close, List, Lock } from './icons.tsx';
+import { PendingLabel } from './pending-label.tsx';
 import styles from './program-map.module.css';
 import { PROGRAM_MAP_ID } from './popover.ts';
 import { PopoverCloser } from './popover-closer.tsx';
@@ -50,8 +51,10 @@ export interface ProgramMapProps {
  * to the gate's "Not there yet" — a control that is reliably refused, which this project
  * removes wherever it finds one (`when-open.tsx`, ADR-0056). The furthest frame is the
  * content API's own cursor, sent with the frame (`StepResponse.furthest`); the browser's
- * record could not stand in for it, because it holds the frame last viewed rather than the
- * furthest reached. A locked row still names the section and says why it cannot be opened.
+ * record could not stand in for it. It held the frame last viewed when this was written, and
+ * since #157 it holds a furthest frame too — but its own, and the account's: a signed-out
+ * reader's record can be past the anonymous cursor the gate is actually asking. A locked row
+ * still names the section and says why it cannot be opened.
  * It is the reading ORDER speaking, like a shut program's `opens after`, never a count of
  * what is left (ADR-0041).
  *
@@ -61,6 +64,12 @@ export interface ProgramMapProps {
  * A heading carries no question and no answer — the contents page's own rule — so listing
  * them on a frame leaks nothing; every link is `prefetch={false}` on the reveal's reasoning,
  * because a section's first frame opens with the answer to the frame before it.
+ *
+ * EVERY LINK HERE, AND THE JUMP, SAYS WHEN ITS PAGE IS ON ITS WAY (#160) — and says it on the
+ * pager, because the map shuts on the press (`popover-closer.tsx`) and the row that was
+ * pressed goes with it. The flag stays in the shut panel while the frame comes
+ * (`pending-label.tsx`, and the jump's own in `frame-jumper.tsx`), and the map's door — the
+ * pager's position — reads it from there (`reading-foot.module.css`).
  *
  * THE CURRENT HEADING IS A SPAN WITH `aria-current` AND NO `lang`, AND ITS RANGE SITS OUTSIDE
  * IT: `navigation.spec.ts` reads its exact text, and `language-choice.spec.ts` holds
@@ -94,6 +103,13 @@ export function ProgramMap({
     lang?: string,
   ): React.JSX.Element => {
     const reachable = isReachable(from, furthest);
+    /*
+      THE TITLE IS ONE BOX IN EVERY STATE. `.rowTitle` is a flex row, and a title with maths
+      in it is several nodes (`RichInline` returns a fragment), which a flex row lays out as
+      separate items a gap apart — and, when the title wraps, as columns. A linked title is
+      one box already, `PendingLabel`'s (#160); the current and the locked titles get the same,
+      so a heading reads the same whichever state it is in.
+    */
     return (
       <li
         className={isCurrent ? `${styles.row} ${styles.current}` : reachable ? styles.row : `${styles.row} ${styles.locked}`}
@@ -102,15 +118,15 @@ export function ProgramMap({
       >
         {isCurrent ? (
           <span aria-current="true" className={styles.rowTitle}>
-            {title}
+            <span>{title}</span>
           </span>
         ) : reachable ? (
           <Link className={styles.rowTitle} href={`${base}/${from}`} prefetch={false}>
-            {title}
+            <PendingLabel>{title}</PendingLabel>
           </Link>
         ) : (
           <span className={styles.rowTitle}>
-            {title}
+            <span>{title}</span>
             <span className={styles.lockNote} lang={chrome.language}>
               <Lock className={styles.lockIcon} /> {chrome.lockedSection}
             </span>
@@ -169,7 +185,7 @@ export function ProgramMap({
           <li className={styles.row}>
             <Link className={styles.rowTitle} href={base}>
               <List className={styles.rowIcon} />
-              {chrome.contents}
+              <PendingLabel>{chrome.contents}</PendingLabel>
             </Link>
           </li>
           {opening >= 1 ? row('opening', chrome.opening, 1, opening, inOpening) : null}

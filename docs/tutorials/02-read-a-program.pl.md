@@ -92,7 +92,9 @@ które wpiszesz numer ramki, żeby do niej skoczyć. Nagłówek, który zaczyna 
 ramką, do jakiej dotarłeś, jest pokazany jako zablokowany, z powodem, zamiast podany jako
 link: to kolejność książki, a link, który zostałby tylko odrzucony, nigdzie nie prowadzi.
 Twoje miejsce jest pamiętane w tej
-przeglądarce. Jeśli się zalogujesz, pójdzie za tobą na inną maszynę, a **wygrywa najdalsza
+przeglądarce i jest to najdalsza przeczytana ramka: powrót do wcześniejszej ramki go nie
+przesuwa, a *Kontynuuj* w indeksie nadal prowadzi tam, dokąd już doszło czytanie.
+Jeśli się zalogujesz, pójdzie za tobą na inną maszynę, a **wygrywa najdalsza
 ramka** — dwie maszyny, które się nie zgadzają, to nie konflikt, bo przeczytałeś do dalszej z
 nich ([ADR-0019](../adr/0019-furthest-frame-wins.md)).
 

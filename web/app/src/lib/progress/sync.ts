@@ -24,7 +24,9 @@
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * The rule is in `reconcile.ts` and is asserted there. This module is the plumbing around
- * it: when to run, what to send, and what to do with an answer.
+ * it: when to run, what to send, and what to do with an answer. What it sends is each
+ * program's FURTHEST frame (`store.ts`), so a reader re-reading an earlier frame sends
+ * nothing lower and is told nothing about it (issue #157).
  *
  * It talks to ONE origin — `/api/proxy/...`, this app's own BFF (FRONTEND-BFF.md §1, §5).
  * There is no backend address anywhere below and none may appear: the proxy injects the
@@ -34,8 +36,16 @@
 import { ask } from '@/lib/session/client';
 
 import { adoptRecord, forgetAll, subscribe as subscribeProgress } from './client.ts';
-import { reconcile, type Push, type Raised, type RemoteRecord } from './reconcile.ts';
-import { keyOf, read, type Position, type Progress } from './store.ts';
+import {
+  couldBeOwnReveal,
+  reconcile,
+  settle,
+  stillNews,
+  type Push,
+  type Raised,
+  type RemoteRecord,
+} from './reconcile.ts';
+import { keyOf, read, type Position, type ProgramRef, type Progress } from './store.ts';
 
 /** The BFF path. `/api/proxy` + the service's own route — see the §5 routing table. */
 const PROGRESS = '/api/proxy/api/v1/progress';
@@ -59,10 +69,38 @@ const FORGET_PENDING_KEY = 'ab-ovo:progress:forget-pending';
  */
 const DEBOUNCE_MS = 3_000;
 
+/**
+ * How long a raise that could be this browser's own reveal on its way (`couldBeOwnReveal`)
+ * waits before it is told — issue #157.
+ *
+ * Long enough for the page a reveal leads to to render, hydrate and record itself — one server
+ * action and one page load — with room left for a slow connection. It is the notice that
+ * waits, never the record: the raise is adopted at once, so *Continue* already offers the
+ * frame.
+ *
+ * `tests/e2e/specs/furthest-frame.spec.ts` keeps a copy as `HOLD_MS`, because a spec cannot
+ * import the application, and times its waits against it. Change the two together: a longer
+ * hold here leaves that spec's waits too short to prove what they say.
+ */
+const OWN_REVEAL_GRACE_MS = 3_000;
+
 // ── What the reader is told ─────────────────────────────────────────────────────────────
 
 const raisedListeners = new Set<() => void>();
 let raised: readonly Raised[] = [];
+
+/**
+ * The raises `tell` is holding back, each until its `OWN_REVEAL_GRACE_MS` is over.
+ *
+ * Here and not only in the timer that tells them, so that `withdrawStale` sees them (issue
+ * #157): a raise whose frame this browser shows during the hold is settled AT THAT MOMENT,
+ * and stays settled. Asked only when the hold was over, it was asked about wherever the reader
+ * had got to by then — and a reader who revealed, landed, and went straight back with
+ * *Previous*, which is the move `docs/tutorials/02-read-a-program.md` gives a reader who did
+ * not follow an answer, was behind the raise again and was told their own reveal as reading
+ * done elsewhere.
+ */
+let held: readonly Raised[] = [];
 
 const EMPTY_RAISED: readonly Raised[] = [];
 
@@ -86,16 +124,39 @@ export function raisedServerSnapshot(): readonly Raised[] {
 }
 
 /**
- * The reader has seen it.
+ * The reader has seen it — all of it, or the one program they acted on.
  *
- * There is no automatic expiry and no dismissal on navigation. The notice says a position
+ * There is no expiry by time and no dismissal on navigation. The notice says a position
  * moved under them; a reader who has not acknowledged that has not been told, and a toast
  * that vanished while they were on another tab would be a notice this product can claim to
- * have shown and did not.
+ * have shown and did not. Following a line's own *Go to frame N* is an acknowledgement of
+ * that line (issue #157), so it takes `program` and leaves any other line standing. The one
+ * other way a line goes is by stopping being true or new (`withdrawStale`, below).
  */
-export function dismissRaised(): void {
-  if (raised.length === 0) return;
-  raised = EMPTY_RAISED;
+export function dismissRaised(program?: ProgramRef): void {
+  const left = program ? raised.filter((entry) => keyOf(entry.program) !== keyOf(program)) : [];
+  if (left.length === raised.length) return;
+  raised = left.length === 0 ? EMPTY_RAISED : left;
+  announceRaised();
+}
+
+/**
+ * Withdraw every line that is no longer news (`stillNews`), on the screen or still held: its
+ * frame has since been shown on this screen, or its program is no longer where the line says —
+ * forgotten, here or in another tab, or raised again.
+ *
+ * Run on every change to the record, because the change that matters most is a page
+ * recording itself (issue #157). A held raise whose page lands is dropped here, before the
+ * reader can go back past it; a reveal whose page took longer than `OWN_REVEAL_GRACE_MS` to
+ * arrive has been told as reading done elsewhere by then, and this is where that is taken back.
+ */
+function withdrawStale(): void {
+  if (raised.length === 0 && held.length === 0) return;
+  const now = read(window.localStorage);
+  held = held.filter((entry) => stillNews(entry, now));
+  const left = raised.filter((entry) => stillNews(entry, now));
+  if (left.length === raised.length) return;
+  raised = left.length === 0 ? EMPTY_RAISED : left;
   announceRaised();
 }
 
@@ -108,6 +169,52 @@ function publishRaised(more: readonly Raised[]): void {
 
   raised = [...byProgram.values()];
   announceRaised();
+}
+
+/**
+ * Tell the reader what a cycle found: at once, or — for a raise that could be this browser's
+ * own reveal on its way (`couldBeOwnReveal`) — after `OWN_REVEAL_GRACE_MS`, and only if
+ * nothing settled it in the meantime.
+ *
+ * Only a raise this browser did not cause is told (issue #157), and a signed-in reveal moves
+ * the account a page load before this browser records the frame it leads to. So a raise of
+ * that shape is held rather than shown and taken back: a line that appears on the reader's
+ * way to the next frame and goes when it lands has still said something false, and
+ * `aria-live` may already have read it aloud. The page landing settles it for good
+ * (`withdrawStale`), wherever the reader goes next.
+ *
+ * What this still tells as reading done elsewhere, named because nothing in a pull tells these
+ * apart from the real thing:
+ *
+ *   - a reveal whose page never arrives — the tab closed, or navigated away, between the
+ *     answer and the page. It left the account a frame ahead of a browser that never showed
+ *     that frame, and it is told once the hold is over, like any line from elsewhere;
+ *   - a reveal whose page takes longer than the hold to record itself. Told when the hold is
+ *     over, and taken back when the page lands;
+ *   - a reveal made while another tab has since recorded a different frame. `last` is this
+ *     browser's, not this tab's, so the raise no longer looks like a reveal from the frame last
+ *     shown: it is told at once, in whichever tab syncs first, and taken back when the reveal's
+ *     page records itself — in the other tab, by a `storage` event.
+ *
+ * The timer is not cleared by a forget or by a later cycle, because it has no need to be: it
+ * tells only what is still `held` — which `withdrawStale` has emptied of anything shown here,
+ * forgotten or raised again — and asks `stillNews` once more for a change it did not hear.
+ */
+function tell(found: readonly Raised[]): void {
+  if (found.length === 0) return;
+
+  const now = read(window.localStorage);
+  const hold = found.filter((entry) => couldBeOwnReveal(entry, now));
+  publishRaised(found.filter((entry) => !hold.includes(entry)));
+  if (hold.length === 0) return;
+
+  held = [...held, ...hold];
+  setTimeout(() => {
+    const later = read(window.localStorage);
+    const due = hold.filter((entry) => held.includes(entry) && stillNews(entry, later));
+    held = held.filter((entry) => !hold.includes(entry));
+    publishRaised(due);
+  }, OWN_REVEAL_GRACE_MS);
 }
 
 // ── The account ─────────────────────────────────────────────────────────────────────────
@@ -218,8 +325,21 @@ const setForgetPending = (pending: boolean): void => {
  *
  * So the local record goes immediately, because it is theirs and clearing it always works;
  * and a marker is left saying the account has not been told yet. While that marker is set,
- * `cycle()` below will not PULL — it retries the DELETE and does nothing else. The
- * resurrection is therefore not merely unlikely, it is unreachable.
+ * `cycle()` below will not PULL — it retries the DELETE and does nothing else.
+ *
+ * A cycle ALREADY ON THE WIRE is the other way back. A reader who presses Forget just after
+ * a page opens presses it during that page's first pull, and the pull answers with the
+ * account's copy from before the DELETE. Written back, it was the place they had just
+ * watched go, back on the screen under a line saying they had read it elsewhere — which a
+ * full run of the core layer caught in `tests/e2e/specs/sync.spec.ts`, and which a test there
+ * now provokes on every run by holding the pull until Forget has been pressed. So a cycle that
+ * finds the marker set after an await writes nothing back and sends nothing more, and the
+ * DELETE waits for that cycle to end: the marker is still set whenever the cycle looks, and a
+ * PUT it had already sent lands before the DELETE rather than after it.
+ *
+ * From this tab, the resurrection is therefore unreachable. A forget pressed in ANOTHER tab
+ * waits for that tab's cycle, not this one's, so this one sees it only while its DELETE is
+ * still on the way.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export async function forgetEverywhere(): Promise<void> {
@@ -227,6 +347,7 @@ export async function forgetEverywhere(): Promise<void> {
   forgetAll();
   dismissRaised();
 
+  await running;
   if (await deleteRemote()) setForgetPending(false);
 }
 
@@ -251,6 +372,8 @@ async function cycle(): Promise<void> {
   const late: Raised[] = [];
 
   for (const entry of result.toPush) {
+    // Forgotten since the pull: what is left to send is what the reader asked to lose.
+    if (forgetIsPending()) return;
     const answer = await push(entry);
     if (!answer) continue;
 
@@ -269,8 +392,20 @@ async function cycle(): Promise<void> {
     }
   }
 
-  adoptRecord(record);
-  publishRaised([...result.raised, ...late]);
+  // Forgotten during an await above: the record was emptied, and the pull's rows are the
+  // account's copy from before that. Writing them back would undo it (`forgetEverywhere`).
+  if (forgetIsPending()) return;
+
+  /*
+    Against the record as it is NOW, not as it was when the pull left — the reader kept
+    reading through every await above, and a signed-in reveal moves the account as it goes.
+    `settle` keeps what this browser reached meanwhile and drops a raise it reached on its
+    own, and `tell` holds back one it is about to reach — which together are the difference
+    between "read elsewhere" and a false notice (issue #157).
+  */
+  const settled = settle(read(window.localStorage), record, [...result.raised, ...late]);
+  adoptRecord(settled.record);
+  tell(settled.raised);
 }
 
 const landedPosition = (answer: RemoteRecord): Position | null => {
@@ -284,13 +419,10 @@ const landedPosition = (answer: RemoteRecord): Position | null => {
     : null;
 };
 
+/** A push's answer, as the program's furthest. `last` is this browser's and is left alone. */
 function withPosition(record: Progress, entry: Push, position: Position): Progress {
-  const key = keyOf(entry.program);
-  const positions = { ...record.positions, [key]: position };
-  const last =
-    record.last && keyOf(record.last) === key ? { ...entry.program, ...position } : record.last;
-
-  return last ? { last, positions } : { positions };
+  const positions = { ...record.positions, [keyOf(entry.program)]: position };
+  return record.last ? { last: record.last, positions } : { positions };
 }
 
 /** One cycle at a time. Overlapping runs would push the same position twice and race. */
@@ -337,7 +469,10 @@ export function startSync(): () => void {
    * bounds the chain at one extra pass: the second cycle finds the account already
    * agreeing, writes nothing, and the chain stops.
    */
-  const unsubscribe = subscribeProgress(() => schedule(DEBOUNCE_MS));
+  const unsubscribe = subscribeProgress(() => {
+    withdrawStale();
+    schedule(DEBOUNCE_MS);
+  });
   document.addEventListener('visibilitychange', onVisible);
 
   return () => {

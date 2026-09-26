@@ -154,12 +154,23 @@ test.describe('@screenshots the documentation set', () => {
   });
 
   test('the contents of a program, and its summary', async ({ page }) => {
+    // A new reader's contents: the headings past frame 1 locked, as the gate would refuse
+    // them (issue #158). The lock is asserted, because it is what the caption describes.
     await ready(page, read('en', ''));
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(unit.titles['en']!);
+    await expect(page.getByRole('main').getByText('not reached yet').first()).toBeVisible();
     await shoot(page, 'program-contents-english');
 
+    /*
+      The summary opens only once the last frame is reached (issue #158), and before it the
+      page is the gate's "Not there yet" under an `h1` of its own — so the heading is held to
+      the program's title and the checklist to being there, or this would photograph the
+      refusal and caption it as the summary.
+    */
+    await walkTo(page, UNIT, 'en', unit.steps.length);
     await ready(page, read('en', 'summary'));
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(unit.titles['en']!);
+    await expect(page.getByRole('heading', { name: 'Can you?' })).toBeVisible();
     await shoot(page, 'program-summary-english');
   });
 

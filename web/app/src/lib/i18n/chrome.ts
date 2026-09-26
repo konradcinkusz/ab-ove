@@ -70,6 +70,59 @@ export interface KeyEntry {
 }
 
 /**
+ * The account's own page, `/account` — the reader's overview (issue #161).
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * WHAT AN ACCOUNT HOLDS, SAID TO THE READER WHOSE IT IS, AND NOTHING ABOUT HOW THEY DID.
+ *
+ * The page answers what a reader asks of an account, in the order they ask it: who is
+ * signed in here; what the account keeps for them, which is where they are in each program
+ * and nothing else (ADR-0004: an account buys synchronisation); and what it does not keep,
+ * which is everything they wrote. A place is a position and never a progress (ADR-0041), so
+ * these strings name a program and a frame and have no count, fraction or date to say.
+ *
+ * `placesUnavailable` is P8's sentence, and it is not `placesNone`. The account's places are
+ * `AbOvo.Api`'s rows, and rows that could not be read are said to be that rather than shown
+ * as an account holding nothing — two facts a reader would act on differently. It names no
+ * cause, for `renderError.failedTitle`'s reason: the page cannot tell an API that did not
+ * answer from one that refused or answered in a shape it does not know, and says only what
+ * holds for all three.
+ *
+ * Polish is impersonal wherever the second person would have to pick a gender (`Zalogowano`,
+ * not *jesteś zalogowany*), for `youWrote`'s reason (ADR-0016).
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+interface AccountOverviewStrings {
+  readonly title: string;
+  /** Who is signed in, by the address the session's token carries. */
+  readonly signedInAs: (address: string) => string;
+  /** The same, for a token that carries no address or could not be verified here. */
+  readonly signedIn: string;
+  readonly placesTitle: string;
+  readonly placesLead: string;
+  readonly placesNone: string;
+  readonly placesUnavailable: string;
+  readonly worksheetsTitle: string;
+  /** Where a reader's worksheets are kept — which is why the export beside it exists. */
+  readonly worksheets: string;
+  /** The page's way back to the programs, at its foot. */
+  readonly keepReading: string;
+}
+
+/**
+ * Why one run of programs comes after the run before it, in the index's legend (ADR-0065).
+ *
+ * `after` is the id prefix of the run the sentence says this one is built on. It is checked
+ * as well as the key, because the sentence names BOTH runs: a course whose `P` run followed
+ * something other than `F` would be told that its main sequence was built on a Foundation
+ * run it does not have (`lib/content/run-reasons.ts`).
+ */
+export interface RunReason {
+  readonly after: string;
+  readonly says: string;
+}
+
+/**
  * The account-deletion screen.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
@@ -90,6 +143,18 @@ export interface KeyEntry {
  *
  * The last two are the ones a reader would otherwise have to discover afterwards, which
  * is the worst moment to discover either.
+ *
+ * IN THE READER'S WORDS SINCE ISSUE #162, with the reasoning kept here and in ADR-0021.
+ * `cannotReach` said "no row of it knows it was yours" and "folded into a rate", which is
+ * the schema describing itself; it now says what the consent says (#153) — what is counted,
+ * and that nothing can tell which counts came from you. `notImmediate` ended on why the
+ * retention period is not named, that a number copied out of authservice "would be a figure
+ * nothing here could check". That is ADR-0021's reason for not naming it, and the screen
+ * says what it means for the reader: the period exists, the identity service sets it, and
+ * ab-ovo is not told how long it is. `problemUnconfigured` said "this deployment has no
+ * identity service"; to a reader that is a site with no accounts (P8), which is what the
+ * sign-in page says as well. The Polish says `tutaj` rather than naming the site, because
+ * `strona` is also the page (see `renderError.failedWhere`).
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 interface DeleteAccountStrings {
@@ -244,11 +309,27 @@ interface Strings {
   readonly signIn: string;
   readonly signOut: string;
   readonly account: string;
+  /** The page `account` links to: the reader's overview (issue #161). */
+  readonly accountOverview: AccountOverviewStrings;
   readonly deleteAccount: DeleteAccountStrings;
   readonly consent: ConsentStrings;
-  /** The conflict rule, said where the conflict happened. See `raised-notice.tsx`. */
+  /**
+   * The conflict rule, said where the conflict happened — `components/sync/progress-sync.tsx`.
+   * A FACT about the reader, worded as one (issue #157): it used to say the program "moved to
+   * frame N, read on another device", and it said so to a reader who had gone back one frame
+   * on this one. It is shown only for a raise this browser did not cause, so "elsewhere" is
+   * true — but for the reveals of this browser's own that nothing in a pull tells apart, which
+   * `tell` in `lib/progress/sync.ts` names — and it is followed by `goToFrameNumber` as a link
+   * to the frame it names.
+   */
   readonly raised: (unit: string, step: number) => string;
   readonly dismiss: string;
+  /**
+   * What `Next` does on a frame that asks, said under the answer line on every such frame and
+   * never taken away (#159, `answer-line.tsx`). It was in this table for a long time and on no
+   * screen, while the one instruction a frame carried was a placeholder that vanished at the
+   * first keystroke. Information and not a gate (ADR-0039): the same words whatever is written.
+   */
   readonly cue: string;
   /**
    * ────────────────────────────────────────────────────────────────────────────────────
@@ -260,7 +341,8 @@ interface Strings {
    * sat in the text rather than beside *Previous*, so the pair a reader looks for never
    * existed. It is `Next` everywhere now. The mechanic is unchanged — pressing it on a frame
    * that asks is still what turns the page to the one that opens with the answer — and the
-   * book's instruction is said where it applies, in the answer line's `writeItDown`.
+   * book's instruction is said where it applies: the answer line's `writeItDown`, and under
+   * the line, `cue` above.
    * ────────────────────────────────────────────────────────────────────────────────────
    */
   readonly next: string;
@@ -276,6 +358,24 @@ interface Strings {
   readonly revealBusy: string;
   readonly languageLabel: string;
   readonly programs: string;
+  /**
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * THE INDEX'S STANDFIRST, UNDER `programs` — issue #163.
+   *
+   * What a program is, what a frame is, and the rule the product works by: most frames end
+   * by asking, the next one opens with the answer, so the answer is written down first. All
+   * of it was said on `/about` and nowhere a first-time reader had to look, because ADR-0036
+   * moved the argument there. A reader arriving met a grid of titles and no word for what
+   * was inside them.
+   *
+   * IT IS A STANDFIRST AND NOT THE ARGUMENT COMING BACK. ADR-0036's index is the programs,
+   * and this is orientation above them, in the book's own terms: "Each program is a stream
+   * of small numbered chunks called frames … The answer is at the top of the next frame"
+   * (the book's *How to use this book*). Why the loop is built that way is still `/about`'s
+   * to say.
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  readonly programsLead: string;
   /**
    * The way to everything the index no longer says, and the reason the index can be a
    * grid of programs at all (ADR-0036).
@@ -306,7 +406,12 @@ interface Strings {
    * ────────────────────────────────────────────────────────────────────────────────────
    */
   readonly courses: string;
-  /** One sentence on what a course is here, under the courses page's heading. */
+  /**
+   * One sentence on what a course is here, under the courses page's heading, and on what
+   * opening one does in the reader's terms: the programs page then shows that course's
+   * programs alone. It said opening one "narrows the index", which is this file's word for
+   * the mechanism and not a reader's (issue #162).
+   */
   readonly coursesLead: string;
   /**
    * The way back from a narrowed index to the one that shows every course, because a
@@ -395,7 +500,12 @@ interface Strings {
   readonly matchesBook: string;
   /** Under a locked line, saying why it cannot be edited. */
   readonly writtenBefore: string;
-  /** Beside a sheet written against an earlier edition of the book. */
+  /**
+   * Beside a sheet written for an earlier version of the book, where a frame's number may
+   * now name a different question (`lib/sheet/store.ts`). It says *version*: on a screen,
+   * *edition* is the language and nothing else (issue #162), and `chrome.test.ts` holds it
+   * to that. The key keeps the name it had before the rule.
+   */
   readonly earlierEdition: string;
   /** The foot control, first press. */
   readonly clearAnswer: string;
@@ -468,7 +578,12 @@ interface Strings {
   readonly readingSettings: string;
   /** The heading over the key map inside that disclosure. */
   readonly keysHeading: string;
-  /** The full keyboard map, in the order a reader would want to read it. */
+  /**
+   * The full keyboard map, in the order a reader would want to read it. `→` says that it
+   * reveals the answer, because on a frame that asks that is what it does and nothing else
+   * on the key's row said so; `←` has a row for frame 1, where it opens the contents; and `?`
+   * is here because it is how a reader reaches this list without a mouse (#159).
+   */
   readonly keysMap: readonly KeyEntry[];
   /**
    * The accessible name of the foot's navigation landmark, on all three reading screens.
@@ -494,11 +609,20 @@ interface Strings {
   /** The answer box's label: the answer it holds is to the PREVIOUS frame's question. */
   readonly answerTo: (n: number) => string;
   /**
-   * A way to a frame named by its number: the "Not there yet" screen's way on, and the
-   * program map's answer to a number typed past the reader's furthest frame. Deliberately
-   * not `continueAtFrame`, which on the contents page means the frame this BROWSER last
-   * opened — the gate's furthest frame is a different fact, and one phrase for both would
-   * make a reader wonder which one they are looking at.
+   * The names a block of the book's text takes when it is wider than the measure and so
+   * scrolls, and becomes a Tab stop so a keyboard can scroll it (#159, `wide-content.tsx`).
+   * Nouns, because a screen reader says them on arriving: what the block is, not what it does.
+   */
+  readonly wideFormula: string;
+  readonly wideTable: string;
+  readonly wideCode: string;
+  /**
+   * A way to a frame named by its number: the "Not there yet" screen's way on, the program
+   * map's answer to a number typed past the reader's furthest frame, and the sync notice's
+   * link to the frame it names (issue #157). Deliberately not `continueAtFrame`, which means
+   * the furthest frame THIS BROWSER's record holds — the gate's furthest frame is a different
+   * fact (a signed-out reader's record can be past it), and one phrase for both would make a
+   * reader wonder which one they are looking at.
    */
   readonly goToFrameNumber: (n: number) => string;
   /**
@@ -510,14 +634,28 @@ interface Strings {
   /** The program map's answer to a frame number the program does not have. */
   readonly frameRange: (last: number) => string;
   readonly summaryHeading: string;
+  /**
+   * The summary's description, for link previews and a tab's tooltip — in the reader's edition
+   * like every other word on the screen (issue #158: it was English on the Polish summary).
+   * It names the program by its title and says what the page holds, and quotes none of it.
+   */
+  readonly summaryDescription: (unit: string) => string;
   readonly canYouHeading: string;
-  /** Honest, for now: schema v1 carries no Test exercises or Further problems to show. */
+  /**
+   * Honest, for now: schema v1 carries no Test exercises or Further problems to show. It
+   * says they are not available here yet, and no longer that they are "not in this edition
+   * of the app": an edition is a language (issue #162).
+   */
   readonly exercisesNotYet: string;
   readonly nextProgramLabel: string;
   /** Its mirror, on the contents page's foot: the program before this one. */
   readonly previousProgramLabel: string;
-  /** The summary screen's way back to the program's last frame, in its pager's back cell. */
-  readonly backToLastFrame: string;
+  /**
+   * The summary screen's way back to the program's last frame, in its pager's back cell. It
+   * names the frame by its number (issue #158): *Back to the frame* named none, and a reader
+   * who opened the summary from a link, or from another edition, had come from no frame.
+   */
+  readonly backToLastFrame: (n: number) => string;
   readonly labOptional: string;
   /**
    * THE INDEX FOR A READER WHO CAME BACK.
@@ -528,6 +666,18 @@ interface Strings {
    * is grouped without a heading, which is what a third track's `X07` should get.
    */
   readonly groupLabels: Readonly<Record<string, string>>;
+  /**
+   * WHY A RUN COMES WHERE IT DOES, keyed like `groupLabels` by the prefix of the run the
+   * sentence is about — the legend's middle sentence (`orderLegend`, ADR-0065).
+   *
+   * ADR-0065 kept the Foundation programs in the reading order and gave the index a sentence
+   * to say why: the Main sequence is built on them. It is a claim about THIS book's runs, so
+   * it is keyed to them and to their order, and a course whose runs are named differently
+   * — or grouped by the book's own parts, whose titles are the content's words rather than
+   * this table's — gets no sentence rather than one about somebody else's book. Polish cannot
+   * build it from the two labels either: `Podstawy` has to be declined inside it.
+   */
+  readonly runReasons: Readonly<Record<string, RunReason>>;
   /**
    * The accessible name of the program map's list of headings — every heading of the program,
    * one hop from any frame (ADR-0041), in the panel the pager's position opens (ADR-0063).
@@ -570,6 +720,23 @@ interface Strings {
    */
   readonly shutExplain: (previous: string) => string;
   /**
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * THE SAME RULE, ON THE FIRST SCREEN AND WITHOUT A HOVER — the index's legend, above the
+   * grid (issue #163, ADR-0065).
+   *
+   * `shutExplain` is a `title` and a screen-reader description, so a reader on a touch
+   * screen or a keyboard never met it: what they met was a grid of faint tiles marked
+   * `opens after …`, and the reassurance that nothing is paid for or hidden was a tooltip.
+   * ADR-0065 decided what the visible line says, and it says it in this order: the programs
+   * open in order; why this order (`runReasons`, when the course has the runs a reason is
+   * about); how small the step is — one frame; and that nothing is paid for or hidden.
+   *
+   * It takes the reasons rather than looking them up, because which runs a course has is the
+   * bundle's to say and this table knows only words.
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  readonly orderLegend: (reasons: readonly string[]) => string;
+  /**
    * WHAT HAPPENED, said where the reader landed — the sentence `shut-notice.tsx` renders
    * when the gate has just moved somebody off a program they asked for (ADR-0051, and
    * `program-gate.tsx` for why the move cannot be a server redirect).
@@ -581,6 +748,21 @@ interface Strings {
    * then found one tile in forty-seven.
    */
   readonly shutNotice: (unit: string, previous: string) => string;
+  /**
+   * WHEN THE PROGRAM THAT OPENS IT IS SHUT TOO, which is the usual case for a link into the
+   * middle of the book: `previous` is named by `shutNotice`, and a way on that pointed at it
+   * would bounce the reader again, one program further back, until they reached the one they
+   * could open. So the notice says so, and names that one — `way`, the nearest program before
+   * `unit` that this reader can open (`wayOn`, in `lib/progress/gate.ts`).
+   */
+  readonly shutNoticeFurther: (unit: string, previous: string, way: string) => string;
+  /**
+   * The notice's way on (issue #163): a link to the program named just above it, which is
+   * the move the notice has told the reader to make. It explained and offered nothing to
+   * press, so the reader had to find the tile it named. `Go to`, `goToFrameNumber`'s verb,
+   * because it goes somewhere; the program's own contents are where it lands.
+   */
+  readonly shutNoticeWayOn: (way: string) => string;
   /**
    * The contents page's foot, where the next program is shut.
    *
@@ -598,6 +780,22 @@ interface Strings {
    */
   readonly renderError: RenderErrorStrings;
   /**
+   * What the frame-level refusal below adds for a SIGNED-OUT reader whose own record has been
+   * this far (issue #157): the frame was read on the account, and without it the API gates on
+   * the anonymous cursor (ADR-0061), which has not. `components/read/signed-out-hint.tsx`
+   * shows it, with `signInToContinue` as the link that returns the reader to this frame
+   * signed in.
+   */
+  readonly readWhileSignedIn: string;
+  readonly signInToContinue: string;
+  /**
+   * The index's line when the book's server does not answer (issue #158). The index renders
+   * from the bundle compiled into the app, so it is still there when no program would open;
+   * this says so above the list rather than leaving every tile to lead to the error page.
+   * `renderError`'s words, for the one failure it names, said before rather than after.
+   */
+  readonly readingUnavailable: string;
+  /**
    * ADR-0060 — the FRAME-level refusal, answered by the same live call that serves the
    * frame rather than by a client-side redirect. `shutNotice` above is the PROGRAM-level
    * gate's sentence and a different mechanism (`ProgramGate`, localStorage, a client
@@ -607,6 +805,12 @@ interface Strings {
    */
   readonly notReachedHeading: string;
   readonly notReachedBody: (furthest: number) => string;
+  /**
+   * The same refusal, of a program's summary: `AbOvo.Api` serves it as it serves the last
+   * frame (issue #158), so a reader short of that frame gets `notReachedHeading` over this
+   * sentence, which names the frame the summary opens from as well as the furthest one read.
+   */
+  readonly summaryNotReachedBody: (last: number, furthest: number) => string;
 }
 
 /**
@@ -630,6 +834,21 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     signIn: 'Sign in',
     signOut: 'Sign out',
     account: 'Account',
+    accountOverview: {
+      title: 'Your account',
+      signedInAs: (address) => `Signed in as ${address}.`,
+      signedIn: 'You are signed in.',
+      placesTitle: 'Your place in the book',
+      placesLead:
+        'The furthest frame your account holds in each program you have opened. Sign in on another device and you carry on from there.',
+      placesNone: 'Your account holds no place in the book yet.',
+      placesUnavailable:
+        'The place your account holds could not be read from the book’s server just now. Nothing is lost — try again in a moment.',
+      worksheetsTitle: 'Your worksheets',
+      worksheets:
+        'What you write on a frame stays in this browser. It is never sent to your account, so no other device has it.',
+      keepReading: 'Carry on reading',
+    },
     consent: {
       invitationTitle: 'Help fix the book?',
       invitationWhat:
@@ -658,10 +877,10 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         'This browser keeps its own copy of where you are in the book, and you can carry on reading with no account at all. If you want that cleared too, use \u2018Forget where I am\u2019 on the programs page \u2014 a separate control, because it is a separate thing.',
       cannotReachTitle: 'What this cannot reach',
       cannotReach:
-        'The instrument measures how a frame does, never how a reader does: an outcome carries no reader on it, so no row of it knows it was yours and no deletion can find one. That is deliberate \u2014 it is what makes a rate safe to publish \u2014 and the price is that a contribution already folded into a rate cannot be taken back out.',
+        'ab-ovo measures the book, never the reader: nothing it counts has your name on it, or your account, or even a code standing in for you, so nothing can tell which counts came from you, and no deletion can find them. That is deliberate \u2014 it is what makes the counts safe to publish \u2014 and it means that what was already counted cannot be taken back out.',
       notImmediateTitle: 'The account is not erased on the spot',
       notImmediate:
-        'The identity service marks it deleted, revokes the tokens that would refresh your session, and schedules the permanent erasure for the end of its retention period. You will not be able to sign in during that time. ab-ovo is not told how long the period is \u2014 that is the identity service\u2019s to state, and copying a number out of it would be a figure nothing here could check.',
+        'The identity service marks it deleted at once, keeps it for a period it sets itself, and then erases it for good. You will not be able to sign in during that time. ab-ovo is not told how long the period is, so this page cannot say.',
       confirmWord: 'DELETE',
       confirmLabel: (word) => `Type ${word} to confirm`,
       passwordLabel: 'Your password',
@@ -680,11 +899,10 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         'What your account had stored — your reading position, the edition you chose — could not be removed, so nothing else was attempted. Your account is untouched. Try again.',
       problemAccount:
         'What your account had stored has been removed, but the account itself could not be. It is still yours, and this device still knows where you are in the book. Try again.',
-      problemUnconfigured:
-        'This deployment has no identity service, so there is no account to delete.',
+      problemUnconfigured: 'This site has no accounts, so there is no account to delete.',
     },
     raised: (unit, step) =>
-      `${unit} moved to frame ${step}, read on another device. The furthest frame wins.`,
+      `You had read ${unit} to frame ${step} elsewhere. The furthest frame wins.`,
     dismiss: 'Got it',
     cue: 'The next frame answers this.',
     next: 'Next',
@@ -693,10 +911,12 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     revealBusy: 'Too many requests at once. Wait a moment, then try again.',
     languageLabel: 'Language',
     programs: 'Programs',
+    programsLead:
+      'Each program is a chapter of the course, made of frames: short, numbered steps, one screen each. Most frames end with a question, and the next frame opens with its answer — so write yours down before you go on.',
     about: 'About ab-ovo',
     courses: 'Courses',
     coursesLead:
-      'Every course ab-ovo carries, each one a sequence of programs worked a frame at a time. Opening one narrows the index to it; the index shows them all until you do.',
+      'Every course ab-ovo offers, each a sequence of programs worked through a frame at a time. Open one to see only its programs; until you do, the Programs page lists the programs of every course.',
     allCourses: 'All courses',
     onlyThisCourse: 'Only this course',
     themeLabel: 'Theme',
@@ -716,7 +936,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     youWrote: 'You wrote',
     matchesBook: 'Matches the book',
     writtenBefore: 'written before the reveal',
-    earlierEdition: 'written against an earlier edition',
+    earlierEdition: 'written for an earlier version of the book',
     clearAnswer: 'Clear my answer',
     clearAnswerConfirm: 'Clear it',
     working: 'Work it out',
@@ -746,10 +966,12 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     readingSettings: 'Reading settings',
     keysHeading: 'Keys',
     keysMap: [
-      { key: '→', does: 'next frame' },
+      { key: '→', does: 'next frame (reveals the answer)' },
       { key: '←', does: 'previous frame' },
+      { key: '←', does: 'contents', where: 'on the first frame' },
       { key: 'Enter', does: 'write an answer' },
       { key: 'g', does: 'sections and frames' },
+      { key: '?', does: 'reading settings' },
       { key: 'Ctrl+Enter', macKey: '⌘+Enter', does: 'keep your answer and go on', where: 'in your answer' },
       { key: 'Ctrl+Enter', macKey: '⌘+Enter', does: 'work it out', where: 'in the pad' },
       { key: 'Enter', does: 'go to that frame', where: 'in the frame number' },
@@ -760,26 +982,45 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     backToContents: 'Contents',
     toSummary: 'Summary',
     answerTo: (n) => `Answer to frame ${n}`,
+    wideFormula: 'Formula',
+    wideTable: 'Table',
+    wideCode: 'Code',
     goToFrameNumber: (n) => `Go to frame ${n}`,
     frameNumbered: (n) => `Frame ${n}`,
     frameRange: (last) => `Enter a frame from 1 to ${last}.`,
     summaryHeading: 'Summary',
+    summaryDescription: (unit) => `The Summary of “${unit}”, and what it sets out to teach.`,
     canYouHeading: 'Can you?',
     exercisesNotYet:
-      'The Test exercises and Further problems for this program are not in this edition of the app yet.',
+      'The Test exercises and Further problems for this program are not available here yet.',
     nextProgramLabel: 'Next program',
     previousProgramLabel: 'Previous program',
     groupLabels: { F: 'Foundation', P: 'Main sequence' },
+    runReasons: {
+      P: {
+        after: 'F',
+        says: 'The Main sequence is built on the Foundation programs, which is why they come first.',
+      },
+    },
     sectionsLabel: 'Sections',
     atFrame: (n) => `at frame ${n}`,
     opensAfter: (unit) => `opens after ${unit}`,
     shutExplain: (previous) =>
       `Not open yet. It opens as soon as you have read any frame of ${previous} — one frame ` +
       `is enough, and nothing here is paid for or hidden.`,
+    orderLegend: (reasons) =>
+      [
+        'Programs open in order.',
+        ...reasons,
+        'Reading any one frame of a program opens the next one, and nothing here is paid for or hidden.',
+      ].join(' '),
     shutNotice: (unit, previous) =>
       `${unit} is not open yet, so this page opened instead of it. The book is read in ` +
       `order: ${unit} opens as soon as you have a place in ${previous}, and one frame of ` +
       `${previous} is enough. ${unit} is marked in the list below.`,
+    shutNoticeFurther: (unit, previous, way) =>
+      `${previous} is not open yet either, so the way to ${unit} starts at ${way}.`,
+    shutNoticeWayOn: (way) => `Go to ${way}`,
     shutNextProgram: (unit) => `${unit} opens once you have read any frame of this program.`,
     renderError: {
       unavailableTitle: 'The book\u2019s server did not answer.',
@@ -793,10 +1034,16 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       reportTitle: 'If you report this',
       reference: 'reference',
     },
+    readingUnavailable:
+      'The book’s server is not answering, so no program will open right now. Try again in a moment.',
     notReachedHeading: 'Not there yet',
     notReachedBody: (furthest) =>
       `This frame has not been reached yet. The furthest read frame in this program is ${furthest}.`,
-    backToLastFrame: 'Back to the frame',
+    readWhileSignedIn: 'You read this while signed in.',
+    signInToContinue: 'Sign in to continue',
+    summaryNotReachedBody: (last, furthest) =>
+      `The Summary opens at the end of this program, after frame ${last}. The furthest read frame in this program is ${furthest}.`,
+    backToLastFrame: (n) => `Back to frame ${n}`,
     labOptional: 'This program also has computer exercises in Python, optional',
   },
   pl: {
@@ -806,6 +1053,21 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     signIn: 'Zaloguj się',
     signOut: 'Wyloguj się',
     account: 'Konto',
+    accountOverview: {
+      title: 'Twoje konto',
+      signedInAs: (address) => `Zalogowano jako ${address}.`,
+      signedIn: 'Zalogowano.',
+      placesTitle: 'Twoja pozycja w lekturze',
+      placesLead:
+        'Najdalsza ramka zapisana na twoim koncie w każdym otwartym programie. Po zalogowaniu na innym urządzeniu czytasz dalej od tego miejsca.',
+      placesNone: 'Twoje konto nie przechowuje jeszcze żadnej pozycji w lekturze.',
+      placesUnavailable:
+        'Nie udało się teraz odczytać z serwera książki pozycji zapisanej na twoim koncie. Nic nie przepadło — spróbuj ponownie za chwilę.',
+      worksheetsTitle: 'Twoje notatki',
+      worksheets:
+        'To, co piszesz przy ramkach, zostaje w tej przeglądarce. Nie trafia na twoje konto, więc nie ma tego na żadnym innym urządzeniu.',
+      keepReading: 'Czytaj dalej',
+    },
     consent: {
       invitationTitle: 'Pomo\u017cesz poprawi\u0107 ksi\u0105\u017ck\u0119?',
       invitationWhat:
@@ -834,10 +1096,10 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         'Ta przegl\u0105darka zachowuje w\u0142asn\u0105 kopi\u0119 tego, gdzie jeste\u015b w ksi\u0105\u017cce, i mo\u017cesz czyta\u0107 dalej bez konta. Je\u015bli chcesz wyczy\u015bci\u0107 tak\u017ce j\u0105, u\u017cyj \u201eZapomnij, gdzie jestem\u201d na stronie program\u00f3w \u2014 to osobny przycisk, bo to osobna rzecz.',
       cannotReachTitle: 'Czego to nie dosi\u0119gnie',
       cannotReach:
-        'Instrument mierzy, jak radzi sobie ramka, nigdy jak radzi sobie czytelnik: wynik nie niesie ze sob\u0105 \u017cadnego czytelnika, wi\u0119c \u017caden jego wiersz nie wie, \u017ce by\u0142 tw\u00f3j, i \u017cadne usuni\u0119cie go nie znajdzie. Tak to zaprojektowano \u2014 dzi\u0119ki temu wska\u017anik mo\u017cna bezpiecznie publikowa\u0107 \u2014 a cen\u0105 jest to, \u017ce wk\u0142adu wliczonego ju\u017c do wska\u017anika nie da si\u0119 z niego wycofa\u0107.',
+        'ab-ovo mierzy ksi\u0105\u017ck\u0119, nigdy czytelnika: w tym, co liczy, nie ma twojego imienia, konta ani nawet kodu, kt\u00f3ry by ci\u0119 zast\u0119powa\u0142, wi\u0119c nic nie wie, kt\u00f3re liczby pochodz\u0105 od ciebie, i \u017cadne usuni\u0119cie ich nie znajdzie. Tak to zaprojektowano \u2014 dzi\u0119ki temu te liczby mo\u017cna bezpiecznie publikowa\u0107 \u2014 a skutek jest taki, \u017ce tego, co ju\u017c policzono, nie da si\u0119 z nich wycofa\u0107.',
       notImmediateTitle: 'Konto nie znika od razu',
       notImmediate:
-        'Serwis to\u017csamo\u015bci oznacza je jako usuni\u0119te, uniewa\u017cnia tokeny, kt\u00f3re odnawia\u0142yby sesj\u0119, i planuje trwa\u0142e usuni\u0119cie na koniec swojego okresu przechowywania. Przez ten czas si\u0119 nie zalogujesz. ab-ovo nie wie, jak d\u0142ugo trwa ten okres \u2014 to informacja po stronie serwisu to\u017csamo\u015bci, a przepisanie st\u0105d liczby by\u0142oby podaniem warto\u015bci, kt\u00f3rej nic tutaj nie mo\u017ce sprawdzi\u0107.',
+        'Serwis to\u017csamo\u015bci od razu oznacza je jako usuni\u0119te, przechowuje je przez okres, kt\u00f3ry sam ustala, a potem trwale je wymazuje. Przez ten czas si\u0119 nie zalogujesz. ab-ovo nie wie, jak d\u0142ugo trwa ten okres, wi\u0119c ta strona nie mo\u017ce tego poda\u0107.',
       confirmWord: 'USU\u0143',
       confirmLabel: (word) => `Wpisz ${word}, aby potwierdzi\u0107`,
       passwordLabel: 'Twoje has\u0142o',
@@ -857,11 +1119,13 @@ export const TABLE: Readonly<Record<string, Strings>> = {
         'Nie uda\u0142o si\u0119 usun\u0105\u0107 tego, co przechowywa\u0142o twoje konto \u2014 pozycji w lekturze i wybranego wydania \u2014 wi\u0119c nic wi\u0119cej nie by\u0142o pr\u00f3bowane. Konto pozosta\u0142o nietkni\u0119te. Spr\u00f3buj ponownie.',
       problemAccount:
         'To, co przechowywa\u0142o twoje konto, zosta\u0142o usuni\u0119te, ale samego konta nie uda\u0142o si\u0119 usun\u0105\u0107. Nadal nale\u017cy do ciebie, a to urz\u0105dzenie nadal wie, gdzie jeste\u015b w ksi\u0105\u017cce. Spr\u00f3buj ponownie.',
-      problemUnconfigured:
-        'To wdro\u017cenie nie ma serwisu to\u017csamo\u015bci, wi\u0119c nie ma konta do usuni\u0119cia.',
+      problemUnconfigured: 'Tutaj nie ma kont, wi\u0119c nie ma konta do usuni\u0119cia.',
     },
+    // Impersonal, `przeczytano`, and so is `readWhileSignedIn`: the second person past tense
+    // is gendered in Polish (`przeczytałeś`, `przeczytałaś`), and the book does not know who
+    // is reading.
     raised: (unit, step) =>
-      `${unit} przesunięto do ramki ${step}, czytanej na innym urządzeniu. Wygrywa najdalsza ramka.`,
+      `Gdzie indziej przeczytano już ${unit} do ramki ${step}. Wygrywa najdalsza ramka.`,
     dismiss: 'Rozumiem',
     cue: 'Odpowiedź znajdziesz w kolejnej ramce.',
     // `Dalej` / `Wstecz` — the pair a Polish reader already knows from every wizard and form
@@ -873,10 +1137,16 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     revealBusy: 'Zbyt wiele żądań naraz. Odczekaj chwilę i spróbuj ponownie.',
     languageLabel: 'Język',
     programs: 'Programy',
+    // `napisz`, never `zapisz`, for `writeItDown`'s reason (issue #152): `zapisz` is the word
+    // on every Save button. An imperative and a future tense, which choose no gender for the
+    // reader (ADR-0016's rule, which a past tense cannot keep); `ramka`, `program` and `kurs`
+    // are this table's own words (docs/how-to/translate-a-document.md).
+    programsLead:
+      'Każdy program to rozdział kursu złożony z ramek: krótkich, ponumerowanych kroków, po jednym na ekran. Większość ramek kończy się pytaniem, a następna ramka zaczyna się od odpowiedzi — więc napisz swoją, zanim przejdziesz dalej.',
     about: 'O ab-ovo',
     courses: 'Kursy',
     coursesLead:
-      'Wszystkie kursy, kt\u00f3re niesie ab-ovo \u2014 ka\u017cdy to ci\u0105g program\u00f3w przerabianych ramka po ramce. Otwarcie jednego zaw\u0119\u017ca do niego spis; dop\u00f3ki tego nie zrobisz, spis pokazuje wszystkie.',
+      'Wszystkie kursy dost\u0119pne w ab-ovo \u2014 ka\u017cdy to ci\u0105g program\u00f3w przerabianych ramka po ramce. Otw\u00f3rz kurs, a zobaczysz tylko jego programy; dop\u00f3ki tego nie zrobisz, strona z programami pokazuje programy wszystkich kurs\u00f3w.',
     allCourses: 'Wszystkie kursy',
     onlyThisCourse: 'Tylko ten kurs',
     // `Tryb` rather than `Motyw`: docs/SCREENSHOTS.pl.md already calls this
@@ -915,7 +1185,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     youWrote: 'Twoja odpowiedź',
     matchesBook: 'Tak jak w książce',
     writtenBefore: 'zapisane przed odsłonięciem',
-    earlierEdition: 'zapisane przy wcześniejszym wydaniu',
+    earlierEdition: 'zapisane przy wcześniejszej wersji książki',
     clearAnswer: 'Wyczyść moją odpowiedź',
     clearAnswerConfirm: 'Wyczyść',
     working: 'Policz to',
@@ -956,11 +1226,15 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     lockedSection: 'jeszcze niedostępna',
     readingSettings: 'Ustawienia czytania',
     keysHeading: 'Klawisze',
+    // `odsłania`, as `writtenBefore` already says `odsłonięcie` for the reveal; `w pierwszej
+    // ramce` in the shape of the other `where` entries — `w odpowiedzi`, `w numerze ramki`.
     keysMap: [
-      { key: '→', does: 'następna ramka' },
+      { key: '→', does: 'następna ramka (odsłania odpowiedź)' },
       { key: '←', does: 'poprzednia ramka' },
+      { key: '←', does: 'spis treści', where: 'w pierwszej ramce' },
       { key: 'Enter', does: 'wpisz odpowiedź' },
       { key: 'g', does: 'sekcje i ramki' },
+      { key: '?', does: 'ustawienia czytania' },
       { key: 'Ctrl+Enter', macKey: '⌘+Enter', does: 'zapisz odpowiedź i dalej', where: 'w odpowiedzi' },
       { key: 'Ctrl+Enter', macKey: '⌘+Enter', does: 'policz', where: 'w obliczeniach' },
       { key: 'Enter', does: 'przejdź do tej ramki', where: 'w numerze ramki' },
@@ -973,16 +1247,30 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     backToContents: 'Spis treści',
     toSummary: 'Podsumowanie',
     answerTo: (n) => `Odpowiedź do ramki ${n}`,
+    wideFormula: 'Wzór',
+    wideTable: 'Tabela',
+    wideCode: 'Kod',
     goToFrameNumber: (n) => `Przejdź do ramki ${n}`,
     frameNumbered: (n) => `Ramka ${n}`,
     frameRange: (last) => `Wpisz numer ramki od 1 do ${last}.`,
     summaryHeading: 'Podsumowanie',
+    // The title in quotation marks after `programu`, so it stays in the case the book gives
+    // it rather than being declined; impersonal, like `nothingLost` below.
+    summaryDescription: (unit) => `Podsumowanie programu „${unit}” i to, czego ma nauczyć.`,
     canYouHeading: 'Czy potrafisz?',
     exercisesNotYet:
-      'Zadania testowe i Dalsze zadania tego programu nie są jeszcze w tej wersji aplikacji.',
+      'Zadania testowe i Dalsze zadania tego programu nie są tu jeszcze dostępne.',
     nextProgramLabel: 'Następny program',
     previousProgramLabel: 'Poprzedni program',
     groupLabels: { F: 'Podstawy', P: 'Część główna' },
+    // `z Podstaw`: the run's heading, declined, which is why this cannot be built from
+    // `groupLabels` (the key's own note). `to one` points back at the Foundation programs.
+    runReasons: {
+      P: {
+        after: 'F',
+        says: 'Część główna opiera się na programach z Podstaw, dlatego to one są pierwsze.',
+      },
+    },
     sectionsLabel: 'Sekcje',
     // `przy ramce` rather than `na ramce`, which is spoken Polish rather than written (issue
     // #152). Still a position and nothing more (ADR-0041).
@@ -995,10 +1283,22 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     shutExplain: (previous) =>
       `Jeszcze nieotwarty. Otworzy się, gdy przeczytasz dowolną ramkę ${previous} — wystarczy ` +
       `jedna, nic tu nie jest płatne ani ukryte.`,
+    // `shutExplain`'s own words for the size of the step and for what is not behind it, so the
+    // tile's description and the line above the grid say one thing.
+    orderLegend: (reasons) =>
+      [
+        'Programy otwierają się po kolei.',
+        ...reasons,
+        'Wystarczy przeczytać dowolną ramkę programu, a otworzy się następny — nic tu nie jest płatne ani ukryte.',
+      ].join(' '),
     shutNotice: (unit, previous) =>
       `${unit} nie jest jeszcze otwarty, dlatego zamiast niego otworzyła się ta strona. ` +
       `Książkę czyta się po kolei: ${unit} otworzy się, gdy będzie zapisane miejsce w ` +
       `${previous} — wystarczy jedna ramka ${previous}. ${unit} jest zaznaczony na liście niżej.`,
+    shutNoticeFurther: (unit, previous, way) =>
+      `${previous} też nie jest jeszcze otwarty, więc droga do ${unit} zaczyna się od ${way}.`,
+    // `Przejdź`, the table's word for *go to* (`goToFrame`, `go`, `skipToContent`).
+    shutNoticeWayOn: (way) => `Przejdź do ${way}`,
     shutNextProgram: (unit) =>
       `${unit} otworzy się, gdy przeczytasz dowolną ramkę tego programu.`,
     renderError: {
@@ -1016,10 +1316,19 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       reportTitle: 'Jeśli zgłaszasz ten błąd',
       reference: 'identyfikator',
     },
+    // `unavailableTitle`'s server in the present tense, then `tryLater` as it stands. The first
+    // sentence is impersonal and the second an imperative, so neither picks a gender for the
+    // reader (`nothingLost`'s reason).
+    readingUnavailable:
+      'Serwer książki nie odpowiada, więc żaden program się teraz nie otworzy. Spróbuj ponownie za chwilę.',
     notReachedHeading: 'Jeszcze nie tutaj',
     notReachedBody: (furthest) =>
       `Ta ramka nie jest jeszcze dostępna. Najdalsza przeczytana ramka w tym programie: ${furthest}.`,
-    backToLastFrame: 'Wróć do ramki',
+    readWhileSignedIn: 'Tę ramkę przeczytano po zalogowaniu.',
+    signInToContinue: 'Zaloguj się, aby czytać dalej',
+    summaryNotReachedBody: (last, furthest) =>
+      `Podsumowanie otworzy się na końcu tego programu, po ramce ${last}. Najdalsza przeczytana ramka w tym programie: ${furthest}.`,
+    backToLastFrame: (n) => `Wróć do ramki ${n}`,
     labOptional: 'Ten program ma też ćwiczenia komputerowe w Pythonie, opcjonalne',
   },
 };
@@ -1097,6 +1406,7 @@ export interface Chrome {
   readonly signIn: string;
   readonly signOut: string;
   readonly account: string;
+  readonly accountOverview: AccountOverviewStrings;
   readonly deleteAccount: DeleteAccountStrings;
   readonly consent: ConsentStrings;
   readonly raised: (unit: string, step: number) => string;
@@ -1108,6 +1418,7 @@ export interface Chrome {
   readonly revealBusy: string;
   readonly languageLabel: string;
   readonly programs: string;
+  readonly programsLead: string;
   readonly about: string;
   readonly courses: string;
   readonly coursesLead: string;
@@ -1171,26 +1482,38 @@ export interface Chrome {
   readonly backToContents: string;
   readonly toSummary: string;
   readonly answerTo: (n: number) => string;
+  readonly wideFormula: string;
+  readonly wideTable: string;
+  readonly wideCode: string;
   readonly goToFrameNumber: (n: number) => string;
   readonly frameNumbered: (n: number) => string;
   readonly frameRange: (last: number) => string;
   readonly summaryHeading: string;
+  readonly summaryDescription: (unit: string) => string;
   readonly canYouHeading: string;
   readonly exercisesNotYet: string;
   readonly nextProgramLabel: string;
   readonly previousProgramLabel: string;
-  readonly backToLastFrame: string;
+  readonly backToLastFrame: (n: number) => string;
   readonly labOptional: string;
   readonly groupLabels: Readonly<Record<string, string>>;
+  readonly runReasons: Readonly<Record<string, RunReason>>;
   readonly sectionsLabel: string;
   readonly atFrame: (n: number) => string;
   readonly opensAfter: (unit: string) => string;
   readonly shutExplain: (previous: string) => string;
+  readonly orderLegend: (reasons: readonly string[]) => string;
   readonly shutNotice: (unit: string, previous: string) => string;
+  readonly shutNoticeFurther: (unit: string, previous: string, way: string) => string;
+  readonly shutNoticeWayOn: (way: string) => string;
   readonly shutNextProgram: (unit: string) => string;
   readonly renderError: RenderErrorStrings;
+  readonly readWhileSignedIn: string;
+  readonly signInToContinue: string;
+  readonly readingUnavailable: string;
   readonly notReachedHeading: string;
   readonly notReachedBody: (furthest: number) => string;
+  readonly summaryNotReachedBody: (last: number, furthest: number) => string;
 }
 
 /** The controls for a reader of `language`, falling back to English rather than failing. */

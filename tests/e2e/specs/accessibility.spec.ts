@@ -3,10 +3,11 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { AUTHOR, READER } from '../fixtures/accounts.mts';
 
-import { track, unitNamed } from './support/bundle.ts';
+import { served, track, unitNamed } from './support/bundle.ts';
 import { openPane } from './support/pane.ts';
 import { signIn } from './support/sign-in.ts';
 import { walkTo } from './support/walk.ts';
+import { formulas, openWideFrame } from './support/wide.ts';
 
 /**
  * JOURNEY — every screen a reader meets holds WCAG 2.2 at levels A and AA, as far as a machine
@@ -106,6 +107,10 @@ const openBothPanes = async (page: Page): Promise<void> => {
 /** Every screen of the reading surface and its shell, as a reader with no account meets it. */
 const SCREENS: readonly Screen[] = [
   { what: 'the index', path: '/' },
+  // The shut notice and its way on (issue #163): a link inside a `status` region, painted by
+  // the server for a reader with no record, whom the gate turns away from every program but
+  // the first.
+  { what: 'the index, after the gate turned a reader away', path: `/?shut=${served.units[1]!.id}` },
   { what: 'the argument', path: '/about' },
   { what: 'the courses', path: '/courses' },
   { what: 'a program’s contents', path: contentsAt('en') },
@@ -115,7 +120,8 @@ const SCREENS: readonly Screen[] = [
   { what: 'the program map, open over a frame', path: frameAt('en', asks.n), walk: asks.n, open: openMap },
   { what: 'the reading settings, open over a frame', path: frameAt('en', asks.n), walk: asks.n, open: openSettings },
   { what: 'both worksheet panes, open', path: frameAt('en', asks.n), walk: asks.n, open: openBothPanes },
-  { what: 'a program’s summary', path: `${contentsAt('en')}/summary` },
+  // Walked to the last frame: before it, the summary is the gate's "Not there yet" (#158).
+  { what: 'a program’s summary', path: `${contentsAt('en')}/summary`, walk: program.steps.length },
   { what: 'a frame the reader has not reached', path: frameAt('en', program.steps.length) },
   { what: 'a page that does not exist', path: `/read/${track}/NOPE/en` },
   { what: 'an address no page answers, on the sign-in page', path: '/nope' },
@@ -160,6 +166,23 @@ test.describe('accessibility at 360 px', () => {
       expect(await violations(page), `${screen.what}, 360 px`).toEqual([]);
     });
   }
+
+  test('a frame with a formula wider than the screen has no WCAG A or AA violation on a phone @core', async ({
+    page,
+  }) => {
+    /*
+      A FORMULA WIDER THAN THE COLUMN SCROLLS INSIDE IT, and WCAG 2.1.1 asks that a keyboard
+      can scroll it too — axe's `scrollable-region-focusable`. None of the frames above has one
+      at this width, so none of them could see the rule fail: this frame is FOUND, the first
+      whose formula is wider than the screen (`support/wide.ts`), and the scan waits until the
+      page has made that formula a Tab stop (`wide-content.tsx`, #159). Before it did, this scan
+      reported the formula.
+    */
+    await openWideFrame(page, UNIT, 'en');
+    await settle(page);
+    await expect(formulas(page).and(page.locator('[tabindex="0"]')).first()).toBeVisible();
+    expect(await violations(page), 'a frame with a wide formula, 360 px').toEqual([]);
+  });
 });
 
 /*
@@ -209,9 +232,18 @@ test.describe('accessibility behind an account', () => {
     expect(await violations(page)).toEqual([]);
   });
 
-  test('the account deletion screen has no WCAG A or AA violation @identity', async ({ page }) => {
+  // The account's two pages since issue #161: the overview the account link opens, and the
+  // deletion screen one link beyond it, which is where the form is.
+  test('the account’s overview has no WCAG A or AA violation @identity', async ({ page }) => {
     await page.goto('/login?redirect=%2Faccount');
     await signIn(page, READER, /\/account(\?|$)/);
+    await settle(page);
+    expect(await violations(page)).toEqual([]);
+  });
+
+  test('the account deletion screen has no WCAG A or AA violation @identity', async ({ page }) => {
+    await page.goto('/login?redirect=%2Faccount%2Fdelete');
+    await signIn(page, READER, /\/account\/delete(\?|$)/);
     await settle(page);
     expect(await violations(page)).toEqual([]);
   });

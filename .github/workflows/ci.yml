@@ -363,7 +363,8 @@ jobs:
   #          un-intercepted run this repository has against that state, and the product's
   #          remaining "no account" requirement (ADR-0060 superseding ADR-0004's other half).
   #          It reaches the API through tests/e2e/fixtures/api-fault.mts, a pass-through
-  #          that can cut ONE reader off it, so the error page can be driven (issue #139)
+  #          that can cut ONE reader off it, so the error page can be driven (issue #139),
+  #          or hold that one reader's calls, so a frame on its way can be seen (issue #160)
   #   :3100  the signed-in deployment, pointed at the identity fixture as well as the API
   #
   # The API still listens on 8180 and not on its own 8080: 8080 is rung four of
@@ -665,9 +666,11 @@ jobs:
       # were evidence about one afternoon.
       #
       # This project starts a fixture (tests/e2e/fixtures/authservice-stub.mts) and a
-      # SECOND web app pointed at it. It is seven tests and about eight seconds, so it runs
-      # on a pull request as well as on a push: a gate that only runs after merge tells you
-      # about a commit you can no longer decline.
+      # SECOND web app pointed at it. It runs on a pull request as well as on a push, because
+      # a gate that only runs after merge tells you about a commit you can no longer decline.
+      # How many tests that is and how long they take are `playwright test --list
+      # --project=identity` and this step's own log, not a figure here: the one this comment
+      # gave fell behind as the layer grew.
       #
       # It is a separate step rather than `--project=identity` on the two above, because
       # the project exists only when this config is starting the servers — see

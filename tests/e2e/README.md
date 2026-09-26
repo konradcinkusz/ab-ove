@@ -57,28 +57,32 @@ was first written with.
 | `about.spec.ts` | the argument renders, and states the anti-goal: the instrument measures the book, never the reader |
 | `accessibility.spec.ts` | every screen holds WCAG 2.2 A and AA as far as axe-core can decide — both schemes, each panel open, 360 px, the forms behind an account, and a legal document |
 | `account-deletion.spec.ts` | closing an account, and everything about it that needs no account |
+| `account-overview.spec.ts` | opening one's own account: whose it is, the place it holds in each program, and the ways out — sign-out and the deletion screen |
 | `app-icon.spec.ts` | the tab shows the mark, served by this origin to a reader with no account, and `theme-color` is the paper in each scheme |
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
 | `consent.spec.ts` | being asked once whether answers may be counted, focus landing on the answer given, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
-| `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload |
+| `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload; a program's contents and summary fail the same way |
 | `focus-ring.spec.ts` | the controls that showed focus by a colour or a brightness wear the shared ring, in light, dark and forced colours |
+| `frame-loading.spec.ts` | a frame on its way says so where the reader pressed — `Previous`, clicked or pressed as `←`, or the program map's door — while the API is held back for that one reader, and the pager does not move (#160) |
 | `frame-view.spec.ts` | the answer is absent before the reveal, asserted in both directions and both editions |
-| `gate.spec.ts` | the book is entered at the beginning: a program opens when the one before it has |
+| `furthest-frame.spec.ts` | going back to re-read: *Continue* keeps the furthest frame, the sync tells only reading done elsewhere and offers a way to that frame, and a frame refused after signing out says why — the signed-in half against an account registered for the test and a real `AbOvo.Api` |
+| `gate.spec.ts` | the book is entered at the beginning: a program opens when the one before it has, and a reader turned away is given a way on |
 | `hydration.spec.ts` | every page hydrates — the one defect that leaves no trace on screen |
 | `instrument-view.spec.ts` | the author's view, and the promise it must not break |
 | `instrument.spec.ts` | the instrument, which a reader is entitled never to notice |
 | `integration-report.spec.ts` | the integration report, P8 seen from a browser |
 | `lab-p01.spec.ts` | the Lab P1 pane, Python in the browser |
-| `landing.spec.ts` | the landing page is the programs, one click from one of them |
+| `landing.spec.ts` | the landing page is the programs, one click from one of them, and a first-time reader is told what they are looking at |
 | `language-choice.spec.ts` | the same frame in the other edition, and the choice remembered |
 | `narrow-screen.spec.ts` | the reading surface at 360 px: nothing scrolls sideways, and the loop still runs |
-| `navigation.spec.ts` | finding a program, opening it, and coming back to the same frame |
-| `no-backend.spec.ts` | the app with no backend in reach of the browser |
+| `navigation.spec.ts` | finding a program, opening it, and coming back to the same frame; the contents lock what the gate would refuse, and the summary opens only from the last frame |
+| `no-backend.spec.ts` | the app with no backend in reach of the browser, and the index saying that no program will open |
 | `pager.spec.ts` | `Previous` and `Next` on screen and clickable on every frame, desktop and phone, with and without JavaScript (ADR-0063) |
-| `program-ends.spec.ts` | the summary's return index and its way on, and the contents page's way back |
+| `program-ends.spec.ts` | the summary's return index and its way on, named in the reader's edition, and the contents page's way back |
 | `progress.spec.ts` | coming back to where one was, with no account |
 | `reader-identity.spec.ts` | an anonymous reader's place is held in a cookie the page cannot read, and no header can claim it (ADR-0061) |
+| `reading-loop.spec.ts` | the reading loop explains itself: the cue under the answer line, focus on the new frame's heading and the answer said with it — a formula wider than a phone included, asked of the browser's own accessibility tree — taken an accessibility update after the router's own announcement and never from a reader already writing, the keys standing aside at a control, `?` and Esc, and a formula wider than a phone reachable from the keyboard (#159) |
 | `reading.spec.ts` | reading a program end to end from the keyboard, the frame's ergonomics, and the frame on paper |
 | `registration.spec.ts` | a reader with no account gets one, and can read the two documents it accepts first |
 | `reveal-failure.spec.ts` | a reveal the API does not take says so beside `Next` and keeps the frame — with the mouse, `→`, `Ctrl+Enter` and no JavaScript (#138) |
@@ -106,10 +110,11 @@ that test fails and somebody has to delete either the feature or the promise. Th
 is the point of the test.
 
 It also asserts the reader loop's four steps **in order** (a loop that revealed the answer
-before asking for one would be a different product), the four phases in the order they are
-being built, and that the footer links to `https://github.com/konradcinkusz/ab-ovo` — the
-canonical spelling. The repository was created as `ab-ove`, a typo; GitHub redirects the old
-name, which is exactly why a wrong link would work and would still be wrong.
+before asking for one would be a different product), that the computer exercises are offered
+after a program and never beside a frame, that the page cites no ADR and shows no roadmap to
+a reader (issue #162), and that the footer links to `https://github.com/konradcinkusz/ab-ovo`
+— the canonical spelling. The repository was created as `ab-ove`, a typo; GitHub redirects
+the old name, which is exactly why a wrong link would work and would still be wrong.
 
 **This journey ran against `/` until
 [ADR-0036](../../docs/adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)**,
@@ -145,6 +150,19 @@ only one: a heading list that reads as a tree is the property, and a second `<h1
 pass every other assertion here. The returning reader's half of the index — the tile that
 says `at frame N`, the filled resume control, and the layout not moving when either arrives
 — is in `specs/progress.spec.ts`, because it needs a place to have been recorded first.
+
+The first visit has a block of its own, which seeds nothing (#163). On a phone's first
+screen, with nothing hovered, a reader who has never been here sees the standfirst — what a
+program and a frame are — and the legend above the grid, which says why most tiles are shut
+([ADR-0065](../../docs/adr/0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md)).
+The words come from `web/app/src/lib/i18n/chrome.ts` itself, so what the block asserts is
+where they are: inside the viewport and at least a line of their own type tall, because a
+sentence collapsed to a strip a pixel high is inside the viewport too; not in a tooltip; and
+not a `status`. The part about the book is relational: the legend names the run headings the
+grid is divided under. The Polish edition says the same in Polish, also on its first screen,
+and the other edition is drawn as a control with an edge.
+The notice a reader gets when the gate turns them away, and its way on, are
+`specs/gate.spec.ts`'s.
 
 ### 2. `GET /api/config` returns runtime-resolved addresses — `specs/runtime-config.spec.ts`
 
@@ -205,11 +223,14 @@ specified to need no account and no server, and
 [ADR-0060](../../docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
 kept the first half and reversed the second: every frame is now a live call to `AbOvo.Api`, so an
 API that does not answer stops reading. What this journey still holds is the part that stays true
-with the browser cut off from the API — the index reaches a program, and `/about` renders whole and
-says legibly which fault it was — because neither page needs the API to render: the index reads the
-compiled bundle built into the web app, and `/about`'s one live part is the panel, which crashing or
-spinning forever would be the product failing twice. It says nothing about a frame; ADR-0062 records
-why the suite no longer runs a whole deployment with no API.
+with the browser cut off from the API — the index reaches a program and says that none will open
+right now (#158), and `/about` renders whole and says legibly which fault it was — because neither
+page needs the API to render: the index reads the compiled bundle built into the web app (a
+deviation the architecture document's register records), and `/about`'s one live part is the panel,
+which crashing or spinning forever would be the product failing twice. It says nothing about a
+frame or a program's contents, which fail on the server where no browser route reaches;
+`specs/error-page.spec.ts` covers those. ADR-0062 records why the suite no longer runs a whole
+deployment with no API.
 
 The failure is injected in the browser with route interception, which is both deterministic
 (no waiting for a real backend to be down, no 45-second ladder walk) and faithful to what a
@@ -217,11 +238,11 @@ reader experiences. Four faults are covered separately because the product says 
 different things about them: an aborted request, the proxy's 503 (nothing answered), the
 proxy's 504 (something answered too slowly, e.g. cold-starting), and an unexpected 500.
 
-Each test asserts three properties, because any one alone would be satisfied by a broken
-page:
+The test that renders the whole of `/about` with the API cut off asserts three properties,
+because any one alone would be satisfied by a broken page:
 
-- **the product is intact** — the heading, the anti-goal, the four loop steps, the four
-  phases, asserted element by element exactly as journey 1 asserts them with a backend
+- **the product is intact** — the heading, the anti-goal, the four loop steps, the sections
+  under them, asserted element by element exactly as journey 1 asserts them with a backend
   present;
 - **the panel is legible** about which fault it was, and is not still showing its loading
   state;
@@ -229,10 +250,15 @@ page:
   throws during render leaves the server-rendered HTML on screen, so the first two assertions
   can both pass against a page that crashed.
 
-The last test asserts the landing page does not redirect to sign-in when there is no session
-and no identity service. The middleware is private-by-default and opts routes out one at a
-time, so `/` being public is a list entry somebody wrote; if it ever falls out of that list,
-the symptom is a redirect to a page a deployment without an identity service cannot serve.
+The index's tests make the same kind of claim about `/`: the programs are there and one of them
+is a link into a program, the line above them speaks only when the book's server does not
+answer, and the page threw nothing.
+
+Neither the landing page nor `/about` may redirect to sign-in when there is no session and no
+identity service, and the file asserts both. The middleware is private-by-default and opts
+routes out one at a time, so `/` being public is a list entry somebody wrote; if it ever falls
+out of that list, the symptom is a redirect to a page a deployment without an identity service
+cannot serve.
 
 ### 5. The Lab P1 pane — `specs/lab-p01.spec.ts`
 
@@ -697,18 +723,26 @@ Two mechanical traps, both from the audit, both avoided here:
 
 ## Waiting
 
-No fixed sleeps, anywhere. Every wait in this suite is either a web-first auto-retrying
-assertion (`expect(locator).toBeVisible()`, `.toHaveCount()`, `.toContainText()`) or
-`page.waitForRequest`, armed *before* the navigation it observes — arming it after is a race
-the fast case loses, and the fix for that race is never a sleep.
+No fixed sleep stands in for something happening. Every wait for an event in this suite is
+either a web-first auto-retrying assertion (`expect(locator).toBeVisible()`, `.toHaveCount()`,
+`.toContainText()`, `expect.poll`) or a `page.waitForRequest`, `waitForResponse` or
+`waitForURL`, armed *before* the action it observes — arming it after is a race the fast case
+loses, and the fix for that race is never a sleep.
+
+The rule is lifted for one shape: a test that something did NOT happen — a key that must not
+turn the page, a request a signed-out reader must not make, a notice that must not appear, a
+page that must not shift. An absence has no event to wait for, so the test gives it a fixed
+window to go wrong in, sized against what it waits out (a debounce, a hold, a layout settling),
+and then asks. `grep -rn waitForTimeout specs/` is the list; a count here would be a claim
+nobody re-runs.
 
 Timeouts: 30 s per test, 10 s per assertion, and there is no global inflation to cover a slow
-case. Two places ask for more, visibly and at the point they need it — the live-API test allows
-90 s at the assertion, because a Fly machine may be scaled to zero and the proxy's ladder is
-sized to cover a cold start; and `specs/lab-p01.spec.ts` raises its own per-test timeout at the
-top of the file, because Pyodide fetches and instantiates a ~9 MB wasm before anything on that
-page can be driven. Raising the suite's 30 s to cover the second would buy every other spec a
-slower failure.
+case. A spec that needs more asks for it visibly, at the point it needs it — the live-API test
+allows 90 s at the assertion, because a Fly machine may be scaled to zero and the proxy's
+ladder is sized to cover a cold start; and `specs/lab-p01.spec.ts` raises its own per-test
+timeout at the top of the file, because Pyodide fetches and instantiates a ~9 MB wasm before
+anything on that page can be driven. Raising the suite's 30 s to cover the second would buy
+every other spec a slower failure.
 
 **There are no custom assertion or wait wrappers in this suite.** `specs/support/` contains
 route handlers, an error collector and a file-reading fixture, and nothing else — every file
@@ -737,17 +771,26 @@ accumulate in whatever database the suite runs against, which in CI is a Postgre
 thrown away with the job. Against a persistent environment they are orphans, one per context
 per run, and that is the price of reading through the real gate.
 
-**Registration writes too, into the identity fixture's memory** (`specs/registration.spec.ts`):
-each test registers a generated address, the fixture forgets it when its process exits, and
-no account is shared between tests.
+**Registration writes too, into the identity fixture's memory** (`specs/registration.spec.ts`,
+and `specs/furthest-frame.spec.ts`, which needs an account whose furthest frame no other test
+has moved): each test registers a generated address, the fixture forgets it when its process
+exits, and no account is shared between tests. What such an account then reads is written to
+`AbOvo.Api` under its own subject, which nobody else holds either — so, like a reader id's
+rows, it needs no teardown. `specs/account-overview.spec.ts` registers one the same way when it
+needs the account's places to be its own — they are `AbOvo.Api` rows, which
+`bearer-hop.spec.ts` writes and empties for the shared fixture account — and its walk's rows
+need no teardown for the same reason.
 
 **And the API can be taken away from one reader without taking it from the rest.** The first
 deployment reaches `AbOvo.Api` through `fixtures/api-fault.mts`, a pass-through that drops the
 requests of a reader a spec has cut and forwards everybody else's untouched. It keys the cut
 on the reader id the middleware minted for that one context (ADR-0061), so
 `specs/error-page.spec.ts` can stop the API under its own frame while every other spec reads
-on through the same process. The set of cut readers lives in the fixture's memory and goes
-with it; a cut a failed test leaves behind names a reader nobody else holds.
+on through the same process. It can slow one reader down the same way, holding each of that
+reader's requests for as long as the spec asked before passing it on, which is how
+`specs/frame-loading.spec.ts` sees a page while the server works. The cut and slowed readers
+live in the fixture's memory and go with it; one a failed test leaves behind names a reader
+nobody else holds.
 
 **And one file now does create server-side state, so the paragraph above has an exception
 rather than a slow drift into being false.** `specs/bearer-hop.spec.ts` writes progress rows
@@ -812,7 +855,7 @@ tests/e2e/
   tsconfig.json                     strict; `pnpm run typecheck` is a real gate
   fixtures/                         the identity service stub (and the legal-document host it also
                                     plays), its accounts, the content ingest, and the API
-                                    pass-through that can cut one reader off
+                                    pass-through that can cut one reader off or slow them down
   specs/
     *.spec.ts                       one journey each — the table under *What this suite covers*
     support/
@@ -822,6 +865,7 @@ tests/e2e/
       lab.ts                        the pinned book's exercise file, solutions and splices
       page-errors.ts                uncaught-exception collector
       pane.ts                       a worksheet pane, and the button that opens it
+      register.ts                   registering through `/register`, with a fresh address
       reveal.ts                     the reveal's locator: the pager's `Next`, by its test id
       service-info.ts               the API's payload shape and the route handlers
       sign-in.ts                    signing in against the identity fixture

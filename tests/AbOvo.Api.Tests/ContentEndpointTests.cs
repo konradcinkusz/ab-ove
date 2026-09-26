@@ -20,12 +20,20 @@ public sealed class ContentEndpointTests
     private const string Unit = "P01";
     private const string Tag = "fixture-0";
 
-    /// <summary>Three steps: enough to exercise a mid-program advance and program-complete both.</summary>
+    /// <summary>
+    /// Three steps: enough to exercise a mid-program advance and program-complete both. One
+    /// route of each kind and a lab named for the unit, so the return index has a Quiz to
+    /// leave out and a lab to name (issue #158).
+    /// </summary>
     private static string BundleJson() => JsonSerializer.Serialize(new
     {
         schemaVersion = 2,
         tag = Tag,
         track = new { id = Track, titles = new { en = "Mathematics from Zero" }, languages = new[] { "en" } },
+        labs = new object[]
+        {
+            new { id = Unit, runtime = "stdlib", exercises = new[] { "e1" } },
+        },
         units = new object[]
         {
             new
@@ -50,6 +58,16 @@ public sealed class ContentEndpointTests
                         n = 3, kind = "frame", body = new { en = "Frame three." },
                         answer = new { en = "Answer to frame two." }, cue = true,
                     },
+                },
+                routes = new object[]
+                {
+                    new
+                    {
+                        kind = "quiz", labels = new { en = "Quiz question label." },
+                        answer = new { en = "The quiz's own answer." }, from = 1, to = 1,
+                    },
+                    new { kind = "summary", labels = new { en = "What frames one and two established." }, from = 1, to = 2 },
+                    new { kind = "outcome", labels = new { en = "Say what frame three asks." }, from = 3, to = 3 },
                 },
             },
         },
@@ -97,6 +115,9 @@ public sealed class ContentEndpointTests
 
         Assert.Equal(Tag, content!.Tag);
         Assert.Equal(["en"], content.Languages);
+        // The course's own name, which the contents page prints under a program's title and
+        // used to read from the compiled bundle (issue #158).
+        Assert.Equal("Mathematics from Zero", content.Titles?["en"]);
         var program = Assert.Single(content.Programs);
         Assert.Equal(Unit, program.Id);
         Assert.Equal("F", program.Part?.Id);
@@ -123,6 +144,166 @@ public sealed class ContentEndpointTests
         // no gate, because this endpoint carries no reveal check at all.
         Assert.DoesNotContain("Frame one.", body);
         Assert.DoesNotContain("Answer to frame one.", body);
+        // Nor the return index, which has a gate of its own.
+        Assert.DoesNotContain("What frames one and two established.", body);
+    }
+
+    /// <summary>
+    /// Issue #158 — the contents page lists every heading, and the ones past the reader's
+    /// furthest step are places the gate refuses, so the unit's summary says how far THIS
+    /// reader may go: step 1 for a reader who has opened nothing (and for a caller with no
+    /// identity at all), and the cursor once it has moved.
+    /// </summary>
+    [Fact]
+    public async Task A_units_summary_says_how_far_the_asking_reader_may_read()
+    {
+        using var factory = new SignedInApiFactory();
+        using var scope = factory.Services.CreateScope();
+        await Seed(scope.ServiceProvider.GetRequiredService<AbOvoDbContext>(), TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+
+        using var nobody = factory.CreateClient();
+        var unknown = await nobody.GetFromJsonAsync<UnitSummary>($"/api/v1/content/{Track}/{Unit}", token);
+        Assert.Equal(1, unknown!.Furthest);
+
+        using var reader = factory.CreateClient();
+        UseAnonymousReader(reader, Guid.NewGuid());
+        var fresh = await reader.GetFromJsonAsync<UnitSummary>($"/api/v1/content/{Track}/{Unit}", token);
+        Assert.Equal(1, fresh!.Furthest);
+
+        using (var advanced = await reader.PostAsJsonAsync(
+                   $"/api/v1/content/{Track}/{Unit}/advance",
+                   new AdvanceRequest { AnsweringStep = 1, Language = "en" }, token))
+        {
+            Assert.Equal(HttpStatusCode.OK, advanced.StatusCode);
+        }
+
+        var moved = await reader.GetFromJsonAsync<UnitSummary>($"/api/v1/content/{Track}/{Unit}", token);
+        Assert.Equal(2, moved!.Furthest);
+    }
+
+    // ── The return index — gated as the last step ──────────────────────────────────────────
+
+    /// <summary>
+    /// Issue #158. The summary was reachable from its URL at any step, so a reader three
+    /// steps into a program could read what the whole program concludes. It is refused now
+    /// exactly as the last step would be — NotReached, naming that step and the reader's
+    /// furthest — and nothing from it is on the wire.
+    /// </summary>
+    [Fact]
+    public async Task The_return_index_is_refused_before_the_last_step_like_the_last_step_itself()
+    {
+        using var factory = new SignedInApiFactory();
+        using var scope = factory.Services.CreateScope();
+        await Seed(scope.ServiceProvider.GetRequiredService<AbOvoDbContext>(), TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+
+        using var client = factory.CreateClient();
+        UseAnonymousReader(client, Guid.NewGuid());
+        using (var advanced = await client.PostAsJsonAsync(
+                   $"/api/v1/content/{Track}/{Unit}/advance",
+                   new AdvanceRequest { AnsweringStep = 1, Language = "en" }, token))
+        {
+            Assert.Equal(HttpStatusCode.OK, advanced.StatusCode);
+        }
+
+        using var response = await client.GetAsync($"/api/v1/content/{Track}/{Unit}/summary", token);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync(token);
+        var refused = JsonSerializer.Deserialize<ReturnIndexResponse>(
+            body, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.False(refused!.Ok);
+        Assert.Null(refused.Index);
+        Assert.Equal("NotReached", refused.Refusal!.Kind);
+        Assert.Equal(3, refused.Refusal.Requested);
+        Assert.Equal(2, refused.Refusal.Furthest);
+        Assert.Equal(2, refused.Furthest);
+        Assert.DoesNotContain("What frames one and two established.", body);
+        Assert.DoesNotContain("Say what frame three asks.", body);
+
+        // The step itself answers the same way, which is the point: one gate, one answer.
+        var lastStep = await client.GetFromJsonAsync<StepResponse>($"/api/v1/content/{Track}/{Unit}/3", token);
+        Assert.Equal(refused.Refusal.Kind, lastStep!.Refusal!.Kind);
+        Assert.Equal(refused.Refusal.Requested, lastStep.Refusal.Requested);
+    }
+
+    [Fact]
+    public async Task A_caller_with_no_identity_is_refused_the_return_index()
+    {
+        using var factory = new SignedInApiFactory();
+        using var scope = factory.Services.CreateScope();
+        await Seed(scope.ServiceProvider.GetRequiredService<AbOvoDbContext>(), TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+
+        using var client = factory.CreateClient();
+        var refused = await client.GetFromJsonAsync<ReturnIndexResponse>(
+            $"/api/v1/content/{Track}/{Unit}/summary", token);
+
+        Assert.False(refused!.Ok);
+        Assert.Equal("NotReached", refused.Refusal!.Kind);
+        Assert.Equal(1, refused.Refusal.Furthest);
+    }
+
+    /// <summary>
+    /// And once the last step is reached, the index is served: the Summary items and the
+    /// outcomes in the book's order, each with the steps it names, and the unit's lab. The
+    /// Quiz is not in it — neither its route nor its answer — because a triage answered before
+    /// step 1 has no place on the screen a reader reaches by finishing.
+    /// </summary>
+    [Fact]
+    public async Task At_the_last_step_the_return_index_is_served_without_the_quiz()
+    {
+        using var factory = new SignedInApiFactory();
+        using var scope = factory.Services.CreateScope();
+        await Seed(scope.ServiceProvider.GetRequiredService<AbOvoDbContext>(), TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+
+        using var client = factory.CreateClient();
+        UseAnonymousReader(client, Guid.NewGuid());
+        foreach (var answering in new[] { 1, 2 })
+        {
+            using var step = await client.PostAsJsonAsync(
+                $"/api/v1/content/{Track}/{Unit}/advance",
+                new AdvanceRequest { AnsweringStep = answering, Language = "en" }, token);
+            Assert.Equal(HttpStatusCode.OK, step.StatusCode);
+        }
+
+        using var response = await client.GetAsync($"/api/v1/content/{Track}/{Unit}/summary", token);
+        var body = await response.Content.ReadAsStringAsync(token);
+        var served = JsonSerializer.Deserialize<ReturnIndexResponse>(
+            body, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.True(served!.Ok);
+        Assert.Null(served.Refusal);
+        Assert.Equal(3, served.Furthest);
+        var item = Assert.Single(served.Index!.Summary);
+        Assert.Equal("What frames one and two established.", item.Labels["en"]);
+        Assert.Equal((1, 2), (item.From, item.To));
+        var outcome = Assert.Single(served.Index.Outcomes);
+        Assert.Equal((3, 3), (outcome.From, outcome.To));
+        Assert.Equal(Unit, served.Index.Lab);
+
+        Assert.DoesNotContain("Quiz question label.", body);
+        Assert.DoesNotContain("The quiz's own answer.", body);
+        // And no step's text: the index names steps, it does not quote them.
+        Assert.DoesNotContain("Frame three.", body);
+        Assert.DoesNotContain("Answer to frame two.", body);
+    }
+
+    [Fact]
+    public async Task The_return_index_of_an_unknown_unit_is_a_404()
+    {
+        using var factory = new SignedInApiFactory();
+        using var scope = factory.Services.CreateScope();
+        await Seed(scope.ServiceProvider.GetRequiredService<AbOvoDbContext>(), TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+
+        using var client = factory.CreateClient();
+        UseAnonymousReader(client, Guid.NewGuid());
+        using var response = await client.GetAsync($"/api/v1/content/{Track}/NOPE/summary", token);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     // ── The gate ─────────────────────────────────────────────────────────────────────────
@@ -268,11 +449,13 @@ public sealed class ContentEndpointTests
     }
 
     /// <summary>
-    /// ADR-0063 — the case the browser cannot answer by itself. Its own record is the frame
-    /// last VIEWED, so a reader who has read to step 3 and gone back to step 1 is "at 1" as far
-    /// as the browser knows; only the cursor says they may still open 2 and 3. A successful
-    /// read of the earlier step carries that cursor, which is what lets the program map offer
-    /// every section the reader has reached rather than only the ones before where they stand.
+    /// ADR-0063 — the case the browser cannot answer by itself. Since #157 its own record keeps
+    /// a furthest frame beside the frame last viewed, but that furthest is this browser's and
+    /// the account's, and a signed-out reader's can be past the anonymous cursor the gate asks
+    /// (ADR-0061). So only the cursor says whether a reader back on step 1 may still open 2 and
+    /// 3. A successful read of the earlier step carries that cursor, which is what lets the
+    /// program map offer every section the reader has reached rather than only the ones before
+    /// where they stand.
     /// </summary>
     [Fact]
     public async Task A_read_of_an_earlier_step_still_says_how_far_the_reader_has_reached()

@@ -16,8 +16,16 @@ pnpm --dir tests/e2e run browsers      # jawnie; żadnego pobierania przeglądar
 pnpm --dir tests/e2e run screenshots
 ```
 
-Konfiguracja Playwrighta sama uruchamia aplikację webową, więc nie ma serwera, o którym trzeba
-pamiętać. Obrazki lądują w `docs/assets/screenshots/`, nadpisując to, co tam jest.
+Konfiguracja Playwrighta sama uruchamia aplikację webową, ale nie `AbOvo.Api`, a wycieczka
+potrzebuje API, które ma książkę: ramka, spis treści programu i jego podsumowanie są pobierane
+właśnie z niego
+([ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)).
+Zanim wycieczka sfotografuje podsumowanie, przechodzi przez nie do ostatniej ramki programu. Jego
+adres podaj jako `E2E_API_BASE_URL`. Przepisem jest zadanie `e2e` w
+[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml): Postgres, uruchomione przy nim API
+i paczka wczytana przez [`ingest-content.mts`](../../tests/e2e/fixtures/ingest-content.mts). Bez
+niego te zrzuty się nie udają, zamiast sfotografować stronę błędu. Obrazki lądują w
+`docs/assets/screenshots/`, nadpisując to, co tam jest.
 
 ## Czym to jest, a czym nie
 
@@ -73,9 +81,10 @@ szumem w historii.
 
 ## Czego nie ma na zrzutach i dlaczego
 
-`/account` i `/instrument/<track>/<unit>` potrzebują konta, a konto potrzebuje serwisu
-tożsamości. Pakiet taki ma — atrapę, którą sam uruchamia — ale sfotografowanie ekranu, którego
-każda liczba pochodzi z fikstury, ilustrowałoby fiksturę, a nie produkt.
+`/account`, `/account/delete` i `/instrument/<track>/<unit>` potrzebują konta, a konto
+potrzebuje serwisu tożsamości. Pakiet taki ma — atrapę, którą sam uruchamia — ale
+sfotografowanie ekranu, którego każda liczba pochodzi z fikstury, ilustrowałoby fiksturę, a nie
+produkt.
 
 ## Zobacz też
 

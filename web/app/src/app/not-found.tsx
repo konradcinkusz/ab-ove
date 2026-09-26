@@ -30,8 +30,12 @@ import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
  * (`login/page.tsx`'s `NoPageAt`, issue #140) — so a typo is not a page wherever it is met.
  *
  * NOTHING HERE IS FETCHED, and it takes no props: `not-found.tsx` receives none, which is
- * why it cannot say which segment was wrong. It says what the shape of a right address
- * is instead, which is the thing a reader can act on.
+ * why it cannot say which segment was wrong. It says how to get from a frame's address to
+ * its program's contents instead, which is the thing a reader can act on — in words, since
+ * issue #162. It used to print the address's shape,
+ * `/read/<track>/<program>/<edition>/<frame>`, and *track* is the content's word for a
+ * course and on no screen (`chrome.ts`, on `courses`), so a reader who mistyped a frame
+ * number met it here before anywhere else.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export default function NotFound(): React.JSX.Element {
@@ -60,9 +64,9 @@ export default function NotFound(): React.JSX.Element {
       <section className="section">
         <h2>If you followed a link</h2>
         <p>
-          A frame is addressed as <code>/read/&lt;track&gt;/&lt;program&gt;/&lt;edition&gt;/&lt;frame&gt;</code>.
-          Drop the last segment to reach that program&rsquo;s contents, which lists every
-          section and the frame it opens at.
+          A frame&rsquo;s address ends with its number. Take the number off, with the slash
+          before it, to reach that program&rsquo;s contents, which list every section and the
+          frame it opens at.
         </p>
       </section>
     </main>

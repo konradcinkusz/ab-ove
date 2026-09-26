@@ -6,8 +6,9 @@ import type { Locator, Page } from '@playwright/test';
  * ADR-0060 made revealing raise a server-side cursor, so the frame's way forward is a
  * `<form action={revealStep.bind(...)}>` around a `<button type="submit">` — a Server Action
  * has no `href` for a locator to match against. Only the hand-off past a program's LAST step —
- * to `/summary` — is still a plain `<Link>`; ADR-0060's gate covers the reading loop within a
- * program and stops there.
+ * to `/summary` — is still a plain `<Link>`: there is no step past the last one to raise a
+ * cursor to, and `/summary` is served under the last frame's own gate
+ * (`Reveal.ServeReturnIndex`, issue #158), which a reader on that frame has already passed.
  *
  * ADR-0063 moved both into the pinned pager as its `Next` cell, and gave that cell a test id:
  * the button reads `Next` on every frame, a frame that asks included, and the summary link

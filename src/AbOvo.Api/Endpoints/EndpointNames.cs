@@ -24,6 +24,7 @@ public static class EndpointNames
     public const string GetPrograms = "GetPrograms";
     public const string GetUnit = "GetUnit";
     public const string GetStep = "GetStep";
+    public const string GetReturnIndex = "GetReturnIndex";
     public const string PostAdvance = "PostAdvance";
     public const string PostIngestBundle = "PostIngestBundle";
 }

@@ -92,7 +92,9 @@ numbers about a reader and this product does not make them.
 Click it — or press <kbd>g</kbd> — for every heading of the program and a box to jump to a
 frame by its number. A heading that starts past the furthest frame you have reached is shown
 locked, with the reason, rather than offered: that is the book's order, and a link that would
-only be refused is not a way anywhere. Your position is remembered in this browser. If
+only be refused is not a way anywhere. Your position is remembered in this browser, and it
+is the furthest frame you reached: going back to re-read an earlier frame does not move it,
+and *Continue* on the index still takes you to where you had got to. If
 you sign in it follows you to another machine, and **furthest frame wins** — two machines that
 disagree are not a conflict, because you have read up to the further of the two
 ([ADR-0019](../adr/0019-furthest-frame-wins.md)).

@@ -61,6 +61,9 @@ What this means for you:
    "Close enough" is a judgement this product deliberately does not make.
 6. Show a step as it is served — its words, its mathematics in the $…$ notation it
    arrives in, its place line — rather than a paraphrase. The book chose those words.
+   A result that reaches you as data carries the same words in "text"; the fields beside
+   them (the step's number, whether it asks, its edition) are for your next call, not a
+   substitute for the words.
 7. A step that asks nothing says so; move on with submit_answer and no answer. The
    edition is the reader's and is asked once: open_program starts a new program in the
    edition the reader already reads in, and asks only when none is known yet — then ask
@@ -130,6 +133,8 @@ export interface ToolDefinition {
   readonly title: string;
   readonly description: string;
   readonly inputSchema: Record<string, unknown>;
+  /** What every result that is not an error carries as `structuredContent` (#164). */
+  readonly outputSchema: Record<string, unknown>;
   readonly annotations: ToolAnnotations;
 }
 
@@ -161,6 +166,181 @@ const UNIT = {
     'the id of the program that opens it.',
 };
 
+/*
+  ──────────────────────────────────────────────────────────────────────────────────────
+  WHAT A RESULT SAYS AS DATA (#164): each tool's `outputSchema`, and the `structuredContent`
+  that every result which is not an error carries beside its text.
+
+  The text used to be the whole of a result. An agent read the step number `submit_answer`
+  requires out of "step 1 of 45", and whether a step asks, which edition it is in and whether
+  a program is open out of sentences. Those are fields now. The text is unchanged, for a host
+  that reads only the text.
+
+  THE WORDS TRAVEL IN THE DATA TOO, as `text`, and that is load-bearing. Claude Code's
+  documentation (*Return structured data*) says that when a result carries
+  `structuredContent` the model receives the JSON, and text blocks "are not forwarded, since
+  they are assumed to duplicate the structured data" (read on 2026-09-25). This package's
+  README installs the server into exactly that host, so without `text` here its model would
+  get a step's number and none of its words. A host that forwards both halves reads the words
+  twice, which is the cheaper failure. An error carries its text alone: with no structured
+  half, every host forwards it.
+
+  THE GATE IS NOT REACHED FROM HERE. No field below is read from an answer's words:
+  `answersStep` says THAT a step opens with the book's answer to the one before it, and which
+  one, and the answer itself is only in `text` — `render()`'s, and so the gate's. The leak
+  walks in `tools.test.ts` read every string in this half as well as the text.
+
+  ONLY KEYWORDS EVERY VALIDATOR READS ALIKE. The spec reads an `outputSchema` as JSON Schema
+  2020-12 when it names no `$schema`; the SDK's own client validates with Ajv's draft-07.
+  `type`, `properties`, `required`, `items`, `enum`, `minimum`, `additionalProperties` and
+  `description` mean the same in both, and `tools.test.ts` refuses any other keyword: a rule
+  in a keyword the validator skips is a rule that silently does nothing — the reason
+  `@ab-ovo/web-kit`'s validator refuses one too.
+  ──────────────────────────────────────────────────────────────────────────────────────
+*/
+const TEXT = {
+  type: 'string',
+  description:
+    "The result in words: the same text as the result's text content, and what to show or " +
+    'tell the reader. A step is shown as it is, not paraphrased from the fields beside it.',
+};
+const PLACE_IS_EPHEMERAL = {
+  type: 'boolean',
+  description:
+    "Present, and true, on every result while the reader's place is kept in this process's " +
+    'memory only: a restart begins every program again. The text says so once per session.',
+};
+const STEP = {
+  type: 'object',
+  description: 'The step this result shows. Its words are in "text".',
+  properties: {
+    track: { type: 'string', description: 'The track it is in.' },
+    unit: { type: 'string', description: 'The program it is in, spelled as the book spells it.' },
+    step: {
+      type: 'integer',
+      minimum: 1,
+      description: 'Its number. On the step the reader is on, it is what submit_answer\'s "step" names.',
+    },
+    total: { type: 'integer', minimum: 1, description: 'How many steps the program has.' },
+    asks: {
+      type: 'boolean',
+      description:
+        "Whether it asks the reader for something. If it does, submit_answer needs the reader's " +
+        'own answer; if not, submit_answer goes on with none.',
+    },
+    language: { type: 'string', description: 'The edition it is shown in, e.g. "en".' },
+    answersStep: {
+      type: 'integer',
+      minimum: 1,
+      description:
+        "Present when it opens with the book's answer to the step before it: that step's " +
+        'number. The answer itself is in "text" and nowhere else.',
+    },
+  },
+  required: ['track', 'unit', 'step', 'total', 'asks', 'language'],
+  additionalProperties: false,
+};
+const REFUSAL = {
+  type: 'object',
+  description:
+    'Why nothing moved. Every kind is the method or the reading order working, not a fault; ' +
+    'the text says what to tell the reader.',
+  properties: {
+    kind: {
+      type: 'string',
+      enum: ['not-reached', 'not-open', 'already-answered', 'declined', 'program-complete'],
+      description:
+        'not-reached: the step named is past the furthest the reader has reached. not-open: ' +
+        'the program opens after another. already-answered: submit_answer named a step ' +
+        'answered before, so nothing was recorded. declined: the reader was asked directly and ' +
+        'declined. program-complete: every step has been worked.',
+    },
+    requested: { type: 'integer', description: 'not-reached and already-answered: the step the call named.' },
+    furthest: { type: 'integer', description: 'not-reached: the furthest step the reader has reached.' },
+    unit: { type: 'string', description: 'not-open: the program that is not open yet.' },
+    after: { type: 'string', description: 'not-open: the program before it. ONE step of that one opens it.' },
+    steps: { type: 'integer', description: 'program-complete: how many steps the program has.' },
+  },
+  required: ['kind'],
+  additionalProperties: false,
+};
+const FINISHED = {
+  type: 'object',
+  description:
+    "The program is finished: every step worked. The text carries the hand-off — the book's " +
+    'Summary, its Can you? and the next program.',
+  properties: {
+    unit: { type: 'string', description: 'The program finished.' },
+    total: { type: 'integer', minimum: 1, description: 'How many steps it has.' },
+    next: {
+      type: 'object',
+      description: "The program after it in the book's order, which is open now. Absent after the last one.",
+      properties: {
+        unit: { type: 'string', description: 'What open_program\'s "unit" names.' },
+        title: { type: 'string', description: "Its title, in the edition of the reader's place." },
+      },
+      required: ['unit', 'title'],
+      additionalProperties: false,
+    },
+  },
+  required: ['unit', 'total'],
+  additionalProperties: false,
+};
+const QUESTION = {
+  type: 'object',
+  description:
+    'Nothing was opened: the program needs an edition and none is known for this reader. Ask ' +
+    'the reader which, never inferring it from the conversation, and call open_program again ' +
+    'with "language". It is asked once per reader.',
+  properties: {
+    kind: { type: 'string', enum: ['edition'], description: 'What is asked.' },
+    offered: {
+      type: 'array',
+      description: "The editions the track is published in, each with the track's own title in it.",
+      items: {
+        type: 'object',
+        properties: { language: { type: 'string' }, title: { type: 'string' } },
+        required: ['language', 'title'],
+        additionalProperties: false,
+      },
+    },
+    declined: {
+      type: 'boolean',
+      description: 'True when the reader was asked directly, through the host, and declined: ask in the conversation.',
+    },
+  },
+  required: ['kind', 'offered', 'declined'],
+  additionalProperties: false,
+};
+const PROGRAM = {
+  type: 'object',
+  properties: {
+    track: { type: 'string', description: 'The track it is in.' },
+    id: { type: 'string', description: 'What open_program\'s "unit" names.' },
+    title: { type: 'string', description: 'In the edition the list is in.' },
+    total: { type: 'integer', minimum: 1, description: 'How many steps it has.' },
+    open: {
+      type: 'boolean',
+      description: 'Whether the reader can open it now. Programs open in order.',
+    },
+    place: {
+      type: ['integer', 'null'],
+      description: 'The furthest step the reader has reached in it, or null for none. Equal to total when finished.',
+    },
+    after: { type: 'string', description: 'On a shut program: the program before it. ONE step of that one opens it.' },
+  },
+  required: ['track', 'id', 'title', 'total', 'open', 'place'],
+  additionalProperties: false,
+};
+
+/** A tool that shows a step: the step, or why none moved, with what else that tool can say. */
+const stepResult = (also: Readonly<Record<string, unknown>>): Record<string, unknown> => ({
+  type: 'object',
+  properties: { text: TEXT, step: STEP, ...also, refusal: REFUSAL, placeIsEphemeral: PLACE_IS_EPHEMERAL },
+  required: ['text'],
+  additionalProperties: false,
+});
+
 export const TOOLS: readonly ToolDefinition[] = [
   {
     name: 'list_programs',
@@ -186,6 +366,27 @@ export const TOOLS: readonly ToolDefinition[] = [
           description: 'The edition to give the titles in, e.g. "pl". Leave it out for the reader\'s own.',
         },
       },
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        text: TEXT,
+        programs: {
+          type: 'array',
+          description:
+            "Every program the text names, in the book's order: those the reader has a place " +
+            'in, those open now and the one that opens next. A run of shut programs after that ' +
+            'is folded, as in the text, unless the call said "all": true.',
+          items: PROGRAM,
+        },
+        folded: {
+          type: 'boolean',
+          description: 'True when a run of shut programs was left out of "programs"; "all": true names them.',
+        },
+        placeIsEphemeral: PLACE_IS_EPHEMERAL,
+      },
+      required: ['text', 'programs', 'folded'],
       additionalProperties: false,
     },
     annotations: READS,
@@ -221,6 +422,7 @@ export const TOOLS: readonly ToolDefinition[] = [
       required: ['unit'],
       additionalProperties: false,
     },
+    outputSchema: stepResult({ finished: FINISHED, question: QUESTION }),
     annotations: MOVES,
   },
   {
@@ -235,6 +437,7 @@ export const TOOLS: readonly ToolDefinition[] = [
       required: ['unit'],
       additionalProperties: false,
     },
+    outputSchema: stepResult({}),
     annotations: READS,
   },
   {
@@ -255,9 +458,10 @@ export const TOOLS: readonly ToolDefinition[] = [
           type: 'integer',
           minimum: 1,
           description:
-            'The step being answered — the number on the step that was shown. A submit for ' +
-            'a step the reader is no longer on is refused and the current step returned, so ' +
-            'a call that is retried never moves them twice.',
+            'The step being answered — the number on the step that was shown, which its ' +
+            'result also carries as step.step. A submit for a step the reader is no longer on ' +
+            'is refused and the current step returned, so a call that is retried never moves ' +
+            'them twice.',
         },
         answer: {
           type: 'string',
@@ -270,6 +474,7 @@ export const TOOLS: readonly ToolDefinition[] = [
       required: ['unit', 'step'],
       additionalProperties: false,
     },
+    outputSchema: stepResult({ finished: FINISHED }),
     annotations: MOVES,
   },
   {
@@ -288,17 +493,98 @@ export const TOOLS: readonly ToolDefinition[] = [
       required: ['unit', 'step'],
       additionalProperties: false,
     },
+    outputSchema: stepResult({}),
     annotations: READS,
   },
 ];
 
-export interface ToolResult {
-  readonly text: string;
-  readonly isError?: boolean;
+/** A step as data — `STEP` above, and `stepData()` below builds it. */
+export interface StepData {
+  readonly track: string;
+  readonly unit: string;
+  readonly step: number;
+  readonly total: number;
+  readonly asks: boolean;
+  readonly language: string;
+  readonly answersStep?: number;
 }
 
+/**
+ * Why nothing moved, as data — `REFUSAL` above. The gate's own refusals travel as they are,
+ * all but `no-such-step`, which is an error and so carries no data; the other two are this
+ * file's, both from `submit_answer`.
+ */
+export type RefusalData =
+  | Exclude<Refusal, { readonly kind: 'no-such-step' }>
+  | { readonly kind: 'already-answered'; readonly requested: number }
+  | { readonly kind: 'declined' };
+
+/** A program finished, as data — `FINISHED` above; `completion()` is its words. */
+export interface FinishedData {
+  readonly unit: string;
+  readonly total: number;
+  readonly next?: { readonly unit: string; readonly title: string };
+}
+
+/** The edition question, as data — `QUESTION` above; `editionQuestion()` is its words. */
+export interface EditionQuestionData {
+  readonly kind: 'edition';
+  readonly offered: readonly EditionOffered[];
+  readonly declined: boolean;
+}
+
+/** One program of the list, as data — `PROGRAM` above; `programLine()` is its words. */
+export interface ProgramData {
+  readonly track: string;
+  readonly id: string;
+  readonly title: string;
+  readonly total: number;
+  readonly open: boolean;
+  readonly place: number | null;
+  readonly after?: string;
+}
+
+/**
+ * A result as data: the `structuredContent` each tool's `outputSchema` describes. Which of
+ * the optional members a tool can send is that schema's to say.
+ */
+export type Structured = {
+  readonly text: string;
+  readonly step?: StepData;
+  readonly finished?: FinishedData;
+  readonly question?: EditionQuestionData;
+  readonly refusal?: RefusalData;
+  readonly programs?: readonly ProgramData[];
+  readonly folded?: boolean;
+  readonly placeIsEphemeral?: true;
+};
+
+/**
+ * What a call answers: its words, and — unless it is an error — the same result as data.
+ * An error's text is the whole of it: it says what to fix, and with no structured half every
+ * host forwards it as it always has.
+ */
+export type ToolResult =
+  | { readonly text: string; readonly isError: true; readonly structured?: undefined }
+  | { readonly text: string; readonly isError?: undefined; readonly structured: Structured };
+
+/** An error: its words, and nothing else. */
+type Failed = { readonly text: string; readonly isError: true };
+
+/**
+ * A result as the handlers build it: its words, and its data less the two members
+ * `handle()` adds to every result alike — the words themselves, and the in-memory flag.
+ */
+type Built =
+  | Failed
+  | {
+      readonly text: string;
+      readonly isError?: undefined;
+      readonly data: Omit<Structured, 'text' | 'placeIsEphemeral'>;
+    };
+
 /** Bad input: a track, a program, an edition or a step number that names nothing. */
-const problem = (text: string): ToolResult => ({ text, isError: true });
+const problem = (text: string): Failed => ({ text, isError: true });
 
 /**
  * THE GATE'S OWN VOICE, WHICH IS NOT AN ERROR'S.
@@ -310,17 +596,30 @@ const problem = (text: string): ToolResult => ({ text, isError: true });
  * has just finished a program was told the server had failed. So a refusal that is the
  * method working is an ordinary result carrying its sentence, and `isError` is kept for
  * what it means: an argument that names nothing.
+ *
+ * Its kind travels as data (#164), and the step the reader is on with it when the text
+ * shows that step.
  */
-const refused = (text: string): ToolResult => ({ text });
+const refused = (text: string, refusal: RefusalData, step?: StepData): Built => ({
+  text,
+  data: { ...(step ? { step } : {}), refusal },
+});
 
-function refusalResult(refusal: Refusal): ToolResult {
-  return refusal.kind === 'no-such-step' ? problem(explain(refusal)) : refused(explain(refusal));
+function refusalResult(refusal: Refusal): Built {
+  return refusal.kind === 'no-such-step' ? problem(explain(refusal)) : refused(explain(refusal), refusal);
 }
 
 /**
  * What a reader is told when the place is kept in memory — IN THE RESULT, where they can
  * read it. `server.ts` says the same on stderr, which no reader of an MCP host ever sees;
  * finding out by losing one's place is the worst available way to be told (P8).
+ *
+ * ONCE PER SESSION IN THE TEXT, AND ON EVERY RESULT AS DATA (#164). It used to end every
+ * `list_programs` and `open_program` result, so a reader who checked the list and opened a
+ * program read it at each, and again at every re-check of the list. It now ends the first
+ * result of a session that is not an error, and every result carries `placeIsEphemeral` in
+ * its structured half — the fact, for whatever reads the data, without the sentence again.
+ * `handle()` decides which; `Session` is what it remembers.
  */
 export const EPHEMERAL_NOTE =
   'Your place in the book is kept for this session only: this server has no account to ' +
@@ -489,6 +788,37 @@ export function render(unit: Unit, step: Step, language: string): string {
 }
 
 /**
+ * `render()`'s twin: the same step as data (#164), which is what an agent used to read out
+ * of the place line and the closing sentence.
+ *
+ * NOTHING HERE IS READ FROM THE STEP'S WORDS, and least of all from `step.answer`, of which
+ * only the fact of it is used. The answer to step k is still where the gate put it — in the
+ * words of step k + 1, which `render()` writes — and `answersStep` says only that this step
+ * opens with it, which the banner above says too.
+ */
+export function stepData(track: string, unit: Unit, step: Step, language: string): StepData {
+  return {
+    track,
+    unit: unit.id,
+    step: step.n,
+    total: unit.steps.length,
+    asks: step.cue === true,
+    language,
+    ...(step.answer ? { answersStep: step.n - 1 } : {}),
+  };
+}
+
+/** One step shown: its words and its data, from the one `Step`, so the two cannot name different steps. */
+function show(
+  track: string,
+  unit: Unit,
+  step: Step,
+  language: string,
+): { readonly text: string; readonly step: StepData } {
+  return { text: render(unit, step, language), step: stepData(track, unit, step, language) };
+}
+
+/**
  * THE HAND-OFF, when a program is finished — the reading surface's `/summary`, one
  * transport over.
  *
@@ -526,6 +856,25 @@ export function completion(unit: Unit, language: string, next: Unit | undefined)
       : 'This was the last program in the track. list_programs shows them all.',
   );
   return parts.join('\n\n');
+}
+
+/**
+ * The hand-off shown: `completion()`'s words and the same as data (#164). The data names the
+ * program and the next one and nothing of the Summary, whose labels are for the reader.
+ */
+function handOff(
+  unit: Unit,
+  language: string,
+  next: Unit | undefined,
+): { readonly text: string; readonly finished: FinishedData } {
+  return {
+    text: completion(unit, language, next),
+    finished: {
+      unit: unit.id,
+      total: unit.steps.length,
+      ...(next ? { next: { unit: next.id, title: say(next.titles, language) } } : {}),
+    },
+  };
 }
 
 /**
@@ -622,6 +971,19 @@ function programLine(program: Unit, door: Door, edition: string): string {
   return `${program.id} · ${say(program.titles, edition)} — ${total} steps — ${where}`;
 }
 
+/** `programLine()`'s twin: the same program and door as data (#164). */
+function programData(track: string, program: Unit, door: Door, edition: string): ProgramData {
+  return {
+    track,
+    id: program.id,
+    title: say(program.titles, edition),
+    total: program.steps.length,
+    open: door.kind === 'placed' || door.kind === 'open',
+    place: door.kind === 'placed' ? door.cursor.step : null,
+    ...(door.kind === 'next' || door.kind === 'behind' ? { after: door.after } : {}),
+  };
+}
+
 /**
  * The edition `list_programs` gives titles in when none is named: the reader's, if the
  * track has it; else English, the website's default (ADR-0052); else the track's first.
@@ -642,7 +1004,7 @@ function listingEdition(bundle: Bundle, reader: string | undefined): string {
  * the model carry `math-for-ai-engineers` through every turn for nothing. A server with
  * several still asks.
  */
-function soleTrack(bundles: BundleSource): string | ToolResult {
+function soleTrack(bundles: BundleSource): string | Built {
   const all = bundles.all();
   const only = all.length === 1 ? all[0] : undefined;
   if (only) return only.track.id;
@@ -673,7 +1035,7 @@ function nextUnit(bundle: Bundle | undefined, unit: Unit): Unit | undefined {
  * says "p01" — and what comes back is the bundle's own spelling, which is what the cursor
  * is filed under: a place keyed by "p01" would be a second place for P01.
  */
-function locate(bundles: BundleSource, track: string, unit: string): Located | ToolResult {
+function locate(bundles: BundleSource, track: string, unit: string): Located | Built {
   const resolvedTrack = track === '' ? soleTrack(bundles) : track;
   if (isResult(resolvedTrack)) return resolvedTrack;
 
@@ -695,7 +1057,7 @@ function locate(bundles: BundleSource, track: string, unit: string): Located | T
   return { track: resolvedTrack, unit: found };
 }
 
-const isResult = (value: unknown): value is ToolResult =>
+const isResult = (value: unknown): value is Built =>
   typeof value === 'object' && value !== null && 'text' in value;
 
 /**
@@ -778,16 +1140,31 @@ export type EditionOutcome =
   | { readonly kind: 'declined' }
   | { readonly kind: 'unavailable' };
 
+/**
+ * What one MCP session has said already. `server.ts` makes one per server, which over stdio
+ * is one per connection; the one thing it remembers is whether the reader has been told
+ * `EPHEMERAL_NOTE` yet.
+ */
+export interface Session {
+  ephemeralNoteSaid: boolean;
+}
+
 export interface Deps {
   readonly cursors: CursorStore;
   /** Injected so the unit tier runs against the committed fixture, never through bundleFor(). */
   readonly bundles: BundleSource;
   /**
    * True when the place is kept in this process's memory and forgotten at restart — the
-   * store `server.ts` falls back to with no API to talk to. The results that show a place
-   * then say so; a reader is told in the channel they can read.
+   * store `server.ts` falls back to with no API to talk to. The first result of the session
+   * that is not an error then says so, and every result carries it as data; a reader is told
+   * in the channel they can read.
    */
   readonly placeIsEphemeral?: boolean;
+  /**
+   * What this session has said already. Absent, every call is a session of its own and every
+   * result that is not an error says the note: told too often, never too late.
+   */
+  readonly session?: Session;
   /**
    * Ask the reader to confirm or correct a step's answer directly, through the host's UI,
    * bypassing the model — MCP elicitation. Absent on a host that does not support it, which
@@ -819,23 +1196,45 @@ export async function handle(
   args: Record<string, unknown>,
   deps: Deps,
 ): Promise<ToolResult> {
+  let built: Built;
   try {
-    return await dispatch(name, args, deps);
+    built = await dispatch(name, args, deps);
   } catch (error) {
     if (error instanceof ContentUnavailable) return problem(noContentNote(error));
     if (error instanceof PlaceUnavailable) return problem(placeUnavailableNote(error));
     throw error;
   }
+  return delivered(built, deps);
+}
+
+/**
+ * The last thing every result passes (#164): its words go into its data, and the in-memory
+ * note is said — once per session in the words, on every result in the data.
+ *
+ * NOT ON AN ERROR. An error's text is the fix for the call, and it is the result a model is
+ * likeliest to act on without relaying, by correcting its arguments and calling again; a
+ * note spent there may never reach the reader. So the note goes on the first result that is
+ * not an error, whichever tool gives it — and an error carries no data to flag it in.
+ */
+function delivered(built: Built, deps: Deps): ToolResult {
+  if (built.isError) return built;
+  const ephemeral = deps.placeIsEphemeral === true;
+  const tell = ephemeral && deps.session?.ephemeralNoteSaid !== true;
+  if (tell && deps.session) deps.session.ephemeralNoteSaid = true;
+  const text = tell ? `${built.text}\n\n${EPHEMERAL_NOTE}` : built.text;
+  return {
+    text,
+    structured: { text, ...built.data, ...(ephemeral ? { placeIsEphemeral: true as const } : {}) },
+  };
 }
 
 async function dispatch(
   name: string,
   args: Record<string, unknown>,
   deps: Deps,
-): Promise<ToolResult> {
+): Promise<Built> {
   const askedTrack = typeof args.track === 'string' ? args.track : '';
   const askedUnit = typeof args.unit === 'string' ? args.unit : '';
-  const ephemeral = deps.placeIsEphemeral ? `\n\n${EPHEMERAL_NOTE}` : '';
 
   if (name === 'list_programs') {
     const asked = typeof args.language === 'string' && args.language !== '' ? args.language : undefined;
@@ -846,6 +1245,7 @@ async function dispatch(
     const readerEdition = asked ? undefined : await deps.cursors.edition();
 
     const lines: string[] = [];
+    const programs: ProgramData[] = [];
     const otherEditions = new Set<string>();
     let listedIn: string | undefined;
     let folded = false;
@@ -898,6 +1298,11 @@ async function dispatch(
             : undefined;
         if (heading) lines.push(`  ${heading}`);
         const indent = heading ? '    ' : '  ';
+        // A program the text names is a program the data names, and no other (#164).
+        const named = (program: Unit, door: Door): void => {
+          lines.push(`${indent}${programLine(program, door, edition)}`);
+          programs.push(programData(bundle.track.id, program, door, edition));
+        };
 
         /*
           A RUN OF SHUT PROGRAMS IS ONE LINE (#145). Every program the reader can act on is
@@ -911,7 +1316,7 @@ async function dispatch(
         const fold = (): void => {
           const [first] = run;
           if (first && run.length === 1) {
-            lines.push(`${indent}${programLine(first, doors.get(first.id)!, edition)}`);
+            named(first, doors.get(first.id)!);
           } else if (first) {
             lines.push(
               `${indent}${first.id}–${run.at(-1)!.id} — ${run.length} programs, shut: each opens ` +
@@ -928,7 +1333,7 @@ async function dispatch(
             continue;
           }
           fold();
-          lines.push(`${indent}${programLine(program, door, edition)}`);
+          named(program, door);
         }
         fold();
       }
@@ -944,7 +1349,7 @@ async function dispatch(
     if (folded) notes.push('A folded run is shut; list_programs with "all": true names every program in it.');
     if (notes.length > 0) lines.push(notes.join(' '));
 
-    return { text: lines.join('\n') + ephemeral };
+    return { text: lines.join('\n'), data: { programs, folded } };
   }
 
   const located = locate(deps.bundles, askedTrack, askedUnit);
@@ -1003,7 +1408,13 @@ async function dispatch(
           : { kind: 'unavailable' };
         language = outcome.kind === 'chosen' && bundle ? languageIn(bundle, outcome.language) : undefined;
         how = 'chosen';
-        if (!language) return { text: editionQuestion(unit, editions, outcome.kind === 'declined') };
+        if (!language) {
+          const declined = outcome.kind === 'declined';
+          return {
+            text: editionQuestion(unit, editions, declined),
+            data: { question: { kind: 'edition', offered: editions, declined } },
+          };
+        }
       }
     }
 
@@ -1024,9 +1435,12 @@ async function dispatch(
         ? `Resuming "${unit.id}" at step ${saved.step}, switched to the "${saved.language}" edition.`
         : `Resuming "${unit.id}" at step ${saved.step}.`;
     // On the last step the program is finished; the step is shown, and then where to next.
-    const finished =
-      saved.step === unit.steps.length ? `\n\n${completion(unit, saved.language, nextUnit(bundle, unit))}` : '';
-    return { text: `${opening}\n\n${render(unit, served.step, saved.language)}${finished}${ephemeral}` };
+    const shown = show(track, unit, served.step, saved.language);
+    const done = saved.step === unit.steps.length ? handOff(unit, saved.language, nextUnit(bundle, unit)) : undefined;
+    return {
+      text: `${opening}\n\n${shown.text}${done ? `\n\n${done.text}` : ''}`,
+      data: { step: shown.step, ...(done ? { finished: done.finished } : {}) },
+    };
   }
 
   const cursor = await deps.cursors.read(track, unit.id);
@@ -1046,14 +1460,16 @@ async function dispatch(
   if (name === 'current_step') {
     const served = current(unit, cursor);
     if (!served.ok) return refusalResult(served.refusal);
-    return { text: render(unit, served.step, cursor.language) };
+    const shown = show(track, unit, served.step, cursor.language);
+    return { text: shown.text, data: { step: shown.step } };
   }
 
   if (name === 'review_step') {
     const n = typeof args.step === 'number' ? args.step : Number.NaN;
     const served = serve(unit, cursor, n);
     if (!served.ok) return refusalResult(served.refusal);
-    return { text: render(unit, served.step, cursor.language) };
+    const shown = show(track, unit, served.step, cursor.language);
+    return { text: shown.text, data: { step: shown.step } };
   }
 
   if (name === 'submit_answer') {
@@ -1068,16 +1484,22 @@ async function dispatch(
     if (!Number.isInteger(answering)) {
       return problem('submit_answer needs "step": the number of the step being answered, from the step that was shown.');
     }
+    // Through the gate before anything else, so the step a refusal hands back is one it served.
+    const here = current(unit, cursor);
+    if (!here.ok) return refusalResult(here.refusal);
+
     if (answering !== cursor.step) {
+      const shown = show(track, unit, here.step, cursor.language);
       return refused(
         `Nothing recorded: the reader is on step ${cursor.step}, not step ${answering}` +
           (answering < cursor.step ? ' — that one was already answered.' : '.') +
-          ` Here is the step they are on:\n\n${render(unit, unit.steps[cursor.step - 1]!, cursor.language)}`,
+          ` Here is the step they are on:\n\n${shown.text}`,
+        answering < cursor.step
+          ? { kind: 'already-answered', requested: answering }
+          : { kind: 'not-reached', requested: answering, furthest: cursor.step },
+        shown.step,
       );
     }
-
-    const here = current(unit, cursor);
-    if (!here.ok) return refusalResult(here.refusal);
 
     /*
       An answer is required where something was asked, and only there. A step with no cue
@@ -1109,6 +1531,7 @@ async function dispatch(
           `Nothing recorded: asked the reader directly to confirm step ${cursor.step}'s answer ` +
             'and they declined or cancelled. Ask them in the conversation instead, and call ' +
             'submit_answer again once they have.',
+          { kind: 'declined' },
         );
       }
       // 'unavailable' falls through: trust the argument, exactly as a host with no
@@ -1138,7 +1561,8 @@ async function dispatch(
         nothing is destroyed; opening the program again shows the same.
       */
       if (moved.refusal.kind === 'program-complete') {
-        return { text: recorded + completion(unit, cursor.language, nextUnit(deps.bundles.for(track), unit)) };
+        const done = handOff(unit, cursor.language, nextUnit(deps.bundles.for(track), unit));
+        return { text: recorded + done.text, data: { finished: done.finished } };
       }
       return refusalResult(moved.refusal);
     }
@@ -1147,7 +1571,8 @@ async function dispatch(
     const served = current(unit, saved);
     if (!served.ok) return refusalResult(served.refusal);
 
-    return { text: recorded + render(unit, served.step, saved.language) };
+    const shown = show(track, unit, served.step, saved.language);
+    return { text: recorded + shown.text, data: { step: shown.step } };
   }
 
   return problem(`No such tool: ${name}`);

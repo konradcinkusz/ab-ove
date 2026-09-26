@@ -41,11 +41,13 @@ import { expect, test } from '@playwright/test';
  * ──────────────────────────────────────────────────────────────────────────────────────
  * TWO TAGS, AND THAT IS THE POINT OF THEM (issue #29).
  *
- * The block below is the only one in the suite that carries `@identity` as well as
- * `@smoke`, so it runs TWICE: once under the smoke project, against the web app with no
- * identity service, and once under the identity project, against the second one
- * `playwright.config.ts` starts with a fixture behind it. The `else` branch is exercised by
- * the first run and the `offersForm` branch by the second.
+ * The block below carries `@identity` as well as `@smoke`, so it runs TWICE: once under the
+ * smoke project, against the web app with no identity service, and once under the identity
+ * project, against the second one `playwright.config.ts` starts with a fixture behind it.
+ * The `else` branch is exercised by the first run and the `offersForm` branch by the second.
+ * Pairing `@identity` with the tag of a project that runs against the first web app is how
+ * any spec says "true of both deployments": the last block in this file pairs it with
+ * `@core`, and `unknown-address.spec.ts` with `@smoke`.
  *
  * Before the fixture existed, only the `else` branch could ever run. Adding identity to the
  * one deployment would have inverted that rather than fixed it — which is the cost issue
@@ -87,7 +89,9 @@ test.describe('the page and the route agree about whether identity exists', () =
     } else {
       expect(problem, 'the page offers no form, so the route must say why').toBe('not-configured');
       expect(response.status()).toBe(501);
-      await expect(page.getByRole('main')).toContainText('no identity service configured');
+      // In the reader's words since issue #162: which service a deployment was configured
+      // against is the operator's business, and what it means to a reader is this.
+      await expect(page.getByRole('main')).toContainText('This site has no accounts');
       // The claim that matters more than the absence: reading is unaffected.
       await expect(page.getByRole('main')).toContainText('without one');
     }
@@ -192,9 +196,11 @@ test.describe('what the page will and will not say', () => {
     await page.goto('/login?error=second-factor');
     await expect(page.getByRole('main')).toContainText('second factor');
 
-    // The one a reader cannot fix by typing again, and must not be told to.
+    // The one a reader cannot fix by typing again, and must not be told to. It used to say
+    // so in the words of a token's issuer and audience (issue #162); the page now says whose
+    // fault it is and what it means, and `sign-in-problem.ts` keeps the mechanism.
     await page.goto('/login?error=token-rejected');
-    await expect(page.getByRole('main')).toContainText('configuration fault');
+    await expect(page.getByRole('main')).toContainText('how this site is set up');
   });
 
   test('an unknown code renders nothing at all @smoke', async ({ page }) => {
@@ -230,9 +236,21 @@ test.describe('what the page will and will not say', () => {
  * that just asked for a password.
  */
 test.describe('the destination carried through sign-in', () => {
-  test('a same-origin path is shown to the reader @core', async ({ page }) => {
+  /*
+    WHERE THE READER WAS IS THE WAY BACK, AND IT IS NO LONGER PRINTED (issue #162).
+
+    A frame's own *Sign in* link carries the frame, and the page used to print that address
+    under "What happened", as something that had "asked for an account" — which a page the
+    gate opens never did. The reader chose to sign in. So the address is a link now, under
+    words a reader would use, and the assertion is on where it leads rather than on the path
+    appearing somewhere in the text: that is what "carried" means to a reader, in both
+    deployments.
+  */
+  test('a same-origin path is the way back to where the reader was @core', async ({ page }) => {
     await page.goto('/login?redirect=%2Fread%2Fmath-for-ai-engineers%2FP01%2Fen%2F7');
-    await expect(page.getByRole('main')).toContainText('/read/math-for-ai-engineers/P01/en/7');
+    await expect(
+      page.getByRole('main').getByRole('link', { name: 'Back to where you were' }),
+    ).toHaveAttribute('href', '/read/math-for-ai-engineers/P01/en/7');
   });
 
   test('an off-site destination is not echoed, and not offered @smoke', async ({ page }) => {
@@ -243,7 +261,56 @@ test.describe('the destination carried through sign-in', () => {
     // question is whether it reaches the PAGE.
     const rendered = await page.locator('main').textContent();
     expect(rendered).not.toContain('evil.example');
-    // The page falls back to having no destination at all, and says that instead.
-    await expect(page.getByRole('main')).toContainText('No destination was carried');
+    // The page falls back to having no destination at all: no way back to one, and the
+    // ordinary way out instead. It used to say "No destination was carried into this page",
+    // which is true and is this file's vocabulary rather than a reader's (issue #162).
+    const main = page.getByRole('main');
+    await expect(main.getByRole('link', { name: 'Back to where you were' })).toHaveCount(0);
+    await expect(main.getByRole('link', { name: 'Back to the reader' })).toHaveAttribute('href', '/');
+  });
+});
+
+/**
+ * The account pages in a reader's words — issue #162.
+ *
+ * Sign-in, its second step and registration told readers about "the identity service this
+ * deployment is configured against", a token "the issuer or audience this app expects" did
+ * not match, and an outcome that "carries a frame, a bundle version" and a verdict. Every one
+ * of those sentences was true, and each was the repository describing itself to somebody who
+ * came to read a book. The reasoning is in the comments beside the words now
+ * (`sign-in-problem.ts`, `registration-problem.ts`, the pages), and the screens say what it
+ * means for the reader.
+ *
+ * Checked on the pages' ordinary states and on the codes #162 rewrote, and in both
+ * deployments: the one with no identity service is where "deployment" was said most. The
+ * phrases are the ones the issue found — an operator's words — and `textContent` is the
+ * scope, for the reason measured above: it is what a screen reader reads.
+ */
+test.describe('the account pages say what a reader needs to know', () => {
+  test('and not how this deployment is configured @core @identity', async ({ page }) => {
+    const pages = [
+      '/login',
+      '/login?redirect=%2Faccount',
+      '/login?redirect=%2Fnope',
+      '/login?error=token-rejected',
+      '/login?error=unverifiable',
+      '/login?error=not-configured',
+      '/login/2fa',
+      '/register',
+      '/register?error=token-rejected',
+      '/register?error=unverifiable',
+      '/register?error=not-configured',
+      '/register?notice=verify-email',
+    ];
+    const operatorWords = ['deployment', 'configured', 'issuer', 'audience', 'token', 'bundle', 'operator'];
+
+    for (const path of pages) {
+      await page.goto(path);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      const said = ((await page.locator('main').textContent()) ?? '').toLowerCase();
+      for (const word of operatorWords) {
+        expect(said, `${path} says "${word}" to a reader`).not.toContain(word);
+      }
+    }
   });
 });

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useSyncExternalStore } from 'react';
 
 import { chromeFor } from '@/lib/i18n/chrome';
@@ -27,9 +28,26 @@ import styles from './progress-sync.module.css';
  * sentence would be out of place, because the sentence is about something that just
  * happened to them.
  *
- * It says the rule and not only the outcome. "P01 moved to frame 40" is an event report;
- * "the furthest frame wins" is what lets a reader predict the NEXT one, which is what the
- * ticket asks for in as many words.
+ * It says the rule and not only the outcome. "You had read P01 to frame 40 elsewhere" is a
+ * fact; "the furthest frame wins" is what lets a reader predict the NEXT one, which is what
+ * the ticket asks for in as many words.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * ONLY FOR A RAISE THIS BROWSER DID NOT CAUSE, AND WITH A WAY TO THE FRAME — ISSUE #157.
+ *
+ * It used to say "P01 moved to frame 40, read on another device" to a reader who had gone
+ * back from frame 40 to 39 on this one: the record held the frame last viewed, the account
+ * held 40, and the sync "raised" the reader to where they had just been. The record now
+ * keeps the furthest frame apart from the frame last viewed (`lib/progress/store.ts`), so
+ * going back raises nothing; `settle` in `reconcile.ts` drops a raise this browser reached
+ * on its own while a sync was in flight, and `shownHere` withdraws one the moment this browser
+ * shows that frame itself (a sync that raced a reveal). What is left is reading done elsewhere —
+ * another machine, or an agent reading on the account, and the reveals of this browser's own
+ * that nothing in a pull tells apart from it, which `tell` in `lib/progress/sync.ts` names —
+ * and each line says so as a fact and offers `Go to frame 40`, because a notice about a frame
+ * with no way to it leaves the reader to find the index's *Continue* themselves. Following
+ * the link acknowledges that line and no other.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * IT IS FIXED, AND THAT IS A LAYOUT DECISION RATHER THAN A STYLE ONE. The notice appears
@@ -43,7 +61,8 @@ import styles from './progress-sync.module.css';
  * program can get shorter (revised, retagged) and a link to a frame that no longer exists
  * is a 404. This notice cannot clamp: it renders from the root layout and has no bundle to
  * ask. So a reader whose account holds frame 40 of a program this deployment now serves in
- * 30 would read "moved to frame 40" beside a link to 30.
+ * 30 would read "to frame 40" beside a *Continue* to 30 — and the notice's own `Go to frame
+ * 40` answers with the frame route's 404, because frame 40 is past the program's end.
  *
  * Left as it is, deliberately. It is reachable only when content has shrunk under a
  * reader — the same edge the clamp exists for — and the notice is telling the truth about
@@ -84,9 +103,23 @@ export function ProgressSync(): React.JSX.Element | null {
       <ul className={styles.lines}>
         {raised.map((entry) => {
           const chrome = chromeFor(entry.to.language);
+          const { track, unit } = entry.program;
           return (
-            <li className={styles.line} key={`${entry.program.track}/${entry.program.unit}`} lang={chrome.language}>
-              {chrome.raised(entry.program.unit, entry.to.step)}
+            <li className={styles.line} key={`${track}/${unit}`} lang={chrome.language}>
+              <span className={styles.fact}>{chrome.raised(unit, entry.to.step)}</span>
+              {/*
+                The frame in the edition the sentence is in, which is the one it was read in.
+                `prefetch={false}` for the reveal's reason (ADR-0041): a frame opens with the
+                answer to the one before it, and this link must not fetch one ahead of a click.
+              */}
+              <Link
+                className={styles.go}
+                href={`/read/${track}/${unit}/${entry.to.language}/${entry.to.step}`}
+                onClick={() => dismissRaised(entry.program)}
+                prefetch={false}
+              >
+                {chrome.goToFrameNumber(entry.to.step)}
+              </Link>
             </li>
           );
         })}
@@ -94,7 +127,9 @@ export function ProgressSync(): React.JSX.Element | null {
       <button
         className={styles.dismiss}
         lang={control.language}
-        onClick={dismissRaised}
+        // Wrapped: `dismissRaised` takes the one program to dismiss, and handed the click
+        // event directly it would read the event as a program and dismiss nothing.
+        onClick={() => dismissRaised()}
         type="button"
       >
         {control.dismiss}

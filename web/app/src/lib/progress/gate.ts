@@ -11,7 +11,8 @@
  * WHAT STAYS HERE IS THE RECORD'S SHAPE, which is this application's and nobody else's:
  * `Progress.positions`, keyed `track/unit`, read out of `localStorage`. The shared rule
  * asks one question — *has this reader a place in this program?* — and that question is the
- * only thing this file answers.
+ * only thing this file answers. `wayOn`, below, asks it again of the programs behind a shut
+ * one and adds no rule of its own (issue #163).
  *
  * THE BOOK IS READ FROM THE BEGINNING, SO THE INDEX STOPS OFFERING THE MIDDLE OF IT.
  *
@@ -73,4 +74,36 @@ export function isOpen(progress: Progress, program: GatedProgram): boolean {
     (unit) => progress.positions[keyOf({ track: program.track, unit })] !== undefined,
     { unit: program.unit, previous: program.previous },
   );
+}
+
+/**
+ * The program a reader turned away from a shut one can open NOW, on the way to it — the
+ * shut notice's way on (issue #163).
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE PROGRAM THAT OPENS IT, WHEN THE READER CAN OPEN THAT — AND OTHERWISE THE NEAREST ONE
+ * BEHIND IT THAT THEY CAN.
+ *
+ * The notice names the program before the one refused, because a place in it is what opens
+ * the refused one (ADR-0051). A link to it is the way on for a reader one program short.
+ * For a reader who followed a link into the middle of the book it is not: that program is
+ * shut too, and a link to it would bounce them again, one program back, and again, until
+ * they reached a door that opens. So this walks back through the book's order and returns
+ * the first program it meets that is open to this reader. There always is one, because the
+ * first program of a track is always open.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * `before` is every program the book puts before the refused one, in the manifest's order
+ * (`refused-program.ts` reads it off the bundle; an id is a name, not an index). Its last
+ * entry is the program that opens the refused one. Empty means the refused program is the
+ * track's first, which is never shut, and the answer is `undefined`.
+ */
+export function wayOn(progress: Progress, track: string, before: readonly string[]): string | undefined {
+  for (let index = before.length - 1; index >= 0; index -= 1) {
+    const unit = before[index];
+    if (unit !== undefined && isOpen(progress, { track, unit, previous: before[index - 1] })) {
+      return unit;
+    }
+  }
+  return undefined;
 }

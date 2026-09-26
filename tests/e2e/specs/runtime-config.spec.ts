@@ -143,11 +143,13 @@ test.describe('runtime configuration', () => {
 
       `<IntegrationReport />` is the only component in this app that reads the runtime
       config, and it moved to `/about` with the rest of the argument. The landing page
-      therefore makes NO request of its own at all any more — which is a better first screen
-      and a worse place to assert this property from, because a test pointed at `/` would go
-      green on a page that had stopped asking rather than on one whose addresses were
-      compiled in. Pointed here it still fails the moment somebody reintroduces
-      NEXT_PUBLIC_*.
+      therefore never asks for its configuration. What it does fetch from the browser, such
+      as the account control's session check or, since issue #158, the probe that says when
+      no program will open, goes to this origin's fixed paths and never to `/api/config`. A
+      page that never asks is a better first screen and a worse place to assert this
+      property from, because a test pointed at `/` would go green on a page that had stopped
+      asking rather than on one whose addresses were compiled in. Pointed here it still
+      fails the moment somebody reintroduces NEXT_PUBLIC_*.
     */
     await page.goto('/about');
 

@@ -104,6 +104,10 @@ test.describe('hydration', () => {
       */
       const frame = /\/read\/[^/]+\/([^/]+)\/([^/]+)\/(\d+)$/.exec(path);
       if (frame) await walkTo(page, frame[1]!, frame[2]!, Number(frame[3]));
+      // The summary is served only past the program's last frame (issue #158), and before
+      // it is the same "Not there yet" a frame gets — so it is walked to that frame too.
+      const summary = /\/read\/[^/]+\/([^/]+)\/([^/]+)\/summary$/.exec(path);
+      if (summary) await walkTo(page, summary[1]!, summary[2]!, unitNamed(summary[1]!).steps.length);
 
       const complaints: string[] = [];
 

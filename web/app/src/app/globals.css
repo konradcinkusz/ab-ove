@@ -216,8 +216,8 @@ kbd {
  * The way in.
  *
  * It is a link and not a button, because it goes somewhere — and it is above the anti-goal
- * rather than below the four phases, because a reader who came to work the book should not
- * have to read the roadmap to find the book.
+ * rather than at the foot of the argument, because a reader who came to work the book should
+ * not have to read the argument to find the book.
  */
 .enter {
   align-items: baseline;
@@ -339,37 +339,6 @@ kbd {
   content: counter(loop);
   font-family: var(--font-mono);
   font-size: 0.8rem;
-  color: var(--ink-faint);
-}
-
-.phases {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 0.55rem;
-}
-
-.phases li {
-  display: grid;
-  grid-template-columns: 5.5rem 1fr;
-  gap: 0.9rem;
-  align-items: baseline;
-  padding-bottom: 0.55rem;
-  border-bottom: 1px solid var(--rule);
-}
-
-.phases li:last-child {
-  border-bottom: 0;
-}
-
-.phases dfn {
-  font-family: var(--font-ui);
-  font-style: normal;
-  font-size: 0.74rem;
-  font-weight: 650;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
   color: var(--ink-faint);
 }
 
