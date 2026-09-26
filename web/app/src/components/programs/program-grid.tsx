@@ -270,7 +270,7 @@ export function ProgramGrid({
           deployment pins — a page listing one course states what ab-ovo carries, where a
           SWITCH with one position would be a control that cannot move. Both links carry the
           chosen edition so the page each opens is in the language this one is in, and neither
-          prefetches — the masthead's rule (ADR-0067).
+          prefetches — the masthead's rule (ADR-0069).
         */
         links={[
           { href: coursesHref(chosen), label: chrome.courses },

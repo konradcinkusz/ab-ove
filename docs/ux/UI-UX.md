@@ -401,7 +401,7 @@ index's and `/courses`' links carry `?lang=`, the page falls back to the edition
 remembers, and the words — the anti-goal included — are `chrome.ts`'s. The integration panel is
 the exception and says so with `lang="en"`: what it reports is the API's own English words. The
 page reads a cookie to do this, so it is rendered per request where it used to be prerendered
-([ADR-0067](../adr/0067-the-documents-language-follows-the-edition-and-the-page-sets-it.md)
+([ADR-0069](../adr/0069-the-documents-language-follows-the-edition-and-the-page-sets-it.md)
 records what changed in the build).
 
 ### `/login` — a form, and no token in the document
@@ -1316,7 +1316,7 @@ it. They are listed here rather than left to be rediscovered per screen.
     Its `<main lang>`, from the first byte; its tab, titled in that language, because the tab
     is what the router's announcer reads out after every client navigation; and the
     document's own `lang`, which the skip link sets in the browser and puts back when the page
-    goes ([ADR-0067](../adr/0067-the-documents-language-follows-the-edition-and-the-page-sets-it.md)).
+    goes ([ADR-0069](../adr/0069-the-documents-language-follows-the-edition-and-the-page-sets-it.md)).
     The root layout says English and cannot do better: it sees neither the query nor the
     path, and is not rendered again when a reader changes edition without a page load. **And
     nothing prefetches a page whose tab follows the edition through the query or the

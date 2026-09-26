@@ -13,7 +13,7 @@ import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
  * version, and while that is so the registration form does not offer it for acceptance
  * (`app/register/page.tsx`, ADR-0049). English only, as the page it stands behind is; its
  * links to the index do not prefetch, since the index titles its tab in the reader's edition
- * (ADR-0067). The masthead and the filled way back are every page's (#169).
+ * (ADR-0069). The masthead and the filled way back are every page's (#169).
  */
 export default function LegalNotFound(): React.JSX.Element {
   return (

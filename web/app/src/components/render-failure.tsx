@@ -26,7 +26,7 @@ export interface RenderFailureProps {
  * up in — `chromeFor`'s contract, kept here as on every reading screen.
  *
  * Its links to the index do not prefetch, as none does: the index titles its tab in the
- * edition, and a prefetched head outlives a change of it (ADR-0067, `index-href.ts`). They
+ * edition, and a prefetched head outlives a change of it (ADR-0069, `index-href.ts`). They
  * carry the failed address's edition where it named one (#169, the masthead's rule): a bare `/`
  * everywhere else, so the index opens in the edition this browser remembers.
  *

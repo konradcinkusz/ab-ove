@@ -1,8 +1,15 @@
-# ADR-0067: The document's language follows the edition, and the page sets it
+# ADR-0069: The document's language follows the edition, and the page sets it
 
 ## Status
 
 **Accepted.** Date: 2026-09-26.
+
+Renumbered from 0067 on 2026-09-26. It was accepted with #166 under that number, and a
+Proposed ADR-0067 ([a second opinion from the reader's own
+model](0067-a-finished-program-may-get-a-second-opinion-from-the-readers-own-model.md)) landed
+beside it the same day. The later one kept the number its own history already names, and this
+one took the next free number. Commits and pull requests before the renumbering call this
+ADR-0067.
 
 ## Context
 

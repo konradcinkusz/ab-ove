@@ -195,7 +195,7 @@ test.describe('the one masthead', () => {
   }
 
   test('the way home keeps the page’s edition @core', async ({ page }) => {
-    // Every link into a page titled in the edition carries it (issue #166, ADR-0067).
+    // Every link into a page titled in the edition carries it (issue #166, ADR-0069).
     for (const path of ['/courses?lang=pl', '/about?lang=pl', '/login?lang=pl', '/register?lang=pl']) {
       await page.goto(path);
       await expect(

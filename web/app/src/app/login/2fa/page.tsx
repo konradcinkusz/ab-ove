@@ -47,7 +47,7 @@ import styles from '../../credentials-form.module.css';
 
 export const dynamic = 'force-dynamic';
 
-/** The tab, in the page's edition — `/login`'s reason (ADR-0067). */
+/** The tab, in the page's edition — `/login`'s reason (ADR-0069). */
 export async function generateMetadata({
   searchParams,
 }: {
@@ -72,7 +72,7 @@ export default async function SecondFactorPage({
 
   // The password screen, carrying the destination and the edition — the way back from here
   // in every state, and the one that was a bare `/login` (issue #166). No link on this page
-  // prefetches, for `/login`'s reason (ADR-0067).
+  // prefetches, for `/login`'s reason (ADR-0069).
   const startAgainHref = signInHref({ redirect: intended, edition });
 
   /**

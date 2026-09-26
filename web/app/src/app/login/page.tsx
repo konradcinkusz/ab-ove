@@ -104,7 +104,7 @@ import { ForgotPasswordLink, ResendConfirmation } from './recovery-links.tsx';
 export const dynamic = 'force-dynamic';
 
 /**
- * The tab, in the page's edition: since ADR-0067 the document's language is the page's, and it
+ * The tab, in the page's edition: since ADR-0069 the document's language is the page's, and it
  * is the title Next's route announcer reads out. An address no page answers is titled as one.
  */
 export async function generateMetadata({
@@ -184,7 +184,7 @@ export default async function LoginPage({
 
   // Every way on carries where the reader was going and the edition they read in (#166), and
   // no link on this page prefetches: the pages they open title their tab in the edition, and a
-  // prefetched head outlives a change of it (ADR-0067, `index-href.ts`).
+  // prefetched head outlives a change of it (ADR-0069, `index-href.ts`).
   const startAgainHref = signInHref({ redirect: intended, edition });
   const createHref = registerHref({ redirect: intended, edition });
   const home = indexHref({ edition });
@@ -427,7 +427,7 @@ function NoPageAt({
   identityConfigured: boolean;
 }): React.JSX.Element {
   const strings = chrome.signInPage;
-  // No link here prefetches, for the page's own reason (`LoginPage`, ADR-0067).
+  // No link here prefetches, for the page's own reason (`LoginPage`, ADR-0069).
   const home = indexHref({ edition });
   return (
     <main className="shell" lang={chrome.language}>

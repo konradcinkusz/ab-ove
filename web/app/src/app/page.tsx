@@ -60,7 +60,7 @@ import { backendConfigured } from '@/lib/server/backends';
  */
 /**
  * The tab: the product's title, in the edition the page is in (issue #166). The root layout
- * gives every page the English one, and since ADR-0067 the document's language is the page's
+ * gives every page the English one, and since ADR-0069 the document's language is the page's
  * — so on the Polish index that title would be read out in a Polish voice. Resolved as the
  * page below resolves it, for `/courses`' reason: Next calls the two separately.
  */

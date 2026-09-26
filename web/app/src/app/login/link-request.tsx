@@ -32,7 +32,7 @@ import styles from '../credentials-form.module.css';
  * under `/api/auth/`, which asks authservice from this server and answers with this page and a
  * code from a closed set (`recovery-problem.ts`). The page renders from that set and never from
  * the URL, follows the reader's edition, and every link and redirect carries the edition and
- * where the reader was going (issue #166, `account-href.ts`). No link prefetches (ADR-0067).
+ * where the reader was going (issue #166, `account-href.ts`). No link prefetches (ADR-0069).
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ const PURPOSES: Readonly<Record<LinkRequestKind, Purpose>> = {
   },
 };
 
-/** The tab, in the page's edition — `/login`'s reason (ADR-0067). */
+/** The tab, in the page's edition — `/login`'s reason (ADR-0069). */
 export async function linkRequestMetadata(
   kind: LinkRequestKind,
   searchParams: SearchParams,
@@ -125,7 +125,7 @@ export async function LinkRequestPage({
   // Put into the field and nowhere else, and read only where there is a field (`/login`'s way).
   const address = offersForm ? await rememberedAddress() : null;
 
-  // Every way on carries the destination and the edition (issue #166); none prefetches (ADR-0067).
+  // Every way on carries the destination and the edition (issue #166); none prefetches (ADR-0069).
   const again = purpose.href({ redirect: intended, edition });
   const signIn = signInHref({ redirect: intended, edition });
   const home = indexHref({ edition });

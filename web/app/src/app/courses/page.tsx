@@ -47,7 +47,7 @@ export async function generateMetadata({
     (ADR-0016), and as every page's does that has an edition to follow — which since issue
     #166 is the sign-in pages and `/about` too. A Polish page with an English tab title would
     be this application disagreeing with itself in the one place a reader cannot see the
-    disagreement, and since ADR-0067 it would be read out in a Polish voice as well.
+    disagreement, and since ADR-0069 it would be read out in a Polish voice as well.
   */
   const remembered = (await cookies()).get(LANGUAGE_COOKIE)?.value;
   const chosen = chosenEdition(

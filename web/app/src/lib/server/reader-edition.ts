@@ -19,7 +19,7 @@ import { LANGUAGE_COOKIE, isLanguageTag } from '@/lib/language/store';
  *
  * It reads a cookie, which makes the page that calls it rendered per request. The sign-in
  * pages and the reading routes were already; what that cost `/about` and the 404 is measured
- * in ADR-0067.
+ * in ADR-0069.
  */
 export async function readerEdition(asked: string | readonly string[] | undefined): Promise<string> {
   const remembered = (await cookies()).get(LANGUAGE_COOKIE)?.value;

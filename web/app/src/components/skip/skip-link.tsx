@@ -34,7 +34,7 @@ export interface SkipLinkProps {
   /**
    * The language this page speaks: the reader's edition on a page that follows one, and `en`
    * on the lab and the author's view, which are English only. It is also the document's
-   * language (ADR-0067), which this component sets.
+   * language (ADR-0069), which this component sets.
    */
   readonly language: string;
 }
@@ -54,7 +54,7 @@ export interface SkipLinkProps {
  * of. Rendered with the masthead, it cannot be forgotten by a page that has one: the legal
  * documents' pages had none until they had the masthead.
  *
- * THE SAME REASON MAKES IT THE PLACE THE DOCUMENT'S LANGUAGE IS SET (ADR-0067). `<html lang>`
+ * THE SAME REASON MAKES IT THE PLACE THE DOCUMENT'S LANGUAGE IS SET (ADR-0069). `<html lang>`
  * is the layout's, and it is the page that knows the answer; every page a reader meets renders
  * this component once, with exactly that answer — English on the legal documents' pages, as on
  * the lab's and the author's — so `DocumentLanguage` rides with it rather than being a second

@@ -105,7 +105,7 @@ export default async function LegalDocumentPage({
         The one masthead (#169), in English as the page's own words are, with the skip link it
         brings — which this page had none of — landing on the document's title. Its way home is
         a bare `/`, so the index opens in the edition this browser remembers, and it does not
-        prefetch, because the index titles its tab in that edition (ADR-0067).
+        prefetch, because the index titles its tab in that edition (ADR-0069).
       */}
       <Masthead home="/" language="en" />
       <h1 className="lede" id={SKIP_TARGET_ID}>

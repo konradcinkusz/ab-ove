@@ -62,7 +62,7 @@ import styles from './account.module.css';
 export const dynamic = 'force-dynamic';
 
 /**
- * The tab, in the page's edition: since ADR-0067 the document's language is the page's, and a
+ * The tab, in the page's edition: since ADR-0069 the document's language is the page's, and a
  * title left as the site's English one would be read out in the page's voice.
  */
 export async function generateMetadata({
@@ -113,7 +113,7 @@ export default async function AccountPage({
   // Where the reader goes back to, and where signing out sends them: the programs, in the
   // edition this page is in, so leaving does not undo the choice that labelled the link here.
   // No link here prefetches a page whose tab follows the edition through the query or the
-  // cookie (ADR-0067, `index-href.ts`); a place's address names its edition in its path.
+  // cookie (ADR-0069, `index-href.ts`); a place's address names its edition in its path.
   const programs = indexHref({ edition: chrome.language });
 
   return (

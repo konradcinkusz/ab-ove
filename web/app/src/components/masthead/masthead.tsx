@@ -23,7 +23,7 @@ export interface MastheadProps {
   /**
    * The language the page speaks — the reader's edition on a page that follows one, and `en`
    * on the lab, the author's view and the legal documents, which are English only. The skip
-   * link says its words in it and sets the document's language to it (ADR-0067), and the
+   * link says its words in it and sets the document's language to it (ADR-0069), and the
    * navigation is named in it.
    */
   readonly language: string;
@@ -81,7 +81,7 @@ export interface MastheadProps {
  * the legal documents' pages, which had neither a skip link nor a masthead of this kind, get
  * both. Every page still puts `SKIP_TARGET_ID` on its own heading, since that is the page's.
  *
- * NO LINK IN IT PREFETCHES (ADR-0067). The wordmark and the navigation lead to the index,
+ * NO LINK IN IT PREFETCHES (ADR-0069). The wordmark and the navigation lead to the index,
  * `/courses` and `/about`, which title their tab in the reader's edition, and a head prefetched
  * before the reader changed edition titled the next page in the one they had left
  * (`index-href.ts` has the measurement); the trail's steps lead to pages rendered in English

@@ -53,7 +53,7 @@ import styles from '../credentials-form.module.css';
 
 export const dynamic = 'force-dynamic';
 
-/** The tab, in the page's edition — `/login`'s reason (ADR-0067). */
+/** The tab, in the page's edition — `/login`'s reason (ADR-0069). */
 export async function generateMetadata({
   searchParams,
 }: {
@@ -159,7 +159,7 @@ export default async function RegisterPage({
 
   // Every way on carries the destination and the edition (issue #166) — the fresh page
   // under an answer too, which was a bare `/register` and dropped where the reader was going.
-  // None of them prefetches, for `/login`'s reason (ADR-0067).
+  // None of them prefetches, for `/login`'s reason (ADR-0069).
   const signIn = signInHref({ redirect: intended, edition });
   const startAgain = registerHref({ redirect: intended, edition });
   const home = indexHref({ edition });

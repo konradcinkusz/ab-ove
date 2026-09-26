@@ -137,7 +137,7 @@ export function ProgramContents({
                 </span>
               </Link>
             ) : (
-              // Not prefetched, as no link to the index is (ADR-0067, `index-href.ts`).
+              // Not prefetched, as no link to the index is (ADR-0069, `index-href.ts`).
               <Link className={foot.pagerButton} href="/" prefetch={false}>
                 <ArrowLeft className={foot.arrow} />
                 <span>{chrome.programs}</span>

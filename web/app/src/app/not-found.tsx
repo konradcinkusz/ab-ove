@@ -59,7 +59,7 @@ import { readerEdition } from '@/lib/server/reader-edition';
  * one render in English before the edition they chose, on an address that names none.
  *
  * The TAB is titled on the server, from the cookie: metadata runs for this page alone, so it
- * costs `/_not-found` its prerender and nothing else (ADR-0067 records both measurements).
+ * costs `/_not-found` its prerender and nothing else (ADR-0069 records both measurements).
  * The reading routes title their own 404s the way this page's body picks its words: the
  * address's edition, else the remembered one (`readerEdition`).
  * ──────────────────────────────────────────────────────────────────────────────────────

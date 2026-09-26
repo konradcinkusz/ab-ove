@@ -63,7 +63,7 @@ import styles from './delete.module.css';
 export const dynamic = 'force-dynamic';
 
 /**
- * The tab, in the page's edition: since ADR-0067 the document's language is the page's, and a
+ * The tab, in the page's edition: since ADR-0069 the document's language is the page's, and a
  * title left as the site's English one would be read out in the page's voice.
  */
 export async function generateMetadata({
@@ -101,7 +101,7 @@ export default async function AccountDeletePage({
       {/*
         The one masthead (#169), and its way home: the programs in this edition — it was text
         until issue #166. Neither it nor the way back to the overview prefetches: both pages
-        title their tab in the edition (ADR-0067, `index-href.ts`).
+        title their tab in the edition (ADR-0069, `index-href.ts`).
       */}
       <Masthead home={indexHref({ edition: chrome.language })} language={chrome.language} />
       <h1 className="lede" id={SKIP_TARGET_ID}>{strings.title}</h1>

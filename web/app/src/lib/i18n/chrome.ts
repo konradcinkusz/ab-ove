@@ -547,7 +547,7 @@ interface Strings {
    * THE PAGES AROUND THE BOOK (issue #166) — see the block above `SignInPageStrings`.
    *
    * `siteTitle` is the product's title (ADR-0048), which the root layout gives every page
-   * without one of its own and the index gives itself in the reader's edition: since ADR-0067
+   * without one of its own and the index gives itself in the reader's edition: since ADR-0069
    * the document's `lang` follows the edition, and a tab reading English on a Polish page would
    * be spoken in a Polish voice. `askedPrivate` is said on `/login` and on `/register` alike.
    */

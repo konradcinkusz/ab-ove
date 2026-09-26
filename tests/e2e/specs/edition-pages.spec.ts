@@ -38,7 +38,7 @@ const ADDRESS_COOKIE = 'ab_ovo_signin_address';
 /**
  * The page is in `language` in every place a reader or a screen reader meets it: its `<main>`
  * says so, its tab is titled in it, and — once it is in the browser — so does the document
- * itself (ADR-0067), which is what the route announcer and the tab title are read out in.
+ * itself (ADR-0069), which is what the route announcer and the tab title are read out in.
  */
 async function speaks(page: Page, language: string, title: string): Promise<void> {
   await expect(page.getByRole('main')).toHaveAttribute('lang', language);
@@ -126,7 +126,7 @@ function languageControl(page: Page, language: string) {
 test.describe('a page opened after the edition changed in place is titled in the new one', () => {
   /*
     NEXT KEEPS THE HEAD IT PREFETCHED FOR A PATH, and serves it for that path whatever the query
-    or the remembered edition says when a link to it is followed (ADR-0067). Measured on
+    or the remembered edition says when a link to it is followed (ADR-0069). Measured on
     2026-09-26: the index opened in English, *polski* pressed, *O ab-ovo* followed — and the
     Polish page was titled "About — ab-ovo", which the document's language had the announcer
     read in a Polish voice. So no link into a page whose title follows the edition prefetches,
@@ -179,7 +179,7 @@ test.describe('no link prefetches a page whose title follows the edition', () =>
     THE RULE THE JOURNEYS ABOVE REST ON, HELD WHERE IT IS KEPT OR BROKEN: in the links, on the
     pages that carry them. A prefetch by ANY link to one of these paths stales every later way
     in — the language control's own press included, measured on the index reached from
-    `/courses` (ADR-0067) — so this walks the pages that link into them, in Polish, and holds
+    `/courses` (ADR-0069) — so this walks the pages that link into them, in Polish, and holds
     two things of every link it meets: nothing into these pages is prefetched, and every link
     into the sign-in pages and `/about` says which edition to open them in (issue #166).
   */
@@ -364,7 +364,7 @@ test.describe('a new password, checked where it is typed', () => {
 
 test.describe('the document says which language it is in', () => {
   /*
-    ADR-0067: `<html lang>` is the page's language, set by the page in the browser, because the
+    ADR-0069: `<html lang>` is the page's language, set by the page in the browser, because the
     root layout sees neither the query nor the path and is not rendered again when the reader
     changes edition — which the language control does WITHOUT a page load. So this presses it.
   */

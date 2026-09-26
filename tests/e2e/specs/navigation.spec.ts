@@ -443,7 +443,7 @@ test.describe('navigation', () => {
   });
 
   test('the reading surface says which language it is in @core', async ({ page }) => {
-    // The document root is `lang="en"` until the page sets its own in the browser (ADR-0067),
+    // The document root is `lang="en"` until the page sets its own in the browser (ADR-0069),
     // and stays so with script off, so an untagged Polish page would be read out in an English
     // voice there: the right edition, announced wrongly. The assertion is that the element
     // CONTAINING the text carries the language, which a `lang` on `<html>` would not satisfy

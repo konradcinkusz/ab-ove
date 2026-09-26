@@ -23,7 +23,7 @@
  *
  * A link to any of these pages is `prefetch={false}`, and so is one to the account's pages:
  * they title their tab in the reader's edition, and a prefetched head outlives a change of
- * edition (ADR-0067, `index-href.ts` has the measurement).
+ * edition (ADR-0069, `index-href.ts` has the measurement).
  */
 export interface AccountPageQuery {
   /** A problem code the page looks up in a closed set (`sign-in-problem.ts`) — never a sentence. */

@@ -35,7 +35,7 @@ import { indexHref } from '@/lib/index-href';
 export const dynamic = 'force-dynamic';
 
 /**
- * The tab, in the page's edition: since ADR-0067 the document's language is the page's, and a
+ * The tab, in the page's edition: since ADR-0069 the document's language is the page's, and a
  * title left as the site's English one would be read out in the page's voice.
  */
 export async function generateMetadata({
@@ -58,7 +58,7 @@ export default async function AccountDeletedPage({
   const chrome = chromeFor(typeof requested === 'string' ? requested : '');
   const strings = chrome.deleteAccount;
   // The programs, in the edition this page is in, so leaving it does not undo the choice — and
-  // not prefetched, since the index titles its tab in it (ADR-0067, `index-href.ts`).
+  // not prefetched, since the index titles its tab in it (ADR-0069, `index-href.ts`).
   const programs = indexHref({ edition: chrome.language });
 
   return (

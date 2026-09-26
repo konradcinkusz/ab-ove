@@ -36,7 +36,7 @@ export function NotFoundPage({ offered }: NotFoundPageProps): React.JSX.Element 
   const chrome = chromeFor(edition);
   const strings = chrome.notFound;
   // Both links to it decline to prefetch: the index titles its tab in the edition, and a
-  // prefetched head outlives a change of it (ADR-0067, `index-href.ts`).
+  // prefetched head outlives a change of it (ADR-0069, `index-href.ts`).
   const programs = indexHref({ edition });
 
   return (

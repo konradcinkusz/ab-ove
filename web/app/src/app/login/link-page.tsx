@@ -43,7 +43,7 @@ import styles from '../credentials-form.module.css';
  * otherwise the form. The words are `chrome.resetPage`, `chrome.confirmPage` and
  * `chrome.linkProblems`, in the reader's edition, which the page resolves as `/login` does — the
  * link in the email names none, so it is the one this browser remembers. No link prefetches
- * (ADR-0067).
+ * (ADR-0069).
  */
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -72,7 +72,7 @@ const PURPOSES: Readonly<Record<EmailedLinkKind, Purpose>> = {
   },
 };
 
-/** The tab, in the page's edition — `/login`'s reason (ADR-0067). */
+/** The tab, in the page's edition — `/login`'s reason (ADR-0069). */
 export async function linkPageMetadata(kind: EmailedLinkKind, searchParams: SearchParams): Promise<Metadata> {
   const chrome = chromeFor(await readerEdition((await searchParams)['lang']));
   return { title: `${PURPOSES[kind].strings(chrome).heading} — ab-ovo` };

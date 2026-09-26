@@ -66,7 +66,7 @@ import { readerEdition } from '@/lib/server/reader-edition';
  *
  * A Server Component that renders from content compiled into the app and nothing else: no
  * fetch and no backend. It reads one cookie, this origin's own — the remembered edition —
- * which is why it is rendered per request where it used to be prerendered (ADR-0067 records
+ * which is why it is rendered per request where it used to be prerendered (ADR-0069 records
  * what that cost). Needing no backend is a fact about this page, not about reading, and it is
  * why the page can still tell a reader what is wrong when the API is not there. The one live
  * thing is <IntegrationReport />, a Client Component that asks this app's own origin what
@@ -92,7 +92,7 @@ export default async function AboutPage({
   const chrome = chromeFor(edition);
   const strings = chrome.aboutPage;
   // Both links to it decline to prefetch: the index titles its tab in the edition, and a
-  // prefetched head outlives a change of it (ADR-0067, `index-href.ts`).
+  // prefetched head outlives a change of it (ADR-0069, `index-href.ts`).
   const programs = indexHref({ edition });
 
   return (

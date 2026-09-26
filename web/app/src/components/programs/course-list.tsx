@@ -71,7 +71,7 @@ export function CourseList({ bundles, chosen }: CourseListProps): React.JSX.Elem
         language control, and the ways off the page — with the skip link before it, past all of
         that to the heading (issue #149).
 
-        NO LINK IN IT PREFETCHES (ADR-0067), which is the masthead's own rule now. Each opens the
+        NO LINK IN IT PREFETCHES (ADR-0069), which is the masthead's own rule now. Each opens the
         index or `/about`, and both title their tab in the reader's edition; a head prefetched
         here before the language control was pressed titled the next page in the edition the
         reader had left — measured on 2026-09-26: *polski* pressed here, *← Programy* followed,

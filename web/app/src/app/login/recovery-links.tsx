@@ -14,7 +14,7 @@ import styles from '../credentials-form.module.css';
  *
  * Each carries the edition and where the reader was going, as every link out of `/login` does
  * (issue #166), and neither prefetches: the pages they open title their tab in the edition
- * (ADR-0067).
+ * (ADR-0069).
  */
 
 interface Where {
