@@ -56,10 +56,10 @@ import styles from './progress-sync.module.css';
  * element takes part in no layout at all, so it can appear at any moment and move nothing.
  *
  * THE FRAME IT NAMES IS THE ACCOUNT'S, AND THE RESUME CONTROL'S IS CLAMPED TO THE
- * CONTENT — so the two can differ, and it is worth knowing when. `ResumeLast` and
- * `positionIn` clamp a stored place to the length of the program it is in, because a
- * program can get shorter (revised, retagged) and a link to a frame that no longer exists
- * is a 404. This notice cannot clamp: it renders from the root layout and has no bundle to
+ * CONTENT — so the two can differ, and it is worth knowing when. The index's *Continue*
+ * (`start-card.tsx`) and `positionIn` clamp a stored place to the length of the program it
+ * is in, because a program can get shorter (revised, retagged) and a link to a frame that
+ * no longer exists is a 404. This notice cannot clamp: it renders from the root layout and has no bundle to
  * ask. So a reader whose account holds frame 40 of a program this deployment now serves in
  * 30 would read "to frame 40" beside a *Continue* to 30 — and the notice's own `Go to frame
  * 40` answers with the frame route's 404, because frame 40 is past the program's end.

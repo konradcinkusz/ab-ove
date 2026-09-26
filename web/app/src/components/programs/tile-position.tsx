@@ -39,7 +39,7 @@ export interface TilePositionProps {
  * embellishment ADR-0009 §1 forbids and the frame's own `12 of 45` is the test of it.
  *
  * TEXT, NOT A LINK. `progress.spec.ts` holds the index to exactly one link back into the
- * stored frame, and that link is the resume control at the top of the page. A second one
+ * stored frame, and that link is the card's *Continue* above the grid. A second one
  * per tile would be a second answer to "where do I go", and the tile's own link is its
  * title, into the contents.
  * ──────────────────────────────────────────────────────────────────────────────────────

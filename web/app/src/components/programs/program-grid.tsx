@@ -15,23 +15,27 @@ import { coursesHref, indexHref } from '@/lib/index-href';
 import { editionHrefs } from '@/lib/language/hrefs';
 
 import { ClearWorksheets, ExportWorksheets } from '../read/clear-controls.tsx';
-import { ForgetProgress, ResumeLast, type Limits } from '../read/resume.tsx';
+import { ForgetProgress } from '../read/resume.tsx';
 
 import styles from './program-grid.module.css';
 import { ReadingUnavailable } from './reading-unavailable.tsx';
 import { ShutNotice } from './shut-notice.tsx';
+import { PlaceKeptLink, StartCard, type CardPrograms } from './start-card.tsx';
 import { TileEntry } from './tile-entry.tsx';
 import { TilePosition } from './tile-position.tsx';
 
-/**
- * The index heading's id — where focus lands after either destructive control in the top row
- * has acted. Both render nothing once there is nothing left to clear, so the element that
- * held focus is gone by the press it received; the heading is the page's one element that is
- * certainly there, and landing on it says where the reader is (`use-two-step.ts`, #151).
- *
- * It is also the skip link's target (#149), so the heading carries one id rather than two.
- */
+/** The index heading's id, which is the skip link's target (#149). */
 const HEADING_ID = SKIP_TARGET_ID;
+
+/**
+ * The heading of *Your data in this browser*, at the foot (issue #165) — where the link under
+ * the card leads, and where focus lands after either destructive control in that block has
+ * acted. Both render nothing once there is nothing left to clear, so the element that held
+ * focus is gone by the press it received; the block's heading is certainly there, it is the
+ * nearest thing to the control that went, and landing on it says where the reader is
+ * (`use-two-step.ts`, #151). The page's own heading, which it used to be, is a screen away.
+ */
+const DATA_ID = 'your-data';
 
 export interface ProgramGridProps {
   readonly bundles: readonly Bundle[];
@@ -65,6 +69,15 @@ export interface ProgramGridProps {
         readonly before: readonly string[];
       }
     | undefined;
+  /**
+   * Whether this deployment can sign a reader in — `backendConfigured('authservice')`, read by
+   * the page from its environment. It decides one thing here: whether the page may tell a
+   * reader with no account that signing in carries their place to another device (issue
+   * #165, `start-card.tsx`). A deployment with no identity service is a supported state (P8),
+   * and a line offering what it cannot do would be a sentence the sign-in page then
+   * contradicts.
+   */
+  readonly signIn?: boolean | undefined;
 }
 
 /**
@@ -119,6 +132,7 @@ export function ProgramGrid({
   chosen,
   chosenTrack,
   shut,
+  signIn = false,
 }: ProgramGridProps): React.JSX.Element {
   const chrome = chromeFor(chosen);
 
@@ -145,24 +159,42 @@ export function ProgramGrid({
   const refusedIn = shut ? courses.find((course) => course.track.id === shut.track) : undefined;
 
   /*
-    How long each program is, so a reader whose stored place is past the end of a shortened
-    program gets clamped rather than a 404 — and so a place in a program this index no
-    longer lists produces no control at all. Identifiers and integers; the client boundary
-    carries no content here either.
+    Every program the card can name (issue #165): how long it is, so a reader whose stored place
+    is past the end of a shortened program gets clamped rather than a 404 — and so a place in a
+    program this index no longer lists produces no *Continue* at all — and its title, in the
+    edition its tile is shown in, which the card prints over the button. Titles cross the client
+    boundary here as they do into every tile (`tile-entry.tsx` says why that is not the rule
+    about a frame being broken).
 
-    FROM EVERY PINNED COURSE, NOT FROM THE ONE ON SCREEN, and the difference is the resume
-    control. A reader's stored place can perfectly well be in a course they have just narrowed
-    away from; reading these limits off the narrowed set would delete *Continue at frame 12*
-    for exactly the returning reader ADR-0036 restored it for, and it would look like the
-    place had been forgotten rather than like the page had been filtered. A program the
-    CONTENT no longer has still produces no control, which is the clause above and is a
-    different thing entirely.
+    FROM EVERY PINNED COURSE, NOT FROM THE ONE ON SCREEN, and the difference is *Continue*. A
+    reader's stored place can perfectly well be in a course they have just narrowed away from;
+    reading these off the narrowed set would delete *Continue at frame 12* for exactly the
+    returning reader ADR-0036 restored it for, and it would look like the place had been
+    forgotten rather than like the page had been filtered. A program the CONTENT no longer has
+    still produces no *Continue*, which is the clause above and is a different thing entirely.
   */
-  const limits: Limits = Object.fromEntries(
-    bundles.flatMap((bundle) =>
-      bundle.units.map((unit) => [`${bundle.track.id}/${unit.id}`, unit.steps.length] as const),
-    ),
+  const programs: CardPrograms = Object.fromEntries(
+    bundles.flatMap((bundle) => {
+      const shown = shownIn(bundle);
+      return bundle.units.map(
+        (unit) =>
+          [
+            `${bundle.track.id}/${unit.id}`,
+            { steps: unit.steps.length, title: say(unit.titles, shown), edition: shown },
+          ] as const,
+      );
+    }),
   );
+
+  /*
+    WHERE A READER WITH NO PLACE STARTS: the first program of the first course on screen, which
+    is open to everybody (ADR-0051) and is the one tile a fresh browser's grid leaves a link on.
+    Of the course ON SCREEN, unlike `programs`: *Start* is about the page the reader is looking
+    at, and on an index narrowed to a course it is that course's beginning.
+  */
+  const opening = courses[0];
+  const firstUnit = opening?.units[0];
+  const start = opening && firstUnit ? { track: opening.track.id, unit: firstUnit.id } : undefined;
 
   /*
     Where sign-in should send the reader back to, QUERY AND ALL.
@@ -176,21 +208,68 @@ export function ProgramGrid({
   */
   const returnTo = indexHref({ track: chosenTrack, edition: chosen });
 
+  /*
+    The quiet line's way to sign in (issue #165), beside the card's *Continue* or, on a phone, at
+    the end of *Your data in this browser* — the address the account control's *Sign in* is built
+    to, from the same return address, so each brings the reader back to this page as they left
+    it. Built once, here, for both. Only where signing in exists (P8): without it the page never
+    offers to carry a place, and the masthead's control is the sign-in page saying there is none.
+  */
+  const signInHref = signIn ? `/login?redirect=${encodeURIComponent(returnTo)}` : undefined;
+
   return (
     <main className={styles.page} lang={chrome.language}>
       {/*
         THE WAY PAST THE ROW BELOW (issue #149), which a keyboard reader otherwise tabs
-        through control by control — the destinations, the theme, and everything a returning
-        reader's place, worksheets and account add to it — before the first program. It lands
-        on the heading rather than on `<main>`, because the row is inside `<main>`.
+        through control by control — the theme, the destinations and the account — before the
+        first program. It lands on the heading rather than on `<main>`, because the row is
+        inside `<main>`.
       */}
       <SkipLink language={chrome.language} />
+      {/*
+        ────────────────────────────────────────────────────────────────────────────────────
+        THE MASTHEAD IS ONE ROW, AND NOTHING IN IT DESTROYS ANYTHING (issue #165).
+
+        It held the wordmark, the two destinations, the theme switch, the resume link, *Export
+        my worksheets*, *Clear my worksheets*, *Forget where I am* and the account — two rows at
+        1280 px once a reader had read one frame, more on a phone, and two destructive controls
+        beside the page's primary action, all inside a `<nav>` named after the heading. The
+        resume link is the card above the grid now, the reader's own controls are in *Your data
+        in this browser* at the foot, and what is left fits one row at a desktop's width:
+        `landing.spec.ts` measures it.
+
+        The theme switch is outside the `<nav>` — it goes nowhere — and before it, so what
+        arrives after the first paint arrives at the row's end. On a phone the wordmark and
+        the switch share the first line and the navigation has the second to itself, where
+        the account control's *Sign in*, or *Account* and *Sign out*, fit beside the two
+        links; they are read from the session after the first paint, and a line with room
+        for them is a line that does not wrap under the reader when they land.
+        ────────────────────────────────────────────────────────────────────────────────────
+      */}
       <header className={styles.top}>
         <p className={styles.wordmark}>
           ab<span>-</span>ovo
         </p>
 
         {/*
+          HOW A READER TURNS ON LIGHT MODE (ADR-0048), fully rendered on the server — so it is
+          in the first paint and nothing that arrives later can push it sideways.
+
+          It is three words of furniture and not a filled control: a reader touches it once
+          and then wants it out of the way, and the reading screens keep it one press down in
+          *Reading settings* (ADR-0058). The language control is quiet words of the same
+          weight on every other screen, but this page draws it `offered` (issue #163) —
+          outlined boxes, the current one filled — because the edition is the choice a
+          first-time reader makes here, so on this page the two deliberately differ. Both are
+          remembered: the theme in `localStorage`, the edition there and on the account
+          (ADR-0052).
+        */}
+        <ThemeSwitch language={chrome.language} />
+
+        {/*
+          THE WAYS OFF THIS PAGE, AND A NAME THAT SAYS SO (issue #165) — `chrome.siteNav`,
+          where it was `chrome.programs`, the heading's own word.
+
           The account sits at the top of the first screen, which is a change of position and
           not of policy: signing in still buys exactly one thing, progress that follows the
           reader between machines, and the page behind it still works with no account at all
@@ -198,15 +277,12 @@ export function ProgramGrid({
           link shorter on the first paint and does not move when the answer arrives — the
           reason it is at the END of the row rather than the start.
         */}
-        <nav className={styles.chrome} aria-label={chrome.programs}>
+        <nav className={styles.chrome} aria-label={chrome.siteNav}>
           {/*
-            THE COURSES, FIRST IN THE ROW AND BEFORE THE ARGUMENT (ADR-0048).
-
-            The two links that go somewhere else are together at the start, and the controls
-            that are about this reader follow them. It is offered whatever the deployment
-            pins — a page listing one course states what ab-ovo carries, where a SWITCH with
-            one position would be a control that cannot move. It carries the chosen edition
-            so the page it opens is in the language this one is in.
+            THE COURSES, FIRST, AND BEFORE THE ARGUMENT (ADR-0048). It is offered whatever
+            the deployment pins — a page listing one course states what ab-ovo carries, where
+            a SWITCH with one position would be a control that cannot move. It carries the
+            chosen edition so the page it opens is in the language this one is in.
           */}
           <Link className={styles.chromeLink} href={coursesHref(chosen)}>
             {chrome.courses}
@@ -214,53 +290,6 @@ export function ProgramGrid({
           <Link className={styles.chromeLink} href="/about">
             {chrome.about}
           </Link>
-          {/*
-            HOW A READER TURNS ON LIGHT MODE (ADR-0048), and the only control in this row
-            that is fully rendered on the server.
-
-            It sits after the links that are always here and before everything that is not,
-            and that is placement rather than order of arrival: everything after it — the
-            resume link, the two destructive controls, the account — is read out of this
-            browser and cannot exist in the first paint, so each of them EXTENDS this line
-            when it lands. A control that is in the markup from the start belongs before
-            them, where nothing can push it sideways.
-
-            It is three words of furniture and not a filled control: a reader touches it
-            once and then wants it out of the way. The language control is quiet words of
-            the same weight on every other screen, but this page draws it `offered` (issue
-            #163) — outlined boxes, the current one filled — because the edition is the
-            choice a first-time reader makes here, so on this page the two deliberately
-            differ. Both are remembered: the theme in `localStorage`, the edition there and
-            on the account (ADR-0052).
-          */}
-          <ThemeSwitch language={chrome.language} />
-          <ResumeLast language={chrome.language} limits={limits} />
-          {/*
-            A WAY TO KEEP A COPY, BEFORE EITHER WAY TO LOSE ONE. `ExportWorksheets` is one
-            press — nothing it does is destructive (ADR-0055) — and sits between the resume
-            link and the two destructive controls that follow, so a reader who has just been
-            reminded their worksheets exist sees the safe control before the two that erase
-            them. It renders nothing when there is nothing to export, on `ClearWorksheets`'s
-            own rule about a control that would do nothing.
-          */}
-          <ExportWorksheets label={chrome.exportWorksheets} language={chrome.language} />
-          {/*
-            THE TWO DESTRUCTIVE CONTROLS, AFTER THE RESUME LINK AND NOT BESIDE IT. Both are
-            two presses (`use-two-step.ts`): the worksheets are the reader's own working and
-            nothing brings them back, and the place reaches the account since #11, so
-            forgetting it is no longer undone by reading one frame (ADR-0047). *Forget where
-            I am* is last of the two — furthest from the filled link a returning reader is
-            reaching for, which is ADR-0017's own placement rule. Both render nothing when
-            there is nothing to clear, so the row grows no dead control — and both therefore
-            send focus to the heading below once they have acted, rather than to nothing.
-          */}
-          <ClearWorksheets
-            confirmLabel={chrome.clearWorksheetsConfirm}
-            label={chrome.clearWorksheets}
-            language={chrome.language}
-            settleOn={HEADING_ID}
-          />
-          <ForgetProgress language={chrome.language} settleOn={HEADING_ID} />
           <AccountControl language={chrome.language} returnTo={returnTo} />
         </nav>
       </header>
@@ -270,13 +299,13 @@ export function ProgramGrid({
         control, and the only one on it (ADR-0052).
 
         WHY HERE AND NOT IN THE MASTHEAD ROW ABOVE, which is where the other three screens
-        put it. That row is `flex-wrap: wrap` and everything in it after the theme switch —
-        the resume link, the two destructive controls, the account — is read out of the
-        browser and arrives AFTER hydration. One more item's width there was enough to wrap
-        the row onto a second line when they landed: `specs/progress.spec.ts` measured 0.013
-        against a bound of 0.01, which is the page moving under a reader who is already
-        reading it. This row is rendered whole on the server and never changes, so a control
-        in it cannot shift anything.
+        put it. That row is `flex-wrap: wrap` and its end is read out of the browser and
+        arrives AFTER hydration — the account control now, and until issue #165 the resume
+        link and the reader's three controls as well. One more item's width there was enough
+        to wrap the row onto a second line when they landed: `specs/progress.spec.ts`
+        measured 0.013 against a bound of 0.01, which is the page moving under a reader who is
+        already reading it. This row is rendered whole on the server and never changes, so a
+        control in it cannot shift anything.
 
         It is the line the edition switch has always been on, and it still qualifies the grid
         below rather than introducing it — every title on this screen is in the edition it
@@ -286,11 +315,15 @@ export function ProgramGrid({
       */}
       <div className={styles.headingRow}>
         {/*
-          `tabIndex={-1}`: reachable by script and not by Tab — see `HEADING_ID`. A heading
-          set as one since issue #163, where it was a faint uppercase label the size of a
-          tile's id, so the page's first line of content did not read as its title.
+          A heading set as one since issue #163, where it was a faint uppercase label the size
+          of a tile's id, so the page's first line of content did not read as its title.
+
+          NO `tabIndex`, as on every other page's skip target (`skip-link.tsx` says why). It
+          carried `-1` while the destructive controls in the masthead sent focus here once they
+          had acted (#151); they are in *Your data in this browser* since issue #165, and send
+          it to that block's heading, so this one is the skip link's and nothing else's.
         */}
-        <h1 className={styles.heading} id={HEADING_ID} tabIndex={-1}>
+        <h1 className={styles.heading} id={HEADING_ID}>
           {chrome.programs}
         </h1>
         {/*
@@ -355,6 +388,35 @@ export function ProgramGrid({
           unit={shut.unit}
         />
       ) : null}
+
+      {/*
+        THE CARD — *Start with F01* for a reader with no place, `F01 · Continue at frame 12` for
+        one with a place (issue #165; `start-card.tsx` says how the one becomes the other without
+        moving anything). Above the grid and after the two notices, because both of those are
+        about whether a program will open at all, and a reader told that none will should read
+        it before the button that opens one. It is the page's one filled control: the
+        destinations are quiet words in the masthead and the tiles are links under a title.
+      */}
+      {start ? (
+        <StartCard language={chrome.language} programs={programs} signInHref={signInHref} start={start} />
+      ) : null}
+
+      {/*
+        THE WAY TO THE READER'S DATA AND TO THE QUESTION, FROM THE TOP (issue #165).
+
+        Both are at the foot, after every tile — the data block because its controls arrive
+        after the first paint and must not push the grid down when they do, the question
+        because ADR-0022 decided it is an invitation to reach after the programs and not a
+        gate in front of them. The audit measured the question some 3170 px down on a desktop,
+        and further on a phone, so this link puts both a press away from the first screen. It
+        is rendered on the server, the same words for every reader whatever they have answered:
+        a way to where a setting lives, never a second ask (ADR-0022, "no second ask").
+      */}
+      <p className={styles.toData}>
+        <a className={styles.toDataLink} href={`#${DATA_ID}`}>
+          {chrome.toYourData}
+        </a>
+      </p>
 
       {courses.map((bundle) => {
         // The course's own edition — `shownIn`, above, says why it is not simply `chosen`.
@@ -519,6 +581,64 @@ export function ProgramGrid({
       })}
 
       {/*
+        ────────────────────────────────────────────────────────────────────────────────────
+        YOUR DATA IN THIS BROWSER — THE READER'S OWN CONTROLS, OUT OF THE MASTHEAD (issue #165).
+
+        *Export my worksheets*, *Clear my worksheets* and *Forget where I am* were in the
+        masthead, two destructive controls a few pixels from the page's primary action. They
+        are here, at the foot, under a heading that says what they are about and beside the
+        question, which is the other thing this browser keeps for the reader (ADR-0022). The
+        link under the card reaches both from the first screen.
+
+        A WAY TO KEEP A COPY, BEFORE EITHER WAY TO LOSE ONE. `ExportWorksheets` is one press —
+        nothing it does is destructive (ADR-0055) — and comes first, so a reader who has come
+        here to clear their worksheets meets the safe control before the two that erase. Both
+        of those are two presses (`use-two-step.ts`): the worksheets are the reader's own
+        working and nothing brings them back, and the place reaches the account since #11, so
+        forgetting it is no longer undone by reading one frame (ADR-0047). *Forget where I am*
+        is last, and now a screen away from *Continue* rather than a few pixels — ADR-0017's
+        placement rule, kept by the page's length.
+
+        EACH ON A LINE OF ITS OWN, and that is what lets their second presses land where the
+        first did. Their second labels are the longer ones; in the masthead's wrapping row a
+        longer label could carry a control onto the next line, and the second press, where the
+        first one was, then met the space it left (ADR-0047, as amended). Start-aligned on a
+        line of its own, a control that grows grows to the right of where it was pressed.
+
+        All three read this browser, so none is in the first paint and each renders nothing
+        when there is nothing to act on; the heading and the sentence under it are the server's,
+        so a reader with nothing stored meets a block that says what would be here. Arriving
+        at the foot, below every tile, they move nothing a reader is looking at — the constraint
+        issue #7 put on the resume controls, met by where they are rather than by how they fit.
+        Both destructive controls send focus to this block's heading once they have acted.
+
+        THE SENTENCE SAYS WHERE THE PLACE IS KEPT, FOR EVERY READER. On a phone, for the reader
+        the card's quiet line is for, it ends with the offer to carry the place to another
+        device — the half of that line a phone's card has no room for (`PlaceKeptLink`,
+        `start-card.tsx`).
+        ────────────────────────────────────────────────────────────────────────────────────
+      */}
+      <section aria-labelledby={DATA_ID} className={styles.yourData}>
+        <h2 className={styles.yourDataTitle} id={DATA_ID} tabIndex={-1}>
+          {chrome.yourData}
+        </h2>
+        <p className={styles.yourDataLead}>
+          {chrome.yourDataLead}
+          <PlaceKeptLink language={chrome.language} programs={programs} signInHref={signInHref} />
+        </p>
+        <div className={styles.yourDataControls}>
+          <ExportWorksheets label={chrome.exportWorksheets} language={chrome.language} />
+          <ClearWorksheets
+            confirmLabel={chrome.clearWorksheetsConfirm}
+            label={chrome.clearWorksheets}
+            language={chrome.language}
+            settleOn={DATA_ID}
+          />
+          <ForgetProgress language={chrome.language} settleOn={DATA_ID} />
+        </div>
+      </section>
+
+      {/*
         LAST ON THE PAGE, AND THAT IS WHERE IT BELONGS RATHER THAN WHERE IT FITS.
 
         It is absent from the first paint — it cannot render on the server, because the
@@ -529,7 +649,9 @@ export function ProgramGrid({
 
         And it is an invitation rather than a gate: a reader who came to read should reach
         the programs first and the question afterwards. Putting it above the grid would make
-        the first thing in the reading surface a request for permission.
+        the first thing in the reading surface a request for permission. What issue #165
+        changed is the way to it: beside the reader's data, and one press from the first
+        screen by the link under the card, rather than only past forty-seven tiles.
       */}
       <ConsentControl language={chrome.language} />
     </main>

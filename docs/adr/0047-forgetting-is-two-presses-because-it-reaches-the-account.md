@@ -4,7 +4,9 @@
 
 **Accepted.** Date: 2026-09-20. Amended on 2026-09-25 (#151): the five-second window in
 the Decision below is gone, and the armed state is announced — see *Amendment 2026-09-25*.
-Forgetting is still two presses.
+Amended on 2026-09-26 by issue #165, with no ADR of its own: the index's two controls left its
+top row for a block at the foot, where they no longer move when they arm — see *Amendment
+2026-09-26*. Forgetting is still two presses.
 
 Amends [ADR-0017](0017-progress-is-local-first-and-holds-nothing-worth-scoring.md)
 §"Forget is one click" and [ADR-0019](0019-furthest-frame-wins.md) §"Forgetting reaches
@@ -113,3 +115,26 @@ and off it), a stroke on the canvas and Tab stand it down, that a second press a
 of the first clears the sketch at a phone's width and the answer in both editions at a desk's
 width and a phone's, that the same press on the index's two controls where they move is a
 miss and not a cancel, and that a control another tab emptied comes back unarmed.
+
+## Amendment 2026-09-26
+
+Issue #165 took *Clear my worksheets* and *Forget where I am* out of the index's masthead,
+where they sat a few pixels from the page's primary action, into *Your data in this browser*: a
+block of its own at the foot of the index, beside the consent question, with *Export my
+worksheets* before them. The decision is unchanged — two presses, no modal, a second label that
+says how far it reaches. What changed is where they are, and the sentences above that describe
+the row they left read now as follows:
+
+- **"Last in the row but for the account."** *Forget where I am* is the last of the reader's
+  controls in that block, after *Clear my worksheets*, and a screen away from the *Continue* a
+  returning reader is reaching for — now the card above the grid — rather than beside it:
+  ADR-0017's placement rule, kept by the page's length.
+- **"The index's heading for the controls in its top row."** Focus goes to the heading of
+  *Your data in this browser*, the nearest thing to the control that went.
+- **"They can move when they arm."** Neither can any longer. Each is on a line of its own,
+  start-aligned, so a second label longer than the first grows the control to the right of
+  where it was pressed, and a second press where the first one was lands on it — the property
+  this record chose two presses for, which the row had cost these two. `worksheet.spec.ts`
+  asserts that press clears in the two configurations that used to move, and asserts the miss
+  on purpose, with a press beside the control that leaves it armed; `progress.spec.ts` asserts
+  where focus lands.

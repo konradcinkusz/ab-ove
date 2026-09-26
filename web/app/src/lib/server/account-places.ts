@@ -185,9 +185,9 @@ export interface AccountPlace {
  * (`groupsOf` keeps it), and a reader's own list in a different order from the page they
  * came from would read as a different book.
  *
- * A ROW FOR A PROGRAM THIS DEPLOYMENT DOES NOT CARRY IS LEFT OUT, as the index's resume
- * control leaves it out (`resume.tsx`): a track unpinned or a unit renamed is a record about
- * something that is not here, and a link to it would be a 404. For the same reason a frame
+ * A ROW FOR A PROGRAM THIS DEPLOYMENT DOES NOT CARRY IS LEFT OUT, as the index's card leaves
+ * it out of *Continue* (`start-card.tsx`): a track unpinned or a unit renamed is a record
+ * about something that is not here, and a link to it would be a 404. For the same reason a frame
  * past the end of a program that has since grown shorter is clamped to its last frame.
  *
  * THE EDITION IS THE ROW'S WHERE THE COURSE PUBLISHES IT — the place was read in it — and

@@ -112,7 +112,9 @@ the checklist is for, and it is the only assessment in the product.
 
 ## Step 6 — decide about the invitation
 
-At the foot of the landing page is a card headed **Help fix the book?**
+At the foot of the landing page is a card headed **Help fix the book?** You need not scroll
+past every program to find it: the link under *Start* or *Continue* at the top of the page,
+*Your data in this browser, and whether your answers are counted*, brings it into view.
 
 ![The consent invitation at the foot of the landing page.](../assets/screenshots/landing-english.png)
 

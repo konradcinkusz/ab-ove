@@ -111,7 +111,10 @@ wrócić. Po to jest ta lista i jest to jedyna ocena w produkcie.
 
 ## Krok 6 — zdecyduj w sprawie zaproszenia
 
-U dołu strony startowej jest karta zatytułowana **Pomożesz poprawić książkę?**
+U dołu strony startowej jest karta zatytułowana **Pomożesz poprawić książkę?** Nie trzeba
+przewijać wszystkich programów, żeby do niej dotrzeć: link pod *Zacznij* albo *Kontynuuj*
+na górze strony, *Twoje dane w tej przeglądarce i to, czy twoje odpowiedzi są liczone*,
+przenosi prosto do niej.
 
 ![Zaproszenie do zgody u dołu strony startowej.](../assets/screenshots/landing-polish.png)
 

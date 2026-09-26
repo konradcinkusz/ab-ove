@@ -4,8 +4,8 @@
  * It appears after a round trip to /api/auth/session — the session cookie is HttpOnly and
  * cannot be read any other way — so it extends a line that already exists rather than
  * occupying a block of its own. Adding a block would move the page under a reader the
- * moment the answer arrived; extending a line moves nothing. Same reasoning, and the same
- * row, as resume.module.css.
+ * moment the answer arrived; extending a line moves nothing. It is the last thing in the
+ * index's masthead for that reason (`program-grid.module.css`'s `.top`, issue #165).
  *
  * A link and a button share one class on purpose: which one is rendered depends on whether
  * the reader is signed in, and the control must not move or change weight when it flips.

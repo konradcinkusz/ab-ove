@@ -245,12 +245,32 @@
 }
 
 /*
+ * *Clear my worksheets*, in the index's *Your data in this browser* (issue #165): `.clear`'s look,
+ * with its padding given back as margin the way `.quiet` and `.forget` give theirs, so the three
+ * start on one edge and each is a finger's target that costs the column no height (#147's
+ * pattern). `.clear` keeps its padding in the layout, because a frame's answer head is laid out
+ * round it; in the masthead row this one sat in, growing it would have moved the row, and a
+ * column of its own is where that stopped being true.
+ *
+ * `font: inherit`, as its two neighbours have it: the column sets the face and the size, and a
+ * button inherits the page's line height only when its font is inherited — without it the line
+ * was the browser's `normal` and the box 39 px, measured by `targets.spec.ts`.
+ */
+.clearAll {
+  composes: clear;
+  font: inherit;
+  margin: -0.75rem -0.375rem;
+  padding: 0.75rem 0.375rem;
+}
+
+/*
  * A control that reads as prose because nothing it does is destructive — `resume.module.css`'s
  * `.forget` has the identical declarations for the identical reason, and the two are not
  * merged only because nothing here imports that module. No `--degraded` on hover: that colour
  * is `.clear`'s own signal that a press destroys something, and this press never does. The
  * identical declarations include `.forget`'s finger-tall padding, given back as margin (issue
- * #147): the two sit side by side in the index's top row.
+ * #147): the two share one column in the index's *Your data in this browser*, with
+ * `.clearAll` between them.
  */
 .quiet {
   background: none;

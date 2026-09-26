@@ -138,12 +138,16 @@ test.describe('local progress', () => {
     await expect(page.getByRole('progressbar')).toHaveCount(0);
   });
 
-  test('a reader who has read nothing is offered nothing @core', async ({ page }) => {
+  test('a reader who has read nothing is offered the start, and no place @core', async ({ page }) => {
     // The positive control for the test above. Without it, an index that always rendered a
     // resume link to frame 1 would satisfy the journey and mean nothing.
     await page.goto('/read');
     await expect(page.locator(`a[href^="${contentsAt('en')}/"]`)).toHaveCount(0);
     await expect(page.locator(`a[href^="${contentsAt('pl')}/"]`)).toHaveCount(0);
+
+    // What such a reader IS offered (issue #165): the card's *Start*, into the first program's
+    // contents and not into a frame — a way to begin, which is not a place.
+    await expect(page.getByTestId('start-card').getByRole('link')).toHaveAttribute('href', contentsAt('en'));
   });
 
   test('the edition is part of the place @core', async ({ page }) => {
@@ -284,12 +288,14 @@ test.describe('local progress', () => {
 
     await armed.click();
     await expect(resumeOn(page, 'en', STOPPED_AT!), 'the control survived being forgotten').toHaveCount(0);
-    // The control went with the record, so focus lands on the page's heading rather than on
-    // `<body>` — `use-two-step.ts`, #151.
+    // The control went with the record, so focus lands on the heading of the block it was in,
+    // *Your data in this browser*, rather than on `<body>` — `use-two-step.ts`, #151, #165.
     await expect(
-      page.getByRole('heading', { level: 1 }),
+      page.getByRole('heading', { name: 'Your data in this browser', exact: true }),
       'focus was lost with the control that held it',
     ).toBeFocused();
+    // And the card that offered the place offers the start again, in the same box.
+    await expect(page.getByTestId('start-card').getByRole('link')).toHaveAttribute('href', contentsAt('en'));
 
     // And it was the STORE that was cleared, not the screen: a reload is the only assertion
     // that tells one from the other.
@@ -318,20 +324,23 @@ test.describe('local progress', () => {
     // ──────────────────────────────────────────────────────────────────────────────────
     // The record is in the browser, so these controls cannot exist in the first paint and
     // must appear afterwards. That is exactly the shape of a layout shift, which is why
-    // they live at the end of a line that already exists rather than in a block of their
-    // own — see resume.tsx. A BOUND rather than the measurement, on issue #7's reasoning:
-    // this build scores 0 and committing 0 would make the test about one machine's timing.
+    // each one takes the place of something that was already there rather than adding a
+    // block: the card's *Continue* replaces its *Start* in the same box (`start-card.tsx`,
+    // issue #165), and the tile's marker fills a row that already has its height. A BOUND
+    // rather than the measurement, on issue #7's reasoning: this build scores 0 and
+    // committing 0 would make the test about one machine's timing.
     //
     // THE BOUND IS 0.02 HERE AND 0.01 EVERYWHERE ELSE THIS OBSERVER PATTERN APPEARS, and
     // that is this test's own difference, not a general loosening. `reading.spec.ts`'s
     // reveal and this file's contents-page control each correct ONE component after
-    // hydration; this page corrects TWO — the header's resume link and the tile's marker,
-    // named below — and CI has been measured landing them a frame apart often enough to be
-    // a run's actual result rather than noise: repeatedly 0.0111 or 0.0120, never higher,
-    // never on the single-component assertions. That is two genuine, sub-visual corrections
-    // occasionally missing React's one-flush batching under CI load, not a widening for a
-    // real shift — 0.02 still fails a regression an order of magnitude smaller than what
-    // Core Web Vitals calls "good" (0.1).
+    // hydration; this page corrects TWO — the card and the tile's marker, named below — and
+    // CI has been measured landing them a frame apart often enough to be a run's actual
+    // result rather than noise: repeatedly 0.0111 or 0.0120, never higher, never on the
+    // single-component assertions (measured when the first of the two was the masthead's
+    // resume link, before #165 made it the card). That is two genuine, sub-visual
+    // corrections occasionally missing React's one-flush batching under CI load, not a
+    // widening for a real shift — 0.02 still fails a regression an order of magnitude
+    // smaller than what Core Web Vitals calls "good" (0.1).
     // ──────────────────────────────────────────────────────────────────────────────────
     await readUpTo(page, 'en', STOPPED_AT!);
 
@@ -349,8 +358,8 @@ test.describe('local progress', () => {
     });
 
     await page.goto('/read');
-    // The controls really did arrive — the filled resume link in the header and the tile's
-    // marker in the grid — so the number below is about a page that changed twice.
+    // The controls really did arrive — the card's *Continue* above the grid and the tile's
+    // marker in it — so the number below is about a page that changed twice.
     await expect(resumeOn(page, 'en', STOPPED_AT!)).toHaveCount(1);
     await expect(page.getByText(`at frame ${STOPPED_AT}`, { exact: true })).toBeVisible();
     await page.waitForTimeout(700);

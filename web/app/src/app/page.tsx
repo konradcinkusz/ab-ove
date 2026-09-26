@@ -7,6 +7,7 @@ import { chosenEdition } from '@/lib/content/chosen-edition';
 import { chosenTrack, shownBundles } from '@/lib/content/chosen-track';
 import { refusedProgram } from '@/lib/content/refused-program';
 import { LANGUAGE_COOKIE, isLanguageTag } from '@/lib/language/store';
+import { backendConfigured } from '@/lib/server/backends';
 
 /**
  * The landing page, which is the index (ADR-0036).
@@ -111,5 +112,21 @@ export default async function HomePage({
   */
   const shut = refusedProgram(shownBundles(bundles, track), asked['shut']);
 
-  return <ProgramGrid bundles={bundles} chosen={chosen} chosenTrack={track} shut={shut} />;
+  /*
+    WHETHER THIS DEPLOYMENT CAN SIGN A READER IN (issue #165, P8) — the card's quiet line tells
+    a reader with no account that signing in carries their place to another device, and only
+    here may it. `backendConfigured` is the sign-in page's own question, answered from this
+    process's environment: no request, so the page above still calls nothing while it renders.
+  */
+  const signIn = backendConfigured('authservice');
+
+  return (
+    <ProgramGrid
+      bundles={bundles}
+      chosen={chosen}
+      chosenTrack={track}
+      shut={shut}
+      signIn={signIn}
+    />
+  );
 }

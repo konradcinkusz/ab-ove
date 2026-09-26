@@ -331,9 +331,9 @@ test.describe('a frame a reader reads reaches the account and comes back', () =>
   });
 
   test('reading a frame puts it on the account, through the proxy @identity', async ({ page }) => {
-    // The bundle is four frames long and `ResumeLast` clamps a stored place to the length of
-    // the program it is in, so a step past the end would be asserting the clamp. Frame 3 is
-    // inside it and is not frame 1, which is where a reader who did nothing would be.
+    // The bundle is four frames long and the index's *Continue* clamps a stored place to the
+    // length of the program it is in, so a step past the end would be asserting the clamp.
+    // Frame 3 is inside it and is not frame 1, which is where a reader who did nothing would be.
     const STEP = 3;
 
     // ADR-0051: the reader of this journey is one who walked here, so the record says so.

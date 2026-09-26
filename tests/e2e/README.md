@@ -60,7 +60,7 @@ was first written with.
 | `account-overview.spec.ts` | opening one's own account: whose it is, the place it holds in each program, and the ways out — sign-out and the deletion screen |
 | `app-icon.spec.ts` | the tab shows the mark, served by this origin to a reader with no account, and `theme-color` is the paper in each scheme |
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
-| `consent.spec.ts` | being asked once whether answers may be counted, focus landing on the answer given, and being left alone |
+| `consent.spec.ts` | being asked once whether answers may be counted, the question one press from the index's first screen, focus landing on the answer given, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
 | `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload; a program's contents and summary fail the same way |
 | `focus-ring.spec.ts` | the controls that showed focus by a colour or a brightness wear the shared ring, in light, dark and forced colours |
@@ -148,8 +148,8 @@ The grid is divided into the book's own runs — *Foundation* and *Main sequence
 level-three headings, and the test that says so also says the level-one heading is still the
 only one: a heading list that reads as a tree is the property, and a second `<h1>` would
 pass every other assertion here. The returning reader's half of the index — the tile that
-says `at frame N`, the filled resume control, and the layout not moving when either arrives
-— is in `specs/progress.spec.ts`, because it needs a place to have been recorded first.
+says `at frame N`, the card's *Continue*, and the layout not moving when either arrives — is
+in `specs/progress.spec.ts`, because it needs a place to have been recorded first.
 
 The first visit has a block of its own, which seeds nothing (#163). On a phone's first
 screen, with nothing hovered, a reader who has never been here sees the standfirst — what a
@@ -163,6 +163,20 @@ grid is divided under. The Polish edition says the same in Polish, also on its f
 and the other edition is drawn as a control with an edge.
 The notice a reader gets when the gate turns them away, and its way on, are
 `specs/gate.spec.ts`'s.
+
+The top of the page has a block of its own too (#165). At 1280 px, in both editions, signed
+out and signed in, with a place and a worksheet stored, the masthead is one row — measured by
+where the words of every item in it are, because the padded boxes of two rows overlap — and
+its only buttons are the theme's and *Sign out*: *Export my worksheets*, *Clear my worksheets*
+and *Forget where I am* are asserted in *Your data in this browser* instead, so they are
+proved moved rather than gone. The navigation is named for what it holds and does not hold the
+theme. A reader with no place is offered *Start with F01*, in the server's HTML before any
+script runs, and it opens that program's contents; a returning reader finds *Continue* in the
+same card and no start beside it. The quiet line — *Your place is kept in this browser* — is
+asserted absent where there is no identity service, and on the identity deployment present
+for a reader with no account who has a place: beside *Continue* on a desktop and at 768 px in
+Polish, at the foot on a phone, with the card the same height on every frame from the first,
+and absent for a reader with no place or with an account.
 
 ### 2. `GET /api/config` returns runtime-resolved addresses — `specs/runtime-config.spec.ts`
 

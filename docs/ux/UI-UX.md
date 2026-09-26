@@ -123,42 +123,34 @@ under the heading and a legend above the grid. Neither is the argument coming ba
 program and a frame are is orientation, and why the loop is built the way it is stays on
 `/about`.
 
+**And its top is the reader's way in, with the reader's data at the foot** (#165). The same
+audit found the masthead, once a reader had read one frame, holding *Courses*, *About ab-ovo*,
+the theme switch, `F01 · Continue at frame 3`, *Export my worksheets*, *Clear my worksheets*,
+*Forget where I am* and *Sign in*: two rows at 1280 px, two destructive controls beside the
+page's primary action, all in a `<nav>` named after the heading. A reader with no record was
+offered no way to begin, the consent question was some 3170 px down a desktop's page, and
+nothing told a reader with no account where their place was kept. The masthead now holds the
+ways off the page and nothing that destroys anything, a card above the grid is the way in for
+every reader, and the reader's own controls are a block of their own at the foot, beside the
+question.
+
 Its parts, in order:
 
-1. **The top row** — the wordmark, a link to `/courses`, a link to `/about`, the theme
-   switch, the resume control, *Export my worksheets*, the two destructive controls, and the
-   account control, in that order. The two links that lead somewhere else come first and the
-   controls that are about this reader follow them; *Courses* is offered whatever the
-   deployment pins, because a page listing one course states what ab-ovo carries where a
-   switch with one position would be a control that cannot move (ADR-0048). The theme switch
-   is the one control in the row rendered on the server
-   ([ADR-0048](../adr/0048-the-theme-is-a-choice-and-the-system-is-a-position.md)), so it
-   comes before everything that is not: all that follows it is read from the browser and
-   arrives after the first paint, so the row extends rather than the page moving (the
-   constraint issue #7 put on the resume controls). The
-   resume control — `F01 · Continue at frame 12` — is the index's one filled control: for
-   a reader who has been here before it is the page's primary action, and it used to be
-   the faintest thing on it. It names the program last read and that program's furthest
-   frame, not the frame last looked at, so going back to re-read does not move it (#157).
-   It is padded outwards and the padding given back as margin, so the row it arrives in
-   does not grow. *Export my worksheets* is one press and sits
-   before the two ways to lose something, because nothing it does is destructive
-   ([ADR-0055](../adr/0055-the-notebook-exports-what-stands-today-never-a-history.md)); it
-   renders nothing when there is nothing to export. *Clear my worksheets* and *Forget where
-   I am* are both two presses — the control renames itself to say what the second press does —
-   and *Forget* is the last of them, furthest from the link a returning reader is reaching
-   for ([ADR-0047](../adr/0047-forgetting-is-two-presses-because-it-reaches-the-account.md)).
-   An armed control stands down when the reader presses another control, moves focus
-   elsewhere or presses Esc, and not on a clock: the five seconds it used to allow were a
-   time limit a screen-reader or switch user could run out of. A press on bare page does not
-   stand it down, because both second labels are longer than the first and can carry the
-   control onto the next line of this row, so a second press where the first one was would
-   land on the space it left; that press is a miss, and the control is still armed where it
-   went. Reserving the longer label's width instead would widen a row that already arrives
-   after the first paint. The first press is also said aloud,
-   through a polite live region beside the control, because a button renamed under focus is
-   silent in most screen readers; and since both controls are gone once they have acted,
-   focus then lands on the page's heading rather than on nothing (#151).
+1. **The masthead** — the wordmark, the theme switch, and a navigation named *Site* that holds
+   a link to `/courses`, a link to `/about` and the account control, in that order: one row at
+   1280 px with every control a reader can have, and nothing in it that destroys anything
+   (#165, `specs/landing.spec.ts`). The navigation was named *Programs*, the heading's word,
+   and held the theme switch and both destructive controls as well. *Courses* is offered
+   whatever the deployment pins, because a page listing one course states what ab-ovo carries
+   where a switch with one position would be a control that cannot move (ADR-0048). The theme
+   switch is outside the navigation, because it goes nowhere, and before it: it is rendered on
+   the server ([ADR-0048](../adr/0048-the-theme-is-a-choice-and-the-system-is-a-position.md)),
+   and the account control, which is read from the session after the first paint, arrives at
+   the row's end, so the row extends rather than the page moving (the constraint issue #7 put
+   on the resume controls). On a phone the wordmark and the switch share the first line and
+   the navigation has the second to itself, with room for *Sign in*, or *Account* and
+   *Sign out*, when they land. The reading screens keep the theme one press down in *Reading
+   settings*; this page has no such panel, so here the switch is three quiet words.
 2. **The heading and the language control**, sharing a line — where the three-position
    edition switch used to be, and the only language control on the page
    ([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md)). It
@@ -181,7 +173,46 @@ Its parts, in order:
    the loop runs on: most frames end with a question and the next one opens with its answer,
    so the answer is written down first. In the book's own terms, from its *How to use this
    book*. It is the same for every reader, so it is rendered on the server and moves nothing.
-4. **The course's title**, at level two, in the reader's edition — and beside it the one
+4. **The card** — *Start with F01* under the first program's title for a reader with no
+   place, and `F01 · Continue at frame 12` under the title of the program last read for one
+   with a place (#165, `components/programs/start-card.tsx`). It is the index's one filled
+   control. It comes after the line saying that no program will open, above, and after the shut
+   notice, under 6 below, because a reader told that no program will open should read that
+   before a button that opens one. *Start* is rendered on the server, so it is in the first
+   paint: the first program of the first course on screen, which is open to everybody
+   ([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)), and it
+   opens that program's contents, whose own filled control is *Start at frame 1*. *Continue*
+   opens the furthest frame of the program last read — not the frame last looked at, so going
+   back to re-read does not move it (#157) — and it is the only link on the page into the
+   reader's frame (`specs/progress.spec.ts`): the tile's `at frame 12` is text. The record is in
+   the browser, so *Continue* replaces *Start* after hydration **in the same box** — the title
+   is one line in every state, cut with an ellipsis where it does not fit, and the button's row
+   is a finger tall — so the swap moves nothing. The link is named by its own words and never by
+   the title, which would make it a second link called by the tile's name; the title is its
+   description instead, read out with it. A place in a program this deployment no longer lists
+   is no place to continue to, and the card offers the start.
+
+   **The quiet line**, for a reader with no account who has a place: *Your place is kept in
+   this browser. Sign in to carry it to another device.* The audit found that nothing told that
+   reader where their place was kept. It is offered only where this deployment can sign a
+   reader in (`backendConfigured('authservice')`, P8), only once the session has answered that
+   nobody is signed in — never while the answer is on its way — and never to a signed-in
+   reader. It arrives after the session's round trip, so it goes only where arriving moves
+   nothing: beside *Continue*, in the button's own row, from 48rem up, where both editions fit
+   in two lines inside the row's height. On a phone there is no room beside the button, and
+   under it the line pushed the grid down once the session answered, on every visit — so there
+   it is at the foot instead, ending the sentence of *Your data in this browser* (7, below),
+   which says for every reader that the place is kept in this browser. Its link returns to this
+   page as the reader left it, as the account control's does.
+
+   **Under the card, a link: *Your data in this browser, and whether your answers are
+   counted*** — the way from the first screen to the block at the foot and the consent question
+   beside it, which the audit measured some 3170 px down a desktop's page and further down a
+   phone's. It is rendered on the server, and it is the same words for every reader whatever
+   they have answered: a way to where a setting is, not a second ask
+   ([ADR-0022](../adr/0022-consent-is-local-versioned-and-three-valued.md)). The question
+   itself stays at the foot.
+5. **The course's title**, at level two, in the reader's edition — and beside it the one
    control that narrows: *Only this course* on the index that is showing every one,
    *All courses* on the index narrowed to one. It is absent entirely while the deployment
    pins a single course, where both labels would lead to the page the reader is on. The
@@ -205,7 +236,7 @@ Its parts, in order:
    because taking it away after hydration would move the grid up under them — the shift
    `specs/progress.spec.ts` bounds — and every clause is still true for them. It is not a
    `status` and never takes focus.
-5. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
+6. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
    the parts themselves once a bundle carries them (`groupsOf`, in `@ab-ovo/web-kit`'s `bundle.ts`,
    which the MCP server's `list_programs` shares, so the two surfaces divide the book one
    way). Each run is headed at level three, under the track's title. One tile per program,
@@ -215,7 +246,7 @@ Its parts, in order:
    reader has a place in says so beside the id — `at frame 12` — as text arriving after
    hydration into a row that already has its height. It is a **position and never a
    progress** (ADR-0041): no fraction, no bar, nothing about how far, and not a link,
-   because the way back into the frame is the resume control and `progress.spec.ts` holds
+   because the way back into the frame is the card's *Continue* and `progress.spec.ts` holds
    the page to exactly one. The run headings are set at 13 px and a tile's id and its note at
    12 px (`program-grid.module.css`); the run headings were 11 px until #163 asked for labels
    of 12–13 px or more.
@@ -260,15 +291,40 @@ Its parts, in order:
    again, one program further back. A reloaded address paints that first program's link, and
    the reader's record then moves it to their own nearest one. The link is a finger's target
    (`specs/targets.spec.ts`).
-6. **The consent invitation**, last, absent from the first paint, and an invitation rather
-   than a gate — a reader who came to read reaches the programs first and the question
-   afterwards. The same invitation is on a program's summary, below the list, where a
-   reader has just finished the frames the instrument is about; one record, so an answer
-   on either page is the answer on both (ADR-0022, Consequences). It is worded for a reader
-   rather than a schema — what is counted, and that neither the answer nor the reader ever
-   is — and the accept says what it does: *Yes, count my answers anonymously* (#153).
-   Answering replaces the card with one line, a `role="status"` region that takes focus,
-   so the button that went away does not leave a keyboard reader at the top of the page.
+7. **Your data in this browser**, at the foot, under its own heading (#165): one sentence saying
+   that what the reader writes on a frame stays in this browser and is never sent anywhere, and
+   that their place in the book is kept here too, and under it the reader's own controls —
+   *Export my worksheets*, *Clear my worksheets* and *Forget where I am*, which were in the
+   masthead. They read this browser, so none is in the first paint, and each renders nothing
+   when there is nothing to act on; arriving at the foot, below every tile, they move nothing a
+   reader is looking at. *Export my worksheets* is one press and comes first, because nothing
+   it does is destructive
+   ([ADR-0055](../adr/0055-the-notebook-exports-what-stands-today-never-a-history.md)); it is
+   on `/account` too, beside the sentence saying the worksheets never reach the account.
+   *Clear my worksheets* and *Forget where I am* are both two presses — the control renames
+   itself to say what the second press does — and *Forget* is last, a screen away from the
+   *Continue* a returning reader is reaching for
+   ([ADR-0047](../adr/0047-forgetting-is-two-presses-because-it-reaches-the-account.md)).
+   **Each is on a line of its own, start-aligned**, so a second label longer than the first
+   grows the control to the right of where it was pressed, and the second press, where the
+   first one was, lands on it; in the masthead's wrapping row the longer label could carry the
+   control onto the next line. An armed control stands down when the reader presses another
+   control, moves focus elsewhere or presses Esc, and not on a clock: the five seconds it used
+   to allow were a time limit a screen-reader or switch user could run out of. A press on bare
+   page is a miss, not a cancel. The first press is also said aloud, through a polite live
+   region beside the control, because a button renamed under focus is silent in most screen
+   readers; and since both controls are gone once they have acted, focus then lands on this
+   block's heading rather than on nothing (#151). Each is a finger's target (#147).
+8. **The consent invitation**, last, beside *Your data in this browser*, absent from the first
+   paint, and an invitation rather than a gate — a reader who came to read reaches the programs
+   first and the question afterwards, and the link under the card reaches it in one press
+   (#165). The same invitation is on a program's summary, below the list, where a reader has
+   just finished the frames the instrument is about; one record, so an answer on either page is
+   the answer on both (ADR-0022, Consequences). It is worded for a reader rather than a schema —
+   what is counted, and that neither the answer nor the reader ever is — and the accept says
+   what it does: *Yes, count my answers anonymously* (#153). Answering replaces the invitation
+   with one line, a `role="status"` region that takes focus, so the button that went away does
+   not leave a keyboard reader at the top of the page.
 
 `/read` is a 308 to this page and the deep links under it do not move.
 
@@ -856,7 +912,7 @@ end it. It answers what a reader asks of an account, in the order they ask it:
    per-reader view the second of the [rules every screen inherits](#rules-every-screen-inherits)
    forbids — that rule is about the instrument, which has no reader in it to show — and it
    shows a reader nothing but where they left off. A program this deployment no longer
-   carries is left out, as the index's resume control leaves it out; an API that does not
+   carries is left out, as the index's card leaves it out of *Continue*; an API that does not
    answer is a sentence saying so, never an account shown as holding nothing
    (`lib/server/account-places.ts`).
 3. **What it does not hold.** The worksheets stay in this browser and never reach the
@@ -983,14 +1039,15 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   links are 44 px by their line and padding. The language control, a pair of words on a line,
   is padded to about 44 px and given the space back with a matching negative margin, so its
   hit area grew and nothing moved. Off the reading screens the same pattern holds the index's
-  and the courses page's top-row links, the quiet buttons beside them (*Forget where I am*,
-  *Export my worksheets*, the account's), the consent line's toggle and the sync notice's
-  *Got it* (#147), *Go to frame N* (#157) and the shut notice's way on (#163). The index's
-  filled *Continue* is the one exception to the pattern, because a fill is painted over its
-  padding: the link is the padded target and a span inside it is the button a reader sees, at
-  the size it always had. The index's language control is not an exception but a different
-  shape: it is drawn as outlined boxes 44 px tall, so its target is the box a reader sees
-  (#163).
+  and the courses page's top-row links and the account's quiet buttons beside them, the
+  consent line's toggle and the sync notice's *Got it* (#147), *Go to frame N* (#157), the
+  shut notice's way on (#163), and the index's controls that #165 moved or added: the reader's
+  own in *Your data in this browser* (*Export my worksheets*, *Clear my worksheets*, *Forget
+  where I am*), the link under the card and the quiet line's *Sign in to carry it to another
+  device*. The index's filled *Continue* needs no such pattern: since #165 it is the card's
+  button, 44 px as drawn, where it used to be a padded link round a painted span. The index's
+  language control is not an exception but a different shape: it is drawn as outlined boxes
+  44 px tall, so its target is the box a reader sees (#163).
   `specs/reading.spec.ts` and `specs/pager.spec.ts` measure the box on the reading screens, and
   `specs/targets.spec.ts` off them, at 390 px and 1280 px — where it also checks that a press
   on a control's words lands on that control, since grown boxes overlap wherever a row wraps.
