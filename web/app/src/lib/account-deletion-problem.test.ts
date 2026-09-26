@@ -39,16 +39,30 @@ test('a code that is not in the table renders nothing at all', () => {
  * it, in each language this page speaks; a language added without it fails here by name.
  */
 const ALREADY_REMOVED: Readonly<Record<string, RegExp>> = {
-  en: /reading position.*was removed before the password was checked, and cannot be put back/,
-  pl: /pozycję w lekturze.*usunięto przed sprawdzeniem hasła i nie da się tego przywrócić/,
+  en: /reading position stored on it was removed before the password was checked, and this browser does not send it back/,
+  pl: /pozycję w lekturze usunięto przed sprawdzeniem hasła, a ta przeglądarka nie wyśle jej z powrotem/,
+};
+
+/**
+ * And they do not say the edition the reader chose is lost with it, because it is not: the
+ * root layout's `LanguageSync` sends this browser's choice to an account that holds none, on
+ * the page the refusal is shown on (`lib/language/sync.ts`).
+ */
+const EDITION: Readonly<Record<string, RegExp>> = {
+  en: /edition/i,
+  pl: /wydani/i,
 };
 
 test('a refused password says the account kept no reading position', () => {
   for (const language of CHROME_LANGUAGES) {
     const said = ALREADY_REMOVED[language];
     assert.ok(said, `${language} has no wording to hold its password refusals to`);
+    const edition = EDITION[language];
+    assert.ok(edition, `${language} has no word for an edition to hold its password refusals to`);
     for (const code of ['password-required', 'password-rejected'] as const) {
-      assert.match(deletionProblemMessage(code, chromeFor(language)), said, `${language} ${code}`);
+      const sentence = deletionProblemMessage(code, chromeFor(language));
+      assert.match(sentence, said, `${language} ${code}`);
+      assert.doesNotMatch(sentence, edition, `${language} ${code} says the chosen edition is lost`);
     }
   }
 });

@@ -140,9 +140,11 @@ test('a failed preference removal leaves the account untouched too', async () =>
 });
 
 test('a wrong password costs the synced copy and nothing else', async () => {
-  // It is recoverable BECAUSE local progress survives losing a session (ADR-0019): the
-  // browser still holds every position, and the next sync finds an empty remote and pushes
-  // the lot back. Reverse that decision and this ordering becomes the wrong one.
+  // Since ADR-0068 this is no longer free. The account's copy of the reader's places is gone,
+  // and nothing sends it back: the sync stopped pushing the browser's copy. The browser keeps
+  // its own as a resume hint, and what the reader read without an account is adopted again at
+  // their next sign-in. The order is kept anyway (ADR-0021): the other order's failure leaves
+  // rows under a subject that can never sign in again, and nobody can remove those.
   const { calls, steps } = spy({ kind: 'forgotten' }, { kind: 'password-rejected' });
 
   assert.deepEqual(await deleteReaderAccount('token', 'wrong', steps), {

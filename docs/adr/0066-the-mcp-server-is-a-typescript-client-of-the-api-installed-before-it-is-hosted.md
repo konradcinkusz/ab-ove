@@ -29,6 +29,11 @@ The probe §3 waits for was run on 2026-09-26
 `authservice` cannot be the authorization server for a third-party host, so #173 stays blocked
 as §3 decides. The unknowns it answers are annotated below; the decision is unchanged.
 
+`web/app`'s sync stopped raising a step through `PUT` on 2026-09-26: [ADR-0068](0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)
+has the account adopt an anonymous reader's places at sign-in, and the browser sends it none.
+Where the Context and the Consequences below describe `sync.ts` pushing through `PUT`, they
+record how things stood when this was decided. Narrowing `PUT` now waits only on #171.
+
 ## Context
 
 Measured for #155 on 2026-09-24, and read again on 2026-09-25.
@@ -303,7 +308,8 @@ row's Reason and Exit now name both callers that raise `Step` through `PUT`. #17
   holds would then not reach the account. That trade is for the change to decide.
 - **#176 (order 685) carries that change.** Until it lands, #171 leaves `PUT` as it is:
   narrowing it, and discharging the row, wait for `web/app`'s sync to stop needing `PUT` to
-  raise `Step`, and land with whichever of #171 and #176 comes second.
+  raise `Step`, and land with whichever of #171 and #176 comes second. #176 landed first, on
+  2026-09-26 ([ADR-0068](0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)), so both land with #171.
 
 **#171 is larger than it was first written**, and its body was amended on 2026-09-25 to say
 so. It adds two anonymous endpoints to `AbOvo.Api`: an "all my places" read, and a write that

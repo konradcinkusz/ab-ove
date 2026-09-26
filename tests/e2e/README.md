@@ -808,9 +808,9 @@ consequences, both taken deliberately:
   only teardown available is "forget everything for this subject". CI already runs one worker;
   the serial mode is what makes a local run deterministic as well.
 
-**`specs/adopt-at-sign-in.spec.ts` writes to a shared fixture account too, for the one journey
-a registered account cannot make:** signing in with a second factor, which only `TWO_FACTOR`
-has. It empties that account's places before the test and after it, as `bearer-hop.spec.ts`
+**`specs/adopt-at-sign-in.spec.ts` writes to a shared fixture account too, for a journey a
+registered account cannot make:** signing in with a second factor, which a registered account
+never has and the fixture's `TWO_FACTOR` account does. It empties that account's places before the test and after it, as `bearer-hop.spec.ts`
 does for its own, and no other test reads them — so it needs no serial mode. A test signing
 in as `TWO_FACTOR` at the same moment, in a local parallel run, can at most be shown a sync
 notice it asserts nothing about.

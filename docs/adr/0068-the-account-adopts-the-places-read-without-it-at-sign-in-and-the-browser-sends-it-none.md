@@ -82,7 +82,7 @@ Adoption copies. It never moves or deletes:
 ### 3. The sync sends no place
 
 `web/app/src/lib/progress/sync.ts` pulls the account's copy, merges it in by the same rule,
-tells the reader what moved, and forgets every copy when asked (§5). It never calls `PUT`, and it
+tells the reader what moved, and forgets the copies §5 names when asked. It never calls `PUT`, and it
 sends nothing the API does not already hold. `reconcile.ts` no longer lists anything to send.
 Its `settle` went with the pushes: it put a cycle's merge back over the record as it stood
 when the cycle landed, and a cycle that sends nothing merges and writes with nothing awaited in
@@ -115,8 +115,11 @@ account and left the cursor was undone by the next sign-in, and the browser then
 the place had been read elsewhere. On a shared browser the next account signed in there took it
 too. Review of this change reproduced both orders end to end: forgotten with no account and an
 account made afterwards, and forgotten on an account that signed out and in again. So *Forget
-where I am* reaches every copy the API holds of where this browser has read: the account's rows
-and the rows of the anonymous cursor this browser reads under.
+where I am* reaches every copy the API holds of where this browser has read: the account's rows,
+when the reader is signed in, and the rows of the anonymous cursor this browser reads under. A
+forget pressed while signed out, or once the origin reports the session gone, reaches this
+browser and the cursor and not the account's rows. The next sign-in's pull can then bring those
+back as read elsewhere, as it could before this change.
 
 - **`DELETE /api/v1/progress`** (`authApi`) removes the account's rows and the rows of the
   anonymous cursor the `X-Ab-Ovo-Reader-Id` header names, each reader in a query of its own
@@ -177,9 +180,10 @@ there too.
   the other order's failure leaves rows nobody can remove, and the reader was deleting the
   account. Whether it should now be reversed is a decision of its own, not taken here. The
   reader is told: the deletion screen's password refusals, for no password and for a wrong
-  one, say that what the account had stored was removed before the password was checked and
-  cannot be put back (`problemPasswordRequired` and `problemPasswordRejected` in
-  `web/app/src/lib/i18n/chrome.ts`).
+  one, say that the reading position stored on the account was removed before the password
+  was checked and that this browser does not send it back (`problemPasswordRequired` and
+  `problemPasswordRejected` in `web/app/src/lib/i18n/chrome.ts`). They do not name the chosen
+  edition, which the root layout's `LanguageSync` writes back to an account holding none.
 - **A program opened on one machine and not answered there is not on the account.** Opening
   writes nothing to the API (ADR-0066 §2), so the account hears of the program at its first
   reveal. Until then another machine's program gate (ADR-0051) opens the next program one

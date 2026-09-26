@@ -24,8 +24,10 @@ namespace AbOvo.Api.Endpoints;
 /// was behind" a thing the phone learns rather than a thing it overwrites. ADR-0019.
 /// </para>
 /// <para>
-/// This group is <c>authApi</c> — authenticated and rate-limited — and every row is named by
-/// the caller's own subject, read through the kernel's shared resolver. There is no route
+/// <see cref="MapProgressEndpoints"/> maps onto <c>authApi</c> — authenticated and
+/// rate-limited — and every row is named by the caller's own subject, read through the kernel's
+/// shared resolver. <see cref="MapAnonymousProgressEndpoints"/> maps the one anonymous forget
+/// onto <c>openWriteApi</c>, for the reason given on it. There is no route
 /// here that takes a subject: an endpoint that let a caller name whose progress they wanted
 /// is an endpoint whose authorization is a parameter.
 /// </para>

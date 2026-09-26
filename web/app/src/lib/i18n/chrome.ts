@@ -192,9 +192,12 @@ interface DeleteAccountStrings {
   readonly problemConfirm: string;
   /**
    * The password refusals arrive AFTER what the account had stored was removed — ADR-0021's
-   * order, progress first — and since ADR-0068 nothing sends it back: the sync no longer pushes
-   * the browser's copy to the account. So both say so, with `problemProgress`'s words for what
-   * that was, rather than leaving a reader who keeps the account to find their frames refused.
+   * order, progress first — and since ADR-0068 nothing sends the reading position back: the
+   * sync no longer pushes the browser's copy to the account. So both say so, rather than leaving
+   * a reader who keeps the account to find their frames refused. They name the reading position
+   * and not the edition the reader chose, because the edition IS sent back: `LanguageSync`,
+   * mounted in the root layout, writes this browser's choice to an account holding none on the
+   * very page that shows the refusal (`lib/language/sync.ts`).
    */
   readonly problemPasswordRequired: string;
   readonly problemPasswordRejected: string;
@@ -899,9 +902,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       keepReading: 'Carry on reading',
       problemConfirm: 'That is not the confirmation word. Nothing has been deleted.',
       problemPasswordRequired:
-        'This account has a password, and the field was empty, so the account itself was not removed. What your account had stored — your reading position, the edition you chose — was removed before the password was checked, and cannot be put back.',
+        'This account has a password, and the field was empty, so the account itself was not removed. The reading position stored on it was removed before the password was checked, and this browser does not send it back.',
       problemPasswordRejected:
-        'That password was not accepted, so the account itself was not removed. What your account had stored — your reading position, the edition you chose — was removed before the password was checked, and cannot be put back.',
+        'That password was not accepted, so the account itself was not removed. The reading position stored on it was removed before the password was checked, and this browser does not send it back.',
       problemSignedOut: 'Your session ended before this could finish. Sign in and try again.',
       problemProgress:
         'What your account had stored — your reading position, the edition you chose — could not be removed, so nothing else was attempted. Your account is untouched. Try again.',
@@ -1120,9 +1123,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       keepReading: 'Czytaj dalej',
       problemConfirm: 'To nie jest s\u0142owo potwierdzenia. Nic nie zosta\u0142o usuni\u0119te.',
       problemPasswordRequired:
-        'To konto ma has\u0142o, a pole by\u0142o puste, wi\u0119c samego konta nie usuni\u0119to. To, co przechowywa\u0142o twoje konto \u2014 pozycj\u0119 w lekturze i wybrane wydanie \u2014 usuni\u0119to przed sprawdzeniem has\u0142a i nie da si\u0119 tego przywr\u00f3ci\u0107.',
+        'To konto ma has\u0142o, a pole by\u0142o puste, wi\u0119c samego konta nie usuni\u0119to. Zapisan\u0105 na nim pozycj\u0119 w lekturze usuni\u0119to przed sprawdzeniem has\u0142a, a ta przegl\u0105darka nie wy\u015ble jej z powrotem.',
       problemPasswordRejected:
-        'To has\u0142o nie zosta\u0142o przyj\u0119te, wi\u0119c samego konta nie usuni\u0119to. To, co przechowywa\u0142o twoje konto \u2014 pozycj\u0119 w lekturze i wybrane wydanie \u2014 usuni\u0119to przed sprawdzeniem has\u0142a i nie da si\u0119 tego przywr\u00f3ci\u0107.',
+        'To has\u0142o nie zosta\u0142o przyj\u0119te, wi\u0119c samego konta nie usuni\u0119to. Zapisan\u0105 na nim pozycj\u0119 w lekturze usuni\u0119to przed sprawdzeniem has\u0142a, a ta przegl\u0105darka nie wy\u015ble jej z powrotem.',
       problemSignedOut:
         'Twoja sesja zako\u0144czy\u0142a si\u0119, zanim to si\u0119 uda\u0142o doko\u0144czy\u0107. Zaloguj si\u0119 i spr\u00f3buj ponownie.',
       problemProgress:

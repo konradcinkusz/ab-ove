@@ -66,8 +66,10 @@ this ordering becomes the wrong one.
 > adopted again at their next sign-in. The order is kept: the other order's worst case is still
 > rows nobody can remove, and the reader was deleting the account. Whether it should now be
 > reversed is a decision of its own, which ADR-0068 does not take. The refusals that land in
-> this state — no password given, and a wrong one — say so on the screen, in each edition: what
-> the account had stored was removed before the password was checked, and cannot be put back.
+> this state — no password given, and a wrong one — say so on the screen, in each edition: the
+> reading position stored on the account was removed before the password was checked, and this
+> browser does not send it back. They do not say the chosen edition is lost, because it is not:
+> the root layout's `LanguageSync` writes this browser's choice back to an account holding none.
 >
 > The same note, for the other half of "leave the reader's local progress alone" below: the
 > progress call sends no reader-id header, so the anonymous cursor this browser reads under,
