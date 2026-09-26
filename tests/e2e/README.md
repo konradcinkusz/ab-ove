@@ -87,6 +87,7 @@ was first written with.
 | `reading.spec.ts` | reading a program end to end from the keyboard, the frame's ergonomics, and the frame on paper |
 | `registration.spec.ts` | a reader with no account gets one, and can read the two documents it accepts first |
 | `reveal-failure.spec.ts` | a reveal the API does not take says so beside `Next` and keeps the frame — with the mouse, `→`, `Ctrl+Enter` and no JavaScript (#138) |
+| `reveal-working.spec.ts` | the frame after a reveal offers what the reader worked out on the frame it answers — the pad's lines and the sketch, read from this browser and sent nowhere — offers nothing when there is nothing, moves nothing when it arrives, turned to or loaded, and on paper prints only open (#168) |
 | `runtime-config.spec.ts` | `/api/config` resolved at request time, and the `/healthz` check the platform polls |
 | `runtime-cost.spec.ts` | what the Python runtime costs in this browser, cold and warm |
 | `screenshots.spec.ts` | the pictures `docs/SCREENSHOTS.md` shows, captured from the real application — not a gate |

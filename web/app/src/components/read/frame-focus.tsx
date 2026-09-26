@@ -1,13 +1,9 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect } from 'react';
 
+import { useByTheRouter } from './by-the-router.ts';
 import { FRAME_HEADING_ID } from './reading-focus.ts';
-
-/** Nothing changes underneath this — the store below only tells hydration from a client render. */
-const subscribeToNothing = (): (() => void) => () => undefined;
-const onTheClient = (): boolean => true;
-const onTheServer = (): boolean => false;
 
 /**
  * Next's route announcer: the element `app-router-announcer.js` appends to `<body>`, whose
@@ -85,9 +81,7 @@ const afterTheAnnouncementMs = (): number => (document.readyState === 'complete'
  * reload — the document starts where every page starts, with the skip link first
  * (`skip-link.tsx`, WCAG 2.4.1), and a screen reader begins at the top by itself; moving focus
  * there would skip the one control a keyboard reader's first Tab is for. The difference is
- * hydration: while React hydrates server HTML, `useSyncExternalStore` answers with the server
- * snapshot, and a component the router renders on the client never hydrates. `useState` keeps
- * the first answer, because hydration's own second render says `true` too. (The router says
+ * hydration, which `by-the-router.ts` tells from a render in the browser. (The router says
  * nothing on a load either: the announcer skips the first title, which a screen reader reads on
  * a load by itself.)
  *
@@ -106,8 +100,7 @@ const afterTheAnnouncementMs = (): number => (document.readyState === 'complete'
  * `Next`, beside the sentence saying why.
  */
 export function FrameFocus(): null {
-  const rendering = useSyncExternalStore(subscribeToNothing, onTheClient, onTheServer);
-  const [byTheRouter] = useState(rendering);
+  const byTheRouter = useByTheRouter();
 
   useEffect(() => {
     if (!byTheRouter) return;

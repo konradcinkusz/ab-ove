@@ -739,9 +739,11 @@ from any of them, and `←` on frame 1 did nothing while the button beside it we
 `specs/reading-loop.spec.ts` holds the rest.
 
 **The frame itself** is quiet: the heading it is under, a real `<h2>` set small in the UI
-face; the answer box labelled with the frame it answers; the book's text; and, on a frame that
-asks, the answer line under a visible `Your answer` label with `Clear my answer` beside it, the
-cue under the line, and the two pane buttons. **The cue is *The next frame answers this.*** —
+face; the answer box labelled with the frame it answers, with the reader's own line under the
+book's answer and, when the frame before holds working or a sketch, a way to them (#168,
+below); the book's text; and, on a frame that asks, the answer line under a visible
+`Your answer` label with `Clear my answer` beside it, the cue under the line, and the two pane
+buttons. **The cue is *The next frame answers this.*** —
 on every frame that asks, for good, and tied to the line as its description
 (`aria-describedby`), so a screen reader hears it with `Your answer`. It is what `Next` does
 there, said where the reader acts on it, because the placeholder that used to be the frame's
@@ -860,6 +862,56 @@ wider it is one row either way. That range takes in the common phone widths of 3
 fonts loaded, at every width from 360 to 560 px, against the same button with its armed
 label taken out). `Clear my answer` is the same two presses, keeps its box the same way at
 no cost — its first label is the longer — and sends focus to the line it emptied.
+
+#### The next frame shows the reader's working and sketch, not only their line
+
+*You wrote* puts the reader's line beside the book's answer, and that was half of what they
+had to compare: the pad's lines and the drawing stayed on the frame before. **When that frame
+holds either, the answer box goes on for one more row under *You wrote*** (#168) — *Show my
+working (frame 3)*, *Show my sketch (frame 3)* or *Show my working and sketch (frame 3)*, in
+the reader's edition — and opening it shows the lines as they were written and the drawing
+again, on the background the reader chose, by the pad's own painter
+(`components/read/sketch-paint.ts`). A frame whose predecessor holds neither offers nothing
+new.
+
+What it shows is read from where this browser already keeps it, under the keys the panes wrote:
+the lines from the frame's sheet, the strokes from IndexedDB, and those only when the row is
+opened.
+Nothing is fetched, sent or newly stored
+([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)); where the
+browser kept the flag saying a sketch was drawn and not the strokes, the row says so instead
+of drawing an empty box. The lines carry no results: the pad runs when asked, and a column of
+the machine's arithmetic beside the book's answer is not the comparison the reveal is for. It
+never opens itself
+([ADR-0043](../adr/0043-a-sketch-is-strokes-and-the-pane-never-opens-itself.md)).
+
+**Its arrival moves nothing, by one rule for each way a frame arrives.** Whether there is
+anything to offer is in the reader's browser, so the page learns it there, and when depends on
+how the frame came. A frame the router brings — *Next*, `→` — is rendered in the browser, where
+the sheet is read before the first paint: nothing is reserved, and the row is there when there
+is something behind it and absent when there is not. A frame the server rendered — a reload, a
+deep link — is painted before anything can read the sheet, so the server renders the closed
+row unseen and the browser shows it in the same box. That costs a loaded frame with nothing to
+offer a row's gap under the answer box, which a frame reached by *Next* does not have: 28 px
+from 360 px up, where the longest label takes one line, and 48 px at 320 px, where it takes
+two — the same in both editions, and the same box the row has when it is shown (measured on
+2026-09-26 against a production build in Chromium, on F01's frame 2, at 320, 360, 390, 414,
+768 and 1280 px). The row's labels share one cell, the arrangement *Show my sketch* has
+beside *Draw it*, so the words it settles on never change its height.
+
+It is the box's last row to the eye — the box's tint and edge, the box's corner — and the box's
+sibling in the document, so the heading a turn lands on is still described by the book's answer
+and the reader's line (#159), and the row is the next Tab stop after them. Its one control is a
+line of text, so the row is a line tall rather than a button's height, and the box a press
+lands in is drawn round it a finger tall — reaching up over the answer box's own padding and
+never over the reader's words, so the focus ring stays on the label rather than crossing the
+*You wrote* line above it. On paper it prints as the panes do: open, under its label and joined
+to the box; shut — or held unseen — not at all, and the box then prints with its own gap and
+corner, as it does on a frame with no row at all. `specs/reveal-working.spec.ts` holds both
+halves of the issue, both ways a frame arrives, and the paper: on a turn, the frame's answer
+line is where the new frame's first animation frame put it; on a load, the server's page, read
+with no script, puts the row and the frame below it where the hydrated page does; printed, a
+row that prints as nothing leaves the box as a frame with no row prints it.
 
 #### The lab pane is not on this route any more
 
