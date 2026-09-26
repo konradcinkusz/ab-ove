@@ -84,26 +84,15 @@ const accountStep = (page: Page) =>
  * have noticed each landing, because the recorder writes in an effect after hydration
  * (`progress.spec.ts`'s `readUpTo` says what skipping that wait costs).
  *
- * `signedIn`, for an account nobody has read on yet: wait for the account to hold frame 1
- * before the first `Next`. Landing on frame 1 has the sync send the account its first row for
- * the program (a PUT), and the first reveal sends an advance; each finds no row and INSERTs
- * one, and the API answers the loser with a 500 on the duplicate key, which the reveal shows as
- * "Could not reach the book". It was seen now and then, always at the first reveal, and CI's
- * retries would have hidden it. That race is the API's own and not what this spec asserts, so
- * the spec keeps the two apart rather than passing on a retry.
+ * For a signed-in reader it used to wait, first, for the account to hold frame 1: landing on
+ * frame 1 had the sync send the account its first row for the program (a `PUT`), the first
+ * reveal sent an advance, each found no row and INSERTed one, and the API answered the loser
+ * with a 500 on the duplicate key. The sync sends nothing since ADR-0068, so the reveal's
+ * advance is the only write and there is no second one to race it.
  */
-async function readForwardTo(
-  page: Page,
-  n: number,
-  { signedIn = false }: { readonly signedIn?: boolean } = {},
-): Promise<void> {
+async function readForwardTo(page: Page, n: number): Promise<void> {
   await page.goto(frameAt(1));
   await expect(page.locator('article')).toBeVisible();
-  if (signedIn) {
-    await expect
-      .poll(() => accountStep(page), { message: 'the account never held frame 1' })
-      .toBe(1);
-  }
   for (let at = 2; at <= n; at += 1) {
     await Promise.all([page.waitForURL(new RegExp(`${frameAt(at)}$`)), reveal(page).click()]);
     await expect(page.locator('article')).toBeVisible();
@@ -247,7 +236,7 @@ test.describe('the account, when the reader goes back and when they read elsewhe
     // measured against an account and a browser that already agree, and the pull awaited
     // after going back cannot be this one arriving late. Armed as the record says 3, which
     // is where the sync's debounce starts.
-    await readForwardTo(page, 3, { signedIn: true });
+    await readForwardTo(page, 3);
     await nextPull(page);
     await expect
       .poll(() => accountStep(page), { message: 'the account never held frame 3' })
@@ -330,7 +319,7 @@ test.describe('the account, when the reader goes back and when they read elsewhe
     page,
   }) => {
     await aFreshAccount(page);
-    await readForwardTo(page, 3, { signedIn: true });
+    await readForwardTo(page, 3);
     // The landing's own sync, so that no cycle is in flight when one is asked for below.
     await nextPull(page);
     await watchTheNotice(page);
@@ -384,7 +373,7 @@ test.describe('the account, when the reader goes back and when they read elsewhe
     page,
   }) => {
     const account = await aFreshAccount(page);
-    await readForwardTo(page, 3, { signedIn: true });
+    await readForwardTo(page, 3);
     await expect.poll(() => accountStep(page)).toBe(3);
 
     // Signing out leaves the record where it was (ADR-0019), so the index still offers 3 —

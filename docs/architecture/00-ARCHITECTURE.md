@@ -553,12 +553,15 @@ joins every other file in being digest-pinned, and this row is discharged.
 adds a reveal gate: `GET /api/v1/content/{track}/{unit}/{step}` refuses a step past the
 reader's furthest, and `POST /api/v1/content/{track}/{unit}/advance` is the only endpoint
 meant to raise that ceiling — it computes the next step itself and never trusts a
-client-supplied number. `PUT /api/v1/progress/{track}/{unit}` — [ADR-0019](../adr/0019-furthest-frame-wins.md)'s
+client-supplied number. (`POST /api/v1/progress/adopt` moves an account's ceiling too, at
+sign-in, and only to a step `advance` has already raised for that browser's anonymous cursor —
+[ADR-0068](../adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md).)
+`PUT /api/v1/progress/{track}/{unit}` — [ADR-0019](../adr/0019-furthest-frame-wins.md)'s
 cross-device sync endpoint — still accepts and stores whatever `step` a caller sends, subject
 only to "does not lower it". A caller could name step 48 directly and then `GET` it, having
 answered nothing.
 
-**Reason.** Closing it now would break the two callers that still legitimately raise `Step`
+**Reason.** Closing it now would break a caller that still legitimately raises `Step`
 through it:
 
 - `web/mcp` (TypeScript) computes its own advance client-side against its own copy of the
@@ -566,19 +569,21 @@ through it:
   `POST .../advance` and has no other way to write `ReaderProgress`. Retiring `PUT`'s ability
   to raise `Step` today would silently stop the current MCP server from remembering a
   reader's place.
-- `web/app`'s sync (`web/app/src/lib/progress/sync.ts`) pushes `reconcile.ts`'s `toPush`
-  rows through it, under [ADR-0019](../adr/0019-furthest-frame-wins.md): frame 40 in the
-  browser and frame 12 on the account pushes 40. That push is how an account learns a place
-  read anonymously, and while the reader is signed in the reveal gate reads the account's
-  row. Narrowing `PUT` today would refuse that reader frames 13 to 40 until they read them
-  again.
 
-Either would be a regression in exchange for closing a hole in a mechanism that is not a
-confidentiality boundary in the first place. `web/web-kit/src/gate.ts`'s own docstring says
-the same of the neighbouring program-level gate, and it holds here too: "nothing behind it is
-paid for, secret, or unsafe to see." A reader who wants to read ahead by hand-crafting one PUT
-request has always had at least as easy a way to do it — the whole book had no gate at all
-until this ADR.
+`web/app`'s sync (`web/app/src/lib/progress/sync.ts`) was another caller, and no longer
+raises anything: it sent the browser's own furthest frame through `PUT` (frame 40 in the
+browser and frame 12 on the account sent 40) until
+[ADR-0068](../adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)
+(#176, order 685). A place read anonymously now reaches the account through
+`POST /api/v1/progress/adopt`, which the web app's server calls as a sign-in completes, and the
+sync sends nothing the API does not already hold.
+
+Narrowing `PUT` today would be a regression in exchange for closing a hole in a mechanism
+that is not a confidentiality boundary in the first place. `web/web-kit/src/gate.ts`'s own
+docstring says the same of the neighbouring program-level gate, and it holds here too:
+"nothing behind it is paid for, secret, or unsafe to see." A reader who wants to read ahead by
+hand-crafting one PUT request has always had at least as easy a way to do it — the whole book
+had no gate at all until this ADR.
 
 **Blast radius.** Bounded to the reveal gate's own stakes: the worst this endpoint lets a
 caller do is see a later frame's text and the answer it opens with, without having answered
@@ -593,23 +598,25 @@ own `ReaderProgress` rows are reachable through it.
    that creates a place at step 1 and never raises `Step`, so `web/mcp` stops calling `PUT`
    at all. It stays in TypeScript: that is
    [ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
-   §1 and §2, which replaced the .NET client this line used to name. #171 removes
-   `web/mcp`'s dependency on `PUT` and nothing more.
+   §1 and §2, which replaced the .NET client this line used to name.
 2. `web/app`'s sync stops needing `PUT` to raise `Step`, because the account's place comes
-   from steps the API has already seen earned. One mechanism that fits: at sign-in the API
-   adopts the steps of the reader's `anon:<id>` rows into the account, the furthest frame
-   winning, and sync sends nothing the API does not already hold. #176 (order 685) carries
-   it (ADR-0066, Consequences), and `PUT` is narrowed in whichever of #171 and #176 lands
-   second.
+   from steps the API has already seen earned. **Done by #176 (order 685), on 2026-09-26**:
+   at sign-in the API adopts the steps of the reader's `anon:<id>` rows into the account, the
+   furthest frame winning, and the sync sends nothing the API does not already hold
+   ([ADR-0068](../adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)).
+   `web/app` no longer calls `PUT` at all.
 
-Then `PUT`'s handler is narrowed so that it cannot raise `Step`: not above an existing row's,
-and not above `Reveal.FirstStep` when it creates a row (or the field is dropped from
-`ProgressUpdate` entirely). This row is discharged then.
+So #171 lands second, and it discharges this row: once `web/mcp` is off `PUT`, `PUT`'s
+handler is narrowed so that it cannot raise `Step` — not above an existing row's, and not
+above `Reveal.FirstStep` when it creates a row (or the field is dropped from `ProgressUpdate`
+entirely) — with a test in `AbOvo.Api.Tests`, and this row goes with it.
 
 **Recorded in.** [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md);
 `src/AbOvo.Api/Endpoints/ProgressEndpoints.cs`, at the `MapPut` handler. Reason and Exit
 amended on 2026-09-25 by
-[ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md).
+[ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md),
+and again on 2026-09-26 by
+[ADR-0068](../adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md).
 
 ### 2026-09-25 — The index and `/courses` list the programs from the bundle compiled into the app
 

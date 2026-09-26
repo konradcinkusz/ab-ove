@@ -68,6 +68,12 @@ production and is deliberately out of this ADR's scope: it needs its own written
 how it is allowed to bypass or narrow the guard, not a silent `ExecuteSqlRaw` nobody reviewed
 as a security-relevant exception.
 
+> Since 2026-09-26 a reader's own forget removes their cursor's rows: one reader's, pinned by an
+> equality, on their request
+> ([ADR-0068](0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)
+> §5). That is not retention. The rows nobody forgets still accumulate, and the job is still
+> required.
+
 **An anonymous reader who clears cookies loses their place, permanently, with no recovery
 path** — the same property `ab_ovo_rid` shares with the `localStorage` mechanism it replaces
 as the source of truth, so this is not a new weakness, but it is worth restating now that a

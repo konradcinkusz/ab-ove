@@ -102,11 +102,9 @@ async function anAccountThatIsAhead(page: Page): Promise<void> {
       }),
     }),
   );
+  // A pull, and nothing else: the browser sends the account no place since ADR-0068.
   await page.route('**/api/proxy/api/v1/progress', (route: Route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ records: [record] }) }),
-  );
-  await page.route('**/api/proxy/api/v1/progress/*/*', (route: Route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(record) }),
   );
 }
 

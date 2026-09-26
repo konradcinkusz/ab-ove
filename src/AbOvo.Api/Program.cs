@@ -72,6 +72,11 @@ authApi.MapProgressEndpoints();
 authApi.MapPreferenceEndpoints();
 openWriteApi.MapOutcomeEndpoints();
 
+// ADR-0068 §5 — the forget of a reader with no account, which has to reach the anonymous
+// cursor adoption would otherwise copy into the next account signed in on that browser. It
+// WRITES with no account, so it is this group's and not authApi's.
+openWriteApi.MapAnonymousProgressEndpoints();
+
 // ADR-0060 — content reads share openWriteApi's shape (anonymous, explicitly rate-limited)
 // rather than publicApi's: these are real content-serving reads a reader's session drives
 // repeatedly, not a probe. The reveal gate inside them is what keeps a reader from naming an

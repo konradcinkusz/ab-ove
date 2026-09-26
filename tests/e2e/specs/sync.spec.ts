@@ -20,9 +20,10 @@ import { walkTo } from './support/walk.ts';
  *     seeing another's place, and a forget that forgets — is asserted against the real
  *     pipeline in `tests/AbOvo.Api.Tests/ProgressEndpointTests.cs`;
  *   - **the rule as a reader meets it** — the merge, the sentence on the screen, the
- *     forget that reaches both copies, and a sign-out that leaves reading alone — is
- *     asserted here, in a browser, against an account STUBBED AT THE NETWORK to answer the
- *     way those tests prove the real service answers.
+ *     forget that reaches both copies, a sign-out that leaves reading alone, and a browser
+ *     that sends the account no place of its own (ADR-0068) — is asserted here, in a browser,
+ *     against an account STUBBED AT THE NETWORK to answer the way those tests prove the real
+ *     service answers.
  *
  * What neither covers is the hop between them: this app's BFF proxy carrying a real bearer
  * to a real service. **It is not covered here and is not implied to be.** This header used
@@ -30,7 +31,9 @@ import { walkTo } from './support/walk.ts';
  * the acceptance job — and both are gone: the job has run a Postgres and an API since #98,
  * and the hop is `bearer-hop.spec.ts`'s (#102). The sentence on the screen, raised by the
  * real API after reading on a second browser rather than by a stub, is
- * `furthest-frame.spec.ts`'s (issue #157).
+ * `furthest-frame.spec.ts`'s (issue #157); and how a place read without an account reaches
+ * the account now that the browser sends none — adopted by the real API at sign-in — is
+ * `adopt-at-sign-in.spec.ts`'s (issue #176).
  *
  * E2E-ACCEPTANCE-TESTING.md §2 — nothing below is skipped and nothing is conditional.
  * Every test runs on every push, in every environment, and asserts against real
@@ -105,13 +108,11 @@ const row = (step: number, language = 'en', unit = UNIT): Row => ({
 /**
  * An account, standing in for one this environment has no way to create.
  *
- * It applies the SERVICE'S OWN RULE on a write — a step that is not strictly greater does
- * not move the record, and the answer is what it holds rather than an echo — because that
- * is the behaviour `ProgressEndpointTests` proves the real one has, and a stub that echoed
- * would let this suite pass against a client that had quietly stopped adopting the answer.
- *
- * It records what it was asked, so a test can assert that the client sent the right thing
- * as well as that it did the right thing with the reply.
+ * It answers a pull with what it holds and a forget by holding nothing. A WRITE — a place
+ * sent through `PUT /progress/{track}/{unit}` — it records and does not apply: the browser
+ * sends the account no place since ADR-0068, so what a test here asserts about writes is that
+ * `wrote` stays empty, and an account that took them would let a client that had quietly
+ * started sending again pass for one whose account had moved some other way.
  */
 function account(page: Page, initial: Row[] = []) {
   const state = new Map(initial.map((entry) => [`${entry.track}/${entry.unit}`, entry]));
@@ -170,22 +171,11 @@ function account(page: Page, initial: Row[] = []) {
       const body = route.request().postDataJSON() as { step: number; language: string };
       wrote.push({ unit, step: body.step, language: body.language });
 
-      const key = `${track}/${unit}`;
-      const held = state.get(key);
-      // The service's rule, on the service's side of it: strictly greater, or nothing moves.
-      if (!held || body.step > held.step) {
-        state.set(key, {
-          track,
-          unit,
-          step: body.step,
-          language: body.language,
-          updatedAt: '2026-02-01T00:00:00Z',
-        });
-      }
+      // Recorded and not applied: the answer is what the account held before it was asked.
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(state.get(key)),
+        body: JSON.stringify(state.get(`${track}/${unit}`) ?? null),
       });
     });
   };
@@ -193,7 +183,6 @@ function account(page: Page, initial: Row[] = []) {
   return {
     install,
     wrote,
-    holds: (unit = UNIT) => state.get(`${TRACK}/${unit}`),
     get deleted() {
       return deleted;
     },
@@ -221,6 +210,26 @@ const withLocal = (page: Page, step: number, language = 'en', unit = UNIT) =>
       SEEDED,
     ] as const,
   );
+
+/**
+ * Two cycles that START from now, and so one that has FINISHED: cycles never overlap (`sync()`
+ * in `sync.ts`), so the second pull is not sent until the first cycle — and anything it had
+ * to send — is over. A tab becoming visible is a moment `startSync` runs a cycle at, and the
+ * event is the one a reader's own tab switch sends. An absence has no event to wait for; this
+ * is the event after which a write that was coming would have come.
+ */
+async function twoCyclesFromNow(page: Page, remote: { readonly pulled: number }): Promise<void> {
+  const from = remote.pulled;
+  await expect
+    .poll(
+      async () => {
+        await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+        return remote.pulled;
+      },
+      { message: 'the sync did not run twice', timeout: 15_000 },
+    )
+    .toBeGreaterThanOrEqual(from + 2);
+}
 
 const storedStep = (page: Page, unit = UNIT) =>
   page.evaluate(
@@ -273,9 +282,14 @@ test.describe('progress follows the reader between machines', () => {
     expect(await storedStep(page)).toBe(AHEAD);
   });
 
-  test('the machine that is ahead keeps its place and sends it @core', async ({ page }) => {
+  test('the machine that is ahead keeps its place, and sends the account nothing @core', async ({
+    page,
+  }) => {
     // The other direction, and the one a last-write-wins merge would fail: this machine
-    // arrives SECOND and must still win, because it is further on.
+    // arrives SECOND and must still keep its place, because it is further on. It used to send
+    // that place to the account too; ADR-0068 is the decision that it stays here instead — a
+    // resume hint (ADR-0060) the account never hears of, because the number is this browser's
+    // own and no gate saw it earned.
     const remote = account(page, [row(BEHIND, 'en')]);
     await remote.install();
     await withLocal(page, AHEAD);
@@ -283,10 +297,8 @@ test.describe('progress follows the reader between machines', () => {
     await page.goto('/read');
     await expect(resumeTo(page, 'en', AHEAD)).toHaveCount(1);
 
-    await expect
-      .poll(() => remote.wrote, { message: 'the account was never told about the furthest frame' })
-      .toContainEqual({ unit: UNIT, step: AHEAD, language: 'en' });
-    await expect.poll(() => remote.holds()?.step).toBe(AHEAD);
+    await twoCyclesFromNow(page, remote);
+    expect(remote.wrote, 'the browser sent the account a place of its own').toEqual([]);
 
     // Nothing moved under the reader, so there is nothing to tell them.
     await expect(page.getByRole('status')).toHaveCount(0);
@@ -330,9 +342,16 @@ test.describe('progress follows the reader between machines', () => {
     );
   });
 
-  test('the account hears about frames read after the first sync @core', async ({ page }) => {
-    // Arrival is not the only moment that matters: a reader who signs in and then reads is
-    // the ordinary case, and a sync that only ran on mount would lose all of it.
+  test('frames read after the first sync are not sent to the account either @core', async ({
+    page,
+  }) => {
+    // A frame turn schedules a cycle, and that cycle used to be how the account heard about
+    // the frame. A signed-in reveal tells it now — the reveal IS the write (ADR-0068) — and the
+    // cycle only pulls. Here the reveals go to the real API as the anonymous reader they are,
+    // because this deployment has no identity service and the account is a stub; what is
+    // asserted is the browser's half, that the cycles after the frames were read send nothing.
+    // `twoCyclesFromNow` starts them with a visibility change, which replaces the debounced
+    // cycle a frame turn scheduled — the same `cycle()`, reached from its other edge.
     const remote = account(page, []);
     await remote.install();
 
@@ -343,13 +362,10 @@ test.describe('progress follows the reader between machines', () => {
     await openThrough(page, UNIT);
     await walkTo(page, UNIT, 'en', AHEAD);
     await page.goto(`/read/${TRACK}/${UNIT}/en/${AHEAD}`);
+    await expect.poll(() => storedStep(page), { message: 'the frame was never recorded' }).toBe(AHEAD);
 
-    await expect
-      .poll(() => remote.wrote.map((entry) => entry.step), {
-        message: 'a frame read after the first sync never reached the account',
-        timeout: 15_000,
-      })
-      .toContain(AHEAD);
+    await twoCyclesFromNow(page, remote);
+    expect(remote.wrote, 'a frame read after the first sync was sent to the account').toEqual([]);
   });
 });
 
