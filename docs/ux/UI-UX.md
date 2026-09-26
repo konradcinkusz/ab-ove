@@ -784,7 +784,7 @@ holds either, the answer box goes on for one more row under *You wrote*** (#168)
 working (frame 3)*, *Show my sketch (frame 3)* or *Show my working and sketch (frame 3)*, in
 the reader's edition — and opening it shows the lines as they were written and the drawing
 again, on the background the reader chose, by the pad's own painter
-(`components/read/previous-work.tsx`). A frame whose predecessor holds neither offers nothing
+(`components/read/sketch-paint.ts`). A frame whose predecessor holds neither offers nothing
 new.
 
 What it shows is read from where this browser already keeps it, under the keys the panes wrote:
@@ -818,10 +818,13 @@ and the reader's line (#159), and the row is the next Tab stop after them. Its o
 line of text, so the row is a line tall rather than a button's height, and the box a press
 lands in is drawn round it a finger tall — reaching up over the answer box's own padding and
 never over the reader's words, so the focus ring stays on the label rather than crossing the
-*You wrote* line above it. `specs/reveal-working.spec.ts` holds both halves of the issue
-and both ways a frame arrives: on a turn, the frame's answer line is where the new frame's first
-animation frame put it; on a load, the server's page, read with no script, puts the row and the
-frame below it where the hydrated page does.
+*You wrote* line above it. On paper it prints as the panes do: open, under its label and joined
+to the box; shut — or held unseen — not at all, and the box then prints with its own gap and
+corner, as it does on a frame with no row at all. `specs/reveal-working.spec.ts` holds both
+halves of the issue, both ways a frame arrives, and the paper: on a turn, the frame's answer
+line is where the new frame's first animation frame put it; on a load, the server's page, read
+with no script, puts the row and the frame below it where the hydrated page does; printed, a
+row that prints as nothing leaves the box as a frame with no row prints it.
 
 #### The lab pane is not on this route any more
 

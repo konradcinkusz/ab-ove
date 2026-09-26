@@ -88,8 +88,9 @@
  * `previous-work.tsx` renders is the box's last row to the eye and its sibling in the document,
  * so the box hands it the gap — the row carries it below — and squares the corner the row goes
  * on from, while the row is shown. A row held unseen squares nothing: it is drawn as nothing.
- * `:has()` in the positive form: a browser without it leaves a seam between the box and the
- * row, never a broken page.
+ * On a screen, that is; paper prints the row only open, and `@media print` below takes back
+ * what a shut one was handed. `:has()` in the positive form: a browser without it leaves a seam
+ * between the box and the row, never a broken page.
  */
 .answer:has(+ [data-kept]) {
   margin-bottom: 0;
@@ -160,5 +161,21 @@
 @media print {
   .page {
     animation: none;
+  }
+
+  /*
+   * ON PAPER A SHUT ROW IS NOT THERE, SO THE BOX KEEPS WHAT IT HANDS ONE ON A SCREEN (#168).
+   * The reader's working prints only open, on the panes' terms (`worksheet.module.css`); shut —
+   * or held unseen, as the server holds it on a loaded frame — it prints as nothing, and a box
+   * that had handed it the gap printed the book's text flush against its own edge, squared off
+   * as well where the row had been shown. So `.answer`'s own margin and corner come back,
+   * restated because no keyword reaches back past the `:has()` rules above to them: a change to
+   * either is made here too, and `reveal-working.spec.ts`, which measures the printed box
+   * against a frame with no row at all, fails until it is. As specific as the corner rule above,
+   * and later, so it wins.
+   */
+  .answer:has(+ [data-kept]:not([open])) {
+    border-bottom-right-radius: var(--radius-control);
+    margin-bottom: 1.5rem;
   }
 }

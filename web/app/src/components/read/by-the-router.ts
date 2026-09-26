@@ -12,7 +12,7 @@ const onTheServer = (): boolean => false;
  * in the server's HTML and was hydrated — `false`. Kept for the component's life.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────────
- * THE TWO ARE DIFFERENT PAGES TO A READER, AND TWO ISLANDS ON THE FRAME HAVE TO KNOW WHICH.
+ * THE TWO ARE DIFFERENT PAGES TO A READER, AND ISLANDS ON THE FRAME HAVE TO KNOW WHICH.
  *
  * A frame the router brings — `Next`, `→`, `←` — is rendered in the browser, where
  * `localStorage` can be read before the first paint. A frame the browser loaded — a deep link,

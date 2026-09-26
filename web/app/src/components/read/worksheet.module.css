@@ -309,9 +309,10 @@
 }
 
 /*
- * `You wrote`'s label, set in `--ink-soft` rather than the faintest ink: this sits on
- * `--accent-soft`, where the faint grey is the 4.07:1 the answer box's own label was moved off
- * (`frame-view.module.css`).
+ * `You wrote`'s label's face and size, in the ink of the box's own label (`Answer to frame 2`,
+ * `frame-view.module.css`), `--ink-soft`: a caption heads a block, as that label does, where
+ * `You wrote`'s begins a line. The choice is not contrast's — `--ink-faint` holds 4.5:1 on
+ * `--accent-soft` too (`lib/theme/tokens.test.ts`).
  */
 .previousCaption {
   color: var(--ink-soft);
@@ -373,7 +374,9 @@
    * which hides every button on paper), and printed until `reading.spec.ts` looked. A CLOSED
    * pane goes whole: its content is hidden with it, so all that reached the paper was
    * `Draw it` in an outline. An open pane prints — its label heads the working under it —
-   * and so does the reveal's row of the frame before's working (#168), on the same terms.
+   * and so does the reveal's row of the frame before's working (#168), on the same terms; the
+   * answer box takes back the gap and the corner it hands a row that does not print
+   * (`frame-view.module.css`).
    */
   .runButton,
   .sketchButton,

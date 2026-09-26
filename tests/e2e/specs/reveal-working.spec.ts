@@ -22,17 +22,24 @@ import { reveal } from './support/reveal.ts';
  *   - its absence, as the issue's other half asks: a frame whose predecessor holds neither
  *     offers nothing, whether the router brought it or the server rendered it;
  *   - that it arrives without moving the frame, both ways a frame arrives — which is the one
- *     design choice here, and `previous-work.tsx` is where it is argued.
+ *     design choice here, and `previous-work.tsx` is where it is argued;
+ *   - that on paper it prints only open, and that a row which prints as nothing leaves the
+ *     answer box printing as it does with no row at all.
  * ──────────────────────────────────────────────────────────────────────────────────────────
  *
  * FRAMES 1 AND 2 OF F01, CHECKED RATHER THAN ASSUMED. The first program is open to every reader
  * and frame 1 needs no walk, so the reveal between them is the reader's own click and nothing
- * here seeds the gate. If the book stops asking on frame 1, this says so at load.
+ * here seeds the gate. If the book stops asking on frame 1, or on frame 2 — whose answer line an
+ * arrival is measured by, and a line that is not there reads as `NaN` on both sides of a
+ * comparison `toBe` passes — this says so at load.
  */
 const UNIT = 'F01';
 const steps = unitNamed(UNIT).steps;
-if (!steps.find((step) => step.n === 1)?.cue || !steps.find((step) => step.n === 2)?.answer) {
-  throw new Error(`${UNIT}'s frame 1 no longer asks, or frame 2 no longer answers it, so this proves nothing`);
+const frame2 = steps.find((step) => step.n === 2);
+if (!steps.find((step) => step.n === 1)?.cue || !frame2?.answer || !frame2.cue) {
+  throw new Error(
+    `${UNIT}'s frame 1 no longer asks, or frame 2 no longer answers it or asks in its turn, so this proves nothing`,
+  );
 }
 
 const at = (language: string, n: number): string => `/read/${track}/${UNIT}/${language}/${n}`;
@@ -155,6 +162,33 @@ const placesOf = (page: Page): Promise<{ offer: number; offerHeight: number; ans
       answerLine: top(document.getElementById('answer-line')),
     };
   });
+
+/**
+ * On paper, what prints under an element: how far below its foot the next thing that prints
+ * begins, what that thing is, and the element's bottom-right corner — the one the answer box
+ * gives up to the row under it. Read under print emulation and handed back to the screen, so
+ * every step between two readings is taken on the page a reader works on.
+ */
+async function printedUnder(page: Page, selector: string): Promise<{ gap: number; next: string; corner: string }> {
+  await page.emulateMedia({ media: 'print' });
+  try {
+    return await page.evaluate((selector) => {
+      const element = document.querySelector(selector);
+      if (!element) throw new Error(`nothing matches ${selector}, so nothing was measured`);
+      // What prints next is the next sibling with a box on paper; a row that does not print has none.
+      let next = element.nextElementSibling;
+      while (next && getComputedStyle(next).display === 'none') next = next.nextElementSibling;
+      if (!next) throw new Error(`nothing prints under ${selector}, so there is no gap to measure`);
+      return {
+        gap: Math.round(next.getBoundingClientRect().top - element.getBoundingClientRect().bottom),
+        next: next.localName,
+        corner: getComputedStyle(element).borderBottomRightRadius,
+      };
+    }, selector);
+  } finally {
+    await page.emulateMedia({ media: 'screen' });
+  }
+}
 
 test.describe('the reveal shows the reader’s working', () => {
   test('pad lines and a sketch on frame 1 are offered on frame 2, and opening shows both @core', async ({
@@ -329,6 +363,72 @@ test.describe('the reveal shows the reader’s working', () => {
     } finally {
       await withoutScript.close();
     }
+  });
+
+  test('on paper the offer prints only open, and a shut one leaves the box as it prints alone @core', async ({
+    page,
+  }) => {
+    /*
+      ────────────────────────────────────────────────────────────────────────────────────
+      THE ROW PRINTS ON THE PANES' TERMS, AND THE BOX HAS TO KNOW WHETHER IT DOES.
+
+      Open, it prints as the working under its label; shut, it prints as nothing
+      (`worksheet.module.css`). On a screen the box hands the row its gap, and its corner once
+      the row is shown — and a box that went on handing them over on paper printed the book's
+      text flush against its own edge, squared off too where the row had been shown: on a
+      loaded frame whose row the server held, and on any frame whose offer was left shut.
+
+      So the measure is the page as it printed before the row existed — a frame turned to with
+      nothing behind it, which renders no row at all — and every row that prints as nothing
+      prints the box as that one does. Nothing is written on the line: `You wrote`'s row is
+      inside the box, and this is about what is under it.
+      ────────────────────────────────────────────────────────────────────────────────────
+    */
+    await page.goto(at('en', 1));
+    await islandsBound(page);
+    await reveal(page).click();
+    await expect(page).toHaveURL(new RegExp(`${at('en', 2)}$`));
+    await expect(offerOn(page), 'frame 1 holds nothing, yet frame 2 was turned to with a row').toHaveCount(0);
+    const alone = await printedUnder(page, '#frame-answer');
+    expect(alone.next, 'what prints under the answer box is not the frame’s text').toBe('div');
+    expect(alone.gap, 'even with no row at all, the answer box prints flush against the text').toBeGreaterThan(0);
+    expect(alone.corner, 'even with no row at all, the answer box prints its corner square').not.toBe('0px');
+
+    // Loaded, the server held the row unseen; then shut, with the working behind it. Both
+    // print as nothing, and both are read before either is judged, so a failure shows each.
+    await page.reload();
+    await islandsBound(page);
+    await expect(offerOn(page)).toHaveAttribute('data-kept', 'none');
+    const heldUnseen = await printedUnder(page, '#frame-answer');
+
+    await page.goto(at('en', 1));
+    await islandsBound(page);
+    await workItOut(page);
+    await reveal(page).click();
+    await expect(page).toHaveURL(new RegExp(`${at('en', 2)}$`));
+    const offer = offerOn(page);
+    await expect(offer).toHaveAttribute('data-kept', 'working');
+    const shut = await printedUnder(page, '#frame-answer');
+
+    expect(
+      { heldUnseen, shut },
+      'a row that prints as nothing took the answer box’s gap or its corner on paper',
+    ).toEqual({ heldUnseen: alone, shut: alone });
+
+    // Open, it prints: joined to the box, which squares its corner for it, and carrying the
+    // box's gap under it to the frame's text.
+    await offer.locator('summary').click();
+    await expect(offer, 'the offer did not open').toHaveAttribute('open', '');
+    expect(await printedUnder(page, '#frame-answer'), 'an open offer did not print joined to the box').toEqual({
+      gap: 0,
+      next: 'details',
+      corner: '0px',
+    });
+    const under = await printedUnder(page, 'details[data-kept]');
+    expect(
+      { gap: under.gap, next: under.next },
+      'the open offer did not carry the box’s gap down to the text',
+    ).toEqual({ gap: alone.gap, next: alone.next });
   });
 
   test('in Polish the offer says what it holds in Polish @core', async ({ page }) => {

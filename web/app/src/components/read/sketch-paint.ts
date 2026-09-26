@@ -1,7 +1,7 @@
 import { SKETCH_HEIGHT, SKETCH_WIDTH, type Background, type Stroke } from '@/lib/sheet/strokes';
 
 /**
- * Putting a sketch on a canvas, for the two canvases that show one: the pad a reader draws on
+ * Putting a sketch on a canvas, for every canvas that shows one: the pad a reader draws on
  * (`sketch.tsx`), and the next frame's reveal, which shows the drawing again beside the book's
  * answer (`previous-work.tsx`, issue #168).
  *
