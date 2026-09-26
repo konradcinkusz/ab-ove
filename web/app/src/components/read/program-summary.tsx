@@ -1,10 +1,10 @@
 import Link from 'next/link';
 
 import { say } from '@ab-ovo/web-kit';
+import type { ReturnIndex, ReturnRoute, TrackContent, UnitSummary } from '@ab-ovo/web-kit/wire';
 
 import { ConsentControl } from '@/components/consent/consent-control';
 import { neighboursOf } from '@/lib/content/neighbours';
-import type { ReturnIndex, ReturnRoute, TrackContent, UnitSummary } from '@/lib/content/wire';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
 import { labFor } from '@/lib/lab/protocol';
@@ -150,7 +150,7 @@ export function ProgramSummary({
                 The last program in the track. `Programs` rather than a disabled `Next
                 program`: a control that names a destination and does not go there is the dead
                 control this project refuses, and the index IS where a reader who has finished
-                the last program goes. Not prefetched, as no link to the index is (ADR-0067,
+                the last program goes. Not prefetched, as no link to the index is (ADR-0069,
                 `index-href.ts`).
               */
               <Link className={foot.reveal} href="/" prefetch={false}>

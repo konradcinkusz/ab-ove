@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { Masthead } from '@/components/masthead/masthead';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { indexHref } from '@/lib/index-href';
 
@@ -34,7 +35,7 @@ import { indexHref } from '@/lib/index-href';
 export const dynamic = 'force-dynamic';
 
 /**
- * The tab, in the page's edition: since ADR-0067 the document's language is the page's, and a
+ * The tab, in the page's edition: since ADR-0069 the document's language is the page's, and a
  * title left as the site's English one would be read out in the page's voice.
  */
 export async function generateMetadata({
@@ -57,21 +58,14 @@ export default async function AccountDeletedPage({
   const chrome = chromeFor(typeof requested === 'string' ? requested : '');
   const strings = chrome.deleteAccount;
   // The programs, in the edition this page is in, so leaving it does not undo the choice — and
-  // not prefetched, since the index titles its tab in it (ADR-0067, `index-href.ts`).
+  // not prefetched, since the index titles its tab in it (ADR-0069, `index-href.ts`).
   const programs = indexHref({ edition: chrome.language });
 
   return (
     <main className="shell" lang={chrome.language}>
-      <SkipLink language={chrome.language} />
-      <header className="masthead">
-        {/* The way home, as on the account's other pages (issue #166). */}
-        <p className="wordmark">
-          <Link href={programs} prefetch={false}>
-            ab<span>-</span>ovo
-          </Link>
-        </p>
-        <h1 className="lede" id={SKIP_TARGET_ID}>{strings.doneTitle}</h1>
-      </header>
+      {/* The one masthead and its way home, as on the account's other pages (#169, #166). */}
+      <Masthead home={programs} language={chrome.language} />
+      <h1 className="lede" id={SKIP_TARGET_ID}>{strings.doneTitle}</h1>
 
       <section className="section">
         <p>{strings.done}</p>

@@ -11,9 +11,12 @@ Amended on 2026-09-26 by
 [ADR-0068](0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)
 (#176): the browser sends the account no place. What the web app puts on the account comes from
 `AbOvo.Api`'s own writes — a signed-in reveal, and the adoption of the places read without an
-account when a session begins — and the API applies this rule there. `web/mcp` still raises the
-account through `PUT` until #171, which is the deviation register's row in
-[`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md#deviation-register). Where this record
+account when a session begins — and the API applies this rule there. `web/mcp` raised the
+account through `PUT` until #171, which was the deviation register's row in
+[`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md#deviation-register), discharged on
+2026-09-26: since then `PUT` raises no step, and `web/mcp` advances as the reading surface does
+([ADR-0066](0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)'s
+dated note). Where this record
 says the browser pushes, and where the amendment below names `settle`, that is what the browser
 did until then. The forget reaches the anonymous cursor this browser reads under as well, because
 adoption would copy it back into the account (ADR-0068 §5). The rule, the tie, the pointer and
@@ -59,6 +62,13 @@ not depend on every client agreeing to behave: a browser that is behind is told 
 and adopts it, and a client that had the rule wrong could not move a record backwards
 anyway. The browser's copy of the rule exists to decide what to *send* and what to *tell the
 reader*, not to be the only place it is enforced.
+
+> Since 2026-09-26 (#171) `PUT` moves no record at all: a step past the stored one is refused,
+> because only an answer raises a place (`POST …/advance`, ADR-0060). It still answers a step at
+> or below the stored one with what it holds. The maximum is applied where two copies meet, when
+> the account adopts the places read without it
+> ([ADR-0068](0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)),
+> and `ProgressAdoptionTests` asserts it there; `ProgressEndpointTests` asserts the narrowing.
 
 ### A tie on the frame adopts the account's edition
 

@@ -124,14 +124,17 @@ export function tagFor(track: string): string | undefined {
  * A CALLER THAT KNOWS WHERE `web/` IS SAYS SO, AND THEN NOTHING IS GUESSED.
  *
  * The guesses are for the one consumer that cannot know: `@ab-ovo/app`, for the
- * `import.meta.url` reason above. `@ab-ovo/mcp` CAN — Node runs its source directly, so its
- * own `import.meta.url` is its real place on disk — and it NEEDS to, because an MCP host
+ * `import.meta.url` reason above. `@ab-ovo/mcp` could — Node runs its source directly, so its
+ * own `import.meta.url` is its real place on disk — and it needed to, because an MCP host
  * starts the server from a working directory of the host's choosing; from `/`, every guess
  * below missed and the server said it had no book while the book sat in the checkout (#136).
  * So `webDir` replaces the guesses rather than joining them: a guess could still find a
  * DIFFERENT checkout's bundle under whatever directory the host happened to pick, and
  * serve it under this checkout's pin. The override still comes first either way.
- * `@ab-ovo/app` passes no `webDir`, so its candidates are exactly what they were.
+ * `@ab-ovo/app` passes no `webDir`, so its candidates are exactly what they were. Since #171
+ * the MCP server reads no bundle at all — it is a client of the content API — so no caller
+ * passes one today; the parameter stays for a caller that knows where it is, and
+ * `bundle.test.ts` holds what it does.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 function candidateBundlePaths(destination: string, webDir: string | undefined): readonly string[] {
@@ -263,10 +266,10 @@ export function bundleFor(track: string, webDir?: string): Bundle | undefined {
 /**
  * The bundle in one file, read and validated the first time that file is asked for.
  *
- * Keyed by the REAL path, because two callers can reach one file by two spellings — in
- * `@ab-ovo/mcp`'s unit tier, `have-bundle.ts`'s `HAVE_REAL_BUNDLE` guesses
- * `web/mcp/../content/…` at import, the live source then names `web/content/…` — and a 3 MB
- * book parsed twice in one process is a cost with nothing bought by it.
+ * Keyed by the REAL path, because two callers can reach one file by two spellings — a
+ * working-directory guess such as `web/app/../content/…`, and a caller that names `web/` and
+ * spells it `web/content/…` — and a 3 MB book parsed twice in one process is a cost with
+ * nothing bought by it.
  */
 function parsedAt(path: string, pin: ContentPin): Bundle {
   const real = realpathSync(path);
@@ -307,8 +310,16 @@ export function unitIn(bundle: Bundle, unitId: string): Unit | undefined {
  * reading of that is the open door: a program the book does not list is not a program a
  * reader can be sent back from.
  * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ANY LIST OF PROGRAMS IN THE MANIFEST'S ORDER, NOT ONLY A BUNDLE'S. The MCP server holds no
+ * bundle (#171): it asks the same question of the content API's listing of a track
+ * (`TrackContent.programs`, `wire.ts`), which is the manifest's order too, and one copy of
+ * the adjacency is still what keeps the surfaces agreeing.
  */
-export function unitBefore(bundle: Bundle, unitId: string): Unit | undefined {
+export function unitBefore<U extends { readonly id: string }>(
+  bundle: { readonly units: readonly U[] },
+  unitId: string,
+): U | undefined {
   const index = bundle.units.findIndex((unit) => unit.id === unitId);
   return index > 0 ? bundle.units[index - 1] : undefined;
 }
@@ -404,15 +415,25 @@ export function sectionSpans(unit: Unit): readonly SectionSpan[] {
   }));
 }
 
+/**
+ * What `groupsOf` reads of a program: its id, and its part when it names one — a bundle's
+ * `Unit`, or a program of the content API's listing of a track (`ProgramSummary`, whose
+ * absent part is `null` on the wire where a bundle leaves the field out).
+ */
+export interface GroupedUnit {
+  readonly id: string;
+  readonly part?: Part | null;
+}
+
 /** A run of programs the index lists under one heading. */
-export interface ProgramGroup {
+export interface ProgramGroup<U extends GroupedUnit = Unit> {
   /** Stable, for a React key and nothing else: `part:<id>`, `prefix:<letters>`, or `''`. */
   readonly key: string;
   /** The book's own part, when every program of the track names one. Its titles are the heading. */
   readonly part: Part | undefined;
   /** Otherwise the letters the ids open with — `F`, `P` — which a caller may know a name for. */
   readonly prefix: string | undefined;
-  readonly units: readonly Unit[];
+  readonly units: readonly U[];
 }
 
 /**
@@ -438,22 +459,25 @@ export interface ProgramGroup {
  * without being described — the NAME for `F` is the caller's, because it is a word in a
  * language and this library has none.
  * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * The MCP server groups the content API's listing of a track with it (#171), having no
+ * bundle to group; `GroupedUnit` is the little of a program either list has to carry.
  */
-export function groupsOf(bundle: Bundle): readonly ProgramGroup[] {
+export function groupsOf<U extends GroupedUnit>(bundle: { readonly units: readonly U[] }): readonly ProgramGroup<U>[] {
   const units = bundle.units;
-  const byPart = units.length > 0 && units.every((unit) => unit.part !== undefined);
+  const byPart = units.length > 0 && units.every((unit) => unit.part != null);
 
-  const groups: ProgramGroup[] = [];
+  const groups: ProgramGroup<U>[] = [];
   for (const unit of units) {
     const prefix = /^[A-Za-z]+/.exec(unit.id)?.[0] ?? '';
     const key = byPart ? `part:${unit.part!.id}` : `prefix:${prefix}`;
     const last = groups.at(-1);
     if (last?.key === key) {
-      (last.units as Unit[]).push(unit);
+      (last.units as U[]).push(unit);
     } else {
       groups.push({
         key,
-        part: byPart ? unit.part : undefined,
+        part: byPart ? (unit.part ?? undefined) : undefined,
         prefix: byPart || prefix === '' ? undefined : prefix,
         units: [unit],
       });

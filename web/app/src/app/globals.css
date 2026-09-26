@@ -173,35 +173,32 @@ kbd {
   font-size: 0.86em;
 }
 
+/*
+ * The page every screen outside the reading surface and the index's own two is set on: `/about`,
+ * the sign-in pages, the account's, the 404, the error page and the legal documents.
+ *
+ * THE INDEX'S FRAME, SO THE MASTHEAD IS IN ONE PLACE (#169). The width was already the index's;
+ * the padding was a larger one that grew with the window — at 1280 px, 64 px above the wordmark
+ * where the index had 32, and twice the index's inset — so the wordmark stepped down and in as a
+ * reader went from the programs to `/about` and back. It is the index's and `/courses`' now, and
+ * `components/masthead/masthead.tsx` is the header all of them render.
+ */
 .shell {
   max-width: 62rem;
   margin: 0 auto;
-  padding: clamp(2rem, 5vw, 4.5rem) clamp(1.15rem, 4vw, 2.5rem) 5rem;
+  padding: 2rem 1.25rem 5rem;
 }
 
-.masthead {
-  border-bottom: 1px solid var(--rule);
-  padding-bottom: 1.75rem;
-  margin-bottom: 2.75rem;
-}
-
-.wordmark {
-  font-family: var(--font-mono);
-  font-size: 1.05rem;
-  letter-spacing: 0.04em;
-  color: var(--ink);
-  margin: 0 0 0.35rem;
-}
-
-.wordmark span {
-  color: var(--ink-faint);
-}
-
+/*
+ * The page's heading, under the masthead rather than inside it: the masthead is the row every
+ * page shares (#169), and the heading is where each page's own content — and its skip link's
+ * target — begins.
+ */
 .lede {
   font-size: clamp(1.45rem, 3.4vw, 2rem);
   line-height: 1.25;
   font-weight: 400;
-  margin: 0.75rem 0 0;
+  margin: 0;
   max-width: 28ch;
   letter-spacing: -0.012em;
 }
@@ -213,67 +210,25 @@ kbd {
 }
 
 /*
- * The way in.
+ * The way in — and on the 404 and the error page, the ways on.
  *
- * It is a link and not a button, because it goes somewhere — and it is above the anti-goal
- * rather than at the foot of the argument, because a reader who came to work the book should
- * not have to read the argument to find the book.
+ * A ROW TO HOLD THEM AND NOTHING ELSE (#169). It drew its own button as well: a 3 px corner,
+ * about 34 px of height and a brightness on hover, beside reading screens whose buttons had
+ * moved on (ADR-0063). The buttons are the shared set's now, applied by the pages — `primary`
+ * for the way on (*Open the programs*, *Try again*), `secondary` for the way beside it (the
+ * error page's way back, the missing page's *Sign in*), which is how the reading screens pair
+ * `Next` and `Previous`. Each is still a link where it goes somewhere and a button only where
+ * it acts — *Try again* — whatever it is drawn as. And this is where they sit: above the
+ * anti-goal on `/about` rather than at the foot of the argument, because a reader who came to
+ * work the book should not have to read the argument to find the book.
+ * `lib/theme/tokens.test.ts` refuses a button painted here again.
  */
 .enter {
-  align-items: baseline;
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1.25rem;
+  gap: 0.75rem 1rem;
   margin: 1.6rem 0 0;
-}
-
-/*
- * The filled way in, and — on `error.tsx` — the filled way to try again. One selector for
- * the link and the button so the two cannot drift apart in size or colour; the button's
- * own reset sits below because a `<button>` arrives with a border and a font of its own.
- */
-.enter a,
-.enter button {
-  background: var(--accent);
-  border-radius: 3px;
-  color: var(--paper-raised);
-  display: inline-block;
-  font-size: 0.97rem;
-  padding: 0.55rem 1.2rem;
-  text-decoration: none;
-}
-
-.enter button {
-  border: 0;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.enter a:hover,
-.enter button:hover {
-  filter: brightness(1.1);
-}
-
-/*
- * A visible ring on focus — frame-view.module.css records why a brightness was not one. The
- * outline is transparent, not `none`: forced colours paint it where they drop the box-shadow
- * (`components/read/controls.module.css`, issue #148).
- */
-.enter a:focus-visible,
-.enter button:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--paper),
-    0 0 0 4px var(--accent);
-  outline: 2px solid transparent;
-}
-
-/* The second control beside a filled one reads as a link, so the page has one primary. */
-.enter a.quiet {
-  background: none;
-  color: var(--accent);
-  padding: 0;
-  text-decoration: underline;
-  text-underline-offset: 0.18em;
 }
 
 .antigoal {

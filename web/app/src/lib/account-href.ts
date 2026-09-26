@@ -1,6 +1,8 @@
 /**
- * The addresses of the three pages a reader signs in or registers on — `/login`, its second
- * step and `/register` — carrying where the reader was going and the edition they read in.
+ * The addresses of the pages a reader signs in or registers on — `/login`, its second step and
+ * `/register` — and of the four that bring an account back (issue #170): asking for a link to
+ * choose a new password, choosing it, asking for the confirmation link again, and confirming.
+ * Each carries where the reader was going and the edition they read in.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * ONE BUILDER, BECAUSE EVERY WAY INTO THESE PAGES HAS TO CARRY THE SAME TWO THINGS (issue #166).
@@ -21,12 +23,16 @@
  *
  * A link to any of these pages is `prefetch={false}`, and so is one to the account's pages:
  * they title their tab in the reader's edition, and a prefetched head outlives a change of
- * edition (ADR-0067, `index-href.ts` has the measurement).
+ * edition (ADR-0069, `index-href.ts` has the measurement).
  */
 export interface AccountPageQuery {
   /** A problem code the page looks up in a closed set (`sign-in-problem.ts`) — never a sentence. */
   readonly error?: string | undefined;
-  /** A notice code, which only `/register` has (`registration-problem.ts`). */
+  /**
+   * A notice code, looked up in a closed set as `error` is: `/register`'s
+   * (`registration-problem.ts`), `/login`'s and the recovery pages' (`sign-in-problem.ts`,
+   * `recovery-problem.ts`, issue #170).
+   */
   readonly notice?: string | undefined;
   /** Where signing in returns the reader: a same-origin path `safeRedirectTarget` has passed. */
   readonly redirect?: string | null | undefined;
@@ -57,4 +63,36 @@ export function secondFactorHref(query: AccountPageQuery = {}): string {
 /** `/register`. */
 export function registerHref(query: AccountPageQuery = {}): string {
   return accountHref('/register', query);
+}
+
+/*
+ * THE WAY BACK INTO AN ACCOUNT (issue #170), under `/login` because each is a step of signing
+ * in, as the second factor is — and because the address a failed attempt left in its minute-
+ * long cookie is sent only to `/login` and the pages under it, so the two pages that ask for a
+ * link can fill their field with it (`lib/server/sign-in-address.ts`).
+ *
+ * None of them ever carries the account's address or a token. The two pages a link in an email
+ * lands on — `/reset-password` and `/verify-email`, whose paths authservice fixes — move both
+ * into this origin's server and answer with one of the clean addresses below
+ * (`lib/server/emailed-link-cookie.ts`).
+ */
+
+/** `/login/forgot` — asking for a link to choose a new password. */
+export function forgotPasswordHref(query: AccountPageQuery = {}): string {
+  return accountHref('/login/forgot', query);
+}
+
+/** `/login/reset` — choosing it, once the link in the email has been opened. */
+export function resetPasswordHref(query: AccountPageQuery = {}): string {
+  return accountHref('/login/reset', query);
+}
+
+/** `/login/resend` — asking for the link that confirms an address, again. */
+export function resendConfirmationHref(query: AccountPageQuery = {}): string {
+  return accountHref('/login/resend', query);
+}
+
+/** `/login/confirm` — confirming the address, once that link has been opened. */
+export function confirmAddressHref(query: AccountPageQuery = {}): string {
+  return accountHref('/login/confirm', query);
 }

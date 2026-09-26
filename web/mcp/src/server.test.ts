@@ -1,37 +1,58 @@
 /**
- * The protocol, driven end to end over an in-memory transport.
+ * The protocol, driven end to end over an in-memory transport, against a stub of the API.
  *
- * Everything worth asserting about the gate and the tool surface is asserted at the layer
- * with the logic (P13) in reveal.test.ts and tools.test.ts. What only this file can say is
- * that the wiring in server.ts exposes it: the annotations and the output schemas reach a
- * client's `listTools`, every result a client receives matches its tool's output schema,
- * the prompt is listed and renders, and a completion answers with ids. A capability
- * declared wrongly throws at registration, which is the one failure this catches before a
- * host does.
+ * Everything worth asserting about the tool surface is asserted at the layer with the logic
+ * (P13) in tools.test.ts, api.test.ts and identity.test.ts, and the gate is the API's. What
+ * only this file can say is that the wiring in server.ts exposes it: the annotations and the
+ * output schemas reach a client's `listTools`, every result a client receives matches its
+ * tool's output schema, the prompt is listed and renders, and a completion answers with ids.
+ * A capability declared wrongly throws at registration, which is the one failure this catches
+ * before a host does. And two things about the whole package: that the environment a host
+ * starts it with is read as README.md says, and that none of its modules reads a book.
  */
 import { strict as assert } from 'node:assert';
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ElicitRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv';
+import type { Bundle, Unit } from '@ab-ovo/web-kit';
 
-import { MemoryCursorStore } from './cursor.ts';
-import { fixtureBundles } from './content.ts';
-import type { Bundle, BundleSource, Unit } from './content.ts';
-import { createServer } from './server.ts';
+import { AbOvoApi } from './api.ts';
+import { apiFromEnvironment, createServer } from './server.ts';
+import { handle } from './tools.ts';
+import { NO_HOME, withNoHome } from './testing/no-home.ts';
+import { STUB_API, StubApi, fixtureBundle } from './testing/stub-api.ts';
+
+const READER_ID = '2a7e5c1b-3d4f-4a6b-9c8d-7e6f5a4b3c2d';
+
+/** A server over a stub API serving `books`, whose reader's id could not be kept — so the in-memory note is said. */
+function serverOver(books: readonly Bundle[]) {
+  const stub = new StubApi(books);
+  const api = new AbOvoApi({
+    baseUrl: STUB_API,
+    reader: { kind: 'anonymous', hold: () => ({ id: READER_ID, kept: false }) },
+    tracks: books.map((book) => book.track.id),
+    fetch: stub.fetch,
+  });
+  return createServer(api);
+}
 
 /**
- * A client of a server whose place is kept in memory. `declines` makes it a host that can
- * ask the reader directly, and a reader who declines whatever is asked.
+ * A client of such a server. `declines` makes it a host that can ask the reader directly,
+ * and a reader who declines whatever is asked.
  */
 async function connected(
-  bundles: BundleSource = fixtureBundles(),
+  books: readonly Bundle[] = [fixtureBundle()],
   options: { readonly declines?: boolean } = {},
 ): Promise<Client> {
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
-  const server = createServer(new MemoryCursorStore(), { bundles, placeIsEphemeral: true });
+  const server = serverOver(books);
   await server.connect(serverSide);
   const client = options.declines
     ? new Client({ name: 'server.test', version: '0.0.0' }, { capabilities: { elicitation: { form: {} } } })
@@ -45,12 +66,11 @@ async function connected(
  * Three programs from the fixture's one, so the reading order has a program to refuse and
  * the hand-off has a next program to name. `tools.test.ts`'s `sequence()`, one file over.
  */
-function threePrograms(): BundleSource {
-  const bundle = fixtureBundles().all()[0]!;
+function threePrograms(): Bundle[] {
+  const bundle = fixtureBundle();
   const bare: { -readonly [K in keyof Unit]?: Unit[K] } = { ...bundle.units[0]! };
   delete bare.part;
-  const three: Bundle = { ...bundle, units: ['F01', 'F02', 'F03'].map((id) => ({ ...(bare as Unit), id })) };
-  return { for: (track) => (track === three.track.id ? three : undefined), all: () => [three] };
+  return [{ ...bundle, units: ['F01', 'F02', 'F03'].map((id) => ({ ...(bare as Unit), id })) }];
 }
 
 // `callTool` may answer the legacy `toolResult` shape as well as `content`; only the latter is read.
@@ -189,7 +209,7 @@ test('a host that can elicit is asked for the edition with the track\'s editions
   // #144, through the real protocol: the SDK validates the reader's answer against the
   // schema this server sends, so a schema a host could not render would fail here first.
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
-  const server = createServer(new MemoryCursorStore(), { bundles: fixtureBundles() });
+  const server = serverOver([fixtureBundle()]);
   await server.connect(serverSide);
   const client = new Client({ name: 'server.test', version: '0.0.0' }, { capabilities: { elicitation: { form: {} } } });
 
@@ -221,7 +241,7 @@ test('a host that can elicit shows the reader the answer form in the edition of 
   // #167: a host shows the form to the reader with no model in between to translate it, so a
   // Polish step is confirmed in Polish.
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
-  const server = createServer(new MemoryCursorStore(), { bundles: fixtureBundles() });
+  const server = serverOver([fixtureBundle()]);
   await server.connect(serverSide);
   const client = new Client({ name: 'server.test', version: '0.0.0' }, { capabilities: { elicitation: { form: {} } } });
 
@@ -289,4 +309,140 @@ test('the program argument completes to the ids, from what was typed', async () 
   const languages = await client.complete({ ref: { type: 'ref/prompt', name: 'read' }, argument: { name: 'language', value: '' } });
   assert.deepEqual(languages.completion.values, ['en', 'pl']);
   await client.close();
+});
+
+test('with no AB_OVO_API_URL, stderr says so once and every call says what to set', async () => {
+  const said: string[] = [];
+  const api = apiFromEnvironment({}, { warn: (line) => said.push(line) });
+  assert.equal(said.length, 1);
+  assert.match(said[0]!, /AB_OVO_API_URL is not set/);
+  const listed = await handle('list_programs', {}, { api });
+  assert.ok(listed.isError);
+  assert.match(listed.text, /AB_OVO_API_URL is not set/);
+});
+
+test('AB_OVO_READER_TOKEN, when set, is the reader: a bearer, and no id is minted or sent', async () => {
+  const stub = new StubApi([fixtureBundle()]);
+  const state = mkdtempSync(join(tmpdir(), 'ab-ovo-state-'));
+  const api = apiFromEnvironment(
+    { AB_OVO_API_URL: STUB_API, AB_OVO_READER_TOKEN: 'the-token', XDG_STATE_HOME: state },
+    { fetch: stub.fetch, warn: () => assert.fail('nothing is wrong, so nothing is said') },
+  );
+  await handle('list_programs', {}, { api });
+  assert.ok(stub.calls.length > 0);
+  for (const call of stub.calls) {
+    assert.equal(call.authorization, 'Bearer the-token');
+    assert.equal(call.readerId, undefined);
+  }
+  assert.deepEqual(readdirSync(state), [], 'a reader with a token had an id minted for them');
+});
+
+test('without a token the reader is anonymous, under an id kept in the state directory for this origin', async () => {
+  const stub = new StubApi([fixtureBundle()]);
+  const state = mkdtempSync(join(tmpdir(), 'ab-ovo-state-'));
+  const env = { AB_OVO_API_URL: `${STUB_API}/`, XDG_STATE_HOME: state };
+  const api = apiFromEnvironment(env, { fetch: stub.fetch, warn: () => assert.fail('the id was kept, so nothing is said') });
+  assert.deepEqual(readdirSync(state), [], 'an id was minted before anything needed one');
+
+  await handle('open_program', { unit: 'P01', language: 'en' }, { api });
+  const file = readFileSync(join(state, 'ab-ovo', 'reader-ids'), 'utf8');
+  const id = stub.calls[0]!.readerId!;
+  assert.ok(file.includes(`${STUB_API} ${id}`), 'the id sent is not the one kept for this origin');
+  assert.equal(api.placeIsEphemeral, false);
+
+  // A second process started the same way reads as the same reader.
+  const again = apiFromEnvironment(env, { fetch: stub.fetch });
+  await again.places();
+  assert.equal(stub.calls.at(-1)!.readerId, id);
+});
+
+test('an id that cannot be kept is held in memory, and stderr says where and why without saying the id', async () => {
+  const stub = new StubApi([fixtureBundle()]);
+  const root = mkdtempSync(join(tmpdir(), 'ab-ovo-state-'));
+  writeFileSync(join(root, 'in-the-way'), '');
+  const said: string[] = [];
+  const api = apiFromEnvironment(
+    { AB_OVO_API_URL: STUB_API, XDG_STATE_HOME: join(root, 'in-the-way') },
+    { fetch: stub.fetch, warn: (line) => said.push(line) },
+  );
+  const listed = await handle('list_programs', {}, { api, session: { ephemeralNoteSaid: false } });
+  assert.ok(!listed.isError, listed.text);
+  assert.equal(listed.structured?.placeIsEphemeral, true);
+  assert.match(listed.text, /kept for this session only/);
+
+  assert.equal(said.length, 1);
+  assert.match(said[0]!, /could not be kept in .*in-the-way.*reader-ids/);
+  const id = stub.calls[0]!.readerId!;
+  assert.ok(!said[0]!.includes(id), 'stderr said the id');
+});
+
+test('with no home directory, XDG_STATE_HOME still keeps the id, and without it the id is held in memory and said', async () => {
+  /*
+    #171's review. `os.homedir()` throws when HOME is unset and the user has no entry in the
+    system's user database. The state directory was worked out through it before XDG_STATE_HOME
+    was looked at, and the throw escaped from inside the request's `try`. Every call then said
+    the API could not be reached, no request reached it, and the P8 fallback never ran.
+  */
+  await withNoHome(async () => {
+    // XDG_STATE_HOME names the directory, so the home directory is never asked for.
+    const keeping = new StubApi([fixtureBundle()]);
+    const state = mkdtempSync(join(tmpdir(), 'ab-ovo-state-'));
+    const kept = apiFromEnvironment(
+      { AB_OVO_API_URL: STUB_API, XDG_STATE_HOME: state },
+      { fetch: keeping.fetch, warn: () => assert.fail('the id was kept, so nothing is said') },
+    );
+    const listed = await handle('list_programs', {}, { api: kept, session: { ephemeralNoteSaid: false } });
+    assert.ok(!listed.isError, listed.text);
+    assert.equal(listed.structured?.placeIsEphemeral, undefined);
+    const id = keeping.calls[0]?.readerId;
+    assert.ok(id, 'no request reached the API');
+    assert.ok(readFileSync(join(state, 'ab-ovo', 'reader-ids'), 'utf8').includes(`${STUB_API} ${id}`));
+
+    // Nothing names it: the id is held in memory, the reader is told, and stderr says why.
+    const holding = new StubApi([fixtureBundle()]);
+    const said: string[] = [];
+    const held = apiFromEnvironment({ AB_OVO_API_URL: STUB_API }, { fetch: holding.fetch, warn: (line) => said.push(line) });
+    const session = { ephemeralNoteSaid: false };
+    const first = await handle('list_programs', {}, { api: held, session });
+    assert.ok(!first.isError, first.text);
+    assert.equal(first.structured?.placeIsEphemeral, true);
+    assert.match(first.text, /kept for this session only/);
+    const opened = await handle('open_program', { unit: 'P01', language: 'en' }, { api: held, session });
+    assert.ok(!opened.isError, opened.text);
+    assert.equal(opened.structured?.placeIsEphemeral, true);
+
+    const ids = [...new Set(holding.calls.map((call) => call.readerId))];
+    assert.equal(ids.length, 1, 'the id held in memory was not held for the life of the process');
+    assert.ok(ids[0], 'no request reached the API');
+    assert.equal(said.length, 1, 'stderr said it more than once, or not at all');
+    assert.match(said[0]!, /no state directory was found/);
+    assert.ok(said[0]!.includes(NO_HOME), 'stderr did not say why');
+    assert.match(said[0]!, /XDG_STATE_HOME/, 'stderr did not say what fixes it');
+    assert.ok(!said[0]!.includes(ids[0]), 'stderr said the id');
+  });
+});
+
+test('the server keeps no book and no gate: none of its modules reads a bundle', () => {
+  /*
+    #171's first done-when, held from the source's side. The book is the API's and so is the
+    gate (ADR-0066 §1): a module of this package that loaded a bundle, or took the fixture, would
+    be the server keeping a copy of the content again, quietly. The stub API under `testing/`
+    serves the fixture to the unit tier and is nothing the server imports.
+  */
+  const source = fileURLToPath(new URL('.', import.meta.url));
+  const modules = readdirSync(source).filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'));
+  assert.ok(modules.includes('tools.ts'), 'this looked in the wrong directory');
+  let statements = 0;
+  for (const name of modules) {
+    const text = readFileSync(join(source, name), 'utf8');
+    for (const [statement] of text.matchAll(/^import\b[\s\S]*?from\s+'[^']+';/gm)) {
+      statements += 1;
+      assert.doesNotMatch(
+        statement,
+        /\b(bundleFor|allBundles|validateBundle)\b|\/fixtures\/|have-bundle|\/testing\//,
+        `${name} reads a book: ${statement}`,
+      );
+    }
+  }
+  assert.ok(statements > 0, 'no import was read, so nothing was checked');
 });

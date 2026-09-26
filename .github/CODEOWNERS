@@ -52,6 +52,10 @@
 # One entry added to them removes authentication from a page, and nothing fails a build.
 /web/app/src/lib/page-gate.ts                            @konradcinkusz
 /web/app/src/app/api/auth/                               @konradcinkusz
+# The emailed links' landings (#170): each sets a cookie holding a credential, and each is a
+# carve-out in lib/page-gate.ts, so it runs before any session is asked for.
+/web/app/src/app/reset-password/                         @konradcinkusz
+/web/app/src/app/verify-email/                           @konradcinkusz
 /web/app/src/app/api/proxy/                              @konradcinkusz
 
 # ── 2. Secrets handling ──────────────────────────────────────────────────────────────

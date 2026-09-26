@@ -35,6 +35,9 @@ any account.
 | `/read/<track>/<unit>/<lang>/summary` | the program's Summary and *Can you?*, the consent invitation, and the way into the next one — once the reader has reached the last frame | the API, and no account |
 | `/lab/<id>` | the book's exercises under Pyodide — reached from P01's summary only, and on its way out ([ADR-0040](../adr/0040-the-python-lab-leaves-the-reader-loop.md)) | nothing |
 | `/login` | a form that posts credentials to this app's own BFF | an identity service |
+| `/login/forgot`, `/login/resend` | asking for a link by email — to choose a new password, or to confirm the address again — and the notice saying what happens next | an identity service that can send email (`AB_OVO_AUTH_SENDS_EMAIL`) |
+| `/reset-password`, `/verify-email` | where the links in those emails land: routes, not pages, that move the address and the token into this origin's server and redirect to the two below | an identity service |
+| `/login/reset`, `/login/confirm` | choosing the new password, or confirming the address, with the link held server-side | an identity service, and a link opened on this device |
 | `/register` | the same form one step earlier: an address, a password, and the consent the identity service records | an identity service, and the two documents the consent names |
 | `/legal/<document>/<version>` | the Terms of Use or the Privacy Policy at one version, as this deployment publishes it: what the consent links to | a document host (`AB_OVO_LEGAL_URL`) |
 | `/account` | the reader's overview: who is signed in, the place the account holds in each program, the export of their worksheets, sign-out, and the way to deletion | an account, and the API for the places |
@@ -138,10 +141,13 @@ question.
 
 Its parts, in order:
 
-1. **The masthead** — the wordmark, the theme switch, and a navigation named *Site* that holds
+1. **The masthead** — the one every page outside the reading screens renders (#169,
+   `components/masthead/masthead.tsx`), which is this page's row made the product's — the
+   wordmark, the theme switch, and a navigation named *Site* that holds
    a link to `/courses`, a link to `/about` and the account control, in that order: one row at
    1280 px with every control a reader can have, and nothing in it that destroys anything
-   (#165, `specs/landing.spec.ts`). The navigation was named *Programs*, the heading's word,
+   (#165, `specs/landing.spec.ts`). The wordmark is the page's name here and not a link: this
+   page is where it leads everywhere else. The navigation was named *Programs*, the heading's word,
    and held the theme switch and both destructive controls as well. *Courses* is offered
    whatever the deployment pins, because a page listing one course states what ab-ovo carries
    where a switch with one position would be a control that cannot move (ADR-0048). The theme
@@ -348,18 +354,22 @@ choosing a course says nothing about which edition the reader reads, and the swi
 page it opens still lights nothing until they choose. The chosen edition rides along on
 every link out, so opening this page and leaving it cannot undo the choice that got here.
 
-Its own chrome is the wordmark, *← Programs* and *About ab-ovo*. The way back is the whole
-index rather than a course: a reader who opened this page has not said which course they
-want.
+Its masthead is the index's (#169): the wordmark home, the language control, and a navigation
+named *Site* holding *← Programs* and *About ab-ovo* — named for what it holds, as the index's
+is since #165, where it was named *Courses*, after this page's own heading. The way back is
+the whole index rather than a course: a reader who opened this page has not said which course
+they want.
 
 ### `/about` — the product's argument
 
 `web/app/src/app/about/page.tsx`. What `/` was, moved whole and in the same order, because
 the order IS the argument:
 
-1. **Masthead** — the wordmark, one line saying what the product is (*a book you work, not a
-   book you read*), and a standfirst naming the book, the 47 programs, both languages, and
-   what a Stroud frame does.
+1. **The masthead and the heading** — the masthead every page has, its wordmark the way back
+   to the programs (#169); under it, one line saying what the product is (*a book you work,
+   not a book you read*), a standfirst naming the book, the 47 programs, both languages, and
+   what a Stroud frame does, and the filled way in to the programs. The heading and the
+   standfirst were inside a masthead of this page's own, with the rule under them.
 2. **The anti-goal**, immediately after, before any feature: *the instrument measures the
    book, never the reader.* It is above the fold of the argument because the pressure to
    misuse a number arrives from somebody who did not read to the end
@@ -391,7 +401,7 @@ index's and `/courses`' links carry `?lang=`, the page falls back to the edition
 remembers, and the words — the anti-goal included — are `chrome.ts`'s. The integration panel is
 the exception and says so with `lang="en"`: what it reports is the API's own English words. The
 page reads a cookie to do this, so it is rendered per request where it used to be prerendered
-([ADR-0067](../adr/0067-the-documents-language-follows-the-edition-and-the-page-sets-it.md)
+([ADR-0069](../adr/0069-the-documents-language-follows-the-edition-and-the-page-sets-it.md)
 records what changed in the build).
 
 ### `/login` — a form, and no token in the document
@@ -464,6 +474,39 @@ The gate never reads `PRIVATE_PAGES`, so a private page added without an entry w
 described to its own reader as missing. `page-gate.test.ts` walks `app/` and holds the list
 equal to the pages the gate closes; `specs/unknown-address.spec.ts` is the reader's view of
 both halves — the redirect still happens, and the page says what is true.
+
+**It is where a way back into an account starts, and where it ends** (700 in
+[the order](#the-order)). *Forgot your password?* under the form leads to `/login/forgot`. Inside
+the panel of a refused password, a link leads to `/login/resend`, to send the confirmation
+email again — under that problem because it is what the pinned authservice answers an
+unconfirmed account's right password with, not the `unverified` problem its source describes
+([the probe](../architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md), §5). Both pages are one
+form: an address in, a link out, and a notice saying what happens next. The notice begins with
+"if", because authservice answers every address alike, and a page that said more would be the
+account-existence oracle upstream refuses to be.
+
+The links in the emails are authservice's. They land on `/reset-password` and `/verify-email`,
+paths it fixes, with the reader's address and a token in the query. Those two are routes rather
+than pages: they move both into a short-lived HttpOnly cookie only this origin's server reads
+(`lib/server/emailed-link-cookie.ts`) and redirect to `/login/reset` or `/login/confirm`, so no
+document is ever rendered at an address that holds a token, and no address the app shows from
+there on carries the account — `specs/account-recovery.spec.ts` collects every one and holds it
+to that. The cookie is `SameSite=Lax`, lifted from the `Strict` that is the rule for a cookie
+the server sets: the link is followed from another site, the reader's mail, and a `Strict`
+cookie set on the way in is not sent on the redirect that follows. The spec follows the link
+from a page on another host, and fails with `Strict`.
+[ADR-0018's amendment](../adr/0018-password-sign-in-happens-server-side.md) records the
+decision and what it costs. The token is spent only by the form's POST — the new password,
+whose rules are the field's description as on `/register`, or one button to confirm — never by
+the GET a mail program makes when it scans a link. Each way ends back here, with a notice from
+a closed set.
+
+**The forms that ask for an email are offered only where one can come.** Without a mail
+provider authservice answers "a link has been sent" and sends nothing, and no endpoint of its
+says which it is (§4 of the probe), so the deployment says it: `AB_OVO_AUTH_SENDS_EMAIL`. Where
+it is unset — every deployment described in `flyio/` today — the pages say this site sends no
+email, and `/login` does not offer the confirmation again. A link that has already arrived works
+either way.
 
 ### `/register` — where an account comes from
 
@@ -957,6 +1000,14 @@ The stub is fetched from this origin, the checks are read out of the book's own 
 at boot rather than copied here, and a failure names the frames to re-read and never the
 solution.
 
+**Its header is the one masthead** (#169): `ab-ovo / lab / p01`, the wordmark leading home and
+`lab` to the lab's own index, where the page had a crumb that began at the lab and no way home
+at all. Its bar is the shared set's: *Check* filled, *Reset to the stub* outlined, and *Stop*
+outlined in `--degraded`, the tone of a control that ends something; the editor is the shared
+field, and the transcript beside it takes the same corner. The page is wider than the others'
+frame because it is a workbench of two columns of code, and only as wide as that: the masthead
+stands as far from the top as on every other page.
+
 **It is no longer beside a frame.** `/read/<track>/<unit>/<lang>/lab/<id>/<step>` is deleted
 and so is the check offer that led to it; #53, #54 and #55 are discharged with it. This page
 is reached from one line on P01's summary screen and from nowhere else on the reading
@@ -1027,6 +1078,11 @@ rather than by one failing check. *early, not wrong* appears beside the number o
 whose interval is not disjoint from the row below it. Session-gated, and there is no per-reader
 view on it — by architectural absence rather than by policy.
 
+Its header is the one masthead (#169) — `ab-ovo / instrument / P01` on a unit's ranking — and
+its column is the measure inside the index's frame, which every page off the reading screens
+shares except the lab's wider workbench. The whole page used to be the measure wide and
+centred, with its header in the middle of a desktop's screen.
+
 **Two instruments reach it now, and the screen says which produced each cell.** A lab check
 asks whether the reader's code satisfied an assertion; a worksheet answer asks whether the
 number they wrote before the reveal is the number the book prints. They coincide on eleven
@@ -1074,7 +1130,9 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   icon's paths to the brand mark's.
 - **Two semantic colours only** — `--live` green and `--degraded` amber — both with a soft
   companion for backgrounds. They mean *this integration is present* and *this one is
-  absent*, and they are not decoration to be borrowed for anything else.
+  absent*, and they are not decoration to be borrowed for anything else. `--degraded` is also
+  the tone of a button that ends something — the deletion screen's, the lab's *Stop* — which is
+  the same meaning turned into a warning: what follows the press is not a healthy state (#169).
 - **`--accent` is a single blue**, used for links and emphasis.
 - **Dark mode as a full token swap, and a three-position switch over it.** Not an
   afterthought: a reader working through a program at night is the normal case, and so is
@@ -1087,17 +1145,60 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   panel with the key map, opened from the top bar and drawn over the page, so opening it
   pushes nothing a reader is looking at
   ([ADR-0063](../adr/0063-a-frame-is-one-screen-and-its-pager-is-pinned.md)).
-- **One family of buttons, in the UI face** (`components/read/controls.module.css`). Filled
-  for the way on — the pager's `Next`, the contents page's start — outlined for the way back
-  and the panes, and plain for the position, the settings and a panel's close. Every one of
-  them is set in sans rather than inheriting the book's serif, which is half of why the old
-  chrome read as a line of faint prose.
+- **One family of buttons, on every page, in the UI face** (`components/read/controls.module.css`).
+  Filled for the way on — the pager's `Next`, the contents page's start, the index's card, a
+  form's submit, *Open the programs*, the error page's *Try again*; outlined for the way back,
+  the panes and every other place to go — `Previous`, the consent's *No thanks*, the account's
+  *Sign out*, the error page's way back, the lab's *Reset*; and plain for the position, the
+  settings and a panel's close. A button that ends something is the same shape in `--degraded`:
+  filled on the deletion screen, outlined for the lab's *Stop*. Every one of them is set in sans
+  rather than inheriting the book's serif, which is half of why the old chrome read as a line of
+  faint prose. Until #169 the pages off the reading screens drew a second family by hand — a
+  3 px corner, about 34 px tall, a brightness under the pointer — and the lab a third; they
+  compose from the shared set now, and so do the form fields, which take the buttons' corner and
+  height, and the skip link, which is the outlined button once it shows. The link-weight controls
+  are not buttons and stay words: the theme switch, the account's *Sign in*, the quiet controls in
+  *Your data in this browser*. `lib/theme/tokens.test.ts` fails any stylesheet outside the
+  reading screens' own modules that paints a control's fill, edge or corner itself — a control
+  being what its stylesheet says is one: a focus rule, a pointer cursor, or a `composes:` of the
+  shared set's buttons or field, which is all most of them say. It lifts that only for what its
+  `DRAWN_ON_PURPOSE` names, each with its reason: the index's edition choice (#163), two
+  addresses drawn as joined boxes with the set's tokens and its ring. `specs/buttons.spec.ts`
+  measures the buttons it names in a browser against the shape of the index's *Start*: the
+  index's, `/about`'s, the 404s', the error page's, the lab's, the sign-in and registration
+  forms', and the account's.
+- **A hover is a change of fill or edge, never a brightness** (#169). A filled button's fill
+  leans toward the ink under the pointer and further while it is pressed (`color-mix()`, which
+  darkens the light scheme's blue and lightens the dark scheme's, so the label's contrast only
+  grows); an outlined one's edge and label take the accent. `filter: brightness()` was the
+  hover of both families, the reading screens' `Next` included, and it is a change of a few
+  percent the eye barely separates from the button at rest. The same test fails a filter on any
+  control in any state and any stylesheet, the shared set's own included, and computes the
+  label's contrast on each filled button's fill under the pointer and the press, in both schemes.
+- **One page header off the reading screens** (`components/masthead/masthead.tsx`, #169). The
+  index's row, on every page: the wordmark, which is the way home in the page's edition —
+  except on the index, which is home — then, on the lab's and the author's pages, the trail to
+  where the page sits (`ab-ovo / lab / p01`), and at the row's far end whatever the page puts
+  there: the index's theme switch, the courses page's language control, and a navigation named
+  *Site*. A rule under it, and the page's heading after it, outside it, which is where the skip
+  link it renders first lands. There were three before: the index's and `/courses`' row; a block on the
+  pages of `.shell`, the wordmark an underlined link over the page's heading, 32 px lower and
+  20 px further in at 1280 px; and an `ab-ovo / …` crumb on `/lab` and `/instrument`, which on
+  a lab's own page had no way home. The pages of `.shell` share the index's frame now, so the
+  wordmark does not move as a reader goes between them; the lab is wider, because it is a
+  workbench, and the instrument sets its column at the measure inside that frame.
+  `components/masthead/masthead.test.ts` fails a page outside the reading screens that renders a
+  `<main>` without the masthead or writes a header, a wordmark or a crumb of its own, and
+  `specs/masthead.spec.ts` holds what a reader sees: one header, first in `<main>`, leading home
+  in the page's edition, in one place.
 - **Focus is a ring, never a brightness.** Every control on the reading screens wears a
   two-colour ring on `:focus-visible` (paper, then the accent), because a ten-percent
   brightness on a blue block is invisible to the keyboard reader it was for (WCAG 2.4.7).
   Since #148 that includes the answer line and the pad, which showed focus only by their
   dashed rule turning blue, the pad's *Do the sums*, and the consent's two answers, which
-  brightened. The ring's other half is a transparent outline: Windows' forced colours paint no
+  brightened; since #169 every button off the reading screens wears the same ring as part of
+  the shared set, the deletion screen's included, whose ring was in its own amber. The ring's
+  other half is a transparent outline: Windows' forced colours paint no
   box-shadow, and they do paint an outline, in the system's colour — so a focus rule that sets
   `outline: none` leaves a reader in high contrast with no focus at all.
   `lib/theme/tokens.test.ts` fails any stylesheet's focus rule that takes the outline away or
@@ -1110,7 +1211,8 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   `--rule`, a hairline the eye reads as decoration. A floor says nothing about a control that
   never uses the token, so the same file also reads every stylesheet in the app and fails when
   a control draws its edge in `--rule` — a control being anything its own stylesheet gives a
-  `:focus-visible` rule or a pointer cursor. The sign-in and account fields, the consent's
+  `:focus-visible` rule or a pointer cursor, or that composes a control, as a field or a button
+  composed from the shared set does (#169). The sign-in and account fields, the consent's
   *No thanks* and the sketch's canvas were still `--rule` until #146, and axe, which has no
   rule for 1.4.11, had passed all of them.
 - **A line a reader writes on is `--ink-faint`; a rule that is only a rule is `--rule`.**
@@ -1121,19 +1223,24 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   other button and the map's rows take 44 px (`--control-min`) directly, and the top bar's
   links are 44 px by their line and padding. The language control, a pair of words on a line,
   is padded to about 44 px and given the space back with a matching negative margin, so its
-  hit area grew and nothing moved. Off the reading screens the same pattern holds the index's
-  and the courses page's top-row links and the account's quiet buttons beside them, the
-  consent line's toggle and the sync notice's *Got it* (#147), *Go to frame N* (#157), the
-  shut notice's way on (#163), and the index's controls that #165 moved or added: the reader's
-  own in *Your data in this browser* (*Export my worksheets*, *Clear my worksheets*, *Forget
-  where I am*), the link under the card and the quiet line's *Sign in to carry it to another
-  device*. The index's filled *Continue* needs no such pattern: since #165 it is the card's
-  button, 44 px as drawn, where it used to be a padded link round a painted span. The index's
-  language control is not an exception but a different shape: it is drawn as outlined boxes
-  44 px tall, so its target is the box a reader sees (#163).
+  hit area grew and nothing moved. Off the reading screens the same pattern holds the
+  masthead's links — its navigation's (#147), and since #169 the wordmark and the trail's
+  steps, 44 px by their line and padding as the reading bar's mark is — and the account's quiet
+  buttons beside them, the consent line's toggle and the sync notice's *Got it* (#147), *Go to
+  frame N* (#157), the shut notice's way on (#163), and the index's controls that #165 moved or
+  added: the reader's own in *Your data in this browser* (*Export my worksheets*, *Clear my
+  worksheets*, *Forget where I am*), the link under the card and the quiet line's *Sign in to
+  carry it to another device*. The buttons off the reading screens need no such pattern: since
+  #169 they are the shared set's, 44 px as drawn — the index's card, the consent's answers, the
+  sign-in and deletion forms' buttons and fields, *Sign out*, the lab's bar and the 404's and
+  the error page's ways on, which were about 34. The index's language control is not an
+  exception but a different shape: it is drawn as outlined boxes 44 px tall, so its target is
+  the box a reader sees (#163).
   `specs/reading.spec.ts` and `specs/pager.spec.ts` measure the box on the reading screens, and
   `specs/targets.spec.ts` off them, at 390 px and 1280 px — where it also checks that a press
-  on a control's words lands on that control, since grown boxes overlap wherever a row wraps.
+  on a control's words lands on that control, since grown boxes overlap wherever a row wraps;
+  `specs/masthead.spec.ts` measures the wordmark and the lab's trail, and `specs/buttons.spec.ts`
+  the buttons it names.
 - **A move made from a frame's pager or its program map, or from *Not there yet*, says when
   it is under way** (#160). A frame is rendered on the server, per request, from live calls to
   the API, so each move to one is a round trip, and the page being left stays on screen until
@@ -1199,15 +1306,17 @@ it. They are listed here rather than left to be rediscovered per screen.
    renders `components/skip/skip-link.tsx` first, in the edition its own controls speak, and
    puts `SKIP_TARGET_ID` where its content begins: the `<main>` of a reading screen, whose
    bar is outside it, and the `<h1>` of every other page, whose masthead is inside its
-   `<main>`. The link is hidden until it has focus and is then drawn over the page, so it
-   moves nothing. The root layout cannot render it, because it does not know the edition;
-   a new page that forgets it is a page a keyboard reader tabs through the masthead of
-   (`specs/skip-link.spec.ts`).
+   `<main>`. A reading screen renders it through `ReadingScreen`, and every other page through
+   its masthead (`components/masthead/masthead.tsx`, #169), so a page that has the one cannot
+   forget the other — the legal documents' pages had none until they had the masthead. The
+   link is hidden until it has focus and is then drawn over the page, so it moves nothing. The
+   root layout cannot render it, because it does not know the edition; a new page that forgets
+   it is a page a keyboard reader tabs through the masthead of (`specs/skip-link.spec.ts`).
 10. **A page says which language it is in, wherever a reader or a screen reader meets it.**
     Its `<main lang>`, from the first byte; its tab, titled in that language, because the tab
     is what the router's announcer reads out after every client navigation; and the
     document's own `lang`, which the skip link sets in the browser and puts back when the page
-    goes ([ADR-0067](../adr/0067-the-documents-language-follows-the-edition-and-the-page-sets-it.md)).
+    goes ([ADR-0069](../adr/0069-the-documents-language-follows-the-edition-and-the-page-sets-it.md)).
     The root layout says English and cannot do better: it sees neither the query nor the
     path, and is not rendered again when a reader changes edition without a page load. **And
     nothing prefetches a page whose tab follows the edition through the query or the
@@ -1466,25 +1575,30 @@ copy of everything above.
 **A second TRANSPORT is not a second client** — and the difference is what
 [`docs/architecture/MCP-SERVER-SKETCH.md`](../architecture/MCP-SERVER-SKETCH.md) is
 allowed by. `web/mcp` serves the book to a reader working inside an MCP host, and it is not
-the refusal above because it copies nothing: the content library is imported rather than
-reimplemented, the reader's place is the same `ReaderProgress` row reached over the same
-HTTP API, and it owns no store. What a second copy would mean here is a second loader, a
-second cursor or a second answer to where a reader is — and the sketch's §6 exit condition
-exists so that the first of those cannot arrive quietly.
+the refusal above because it copies nothing. Since #171 it is a client of the HTTP API the
+reading surface reads: the book, the reveal gate and the reader's place are all
+`AbOvo.Api`'s, and what it shares with the surface beyond them — the reading order and the
+wire shapes — it imports from `@ab-ovo/web-kit` rather than reimplementing. It owns no store
+and no loader. What a second copy would mean here is a second loader, a second gate, a second
+cursor or a second answer to where a reader is, and none of them has a module left to live in.
 
-The reveal is the thing that does NOT travel for free. On the reading surface it is a form
+The reveal is the thing that did NOT travel for free. On the reading surface it is a form
 that raises the reader's cursor and turns the page, and there is no page to turn on a
-transport with no navigation, so the property is rebuilt there rather than inherited: a step
-is served only at or below the reader's furthest, which makes an unreached answer
-unselectable rather than filtered. What does travel: where the reader is (every step opens
+transport with no navigation, so the MCP server first rebuilt the property rather than
+inheriting it: a step is served only at or below the reader's furthest, which makes an
+unreached answer unselectable rather than filtered. That rule moved into `AbOvo.Api`
+([ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)),
+and both transports ask the same copy of it; how a turn is asked for stays each transport's
+own — a form there, `submit_answer` here. What does travel: where the reader is (every step opens
 with program, title, section and position — what the surface's top bar and pager say), the
 summary screen (the last
 step hands off to the program's Summary, *Can you?* and the next program), and the book's
 runs in the program list — each from the same function the surface uses, so the two never
 divide or name the book two ways. The note above about the
 service worker applies here with the sign turned over — the acceptance suite asserts over
-the DOM, and a transport that has none needs its own gate or the suite stays green while the
-property does not reach it.
+the DOM, and a transport that has none needs assertions of its own (the MCP unit tier's leak
+walks, over what the API sends it) or the suite stays green while the property does not reach
+it.
 
 **A service worker that caches or prefetches `/read/` navigations.** Refused, and the reason is
 not performance. The reveal *is* a navigation to step `n + 1`, and `prefetch={false}` on that

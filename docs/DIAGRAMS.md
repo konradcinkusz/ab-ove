@@ -161,7 +161,8 @@ flowchart TD
 
   subgraph node["web/ - one pnpm workspace"]
     APP["@ab-ovo/app<br/>Next.js pages and the BFF"]
-    MCP["web/mcp<br/>a server over the same bundle"]
+    MCP["web/mcp<br/>an MCP server,<br/>a client of AbOvo.Api"]
+    KIT["@ab-ovo/web-kit<br/>the book's schema, the wire shapes,<br/>the reading order"]
   end
 
   subgraph accept["tests/e2e"]
@@ -174,13 +175,14 @@ flowchart TD
   API --> KERNEL
   TESTS --> API
   TESTS --> KERNEL
-  APP --> MCP
+  APP --> KIT
+  MCP --> KIT
   E2E -.->|"over HTTP, no source reference"| APP
 
   KERNEL -.->|"refused by ArchitectureTests"| API
   KERNEL -.->|"refused by ArchitectureTests"| CONTRACTS
 
-  linkStyle 8,9 stroke:#b45309,stroke-dasharray: 4 4;
+  linkStyle 9,10 stroke:#b45309,stroke-dasharray: 4 4;
 ```
 
 ### A3. One origin — every request the browser is allowed to make
@@ -564,7 +566,8 @@ would lose reading they did. The browser sends the account no place: what the we
 it comes from the API's own writes — a reveal, and the places read without an account, adopted
 at sign-in — and a forget reaches the place under the cookie as well as the browser's and the
 account's ([ADR-0068](adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)).
-Until #171, `web/mcp` still raises the account through `PUT`, which is a row in the
+Since #171 `web/mcp` moves a place through the same writes of the API — an opening at the
+first step, and an advance — and `PUT` can no longer raise a step, which discharged a row of the
 [deviation register](architecture/00-ARCHITECTURE.md#deviation-register).
 
 ```mermaid
@@ -578,9 +581,10 @@ Until #171, `web/mcp` still raises the account through `PUT`, which is a row in 
 %% THE BROWSER SENDS THE ACCOUNT NO PLACE (ADR-0068). What the web app puts on the account
 %% comes from the API's own writes: a reveal moves the cursor the reader reads under, and
 %% signing in adopts the places read without an account. The browser's copy is a resume hint
-%% (ADR-0060). Until #171, web/mcp still raises the account through PUT, which is a row in the
-%% deviation register. A forget reaches the cookie's place as well as the browser's and the
-%% account's. An account buys one thing: the same place on a second machine.
+%% (ADR-0060). Since #171 web/mcp moves a place through the same writes, an opening at the
+%% first step and an advance, and PUT can no longer raise a step. A forget reaches the cookie's
+%% place as well as the browser's and the account's. An account buys one thing: the same place
+%% on a second machine.
 
 %% FURTHEST FRAME WINS (ADR-0019). Two machines that disagree are not a conflict to resolve
 %% with a timestamp: the reader has read up to the furthest of the two, and a reconciliation

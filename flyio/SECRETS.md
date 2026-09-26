@@ -58,6 +58,17 @@ consuming service's connection string. Re-running the init script is not an opti
 | -------------------------------------- | -------- | ---------- |
 | `ConnectionStrings__DefaultConnection`  | yes      | `authdb` only. Assembled by the workflow; never stored whole. |
 | `Jwt__PrivateKeyPem`                    | yes      | PKCS#8 RSA ≥ 2048. The one key that signs every token in the estate. |
+| `SendGrid__ApiKey`                      | no\*     | The mail provider's key: without it authservice sends no email. Not in the `dev` environment, and no workflow sets it yet. |
+
+\* Not required to start, and nothing in this estate sends email today. authservice without
+the key still answers that a reset or confirmation link "has been sent" and sends nothing, and
+it stops asking new accounts to confirm their address
+([the probe](../docs/architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md), §4). The day it
+arrives it is set by the workflow beside `Jwt__PrivateKeyPem`, in the same change that puts
+`SendGrid__FromEmail` in `authservice.fly.toml` and `AB_OVO_AUTH_SENDS_EMAIL = "true"` in
+`web.fly.toml` — the web app's only way to know an email can come, since the key is a secret no
+other file can see (#170). `FrontendBaseUrl`, the base of the links in those emails, is already
+configuration there.
 
 `Jwt__PrivateKeyPem` is the reason §9 says to check for critical secrets explicitly and
 exit non-zero: a service that boots with an **ephemeral** signing key looks perfectly

@@ -129,7 +129,7 @@ is the one that needs no JavaScript
 
 ### The landing page is the index
 
-![The landing page. A wordmark; a three-position theme switch reading System, Light and Dark; links to Courses and About ab-ovo, and a link to Sign in; then the Programs heading, with the language control at the end of its line — English and polski as two outlined boxes, English filled. Under the heading, a paragraph saying what a program and a frame are; then a card holding the first program's title, "Numbers, powers and roots", over a filled "Start with F01" button, and under the card a link reading "Your data in this browser, and whether your answers are counted". Then the course's title, and under it a line saying that programs open in order, that the Main sequence is built on the Foundation programs, and that one frame of a program opens the next. Then a grid of tiles — one per program, each with its id, the program that opens it, its title, and how many frames and sections it has. At the foot of the page, under the heading "Your data in this browser", a sentence saying that what is written on a frame stays in this browser and that the place in the book is kept there too; and last a card headed "Help fix the book?" with two buttons.](assets/screenshots/landing-english.png)
+![The landing page. A wordmark; a three-position theme switch reading System, Light and Dark; links to Courses and About ab-ovo, and a link to Sign in; then the Programs heading, with the language control at the end of its line — English and polski as two outlined boxes, English filled. Under the heading, a paragraph saying what a program and a frame are; then a card holding the first program's title, "Numbers, powers and roots", over a filled "Start with F01" button, and under the card a link reading "Your data in this browser, and whether your answers are counted". Then the course's title, and under it a line saying that programs open in order, that the Main sequence is built on the Foundation programs, and that one frame of a program opens the next. Then a grid of tiles — one per program, each with its id, the program that opens it, its title, and how many frames and sections it has. At the foot of the page, under the heading "Your data in this browser", a sentence saying that what is written on a frame stays in this browser and that the place in the book is kept there too; and last a card headed "Help fix the book?" with its two answers side by side, one size and one shape — "Yes, count my answers anonymously" filled and "No thanks" outlined.](assets/screenshots/landing-english.png)
 
 The first screen is the thing a reader came for, one navigation from a frame instead of two
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). It is a
@@ -154,6 +154,14 @@ picture, and `F01 · Continue at frame 12` in the same box once a place is store
 one press from the first screen, is the way to *Your data in this browser* at the foot, and to
 the question beside it. That is where the worksheets are exported or cleared and the place in
 the book forgotten — by controls that used to sit in the masthead, beside *Continue*.
+
+The row at the top is the masthead every page off the reading screens has, and the buttons on
+the page — the card's, the question's two answers — are the reading screens' own family
+(#169). The pictures of `/about`, sign-in and the lab below carry the same row, with the
+wordmark leading back here: in the same place on `/about` and sign-in, which are laid out at
+this page's width, and nearer the left edge on the lab, laid out wider because it is a workbench.
+`/about`'s *Open the programs* and the lab's bar are the same family of buttons; the sign-in
+picture, taken with no identity service, has no button to show.
 
 The last card on the page is the **consent invitation**, and it is last on purpose: a reader
 who came to read reaches the programs first and the question afterwards. It is an invitation
@@ -189,7 +197,7 @@ invented.
 
 ### The argument
 
-![The /about page: a masthead reading "a book you work, not a book you read", the anti-goal stated immediately after it, the four steps of the loop, what the product needs from the reader, where the work is, and a live integration panel at the foot.](assets/screenshots/about.png)
+![The /about page: the masthead — the ab-ovo wordmark over a rule, as on every page off the reading screens — then the heading "A book you work, not a book you read.", a standfirst naming the book, and a filled "Open the programs" button; the anti-goal stated immediately after, the four steps of the loop, what the product needs from the reader, which edition they read, the computer exercises, and at the foot a live integration panel listing what this deployment's API reports, each row marked live or degraded.](assets/screenshots/about.png)
 
 The order **is** the argument. The anti-goal — *the instrument measures the book, never the
 reader* — is above everything else on the page, because the pressure to misuse a number always
@@ -202,20 +210,20 @@ be read here, because every frame is a live call to the API.
 
 ### Sign-in
 
-![The /login page: a form for an email address and a password, posting to this app's own origin.](assets/screenshots/login.png)
+![The /login page on a deployment with no identity service: the masthead, then the heading "Signing in keeps your place across devices.", a standfirst saying that reading needs no account, and under "Sign in" the sentence "This site has no accounts, so there is nothing to sign in to."; at the foot, "Back to the reader".](assets/screenshots/login.png)
 
 The form posts **credentials** to `/api/auth/login`, which talks to the identity service
 server-side, so a token is never in the document at all
 ([ADR-0018](adr/0018-password-sign-in-happens-server-side.md)). There is no JavaScript on the
-happy path. Where no identity service is configured the page says so plainly rather than
-offering a button that cannot work.
+happy path. Where no identity service is configured — the deployment in the picture — the page
+says so plainly rather than offering a button that cannot work.
 
 An account buys exactly one thing: the same place in the book on a second machine. The reader
 loop is identical without one.
 
 ### The exercises
 
-![The /lab/p01 page: the book's Lab P1, its exercises listed with the checks each one carries, and a file to work in.](assets/screenshots/lab-p01.png)
+![The /lab/p01 page: the masthead reading "ab-ovo / lab / p01", the book's Lab P1 and the note that its code runs in this browser, a bar of three buttons — "Check" and "Stop" faded while Python loads, and an outlined "Reset to the stub" — then the exercise file to work in beside the pane the checks write to, and a section saying the checks are listed once Python has started.](assets/screenshots/lab-p01.png)
 
 The book's own computer exercises, running under Pyodide **in the reader's browser** — no
 account, no backend, no Python on any server, and no code leaving the machine

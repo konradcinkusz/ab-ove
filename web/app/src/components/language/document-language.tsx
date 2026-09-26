@@ -7,7 +7,7 @@ import { isLanguageTag } from '@/lib/language/store';
 
 /**
  * The document's own language — `<html lang>` — made the language of the page on screen
- * (ADR-0067). It renders nothing.
+ * (ADR-0069). It renders nothing.
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * SET IN THE BROWSER, BY THE PAGE, BECAUSE THE ROOT LAYOUT CANNOT KNOW AND WOULD NOT STAY RIGHT.
@@ -17,10 +17,10 @@ import { isLanguageTag } from '@/lib/language/store';
  * server-side `lang` would have needed the middleware to hand the layout the request, would
  * have cost every page its static rendering, and would STILL have been wrong the moment a
  * reader pressed the language control, which is a client navigation to the same layout.
- * ADR-0067 has the measurement. The page knows its language at every navigation, so the page
+ * ADR-0069 has the measurement. The page knows its language at every navigation, so the page
  * says it: `SkipLink` renders this, and every page a reader meets renders `SkipLink` once with
- * that language — except the legal documents' pages, which are English and render none, and
- * so keep the root layout's English here.
+ * that language — the legal documents' pages too, which render it in English through the one
+ * masthead (#169) where they used to render none.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * What it buys is the voice of the two things `<main lang>` could not reach, both of which

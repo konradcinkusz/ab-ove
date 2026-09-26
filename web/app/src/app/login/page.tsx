@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { Masthead } from '@/components/masthead/masthead';
+import controls from '@/components/read/controls.module.css';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import { registerHref, signInHref } from '@/lib/account-href';
 import { chromeFor, type Chrome } from '@/lib/i18n/chrome';
 import { indexHref } from '@/lib/index-href';
@@ -10,9 +12,11 @@ import { readerEdition } from '@/lib/server/reader-edition';
 import { rememberedAddress } from '@/lib/server/sign-in-address';
 import { destinationAt } from '@/lib/page-gate';
 import { safeRedirectTarget } from '@/lib/redirect-target';
-import { signInProblem } from '@/lib/sign-in-problem';
+import { signInNotice, signInProblem } from '@/lib/sign-in-problem';
 
 import styles from '../credentials-form.module.css';
+
+import { ForgotPasswordLink, ResendConfirmation } from './recovery-links.tsx';
 
 /**
  * The sign-in page.
@@ -64,6 +68,15 @@ import styles from '../credentials-form.module.css';
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
+ * A WAY BACK INTO AN ACCOUNT STARTS HERE, AND ENDS HERE (issue #170).
+ *
+ * *Forgot your password?* under the form, and the confirmation link again inside the panel of a
+ * problem an unconfirmed address meets — `recovery-links.tsx` says when each is offered. Each
+ * way ends back on this page with a NOTICE from a closed set (`?notice=`, `sign-in-problem.ts`):
+ * the password was changed, or the address confirmed, and the form under it is the next step.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
  * IT SAYS WHAT A READER NEEDS TO KNOW, AND THE REASONING STAYS HERE (issue #162).
  *
  * The heading read "Signing in is optional", which answers a question nobody on this page
@@ -91,7 +104,7 @@ import styles from '../credentials-form.module.css';
 export const dynamic = 'force-dynamic';
 
 /**
- * The tab, in the page's edition: since ADR-0067 the document's language is the page's, and it
+ * The tab, in the page's edition: since ADR-0069 the document's language is the page's, and it
  * is the title Next's route announcer reads out. An address no page answers is titled as one.
  */
 export async function generateMetadata({
@@ -153,6 +166,10 @@ export default async function LoginPage({
   // site's own chrome, on the screen where a password is being asked for.
   const problem = signInProblem(params['error']);
   const problemWords = problem ? chrome.signInProblems[problem.code] : null;
+  // Where a way back into an account ended (issue #170) — a closed set too, for the same reason,
+  // and only where there are accounts for a password to have changed on.
+  const notice = identityConfigured ? signInNotice(params['notice']) : null;
+  const noticeWords = notice ? chrome.signInNotices[notice] : null;
 
   /*
     WHETHER THE FORM IS WORTH OFFERING, which `SignInProblem.retryable` was written to
@@ -167,7 +184,7 @@ export default async function LoginPage({
 
   // Every way on carries where the reader was going and the edition they read in (#166), and
   // no link on this page prefetches: the pages they open title their tab in the edition, and a
-  // prefetched head outlives a change of it (ADR-0067, `index-href.ts`).
+  // prefetched head outlives a change of it (ADR-0069, `index-href.ts`).
   const startAgainHref = signInHref({ redirect: intended, edition });
   const createHref = registerHref({ redirect: intended, edition });
   const home = indexHref({ edition });
@@ -209,35 +226,47 @@ export default async function LoginPage({
 
   return (
     <main className="shell" lang={chrome.language}>
-      <SkipLink language={chrome.language} />
-      <header className="masthead">
-        {/*
-          The wordmark is the way home — to the programs, in this edition — as it is on
-          `/about` and the 404. On the account's pages it was text (issue #166).
-        */}
-        <p className="wordmark">
-          <Link href={home} prefetch={false}>
-            ab<span>-</span>ovo
-          </Link>
-        </p>
-        {/*
-          What signing in is for, and then that reading does not need it (issue #162). The
-          heading was "Signing in is optional", which is the second half on its own. It
-          states rather than invites, so it stays true on a site with no identity service,
-          where the section below says there is nothing to sign in to. "This browser
-          remembers" is the reader's view of ADR-0061's cookie: the place is on the server,
-          and this browser is what it is kept under.
-        */}
-        <h1 className="lede" id={SKIP_TARGET_ID}>
-          {strings.lede}
-        </h1>
-        <p className="standfirst">{strings.standfirst}</p>
-      </header>
+      {/*
+        The one masthead (#169), whose wordmark is the way home — to the programs, in this
+        edition — as it is on every page outside the reading screens.
+      */}
+      <Masthead home={home} language={chrome.language} />
+      {/*
+        What signing in is for, and then that reading does not need it (issue #162). The
+        heading was "Signing in is optional", which is the second half on its own. It states
+        rather than invites, so it stays true on a site with no identity service, where the
+        section below says there is nothing to sign in to. "This browser remembers" is the
+        reader's view of ADR-0061's cookie: the place is on the server, and this browser is what
+        it is kept under.
+      */}
+      <h1 className="lede" id={SKIP_TARGET_ID}>
+        {strings.lede}
+      </h1>
+      <p className="standfirst">{strings.standfirst}</p>
 
       {problemWords ? (
         <section className={styles.problem} aria-live="polite">
           <h2 className={styles.problemTitle}>{problemWords.title}</h2>
           <p className={styles.problemDetail}>{problemWords.detail}</p>
+          {/* The way back for an address never confirmed, where one would meet it (#170). */}
+          <ResendConfirmation
+            chrome={chrome}
+            edition={edition}
+            redirect={intended}
+            problem={problem}
+            identityConfigured={identityConfigured}
+          />
+        </section>
+      ) : null}
+
+      {/*
+        The end of a way back into an account (issue #170): `/register`'s notice panel, in the
+        accent rather than the warning colour, because something was done.
+      */}
+      {noticeWords ? (
+        <section className={styles.notice} aria-live="polite">
+          <h2 className={styles.noticeTitle}>{noticeWords.title}</h2>
+          <p className={styles.noticeDetail}>{noticeWords.detail}</p>
         </section>
       ) : null}
 
@@ -324,6 +353,8 @@ export default async function LoginPage({
                 {chrome.signIn}
               </button>
             </form>
+            {/* Issue #170: the way back from a forgotten password, beside the field it is about. */}
+            <ForgotPasswordLink chrome={chrome} edition={edition} redirect={intended} />
             {/*
               The way to GET an account, which this page invited the reader to have and for
               a long time did not say how to obtain. It carries the destination onward, so a
@@ -380,7 +411,9 @@ export default async function LoginPage({
  *
  * The way to sign in is a FRESH `/login`, with no destination: the one this address would
  * have carried is a page that does not exist. It keeps the edition, as every way out of these
- * pages does (issue #166), and it has the skip link and the wordmark home `LoginPage` has.
+ * pages does (issue #166), and it has the masthead `LoginPage` has — the skip link and the
+ * wordmark home. Its two ways on are the shared set's (#169): the programs filled, and signing
+ * in outlined beside it, where it was a link drawn as text.
  */
 function NoPageAt({
   address,
@@ -394,34 +427,29 @@ function NoPageAt({
   identityConfigured: boolean;
 }): React.JSX.Element {
   const strings = chrome.signInPage;
-  // No link here prefetches, for the page's own reason (`LoginPage`, ADR-0067).
+  // No link here prefetches, for the page's own reason (`LoginPage`, ADR-0069).
   const home = indexHref({ edition });
   return (
     <main className="shell" lang={chrome.language}>
-      <SkipLink language={chrome.language} />
-      <header className="masthead">
-        <p className="wordmark">
-          <Link href={home} prefetch={false}>
-            ab<span>-</span>ovo
+      <Masthead home={home} language={chrome.language} />
+      <h1 className="lede" id={SKIP_TARGET_ID}>
+        {chrome.notFound.title}
+      </h1>
+      <p className="standfirst">
+        {strings.noPage.before}
+        <code>{address}</code>
+        {strings.noPage.after}
+      </p>
+      <p className="enter">
+        <Link className={controls.primary} href={home} prefetch={false}>
+          {chrome.openPrograms}
+        </Link>
+        {identityConfigured ? (
+          <Link className={controls.secondary} href={signInHref({ edition })} prefetch={false}>
+            {chrome.signIn}
           </Link>
-        </p>
-        <h1 className="lede" id={SKIP_TARGET_ID}>
-          {chrome.notFound.title}
-        </h1>
-        <p className="standfirst">
-          {strings.noPage.before}
-          <code>{address}</code>
-          {strings.noPage.after}
-        </p>
-        <p className="enter">
-          <Link href={home} prefetch={false}>{chrome.openPrograms}</Link>
-          {identityConfigured ? (
-            <Link className="quiet" href={signInHref({ edition })} prefetch={false}>
-              {chrome.signIn}
-            </Link>
-          ) : null}
-        </p>
-      </header>
+        ) : null}
+      </p>
 
       <section className="section">
         <h2>{strings.whyHereTitle}</h2>

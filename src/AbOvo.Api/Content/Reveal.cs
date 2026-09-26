@@ -2,8 +2,9 @@ namespace AbOvo.Api.Content;
 
 /// <summary>
 /// THE GATE. Ported from <c>web/mcp/src/reveal.ts</c>, where it was already identity-agnostic
-/// and I/O-free — this is the arithmetic that file already had, now the one copy every
-/// client (the web app, a future MCP client) calls over HTTP instead of each holding its own.
+/// and I/O-free — this is the arithmetic that file had, now the one copy every client calls
+/// over HTTP instead of each holding its own: the web app, and the MCP server, whose own copy
+/// was deleted when it became a client of the content endpoints (ADR-0066 §1, issue #171).
 /// <para>
 /// ONE RULE: step <c>k</c> of a unit is served if and only if <c>k &lt;= </c> the reader's
 /// FURTHEST step, and the only thing that raises the furthest step is submitting an answer.

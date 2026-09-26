@@ -22,7 +22,7 @@ import { readerEdition } from '@/lib/server/reader-edition';
  * arrived at a wall with no wordmark and no way back.
  *
  * This page is in the same register as `/login` and `/about` — the global shell classes,
- * the wordmark leading home, one filled way back to the programs.
+ * the one masthead with its wordmark leading home (#169), one filled way back to the programs.
  *
  * WHERE IT IS MET. The middleware is private by default, so an unknown TOP-LEVEL path is
  * answered with the sign-in redirect before any 404 renders; this page is what a reader
@@ -59,7 +59,7 @@ import { readerEdition } from '@/lib/server/reader-edition';
  * one render in English before the edition they chose, on an address that names none.
  *
  * The TAB is titled on the server, from the cookie: metadata runs for this page alone, so it
- * costs `/_not-found` its prerender and nothing else (ADR-0067 records both measurements).
+ * costs `/_not-found` its prerender and nothing else (ADR-0069 records both measurements).
  * The reading routes title their own 404s the way this page's body picks its words: the
  * address's edition, else the remembered one (`readerEdition`).
  * ──────────────────────────────────────────────────────────────────────────────────────

@@ -131,7 +131,7 @@ wyboru, i jedyna, która nie potrzebuje JavaScriptu
 
 ### Strona startowa jest indeksem
 
-![Strona startowa. Znak słowny; trójpozycyjny przełącznik trybu z opcjami System, Light i Dark; odnośniki do Courses i About ab-ovo oraz odnośnik do Sign in; dalej nagłówek Programs z wyborem języka na końcu jego wiersza — English i polski jako dwa obramowane pola, English wypełnione. Pod nagłówkiem akapit mówiący, czym są program i ramka; dalej karta z tytułem pierwszego programu, "Numbers, powers and roots", nad wypełnionym przyciskiem "Start with F01", a pod kartą odnośnik "Your data in this browser, and whether your answers are counted". Dalej tytuł kursu, a pod nim wiersz mówiący, że programy otwierają się po kolei, że część główna opiera się na programach z Podstaw i że jedna ramka programu otwiera następny. Niżej siatka kafelków — po jednym na program, każdy z identyfikatorem, programem, po którym się otworzy, tytułem i liczbą ramek i sekcji. U dołu strony, pod nagłówkiem "Your data in this browser", zdanie, że to, co się pisze przy ramkach, zostaje w tej przeglądarce i że pozycja w lekturze też jest tu zapisana; na końcu karta zatytułowana "Help fix the book?" z dwoma przyciskami.](assets/screenshots/landing-english.png)
+![Strona startowa. Znak słowny; trójpozycyjny przełącznik trybu z opcjami System, Light i Dark; odnośniki do Courses i About ab-ovo oraz odnośnik do Sign in; dalej nagłówek Programs z wyborem języka na końcu jego wiersza — English i polski jako dwa obramowane pola, English wypełnione. Pod nagłówkiem akapit mówiący, czym są program i ramka; dalej karta z tytułem pierwszego programu, "Numbers, powers and roots", nad wypełnionym przyciskiem "Start with F01", a pod kartą odnośnik "Your data in this browser, and whether your answers are counted". Dalej tytuł kursu, a pod nim wiersz mówiący, że programy otwierają się po kolei, że część główna opiera się na programach z Podstaw i że jedna ramka programu otwiera następny. Niżej siatka kafelków — po jednym na program, każdy z identyfikatorem, programem, po którym się otworzy, tytułem i liczbą ramek i sekcji. U dołu strony, pod nagłówkiem "Your data in this browser", zdanie, że to, co się pisze przy ramkach, zostaje w tej przeglądarce i że pozycja w lekturze też jest tu zapisana; na końcu karta zatytułowana "Help fix the book?" z dwiema odpowiedziami obok siebie, jednej wielkości i jednego kształtu — wypełnionym przyciskiem "Yes, count my answers anonymously" i obrysowanym "No thanks".](assets/screenshots/landing-english.png)
 
 Pierwszy ekran jest tym, po co czytelnik przyszedł, o jedną nawigację od ramki zamiast o dwie
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). To
@@ -156,6 +156,15 @@ i `F01 · Continue at frame 12` w tym samym polu, gdy pozycja w lekturze jest ju
 nią, o jedno naciśnięcie od pierwszego ekranu, jest droga do *Your data in this browser* u dołu
 strony i do pytania obok. Tam notatki się pobiera albo czyści, a pozycję w lekturze zapomina —
 przyciskami, które stały dawniej w nagłówku strony, tuż obok *Continue*.
+
+Wiersz u góry to nagłówek strony, który ma każda strona poza ekranami czytania, a przyciski na
+stronie — przycisk karty i dwie odpowiedzi na pytanie — należą do tej samej rodziny co przyciski
+ekranów czytania (#169). Obrazki `/about`, logowania i laboratorium niżej mają ten sam wiersz,
+ze znakiem prowadzącym z powrotem tutaj: w tym samym miejscu na `/about` i przy logowaniu, które
+są złożone na szerokość tej strony, a bliżej lewej krawędzi w laboratorium, złożonym szerzej, bo
+jest warsztatem. *Open the programs* na `/about` i pasek laboratorium to ta sama rodzina
+przycisków; obrazek logowania, zrobiony bez serwisu tożsamości, nie ma żadnego przycisku do
+pokazania.
 
 Ostatnia karta na stronie to **zaproszenie do zgody** i stoi na końcu celowo: czytelnik, który
 przyszedł czytać, dociera najpierw do programów, a do pytania potem. Jest zaproszeniem, a nie
@@ -191,7 +200,7 @@ wymyśliła.
 
 ### Argument
 
-![Strona /about: nagłówek "a book you work, not a book you read", antycel tuż pod nim, cztery kroki pętli, czego produkt potrzebuje od czytelnika, gdzie jest praca, i żywy panel integracji u dołu.](assets/screenshots/about.png)
+![Strona /about: nagłówek strony — znak ab-ovo nad linią, jak na każdej stronie poza ekranami czytania — a pod nim tytuł "A book you work, not a book you read.", akapit wstępny nazywający książkę i wypełniony przycisk "Open the programs"; zaraz potem antycel, cztery kroki pętli, czego produkt potrzebuje od czytelnika, którą edycję się czyta, ćwiczenia komputerowe, a u dołu żywy panel integracji z tym, co zgłasza API tego wdrożenia, każdy wiersz oznaczony jako live albo degraded.](assets/screenshots/about.png)
 
 Kolejność **jest** argumentem. Antycel — *instrument mierzy książkę, nigdy czytelnika* — stoi
 nad wszystkim innym na stronie, bo presja, by nadużyć liczby, zawsze przychodzi od kogoś, kto
@@ -204,20 +213,20 @@ ramki, bo każda ramka to żywe wywołanie API.
 
 ### Logowanie
 
-![Strona /login: formularz na adres e-mail i hasło, wysyłający do własnego originu tej aplikacji.](assets/screenshots/login.png)
+![Strona /login we wdrożeniu bez serwisu tożsamości: nagłówek strony, pod nim tytuł "Signing in keeps your place across devices.", akapit mówiący, że czytanie nie wymaga konta, a pod "Sign in" zdanie "This site has no accounts, so there is nothing to sign in to."; u dołu "Back to the reader".](assets/screenshots/login.png)
 
 Formularz wysyła **poświadczenia** do `/api/auth/login`, który rozmawia z serwisem tożsamości
 po stronie serwera, więc tokenu nie ma w dokumencie w ogóle
 ([ADR-0018](adr/0018-password-sign-in-happens-server-side.md)). Na ścieżce szczęśliwej nie ma
-JavaScriptu. Tam, gdzie nie skonfigurowano serwisu tożsamości, strona mówi to wprost, zamiast
-oferować przycisk, który nie może zadziałać.
+JavaScriptu. Tam, gdzie nie skonfigurowano serwisu tożsamości — jak we wdrożeniu na obrazku —
+strona mówi to wprost, zamiast oferować przycisk, który nie może zadziałać.
 
 Konto kupuje dokładnie jedną rzecz: to samo miejsce w książce na drugiej maszynie. Bez niego
 pętla czytelnika jest identyczna.
 
 ### Ćwiczenia
 
-![Strona /lab/p01: Lab P1 z książki, wypisane ćwiczenia ze sprawdzeniami, które niosą, i plik do pracy.](assets/screenshots/lab-p01.png)
+![Strona /lab/p01: nagłówek strony "ab-ovo / lab / p01", Lab P1 z książki i uwaga, że jej kod działa w tej przeglądarce, pasek trzech przycisków — "Check" i "Stop" przygaszone, póki Python się wczytuje, i obrysowany "Reset to the stub" — a dalej plik z ćwiczeniem do pracy obok okienka, do którego piszą sprawdzenia, i sekcja mówiąca, że sprawdzenia pojawią się, gdy Python wystartuje.](assets/screenshots/lab-p01.png)
 
 Własne ćwiczenia komputerowe książki, działające pod Pyodide **w przeglądarce czytelnika** —
 bez konta, bez backendu, bez Pythona na jakimkolwiek serwerze i bez kodu opuszczającego

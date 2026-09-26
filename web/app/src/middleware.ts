@@ -50,7 +50,8 @@ import { isPlausiblyUnexpired, verifyAccessToken } from '@/lib/server/token';
 /*
  * THE LISTS THIS GATE DECIDES WITH — PUBLIC_PATHS, PUBLIC_PREFIXES and CARVE_OUT_PREFIXES,
  * with the reasoning for every entry — are in `lib/page-gate.ts`, moved there word for word
- * so `/login` can put the gate's own question to the address it was handed (issue #140).
+ * so `/login` can put the gate's own question to the address it was handed (issue #140);
+ * CARVE_OUT_PATHS, the carve-outs matched by name, was written there since (issue #170).
  * The direction is unchanged: private by default, opted out one at a time, and a public
  * page is still an entry in those lists. A private page still needs no entry the gate
  * reads. It needs one the gate does NOT read — `PRIVATE_PAGES`, beside them, which is how

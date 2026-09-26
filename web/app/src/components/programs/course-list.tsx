@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { say, type Bundle } from '@ab-ovo/web-kit';
 
 import { LanguageChoice } from '@/components/language/language-choice';
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { Masthead } from '@/components/masthead/masthead';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import { editionsOffered } from '@/lib/content/chosen-edition';
 import { chromeFor, endonym } from '@/lib/i18n/chrome';
 import { aboutHref, coursesHref, indexHref } from '@/lib/index-href';
@@ -65,34 +66,37 @@ export function CourseList({ bundles, chosen }: CourseListProps): React.JSX.Elem
 
   return (
     <main className={styles.page} lang={chrome.language}>
-      {/* Past the masthead to the heading, as on the index (issue #149, `skip-link.tsx`). */}
-      <SkipLink language={chrome.language} />
-      <header className={styles.top}>
-        {/*
-          NO LINK ON THIS PAGE PREFETCHES (ADR-0067). Each opens the index or `/about`, and both
-          title their tab in the reader's edition; a head prefetched here before the language
-          control was pressed titled the next page in the edition the reader had left —
-          measured on 2026-09-26: *polski* pressed here, *← Programy* followed, and the Polish
-          index titled in English. `index-href.ts` has the reason it is every link.
-        */}
-        <p className={styles.wordmark}>
-          <Link href={indexHref({ edition: chosen })} prefetch={false}>
-            ab<span>-</span>ovo
-          </Link>
-        </p>
-        {/*
-          A `<div>` holding two navigations rather than one `<nav>` holding another: the
-          language control is a navigation of its own, and nesting them makes both ambiguous
-          — to a screen reader listing landmarks, and to `language-choice.spec.ts`, which
-          counts them. `program-grid.tsx` carries the same shape for the same reason.
+      {/*
+        THE ONE MASTHEAD (#169), which was the index's row copied here: the wordmark home, the
+        language control, and the ways off the page — with the skip link before it, past all of
+        that to the heading (issue #149).
 
-          The way back is the whole index rather than a course: a reader who opened this page
-          has not said which course they want, and *← Programs* is the label the reading
-          surface already uses for the same destination. The chosen edition rides along,
-          because leaving this page must not undo the choice that got here.
-        */}
-        <div className={styles.chrome}>
-          {/* THE language control for this screen, at the top of it (ADR-0052). */}
+        NO LINK IN IT PREFETCHES (ADR-0069), which is the masthead's own rule now. Each opens the
+        index or `/about`, and both title their tab in the reader's edition; a head prefetched
+        here before the language control was pressed titled the next page in the edition the
+        reader had left — measured on 2026-09-26: *polski* pressed here, *← Programy* followed,
+        and the Polish index titled in English. `index-href.ts` has the reason it is every link.
+
+        The language control and the navigation are two navigations side by side rather than
+        one `<nav>` holding another: nesting them makes both ambiguous — to a screen reader
+        listing landmarks, and to `language-choice.spec.ts`, which counts them. The navigation
+        is named *Site*, for what it holds, as the index's is since #165; it was named after
+        this page's heading, which is the naming #165 took off the index.
+
+        The way back is the whole index rather than a course: a reader who opened this page has
+        not said which course they want, and *← Programs* is the label the reading surface
+        already uses for the same destination. The chosen edition rides along, because leaving
+        this page must not undo the choice that got here.
+      */}
+      <Masthead
+        home={indexHref({ edition: chosen })}
+        language={chrome.language}
+        links={[
+          { href: indexHref({ edition: chosen }), label: chrome.programsCrumb },
+          { href: aboutHref(chosen), label: chrome.about },
+        ]}
+        tools={
+          // THE language control for this screen, at the top of it (ADR-0052).
           <LanguageChoice
             current={chosen}
             hrefs={editionHrefs(editions, (other) => coursesHref(other))}
@@ -100,20 +104,8 @@ export function CourseList({ bundles, chosen }: CourseListProps): React.JSX.Elem
             labelLanguage={chrome.language}
             languages={editions}
           />
-          <nav className={styles.chromeLinks} aria-label={chrome.courses}>
-            <Link
-              className={styles.chromeLink}
-              href={indexHref({ edition: chosen })}
-              prefetch={false}
-            >
-              {chrome.programsCrumb}
-            </Link>
-            <Link className={styles.chromeLink} href={aboutHref(chosen)} prefetch={false}>
-              {chrome.about}
-            </Link>
-          </nav>
-        </div>
-      </header>
+        }
+      />
 
       <h1 className={styles.heading} id={SKIP_TARGET_ID}>
         {chrome.courses}

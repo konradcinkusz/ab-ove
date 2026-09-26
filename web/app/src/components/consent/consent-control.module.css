@@ -48,57 +48,37 @@
  * the page to be legible at all. A decline rendered smaller, greyer, or as a text link is
  * an opt-in in wording and a nudge in fact — and issue #14's requirement that declining
  * cost a reader nothing has to be true of the pixels as well as of the behaviour.
+ *
+ * THEY ARE THE SHARED SET'S PRIMARY AND SECONDARY (#169, `components/read/controls.module.css`),
+ * which is that requirement kept by construction: one base, so one size, one corner, one type
+ * and one weight, and the fill the only difference. They were drawn here, at 3 px and about
+ * 34 px tall, beside the reading screens' 8 px and 44. The decline's edge is `--control-edge`
+ * (WCAG 1.4.11, ADR-0063): in `--rule` it was about 1.3:1 on the panel, and the decline was a
+ * word floating beside a blue block — the unequal weight forbidden above, arrived at by a
+ * colour token rather than by a size. And under the pointer neither brightens any more, which
+ * the eye could barely see: the grant's fill deepens and the decline's edge takes the accent.
  */
-.grant,
-.decline {
-  border-radius: 3px;
-  cursor: pointer;
-  font-family: var(--font-ui);
-  font-size: 0.9375rem;
-  padding: 0.5rem 1.125rem;
-}
-
 .grant {
-  background: var(--accent);
-  border: 1px solid var(--accent);
-  color: var(--paper-raised);
+  composes: primary from '../read/controls.module.css';
 }
 
-/*
- * Its edge is `--control-edge` (WCAG 1.4.11, ADR-0063). In `--rule` it was about 1.3:1 on the
- * panel: the grant was a blue block and the decline was a word floating beside it, which is
- * the unequal weight the comment above forbids, arrived at by a colour token rather than by
- * a size.
- */
 .decline {
-  background: transparent;
-  border: 1px solid var(--control-edge);
-  color: var(--ink);
-}
-
-.grant:hover,
-.decline:hover {
-  filter: brightness(1.08);
-}
-
-.decline:hover {
-  border-color: var(--ink-soft);
+  composes: secondary from '../read/controls.module.css';
 }
 
 /*
  * FOCUS IS A RING, NEVER A BRIGHTNESS — UI-UX.md, and issue #148. Focus used to share the
  * hover's eight-percent brightness, which a keyboard reader could not see on either button and
- * which forced colours do not paint at all. Both now wear the shared ring
- * (`controls.module.css`) — the same ring on both, so focus weighs the two answers equally too
- * — with its transparent outline for forced colours. The gap is `--paper-raised`, the panel's
- * own surface, as the program map's rows do on theirs (`program-map.module.css`).
+ * which forced colours do not paint at all. Both wear the shared ring — the same ring on both,
+ * so focus weighs the two answers equally too — with its transparent outline for forced
+ * colours. The gap is `--paper-raised`, the panel's own surface, as the program map's rows do
+ * on theirs (`program-map.module.css`), where the shared ring's gap is the page's paper.
  */
 .grant:focus-visible,
 .decline:focus-visible {
   box-shadow:
     0 0 0 2px var(--paper-raised),
     0 0 0 4px var(--accent);
-  outline: 2px solid transparent;
 }
 
 /* The answered state: one line, the weight of a footnote. */

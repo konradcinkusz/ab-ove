@@ -23,7 +23,7 @@ import './globals.css';
  *
  * `FALLBACK_LANGUAGE` on `<html>` as in `app/layout.tsx`: the server's answer, which the page's
  * own `SkipLink` replaces with the edition it is actually in once it is in the browser
- * (ADR-0067), as its `<main>` says from the first byte.
+ * (ADR-0069), as its `<main>` says from the first byte.
  */
 export default function GlobalError({
   error,

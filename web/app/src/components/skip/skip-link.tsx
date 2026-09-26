@@ -11,9 +11,10 @@ import styles from './skip-link.module.css';
  *
  * The rule is "past the masthead", and the two answers are where each kind of page puts it.
  * A reading screen's bar is OUTSIDE its `<main>` (`reading-screen.tsx`), so `<main>` is where
- * the frame begins. Every other page carries its masthead INSIDE `<main>` — the index's
- * wordmark and chrome row, a shell page's wordmark, a crumb — so a target on `<main>` there
- * would skip nothing at all, and the first element past the masthead is the page's heading.
+ * the frame begins. Every other page carries its masthead INSIDE `<main>` — the one masthead
+ * (`components/masthead/masthead.tsx`, #169), the wordmark and whatever the page puts in its
+ * row — so a target on `<main>` there would skip nothing at all, and the first element past the
+ * masthead is the page's heading.
  *
  * NO `tabindex`, and that is measured rather than forgotten. Following an in-page link moves
  * the browser's sequential-focus starting point to the target, so the next Tab reaches the
@@ -33,7 +34,7 @@ export interface SkipLinkProps {
   /**
    * The language this page speaks: the reader's edition on a page that follows one, and `en`
    * on the lab and the author's view, which are English only. It is also the document's
-   * language (ADR-0067), which this component sets.
+   * language (ADR-0069), which this component sets.
    */
   readonly language: string;
 }
@@ -47,14 +48,16 @@ export interface SkipLinkProps {
  * The layout would be the obvious home, and it cannot write the link in the reader's
  * edition: it renders `<html lang="en">` for every page and knows nothing of the edition,
  * which each page reads from its own URL or cookie (ADR-0052). So the link is rendered by
- * the component that knows — `ReadingScreen` for every reading screen, the index and the
- * courses page from their chrome, and each shell page with the edition it already speaks —
- * and a page that renders none is one a keyboard reader has to tab the whole masthead of.
+ * the component that knows — `ReadingScreen` for every reading screen, and the masthead for
+ * every other page (`components/masthead/masthead.tsx`, #169), with the edition the page
+ * speaks — and a page that renders none is one a keyboard reader has to tab the whole masthead
+ * of. Rendered with the masthead, it cannot be forgotten by a page that has one: the legal
+ * documents' pages had none until they had the masthead.
  *
- * THE SAME REASON MAKES IT THE PLACE THE DOCUMENT'S LANGUAGE IS SET (ADR-0067). `<html lang>`
+ * THE SAME REASON MAKES IT THE PLACE THE DOCUMENT'S LANGUAGE IS SET (ADR-0069). `<html lang>`
  * is the layout's, and it is the page that knows the answer; every page a reader meets renders
- * this component once, with exactly that answer — except the legal documents' pages, which are
- * English and render none — so `DocumentLanguage` rides with it rather than being a second
+ * this component once, with exactly that answer — English on the legal documents' pages, as on
+ * the lab's and the author's — so `DocumentLanguage` rides with it rather than being a second
  * thing each page must remember to render.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *

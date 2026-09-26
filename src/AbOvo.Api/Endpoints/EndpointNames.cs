@@ -13,6 +13,7 @@ public static class EndpointNames
     public const string PutProgress = "PutProgress";
     public const string DeleteProgress = "DeleteProgress";
     public const string PostAdoptProgress = "PostAdoptProgress";
+    public const string GetAnonymousProgress = "GetAnonymousProgress";
     public const string DeleteAnonymousProgress = "DeleteAnonymousProgress";
 
     public const string GetPreference = "GetPreference";
@@ -27,6 +28,7 @@ public static class EndpointNames
     public const string GetUnit = "GetUnit";
     public const string GetStep = "GetStep";
     public const string GetReturnIndex = "GetReturnIndex";
+    public const string PostOpen = "PostOpen";
     public const string PostAdvance = "PostAdvance";
     public const string PostIngestBundle = "PostIngestBundle";
 }

@@ -7,6 +7,11 @@ back in, through a cookie this origin's server sets and never through the URL, a
 page follows the reader's edition — see the struck paragraphs under *A plain form* and in
 *Consequences*. The route, the form and the reasoning against the URL are unchanged.
 
+Amended on 2026-09-26 (#170): the way back into an account takes the same shape, and the address
+and the token in a link from one of the identity service's emails leave the URL at the first hop,
+into a `SameSite=Lax` cookie — see *Amendment 2026-09-26 — the way back into an account* at the
+end, and the qualified paragraph at the head of *Consequences*.
+
 ## Context
 
 [ADR-0004](0004-identity-authservice-and-anonymous-reader.md) adopts `authservice` and
@@ -192,6 +197,14 @@ address in no topology at all. Every `Location` this route emits is now relative
 route hands one out; the proxy injects the bearer server-side from the cookie; the cookie is
 `HttpOnly`. There is nothing for a later refactor to lose.
 
+**Since issue #170, *a token* in that paragraph means a session's**: the access and refresh
+tokens `establishSession` sets, the bearers the proxy injects. A link from one of authservice's
+emails carries a token of another kind, a credential for one purpose that signs nobody in, and it
+reaches the browser whatever this app does, in the address bar, because authservice builds the
+link. `/reset-password` and `/verify-email` hand it back to the browser in an `HttpOnly` cookie
+for up to fifteen minutes, and it is spent only by a POST to this origin, whose route sends it on
+to authservice. See the amendment at the end.
+
 **~~An account with two factors cannot sign in.~~** It was detected and reported honestly,
 and it was [#30](https://github.com/konradcinkusz/ab-ove/issues/30) — **now closed**. The
 challenge this route detects is stored in a short-lived `HttpOnly` cookie and exchanged at
@@ -260,3 +273,84 @@ names in the config are now the names in the code.
 a public address for `authservice`, because it never speaks to it. The function is still the
 right answer for the one thing that cannot be proxied — a navigation to an external identity
 provider's own page — which is where external sign-in will need it.
+
+## Amendment 2026-09-26 — the way back into an account
+
+### Context
+
+**A reader who forgot the password, or lost the confirmation email, had nowhere to go** (#170).
+[The probe](../architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md) for #156 read the pinned
+authservice and ran it. `forgot-password`, `reset-password`, `resend-verification` and
+`verify-email` are anonymous JSON endpoints, and none of them issues a token (§2), so this
+decision's shape fits all four: a plain form, a route on this origin, and an outcome from a
+closed set (§7). Two things about them are authservice's to decide, not this app's:
+
+- **The links in its emails carry the reader's address and a token in the query**, at paths
+  it fixes: `{FrontendBaseUrl}/reset-password?token=…&email=…` and `/verify-email?…` (§3). So
+  when a reader opens one, the address bar holds both, whatever this app builds. This decision
+  kept the sign-in address out of the URL to avoid exactly that. The probe left it to #170 to
+  decide whether "Nothing about the account appears in the URL", #170's Done-when, covers that
+  arriving address.
+- **It answers "a link has been sent" whether or not it can send one.** Without a mail provider
+  it sends nothing, and no endpoint says which kind of instance it is (§4).
+
+### Decision
+
+- **The rule covers every address the app shows after a link lands. The landing address is
+  authservice's.** No route here can change what authservice writes into an email, so the rule
+  is kept from the first hop on. `specs/account-recovery.spec.ts` collects every address on this
+  origin the browser commits to from the click on, and holds each one to carrying neither the
+  address nor the token.
+- **`/reset-password` and `/verify-email` are routes, not pages.** Each reads the pair off its
+  own query and keeps it in a cookie only this origin's server reads: `HttpOnly`, for fifteen
+  minutes (`lib/server/emailed-link-cookie.ts`). It then answers `303` with `/login/reset` or
+  `/login/confirm`, and `Referrer-Policy: no-referrer`. No document is rendered at an address
+  that holds a token. The pair never enters the document either: the form on the page carries
+  the edition and what the reader types, and its route reads the pair from the cookie and calls
+  authservice from this server, as `/api/auth/login` does. That POST is what spends the token,
+  and a GET spends nothing, so a mail program that fetches a link to scan it uses nothing up.
+  The page gate carves both addresses out by name (`lib/page-gate.ts`), so the query reaches
+  the route. A request for a link refused for its address fills its field back in the way a
+  failed sign-in does, through the sign-in address's cookie.
+- **That cookie is `SameSite=Lax`.** The rule for a cookie this origin's server sets is `Strict`,
+  as `sessionCookieAttributes()` and `readerCookieAttributes()` give it. This cookie lifts the
+  rule, for a reason only the link has. The link is followed from another site, the reader's
+  mail, and a browser does not send a `Strict` cookie on the redirect that such a navigation
+  follows. With `Strict`, the page after the landing found no link held: measured. What `Lax`
+  gives up is `Strict`'s refusal to send the cookie on a top-level GET another site starts, and
+  such a GET only renders a page that says whether a link is held. It is still not sent on a
+  POST from another site, and what spends the pair is a POST from this origin's own form, to a
+  route that refuses any other `Origin`.
+- **Whether an email can come is the deployment's to say: `AB_OVO_AUTH_SENDS_EMAIL`.** There is
+  nothing to infer it from. Where it is not `true`, `/login/forgot` and `/login/resend` offer no
+  form and say this site sends no email, and `/login` does not offer the confirmation link
+  again. The AppHost sets it, because there authservice writes each email's link to its own log.
+  A link that has already arrived works either way: the pages it leads to promise nothing.
+
+### Consequences
+
+- **A deployment offers no reset until it can send email.** That takes one change: the secret
+  `SendGrid__ApiKey` (`flyio/SECRETS.md`), `SendGrid__FromEmail` in
+  `flyio/authservice.fly.toml` beside the `FrontendBaseUrl` already there, and
+  `AB_OVO_AUTH_SENDS_EMAIL = "true"` in `flyio/web.fly.toml`. Until then, a reader who forgot a
+  password is told on the page that this site sends no email. Nothing is deployed, and no
+  deployment described in `flyio/` sends email. No file can check that the flag and the key
+  agree, because the key is a secret.
+- **The exception has to stay `Lax`.** `Strict` is the direction a review pushes a cookie that
+  holds a credential. With it, every emailed link opens a page that says no link is held, and
+  nothing reports an error. `specs/account-recovery.spec.ts` follows each link from a page on
+  another host, which is the only way a test can see this, and it fails with `Strict`.
+- **The landing's own request still carries both halves**, into everything this decision held
+  against a URL: history, and every access log between the reader and this origin. authservice
+  writes them into the link, and no route here can take them back out. What this app controls
+  is everything after that one request: no address it answers with carries either, and going
+  back from the page the landing opens returns to the mail, not to the landing.
+- **A reset form sent twice before the first answer arrives can report a spent link for a
+  password it changed.** It is a plain form with no script, so a double press can send two
+  POSTs. The first changes the password, and authservice refuses the second's token as used.
+  The page says the link no longer works, and that a link just used has already done what it
+  was for, which is true here. It does not say nothing was changed. `lib/server/account-recovery.ts`
+  records the same answer for a timeout after authservice has acted. The new password works,
+  and the page also offers a new link.
+
+Not a deviation from the reference architecture; no register row.

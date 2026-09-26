@@ -113,8 +113,10 @@ const apiBaseUrl = process.env.E2E_API_BASE_URL?.trim();
  * needs is a hop that can only add a way to fail.
  *
  * Its port is derived from the web app's like the other two, and it runs only when there is
- * an API to stand in front of. Without one, `error-page.spec.ts` and `frame-loading.spec.ts`
- * are skipped with the reason rather than made conditional.
+ * an API to stand in front of. Without one, every test that needs it — each reads
+ * `AB_OVO_FAULT_BASE_URL`, below: `error-page.spec.ts`, `frame-loading.spec.ts`, and
+ * `buttons.spec.ts`'s error page (#169) — is skipped with the reason rather than made
+ * conditional.
  */
 const faultPort = webPort + 300;
 const faultBaseUrl = `http://127.0.0.1:${faultPort}`;
@@ -375,7 +377,12 @@ export default defineConfig({
             timeout: 30_000,
             stdout: 'pipe' as const,
             stderr: 'pipe' as const,
-            env: { AB_OVO_STUB_PORT: String(stubPort) },
+            /**
+             * `FrontendBaseUrl` under authservice's own name for it: the base of the links the
+             * fixture's recovery endpoints put in its outbox, so they lead to the identity
+             * deployment below as a real instance's lead to its web app (#170).
+             */
+            env: { AB_OVO_STUB_PORT: String(stubPort), FrontendBaseUrl: identityBaseUrl },
           },
           {
             command: 'pnpm --dir ../../web start',
@@ -402,11 +409,17 @@ export default defineConfig({
              * process, under a path that is labelled there as not authservice's (#141,
              * ADR-0049). Without it `/register` withdraws its form, correctly, and
              * `registration.spec.ts` would be testing that instead.
+             *
+             * `AB_OVO_AUTH_SENDS_EMAIL` says the identity service delivers the emails it is
+             * asked for, which the fixture does — to its outbox (#170). Without it the pages
+             * that ask for a link say this site sends no email, and `account-recovery.spec.ts`
+             * would be testing that instead.
              */
             env: {
               PORT: String(identityPort),
               AB_OVO_AUTH_URL: stubBaseUrl,
               AB_OVO_LEGAL_URL: `${stubBaseUrl}/legal`,
+              AB_OVO_AUTH_SENDS_EMAIL: 'true',
               ...(apiBaseUrl ? { AB_OVO_API_URL: apiBaseUrl } : {}),
             },
           },

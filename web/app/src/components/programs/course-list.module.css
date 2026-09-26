@@ -4,73 +4,16 @@
  * THE INDEX'S OWN MEASURE AND THE INDEX'S OWN TOP ROW, because this page is the index's
  * sibling rather than a page of prose: a reader arrives here from the first screen and
  * leaves to it, and a second column width between the two would make the wordmark move as
- * they go back and forth. What it does NOT copy is the grid — a course is a title and a line
- * of facts, so it is a list of rows rather than a wall of tiles, and rows read down the
- * page at any width without a `minmax` to keep current.
+ * they go back and forth. The row was a copy of the index's, kept here; since #169 both render
+ * the one masthead (`components/masthead/masthead.module.css`), and so do the pages of `.shell`.
+ * What it does NOT copy is the grid — a course is a title and a line of facts, so it is a list
+ * of rows rather than a wall of tiles, and rows read down the page at any width without a
+ * `minmax` to keep current.
  */
 .page {
   margin: 0 auto;
   max-width: 62rem;
   padding: 2rem 1.25rem 4rem;
-}
-
-.top {
-  align-items: baseline;
-  border-bottom: 1px solid var(--rule);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.5rem;
-  justify-content: space-between;
-  margin: 0 0 2.25rem;
-  padding-bottom: 1.25rem;
-}
-
-.wordmark {
-  font-family: var(--font-mono);
-  font-size: 0.9375rem;
-  letter-spacing: 0.06em;
-  margin: 0;
-}
-
-.wordmark a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.wordmark span {
-  color: var(--ink-faint);
-}
-
-/*
- * The right-hand end of the masthead: the language control and the destinations, two
- * separate navigations side by side. A plain `<div>` rather than a `<nav>`, because a
- * `<nav>` holding a `<nav>` makes both ambiguous — `program-grid.module.css` has the same
- * pair and the same note.
- */
-.chrome {
-  align-items: baseline;
-  color: var(--ink-faint);
-  display: flex;
-  flex-wrap: wrap;
-  font-family: var(--font-ui);
-  font-size: 0.8125rem;
-  gap: 0.5rem 1.25rem;
-}
-
-/* The destinations: back to the index, and the product's argument. */
-.chromeLinks {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-}
-
-/* A finger's target given back as negative margin — `program-grid.module.css`'s `.chromeLink`,
-   the same link in the same row of the sibling page, and the same reason (issue #147). */
-.chromeLink {
-  color: inherit;
-  margin: -0.75rem -0.5rem;
-  padding: 0.75rem 0.5rem;
 }
 
 /*

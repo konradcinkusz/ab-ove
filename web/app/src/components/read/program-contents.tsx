@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
 import { say } from '@ab-ovo/web-kit';
+import type { TrackContent, UnitSummary } from '@ab-ovo/web-kit/wire';
 
 import { neighboursOf } from '@/lib/content/neighbours';
-import type { TrackContent, UnitSummary } from '@/lib/content/wire';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
 import { isReachable, openingEnds, sectionSpansOf } from '@/lib/read/place';
@@ -137,7 +137,7 @@ export function ProgramContents({
                 </span>
               </Link>
             ) : (
-              // Not prefetched, as no link to the index is (ADR-0067, `index-href.ts`).
+              // Not prefetched, as no link to the index is (ADR-0069, `index-href.ts`).
               <Link className={foot.pagerButton} href="/" prefetch={false}>
                 <ArrowLeft className={foot.arrow} />
                 <span>{chrome.programs}</span>

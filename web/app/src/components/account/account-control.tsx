@@ -93,7 +93,7 @@ export function AccountControl({
     //
     // Neither link here prefetches: both pages title their tab in the edition, and a head
     // prefetched before the reader changed edition titled the page in the one they had left
-    // (ADR-0067 — *polski* pressed on the index, *Zaloguj się* followed, "Sign in — ab-ovo").
+    // (ADR-0069 — *polski* pressed on the index, *Zaloguj się* followed, "Sign in — ab-ovo").
     return (
       <Link
         className={styles.account}

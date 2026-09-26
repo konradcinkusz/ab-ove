@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
@@ -222,6 +222,19 @@ function contrast(a: string, b: string): number {
   return (hi! + 0.05) / (lo! + 0.05);
 }
 
+/** `color-mix(in srgb, a share, b)`: each encoded channel weighted, as a `#rrggbb` colour. */
+function mix(a: string, b: string, share: number): string {
+  const channels = (hex: string): number[] => [1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16));
+  const [left, right] = [channels(a), channels(b)];
+  return `#${left
+    .map((value, index) => Math.round(value * share + right[index]! * (1 - share)))
+    .map((value) => value.toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
+/** The shared set of buttons (#169), whose hover fills the floors below are computed from. */
+const CONTROLS = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'components', 'read', 'controls.module.css');
+
 for (const [scheme, selector] of [
   ['light', LIGHT],
   ['dark', CHOSEN_DARK],
@@ -247,6 +260,38 @@ for (const [scheme, selector] of [
     const ratio = contrast(tokens['--paper-raised']!, tokens['--accent']!);
     assert.ok(ratio >= 4.5, `the filled button's label is ${ratio.toFixed(2)}:1 in ${scheme}, under 4.5:1`);
   });
+
+  // The deletion screen's button, filled in `--degraded` since #169 (`controls.module.css`'s
+  // `.danger`), carries the same label and is held to the same floor.
+  test(`the label on a destructive button clears 4.5:1 (${scheme})`, () => {
+    const tokens = { ...block(LIGHT), ...block(selector) };
+    const ratio = contrast(tokens['--paper-raised']!, tokens['--degraded']!);
+    assert.ok(ratio >= 4.5, `the destructive button's label is ${ratio.toFixed(2)}:1 in ${scheme}, under 4.5:1`);
+  });
+
+  /*
+   * AND UNDER THE POINTER AND THE PRESS (#169). A filled button's hover is its fill mixed with
+   * `--ink` rather than a brightness, and the mix is read out of `controls.module.css` and
+   * computed here — sRGB, channel by channel, which is what `color-mix(in srgb, …)` does — so a
+   * percentage moved there is a ratio measured here. The label on every one of them is
+   * `--paper-raised`, the filled buttons' own.
+   */
+  test(`the label on a filled button clears 4.5:1 under the pointer and the press (${scheme})`, () => {
+    const tokens = { ...block(LIGHT), ...block(selector) };
+    const mixes = [
+      ...readFileSync(CONTROLS, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .matchAll(
+        /background:\s*color-mix\(in srgb,\s*var\((--[\w-]+)\)\s+(\d+(?:\.\d+)?)%,\s*var\((--[\w-]+)\)\)/g,
+      ),
+    ];
+    assert.ok(mixes.length > 0, 'controls.module.css mixes no fill, so this is asserting nothing');
+    for (const [declaration, from, share, toward] of mixes) {
+      const fill = mix(tokens[from!]!, tokens[toward!]!, Number(share) / 100);
+      const ratio = contrast(tokens['--paper-raised']!, fill);
+      assert.ok(ratio >= 4.5, `${declaration} puts the label at ${ratio.toFixed(2)}:1 in ${scheme}, under 4.5:1`);
+    }
+  });
 }
 
 /*
@@ -265,6 +310,10 @@ for (const [scheme, selector] of [
  *
  *   - a class the same stylesheet gives a `:focus-visible` rule — it takes keyboard focus;
  *   - a class the same stylesheet gives `cursor: pointer` — it is pressed;
+ *   - a class that COMPOSES a control: one of the shared set's buttons or its field, from
+ *     `components/read/controls.module.css`, or a control of its own stylesheet (#169). Since
+ *     #169 that is all most buttons and fields say about themselves — the pointer and the ring
+ *     are the set's — so a scan that stopped at the stylesheet's own rules would see none of them;
  *   - a form element, a button, a link or a `<summary>` named by its element.
  *
  * `--rule` stays right for everything else: a panel, a card, a divider, a `<kbd>`. Those are
@@ -280,6 +329,12 @@ for (const [scheme, selector] of [
 interface CssRule {
   readonly selectors: readonly string[];
   readonly declarations: Readonly<Record<string, string>>;
+  /**
+   * Every `composes:` in the rule, in order. CSS Modules take one per stylesheet a class is
+   * composed from, and `declarations` keeps only a property's last value — so a second
+   * `composes:` there would hide the first, and with it a button's being one (#169).
+   */
+  readonly composes: readonly string[];
   /** The preludes of the at-rules around it, outermost first: `@media print`, and so on. */
   readonly within: readonly string[];
 }
@@ -337,13 +392,16 @@ function rulesOf(css: string): CssRule[] {
         if (!/^@(-webkit-)?keyframes/.test(prelude)) walk(open + 1, close, [...within, prelude]);
       } else {
         const declarations: Record<string, string> = {};
+        const composes: string[] = [];
         for (const line of text.slice(open + 1, close).split(';')) {
           const [property, ...rest] = line.split(':');
           const name = property?.trim();
           if (!name || rest.length === 0) continue;
-          declarations[name] = rest.join(':').trim().replace(/\s+/g, ' ');
+          const value = rest.join(':').trim().replace(/\s+/g, ' ');
+          declarations[name] = value;
+          if (name === 'composes') composes.push(value);
         }
-        rules.push({ selectors: splitTopLevel(prelude, /,/), declarations, within });
+        rules.push({ selectors: splitTopLevel(prelude, /,/), declarations, composes, within });
       }
       at = close + 1;
     }
@@ -376,34 +434,108 @@ const CONTROL_ELEMENTS = new Set(['a', 'button', 'input', 'select', 'summary', '
 /** `border`, a side of it, or its colour — the declarations that draw an edge. */
 const EDGE = /^border(-(top|right|bottom|left|block|inline)(-(start|end))?)?(-color)?$/;
 
-/** Every border in `--rule` on a control, as `selector { property: value }`. */
-function ruleEdgesOnControls(css: string): string[] {
-  const rules = rulesOf(css);
+/** A `:focus-visible` rule — the mark of something that takes keyboard focus. */
+const FOCUS_VISIBLE = /:focus-visible/;
 
+/**
+ * A `:focus` or a `:focus-visible` rule, and not `:focus-within` — the button scan's mark below,
+ * which is how the skip link says it takes focus, and the one the shared set is read with (#169).
+ */
+const FOCUS = /:focus(-visible)?(?![\w-])/;
+
+/** What a `composes:` names: its classes, and the stylesheet they are from — none for its own. */
+function composedFrom(value: string): { readonly names: readonly string[]; readonly from: string | undefined } {
+  const [names = '', from] = value.split(/\s+from\s+/);
+  return {
+    names: names.split(' ').filter((name) => name.length > 0).map((name) => `.${name}`),
+    from: from?.replace(/^(['"])(.*)\1$/, '$2'),
+  };
+}
+
+/** A `from` that reaches the shared set — by whatever relative path the module takes to it. */
+const FROM_THE_SHARED_SET = /(^|\/)controls\.module\.css$/;
+
+/**
+ * The classes a stylesheet marks as controls: those it gives a rule matching `focus`, those it
+ * gives `cursor: pointer`, and those that compose a control — one of `shared` from the shared
+ * set's file, or one this stylesheet marks. Per stylesheet, for the reason above.
+ */
+function controlClassesOf(rules: readonly CssRule[], focus: RegExp, shared: ReadonlySet<string>): Set<string> {
   const controls = new Set<string>();
+  /** Each class that composes classes of its own stylesheet, with the classes it composes. */
+  const composingOwn: (readonly [string, readonly string[]])[] = [];
   for (const rule of rules) {
     for (const selector of rule.selectors) {
       const compounds = compoundsOf(selector);
       for (const compound of compounds) {
         const name = classOf(compound);
-        if (name && compound.includes(':focus-visible')) controls.add(name);
+        if (name && focus.test(compound)) controls.add(name);
       }
       const subject = classOf(compounds.at(-1) ?? '');
-      if (subject && rule.declarations['cursor'] === 'pointer') controls.add(subject);
+      if (!subject) continue;
+      if (rule.declarations['cursor'] === 'pointer') controls.add(subject);
+      for (const value of rule.composes) {
+        const { names, from } = composedFrom(value);
+        if (from === undefined) composingOwn.push([subject, names]);
+        else if (FROM_THE_SHARED_SET.test(from) && names.some((name) => shared.has(name))) controls.add(subject);
+      }
     }
   }
+  // Round again until a round adds nothing: a class may compose one that composes a control, and
+  // a stylesheet may declare the two in either order.
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const [subject, names] of composingOwn) {
+      if (!controls.has(subject) && names.some((name) => controls.has(name))) {
+        controls.add(subject);
+        grew = true;
+      }
+    }
+  }
+  return controls;
+}
+
+/**
+ * THE SHARED SET'S OWN CONTROLS, read from `controls.module.css` by the same rules rather than
+ * listed: `.button`, which takes the pointer and the ring, the weights that compose it, and the
+ * field. A class anywhere else that composes one of these is a control (#169).
+ */
+const SHARED_CONTROLS = controlClassesOf(rulesOf(readFileSync(CONTROLS, 'utf8')), FOCUS, new Set());
+
+test('the scans read the shared set’s controls from its own file', () => {
+  // The weights say only `composes: button`, so this is the rule for a stylesheet's own classes
+  // at work. Were it to stop, every button composed from a weight would stop being a control, and
+  // every scan below would pass over all of them in silence.
+  for (const name of ['.button', '.primary', '.secondary', '.ghost', '.field']) {
+    assert.ok(SHARED_CONTROLS.has(name), `controls.module.css's ${name} is not read as a control`);
+  }
+  // A part of a button is not one, and composing it makes nothing a control.
+  for (const name of ['.icon', '.label', '.visuallyHidden']) {
+    assert.ok(!SHARED_CONTROLS.has(name), `controls.module.css's ${name} is read as a control`);
+  }
+});
+
+/** Whether a selector's subject — its last compound — is one of `controls`, or a control element. */
+function subjectIsControl(selector: string, controls: ReadonlySet<string>): boolean {
+  const subject = compoundsOf(selector).at(-1) ?? '';
+  const name = classOf(subject);
+  const element = elementOf(subject);
+  return (
+    (name !== undefined && controls.has(name)) ||
+    (name === undefined && element !== undefined && CONTROL_ELEMENTS.has(element))
+  );
+}
+
+/** Every border in `--rule` on a control, as `selector { property: value }`. */
+function ruleEdgesOnControls(css: string): string[] {
+  const rules = rulesOf(css);
+  const controls = controlClassesOf(rules, FOCUS_VISIBLE, SHARED_CONTROLS);
 
   const found: string[] = [];
   for (const rule of rules) {
     if (rule.within.some((prelude) => /\bprint\b/.test(prelude))) continue;
     for (const selector of rule.selectors) {
-      const subject = compoundsOf(selector).at(-1) ?? '';
-      const name = classOf(subject);
-      const element = elementOf(subject);
-      const isControl =
-        (name !== undefined && controls.has(name)) ||
-        (name === undefined && element !== undefined && CONTROL_ELEMENTS.has(element));
-      if (!isControl) continue;
+      if (!subjectIsControl(selector, controls)) continue;
       for (const [property, value] of Object.entries(rule.declarations)) {
         if (EDGE.test(property) && value.includes('var(--rule)')) {
           found.push(`${selector} { ${property}: ${value} }`);
@@ -445,6 +577,8 @@ test('the edge scan tells a control drawn in --rule from a separator drawn in it
     .list kbd { border: 1px solid ${edge}; }
     .row input { border: 1px solid ${edge}; }
     .ok { border: 1px solid var(--control-edge); cursor: pointer; }
+    .entry { composes: field from '../read/controls.module.css'; border-color: ${edge}; }
+    .caption { composes: label from '../read/controls.module.css'; border-bottom: 1px solid ${edge}; }
     @media print { .field { border-bottom: 1px solid ${edge}; } }
     @media (max-width: 30rem) { .field { border-width: 2px; border-color: ${edge}; } }
   `;
@@ -454,6 +588,9 @@ test('the edge scan tells a control drawn in --rule from a separator drawn in it
     `.go { border-color: ${edge} }`,
     `.pane[open] > .go { border-bottom: 1px solid ${edge} }`,
     `.row input { border: 1px solid ${edge} }`,
+    // A field composed from the shared set is one, though nothing here says it takes focus; a
+    // label composed from it is not.
+    `.entry { border-color: ${edge} }`,
     `.field { border-color: ${edge} }`,
   ]);
 });
@@ -544,5 +681,184 @@ test('no control in the app takes its focus outline away or shows focus as a bri
     [],
     'draw the shared ring instead (components/read/controls.module.css): a box-shadow, and ' +
       '`outline: 2px solid transparent` for forced colours, which paint no box-shadow',
+  );
+});
+
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ * ONE FAMILY OF BUTTONS, AND OUTSIDE THE READING SCREENS NOBODY DRAWS ANOTHER — issue #169.
+ *
+ * ADR-0063 gave the reading screens one family (`components/read/controls.module.css`). Beside
+ * them a second one went on being drawn by hand: the index's and the 404's *Open the programs*,
+ * the error page's *Try again*, the sign-in forms' submit, the consent's two answers, the
+ * account's *Sign out* and the deletion screen's button each carried a 3 px corner, about 34 px
+ * of height and a brightness on hover, and the lab's buttons a corner of 4 px. Each looked like
+ * a button; together they looked like two products.
+ *
+ * So a CONTROL — recognised as the edge scan above recognises one, a `composes:` of the shared
+ * set's buttons or field included, and by a `:focus` rule as well, which is how the skip link
+ * says it takes focus — is never PAINTED by a rule of its own in a stylesheet outside
+ * `components/read/`:
+ *
+ *   - no fill: a `background` that is not `none` or `transparent`;
+ *   - no edge all the way round: a `border`, or its colour, width or style, that draws one;
+ *   - no corner: a `border-radius`.
+ *
+ * A control that is shaped — a button, a field, the skip link when it shows — takes the shape
+ * from `controls.module.css` by `composes:`, and a rule beside it may place, size or recolour
+ * the text, or draw the ring on the surface it sits on. `components/read/` is where the shared
+ * set lives and where ADR-0063 drew the reading screens' own controls from it and its tokens; a
+ * side rule (`border-left`) is a mark rather than an edge, and a `@media print` rule paints
+ * nothing a reader presses.
+ *
+ * WHAT IS DRAWN AS A BOX ON PURPOSE IS NAMED IN `DRAWN_ON_PURPOSE`, with its reason here: the
+ * index's edition choice (#163) — two ADDRESSES drawn as joined boxes, which no shape in the
+ * shared set is. It is drawn with the set's tokens and its ring, and `landing.spec.ts` holds the
+ * shape.
+ *
+ * AND NO CONTROL CHANGES BY A FILTER, ANYWHERE: the brightness on hover was both families'
+ * (`controls.module.css`'s `.primary` had it too), and it is now neither's — the set's own
+ * weights are held here as well, which are controls only by composing `.button`. The focus scan
+ * above already refused one on focus.
+ * ────────────────────────────────────────────────────────────────────────────────────────
+ */
+
+/** What a declaration paints, if anything: a fill, an edge all the way round, or a corner. */
+function paints(property: string, value: string): boolean {
+  if (/^(inherit|initial|unset|revert)$/.test(value)) return false;
+  if (property === 'background' || property === 'background-color') {
+    return !/^(none|transparent)$/.test(value);
+  }
+  if (property === 'border' || property === 'border-color') {
+    return !/^(0(px)?|none)(\s|$)/.test(value) && !/\btransparent\b/.test(value);
+  }
+  if (property === 'border-width') return !/^0(px)?$/.test(value);
+  if (property === 'border-style') return value !== 'none';
+  if (/^border(-(top|bottom)-(left|right)|-(start|end)-(start|end))?-radius$/.test(property)) {
+    return !/^0(px)?$/.test(value);
+  }
+  return false;
+}
+
+/**
+ * Every rule in a stylesheet that paints a control as a button — or, asked for `filter`, every
+ * one that gives a control a filter, which no stylesheet may — as `selector { property: value }`.
+ */
+function buttonPaint(css: string, what: 'paint' | 'filter'): string[] {
+  const rules = rulesOf(css);
+  const controls = controlClassesOf(rules, FOCUS, SHARED_CONTROLS);
+
+  const found: string[] = [];
+  for (const rule of rules) {
+    if (what === 'paint' && rule.within.some((prelude) => /\bprint\b/.test(prelude))) continue;
+    for (const selector of rule.selectors) {
+      if (!subjectIsControl(selector, controls)) continue;
+      for (const [property, value] of Object.entries(rule.declarations)) {
+        const wrong = what === 'paint' ? paints(property, value) : property === 'filter' && value !== 'none';
+        if (wrong) found.push(`${selector} { ${property}: ${value} }`);
+      }
+    }
+  }
+  return found;
+}
+
+/**
+ * The controls outside the shared set that are drawn as boxes on purpose, by file and by the
+ * class of the subject — the section's header says why each is, and so does its stylesheet.
+ */
+const DRAWN_ON_PURPOSE: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  [join('components', 'language', 'language-choice.module.css'), new Set(['.other'])],
+]);
+
+/** The shared set's home and the reading screens' modules, which this scan leaves to ADR-0063. */
+const READING = join('components', 'read') + sep;
+
+/** The class of the subject of a `selector { property: value }` line. */
+const subjectClassOf = (found: string): string | undefined =>
+  classOf(compoundsOf(found.slice(0, found.indexOf(' {'))).at(-1) ?? '');
+
+test('the button scan tells a painted control from a placed or a composed one', () => {
+  const sheet = `
+    .enter a, .enter button { background: var(--accent); border-radius: 3px; }
+    .enter a:hover { filter: brightness(1.1); }
+    .submit { background: var(--accent); border: 0; cursor: pointer; }
+    .decline { border: 1px solid var(--control-edge); cursor: pointer; }
+    .decline:focus-visible { box-shadow: 0 0 0 4px var(--accent); }
+    .skip:focus { border-radius: var(--radius-control); }
+    .field { composes: field from './controls.module.css'; }
+    .field:focus-visible { outline: 2px solid var(--accent); }
+    .quiet { background: none; border: 0; cursor: pointer; }
+    .ghost { background: transparent; border: 1px solid transparent; cursor: pointer; }
+    .notice { border-left: 2px solid var(--accent); }
+    .notice:focus-visible { outline: 2px solid var(--accent); }
+    .card { background: var(--paper-raised); border: 1px solid var(--rule); border-radius: 6px; }
+    .card:focus-within { border-color: var(--accent); }
+    .send { composes: primary from '../components/read/controls.module.css'; border-radius: 3px; justify-self: start; }
+    .send:hover { filter: brightness(1.1); }
+    .wide { composes: primary from './controls.module.css'; composes: row from './layout.module.css'; background: var(--accent); }
+    .caption { composes: label from './controls.module.css'; background: var(--accent-soft); }
+    .next { composes: primary; }
+    .next:active { filter: brightness(0.9); }
+    .button { cursor: pointer; }
+    .primary { composes: button; }
+    .primary:hover { filter: brightness(1.08); }
+    @media print { .submit { border: 1px solid; } }
+  `;
+
+  /*
+    From `.send` on, the shapes a control has taken since #169: a button that says only that it
+    composes the shared set's `primary`, by whatever path — with a second `composes:` after it,
+    too — is one; a label composed from the set is not; and in a stylesheet shaped like the set's
+    own, `.primary` composes `.button`, and `.next` composes `.primary` before it is declared.
+  */
+  assert.deepEqual(buttonPaint(sheet, 'paint'), [
+    '.enter a { background: var(--accent) }',
+    '.enter a { border-radius: 3px }',
+    '.enter button { background: var(--accent) }',
+    '.enter button { border-radius: 3px }',
+    '.submit { background: var(--accent) }',
+    '.decline { border: 1px solid var(--control-edge) }',
+    '.skip:focus { border-radius: var(--radius-control) }',
+    '.send { border-radius: 3px }',
+    '.wide { background: var(--accent) }',
+  ]);
+  assert.deepEqual(buttonPaint(sheet, 'filter'), [
+    '.enter a:hover { filter: brightness(1.1) }',
+    '.send:hover { filter: brightness(1.1) }',
+    '.next:active { filter: brightness(0.9) }',
+    '.primary:hover { filter: brightness(1.08) }',
+  ]);
+  assert.equal(subjectClassOf('.offered .other:hover { border-color: var(--accent) }'), '.other');
+});
+
+test('no stylesheet outside the shared set paints a button', () => {
+  const sheets = stylesheetsUnder(SOURCE).filter((file) => !relative(SOURCE, file).startsWith(READING));
+  assert.ok(sheets.length > 1, 'no stylesheet was found outside the reading screens, so this gate is asserting nothing');
+
+  const offenders = sheets.flatMap((file) => {
+    const allowed = DRAWN_ON_PURPOSE.get(relative(SOURCE, file)) ?? new Set<string>();
+    return buttonPaint(readFileSync(file, 'utf8'), 'paint')
+      .filter((found) => !allowed.has(subjectClassOf(found) ?? ''))
+      .map((found) => `${relative(SOURCE, file)}: ${found}`);
+  });
+
+  assert.deepEqual(
+    offenders,
+    [],
+    'a button, a field or a skip link off the reading screens takes its shape from ' +
+      'components/read/controls.module.css with `composes:` — one family of buttons (#169)',
+  );
+});
+
+test('no control in the app changes by a filter', () => {
+  const offenders = stylesheetsUnder(SOURCE).flatMap((file) =>
+    buttonPaint(readFileSync(file, 'utf8'), 'filter').map((found) => `${relative(SOURCE, file)}: ${found}`),
+  );
+
+  assert.deepEqual(
+    offenders,
+    [],
+    'a hover or a press is a change of fill, edge or colour (controls.module.css), never a ' +
+      'brightness a reader has to squint to see (#169)',
   );
 });

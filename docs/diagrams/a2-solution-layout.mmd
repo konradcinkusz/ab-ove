@@ -23,7 +23,8 @@ flowchart TD
 
   subgraph node["web/ - one pnpm workspace"]
     APP["@ab-ovo/app<br/>Next.js pages and the BFF"]
-    MCP["web/mcp<br/>a server over the same bundle"]
+    MCP["web/mcp<br/>an MCP server,<br/>a client of AbOvo.Api"]
+    KIT["@ab-ovo/web-kit<br/>the book's schema, the wire shapes,<br/>the reading order"]
   end
 
   subgraph accept["tests/e2e"]
@@ -36,10 +37,11 @@ flowchart TD
   API --> KERNEL
   TESTS --> API
   TESTS --> KERNEL
-  APP --> MCP
+  APP --> KIT
+  MCP --> KIT
   E2E -.->|"over HTTP, no source reference"| APP
 
   KERNEL -.->|"refused by ArchitectureTests"| API
   KERNEL -.->|"refused by ArchitectureTests"| CONTRACTS
 
-  linkStyle 8,9 stroke:#b45309,stroke-dasharray: 4 4;
+  linkStyle 9,10 stroke:#b45309,stroke-dasharray: 4 4;

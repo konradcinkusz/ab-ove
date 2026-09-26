@@ -65,7 +65,7 @@ export function SignedOutHint({
   if (!furthest || furthest.step < requested) return null;
 
   // `prefetch={false}`: the sign-in page titles its tab in the edition, and a head prefetched
-  // before the reader changed edition outlives the change (ADR-0067, `account-href.ts`).
+  // before the reader changed edition outlives the change (ADR-0069, `account-href.ts`).
   return (
     <p className={styles.subtitle} lang={chrome.language}>
       {chrome.readWhileSignedIn}{' '}

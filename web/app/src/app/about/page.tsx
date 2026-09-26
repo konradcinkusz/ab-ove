@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { IntegrationReport } from '@/components/integration-report';
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { Masthead } from '@/components/masthead/masthead';
+import controls from '@/components/read/controls.module.css';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { indexHref } from '@/lib/index-href';
 import { readerEdition } from '@/lib/server/reader-edition';
@@ -64,7 +66,7 @@ import { readerEdition } from '@/lib/server/reader-edition';
  *
  * A Server Component that renders from content compiled into the app and nothing else: no
  * fetch and no backend. It reads one cookie, this origin's own — the remembered edition —
- * which is why it is rendered per request where it used to be prerendered (ADR-0067 records
+ * which is why it is rendered per request where it used to be prerendered (ADR-0069 records
  * what that cost). Needing no backend is a fact about this page, not about reading, and it is
  * why the page can still tell a reader what is wrong when the API is not there. The one live
  * thing is <IntegrationReport />, a Client Component that asks this app's own origin what
@@ -90,39 +92,35 @@ export default async function AboutPage({
   const chrome = chromeFor(edition);
   const strings = chrome.aboutPage;
   // Both links to it decline to prefetch: the index titles its tab in the edition, and a
-  // prefetched head outlives a change of it (ADR-0067, `index-href.ts`).
+  // prefetched head outlives a change of it (ADR-0069, `index-href.ts`).
   const programs = indexHref({ edition });
 
   return (
     <main className="shell" lang={chrome.language}>
-      <SkipLink language={chrome.language} />
-      <header className="masthead">
-        {/*
-          The way back to the programs, first in the document, because this page is a
-          detour from the loop rather than a step in it.
-        */}
-        <p className="wordmark">
-          <Link href={programs} prefetch={false}>
-            ab<span>-</span>ovo
-          </Link>
-        </p>
-        <h1 className="lede" id={SKIP_TARGET_ID}>
-          {strings.lede}
-        </h1>
-        <p className="standfirst">
-          {strings.standfirst.before}
-          <em>{strings.standfirst.work}</em>
-          {strings.standfirst.after}
-        </p>
-        {/*
-          The entry point, and on this page it is the way back to the first screen. Nothing
-          past it needs an account (ADR-0004); the frames past it do need this site's book
-          server, which is the claim the section two below it makes (ADR-0060).
-        */}
-        <p className="enter">
-          <Link href={programs} prefetch={false}>{chrome.openPrograms}</Link>
-        </p>
-      </header>
+      {/*
+        The way back to the programs, first in the document, because this page is a detour
+        from the loop rather than a step in it — the wordmark of the one masthead (#169).
+      */}
+      <Masthead home={programs} language={chrome.language} />
+      <h1 className="lede" id={SKIP_TARGET_ID}>
+        {strings.lede}
+      </h1>
+      <p className="standfirst">
+        {strings.standfirst.before}
+        <em>{strings.standfirst.work}</em>
+        {strings.standfirst.after}
+      </p>
+      {/*
+        The entry point, and on this page it is the way back to the first screen: the page's
+        one filled control, the shared set's (#169). Nothing past it needs an account
+        (ADR-0004); the frames past it do need this site's book server, which is the claim the
+        section two below it makes (ADR-0060).
+      */}
+      <p className="enter">
+        <Link className={controls.primary} href={programs} prefetch={false}>
+          {chrome.openPrograms}
+        </Link>
+      </p>
 
       {/*
         The anti-goal, first and in the reader's own interest.

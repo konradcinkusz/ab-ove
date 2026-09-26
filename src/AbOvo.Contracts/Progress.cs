@@ -40,10 +40,11 @@ public sealed record ProgressResponse(IReadOnlyList<ProgressRecord> Records);
 public sealed record ProgressUpdate
 {
     /// <summary>
-    /// 1-based, matching the book's frame numbering. The upper bound is a sanity limit
-    /// rather than a claim about any program's length — the service holds no content and
-    /// cannot know how long a program is, so it refuses the absurd and trusts the rest.
-    /// Validating against the real length is the reading surface's job, where the bundle is.
+    /// 1-based, matching the book's frame numbering. The upper bound is a sanity limit rather
+    /// than a claim about any program's length, and it refuses the absurd before anything is
+    /// read. The handler is what decides: it refuses any step past the furthest this reader
+    /// has reached, and it never raises one (#171). A step is raised by an answer, through
+    /// <c>POST .../content/{track}/{unit}/advance</c>, which serves only steps the program has.
     /// </summary>
     [Range(1, 10_000)]
     public int Step { get; init; }

@@ -49,7 +49,7 @@
  *
  * A TRACK IN AN EDITION WITH NO ENTRY HERE is framed in English, as the reading surface's
  * controls are; `framingFor()` reports the language it used. Nothing here imports anything,
- * so `reveal.ts` can read its refusals from this table and still be tested with no install.
+ * so `refusal.ts` can read its refusals from this table and still be tested with no install.
  */
 
 /**
@@ -96,7 +96,7 @@ export interface Strings {
   /** The end of the last program. */
   readonly lastProgram: string;
 
-  /** `explain()`'s refusals, one per kind (`reveal.ts`). */
+  /** `explain()`'s refusals, one per kind (`refusal.ts`). */
   readonly notReached: (requested: number, furthest: number) => string;
   readonly noSuchStep: (requested: number, total: number) => string;
   /** `steps` is `steps(total)`. */
@@ -104,9 +104,13 @@ export interface Strings {
   /** The reader's half of the reading order's refusal; the call that opens it follows in English. */
   readonly notOpen: (unit: string, after: string) => string;
 
-  /** The note on a place kept in this process's memory (`tools.ts`, `delivered()`). */
+  /**
+   * The note on a place this process can find only while it runs: the reader's id could not
+   * be kept on this computer (`identity.ts`), so a restart begins again (`tools.ts`,
+   * `delivered()`).
+   */
   readonly placeIsEphemeral: string;
-  /** The reader's half of the note on a place that could not be reached (`placeUnavailableNote()`). */
+  /** The reader's half of the note on a place that could not be reached (`apiUnavailableNote()`). */
   readonly placeUnreachable: string;
   /** Added to it when a write failed: it may or may not have been recorded. */
   readonly placeMaybeRecorded: string;
@@ -139,7 +143,7 @@ export interface Framing extends Omit<Strings, 'step'> {
  * The English is what the server said before #167, with two differences: a count of one
  * says `step`, and the reading order's refusal names its `open_program` call after its
  * sentences to the reader rather than between them, so that the call can stay English in
- * every edition (`reveal.ts`).
+ * every edition (`refusal.ts`).
  */
 export const TABLE: Readonly<Record<string, Strings>> = {
   en: {
@@ -179,11 +183,12 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       'Nothing is hidden, missing or paid for: this is a reading order, not a permission.',
 
     placeIsEphemeral:
-      'Your place in the book is kept for this session only: this server has no account to ' +
-      'write it to, so a restart begins the program again. Fine for reading; not a bookmark.',
+      'Your place in the book is kept for this session only: this server could not store on ' +
+      'this computer the key it finds your place by, so a restart begins the program again. ' +
+      'Fine for reading; not a bookmark.',
     placeUnreachable:
-      'Your place in the book could not be reached just now, and nothing is lost: it is kept ' +
-      'on your account, exactly where you left it.',
+      'Your place in the book could not be reached just now, and nothing is lost: the book\'s ' +
+      'server keeps it, exactly where you left it.',
     placeMaybeRecorded:
       'This call may not have been recorded; either way, the same call is safe to make again ' +
       'once the place can be reached — it will not move you twice.',
@@ -265,16 +270,19 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       'zapis.\n\n' +
       'Nic tu nie jest ukryte, brakujące ani płatne: to kolejność czytania, a nie uprawnienie.',
 
-    // `pozycja w lekturze` is the vocabulary's word for the reader's place in the book.
+    // `pozycja w lekturze` is the vocabulary's word for the reader's place in the book. `nie
+    // mógł` is the server's, whose noun is masculine; nothing here is the reader's gender.
     placeIsEphemeral:
-      'Twoja pozycja w lekturze jest zapamiętana tylko na czas tej sesji: ten serwer nie ma ' +
-      'konta, na którym mógłby ją zapisać, więc po jego ponownym uruchomieniu program zaczyna ' +
-      'się od nowa. Do czytania wystarczy; zakładką nie jest.',
+      'Twoja pozycja w lekturze jest zapamiętana tylko na czas tej sesji: ten serwer nie mógł ' +
+      'zapisać na tym komputerze klucza, po którym ją odnajduje, więc po jego ponownym ' +
+      'uruchomieniu program zaczyna się od nowa. Do czytania wystarczy; zakładką nie jest.',
     // `accountOverview.placesUnavailable`'s claim — nothing is lost — with `revealUnreachable`'s
-    // verb; `zostawiono` is impersonal where *zostawiłeś* would choose a gender.
+    // verb; `zostawiono` is impersonal where *zostawiłeś* would choose a gender. The book's
+    // server keeps the place, where this used to say the account: a reader with none has one
+    // there too since #171 (`serwer książki`, as `placeOutOfReach` below names it).
     placeUnreachable:
-      'Nie udało się teraz dotrzeć do twojej pozycji w lekturze, ale nic nie przepadło: jest ' +
-      'zapisana na twoim koncie, dokładnie tam, gdzie ją zostawiono.',
+      'Nie udało się teraz dotrzeć do twojej pozycji w lekturze, ale nic nie przepadło: ' +
+      'przechowuje ją serwer książki, dokładnie tam, gdzie ją zostawiono.',
     // *This call* is the assistant's word; the reader made a change, and may make it again.
     placeMaybeRecorded:
       'Nie wiadomo, czy ta zmiana została zapisana; tak czy inaczej można ją bezpiecznie ' +

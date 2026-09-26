@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type { Page } from '@playwright/test';
 
 /**
@@ -23,9 +25,13 @@ import type { Page } from '@playwright/test';
  * test is still there for the next, exactly as a real one would be. A fixed address would
  * make every test after the first fail on "already taken", and — worse — would make them
  * pass or fail depending on the order the runner chose.
+ *
+ * The unique part comes from `node:crypto`, not `Math.random()`: the address is the account's
+ * name and specs hold it as a secret the app must never show (`account-recovery.spec.ts`), so
+ * CodeQL's insecure-randomness rule reads it as one.
  */
 export const freshEmail = (): string =>
-  `new-reader-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.test`;
+  `new-reader-${Date.now()}-${randomUUID().slice(0, 8)}@example.test`;
 
 /**
  * Satisfies the identity service's policy — eight to a hundred characters, an upper and a

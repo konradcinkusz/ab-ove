@@ -13,7 +13,9 @@ namespace AbOvo.Api.Endpoints;
 /// <summary>
 /// The content API — ADR-0060. `AbOvo.Api` now ingests, stores and serves the book's
 /// compiled bundle; the frame-level reveal gate (<see cref="Content.Reveal"/>) lives here,
-/// once, so every client calls the same copy instead of each holding its own.
+/// once, so every client calls the same copy instead of each holding its own — the reading
+/// surface's server, and the MCP server since it became a client of these endpoints (ADR-0066
+/// §1, issue #171).
 /// <para>
 /// The reading group is anonymous — reading requires no account (ADR-0060's other half).
 /// The reader's identity, signed in or anonymous, comes from
@@ -45,17 +47,15 @@ public static class ContentEndpoints
                     .Select(unit => new ProgramSummary(
                         unit!["id"]!.GetValue<string>(),
                         ToText(unit["titles"]),
-                        ToPart(unit["part"])))
+                        ToPart(unit["part"]),
+                        unit["steps"]!.AsArray().Count))
                     .ToList();
-                var languages = root["track"]?["languages"]?.AsArray()
-                    .Select(language => language!.GetValue<string>())
-                    .ToList() ?? [];
 
                 return Results.Ok(new TrackContent(
-                    bundle.Value.Tag, languages, programs, ToText(root["track"]?["titles"])));
+                    bundle.Value.Tag, LanguagesOf(root), programs, ToText(root["track"]?["titles"])));
             })
             .WithName(EndpointNames.GetPrograms)
-            .WithSummary("The current bundle's tag, the course's titles and editions, and every program in it.")
+            .WithSummary("The current bundle's tag, the course's titles and editions, and every program in it with its length.")
             .Produces<TrackContent>();
 
         anonContentApi.MapGet("/content/{track}/{unit}", async (
@@ -177,6 +177,83 @@ public static class ContentEndpoints
             .WithName(EndpointNames.GetStep)
             .WithSummary("One step, subject to the reveal gate.")
             .Produces<StepResponse>();
+
+        /*
+         * OPENING A PROGRAM — ADR-0066 §2, issue #171. The one write that records a place
+         * without an answer, and the reason it can stand beside the gate: the only place it
+         * records is the program's FIRST step, which the gate serves to any reader at all
+         * (Reveal.FirstStep), so it raises nothing a reader could not already read.
+         *
+         * - A reader with no place in the program gets one there, in the chosen edition. That
+         *   place is what opens the next program (ADR-0051, applied on every surface by
+         *   ADR-0056): the browser records one on arrival (`remember-position.tsx`), and an MCP
+         *   reader's `open_program` records one here. Without it, an anonymous `open_program`
+         *   kept neither the place nor the edition, and the program gate would have asked for an
+         *   answered step per program instead of one opened frame.
+         * - A reader who has a place gets NOTHING written, not even the edition. A switch of
+         *   edition is recorded by the next `advance`, which carries one, because a place and
+         *   its edition travel together (ADR-0019).
+         * - It does not ask whether the program is open. The API does not hold the reading
+         *   order (ADR-0065); the MCP server asks `isOpenWhere` before it writes, as the
+         *   browser's recorder does.
+         *
+         * Pinned to the one Subject the request names (`ReaderScopedQueries`, ADR-0020): the
+         * bearer's, or else the anonymous reader's the header names (ReaderIdentity.Resolve).
+         * It answers with the place AS IT NOW STANDS, as every write here does (ADR-0019), so
+         * a caller that opens a program another surface has already read on adopts that place.
+         */
+        anonContentApi.MapPost("/content/{track}/{unit}/open", async (
+                string track,
+                string unit,
+                OpenRequest request,
+                HttpContext http,
+                [FromServices] ContentBundleCache cache,
+                [FromServices] AbOvoDbContext db,
+                [FromServices] TimeProvider clock,
+                CancellationToken cancellationToken) =>
+            {
+                var identity = ReaderIdentity.Resolve(http);
+                if (identity is null) return NoIdentity();
+
+                var bundle = await cache.GetLatest(db, track, cancellationToken);
+                if (bundle is null || UnitIn(bundle.Value.Root, unit) is null) return Results.NotFound();
+
+                // The place is read back as the edition to render in, so an edition the track
+                // is not published in would be a place no client can show.
+                if (!LanguagesOf(bundle.Value.Root).Contains(request.Language))
+                {
+                    return Results.ValidationProblem(new Dictionary<string, string[]>
+                    {
+                        ["language"] = ["The track is not published in this edition."],
+                    });
+                }
+
+                var place = await db.ReaderProgress.SingleOrDefaultAsync(
+                    p => p.Subject == identity && p.Track == track && p.Unit == unit,
+                    cancellationToken);
+
+                if (place is null)
+                {
+                    place = new ReaderProgress
+                    {
+                        Subject = identity,
+                        Track = track,
+                        Unit = unit,
+                        Step = Reveal.FirstStep,
+                        Language = request.Language,
+                        UpdatedAt = clock.GetUtcNow(),
+                    };
+                    db.ReaderProgress.Add(place);
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+
+                return Results.Ok(new ProgressRecord(
+                    place.Track, place.Unit, place.Step, place.Language, place.UpdatedAt));
+            })
+            .WithValidation<OpenRequest>()
+            .WithName(EndpointNames.PostOpen)
+            .WithSummary("Record that the reader opened a program: a place at its first step, in the chosen edition. Never raises a step, and writes nothing on a place that exists.")
+            .Produces<ProgressRecord>();
 
         anonContentApi.MapPost("/content/{track}/{unit}/advance", async (
                 string track,
@@ -340,6 +417,15 @@ public static class ContentEndpoints
             .FirstOrDefault(u => u["id"]!.GetValue<string>() == unit);
 
     /// <summary>
+    /// The editions a stored bundle is published in — <c>track.languages</c>, which the track's
+    /// listing carries and an opening is checked against.
+    /// </summary>
+    private static List<string> LanguagesOf(JsonObject root) =>
+        root["track"]?["languages"]?.AsArray()
+            .Select(language => language!.GetValue<string>())
+            .ToList() ?? [];
+
+    /// <summary>
     /// <paramref name="cursorStep"/> rides along on a successful read as
     /// <see cref="StepResponse.Furthest"/> (ADR-0063): the reading surface's program map needs
     /// the reader's own furthest step to tell a section it may open from one the gate would
@@ -358,8 +444,19 @@ public static class ContentEndpoints
             ToText(stepNode["body"]),
             stepNode["titles"] is { } titles ? ToText(titles) : null,
             stepNode["answer"] is { } answer ? ToText(answer) : null,
-            stepNode["cue"]?.GetValue<bool>() ?? false), null, cursorStep);
+            stepNode["cue"]?.GetValue<bool>() ?? false,
+            ToCheck(stepNode["check"])), null, cursorStep);
     }
+
+    /// <summary>
+    /// <c>step.check</c> — which lab exercise a step points at, when it points at one
+    /// (<c>web-kit</c>'s <c>CheckRef</c>). A reference and never an exercise's body: the labs
+    /// are fetched by the reading surface, not bundled (ADR-0040).
+    /// </summary>
+    private static StepCheck? ToCheck(JsonNode? node)
+        => node is null
+            ? null
+            : new StepCheck(node["lab"]!.GetValue<string>(), node["exercise"]!.GetValue<string>());
 
     private static GateRefusal ToGateRefusal(Reveal.Refusal refusal) => new(
         refusal.Kind.ToString(), refusal.Requested, refusal.Furthest, refusal.Steps, refusal.Explain());

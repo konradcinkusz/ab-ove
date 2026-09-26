@@ -160,7 +160,8 @@ flowchart TD
 
   subgraph node["web/ - jedna przestrzeń pnpm"]
     APP["@ab-ovo/app<br/>strony Next.js i BFF"]
-    MCP["web/mcp<br/>serwer nad tą samą paczką treści"]
+    MCP["web/mcp<br/>serwer MCP,<br/>klient AbOvo.Api"]
+    KIT["@ab-ovo/web-kit<br/>schemat książki, kształty z API,<br/>kolejność programów"]
   end
 
   subgraph accept["tests/e2e"]
@@ -173,13 +174,14 @@ flowchart TD
   API --> KERNEL
   TESTS --> API
   TESTS --> KERNEL
-  APP --> MCP
+  APP --> KIT
+  MCP --> KIT
   E2E -.->|"po HTTP, bez referencji do źródeł"| APP
 
   KERNEL -.->|"odrzucane przez ArchitectureTests"| API
   KERNEL -.->|"odrzucane przez ArchitectureTests"| CONTRACTS
 
-  linkStyle 8,9 stroke:#b45309,stroke-dasharray: 4 4;
+  linkStyle 9,10 stroke:#b45309,stroke-dasharray: 4 4;
 ```
 
 ### A3. Jeden origin — każde żądanie, które wolno wykonać przeglądarce
@@ -567,8 +569,9 @@ straciłoby lekturę, którą odbył. Przeglądarka nie wysyła kontu żadnej po
 co aplikacja webowa zapisuje na koncie, pochodzi z własnych zapisów API — z odsłonięcia i z
 pozycji przeczytanych bez konta, przejmowanych przy logowaniu — a zapomnienie sięga pozycji pod
 ciasteczkiem tak samo jak kopii w przeglądarce i na koncie ([ADR-0068](adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)).
-Do czasu #171 `web/mcp` nadal podnosi pozycję na koncie przez `PUT`, co jest wierszem w
-[rejestrze odstępstw](architecture/00-ARCHITECTURE.md#deviation-register).
+Od #171 `web/mcp` przesuwa pozycję w lekturze tymi samymi zapisami API — otwarciem na pierwszej
+ramce i odsłonięciem — a `PUT` nie może już podnieść pozycji, co zamknęło wiersz
+[rejestru odstępstw](architecture/00-ARCHITECTURE.md#deviation-register).
 
 ```mermaid
 %% Gdzie jest czytelnik: miejsce w lekturze, które nie jest postępem, i kto je trzyma.
@@ -582,10 +585,10 @@ Do czasu #171 `web/mcp` nadal podnosi pozycję na koncie przez `PUT`, co jest wi
 %% PRZEGLĄDARKA NIE WYSYŁA KONTU ŻADNEJ POZYCJI W LEKTURZE (ADR-0068). To, co aplikacja
 %% webowa zapisuje na koncie, pochodzi z własnych zapisów API: odsłonięcie przesuwa kursor, pod
 %% którym czytelnik czyta, a zalogowanie przejmuje pozycje przeczytane bez konta. Kopia w
-%% przeglądarce jest podpowiedzią, gdzie wrócić (ADR-0060). Do czasu #171 web/mcp nadal podnosi
-%% pozycję na koncie przez PUT, co jest wierszem w rejestrze odstępstw. Zapomnienie sięga
-%% pozycji pod ciasteczkiem tak samo jak kopii w przeglądarce i na koncie. Konto kupuje jedną
-%% rzecz: to samo miejsce na drugiej maszynie.
+%% przeglądarce jest podpowiedzią, gdzie wrócić (ADR-0060). Od #171 web/mcp przesuwa pozycję
+%% tymi samymi zapisami, otwarciem na pierwszej ramce i odsłonięciem, a PUT nie może już
+%% podnieść pozycji. Zapomnienie sięga pozycji pod ciasteczkiem tak samo jak kopii w
+%% przeglądarce i na koncie. Konto kupuje jedną rzecz: to samo miejsce na drugiej maszynie.
 
 %% WYGRYWA NAJDALSZA RAMKA (ADR-0019). Dwie maszyny, które się nie zgadzają, to nie konflikt
 %% do rozstrzygnięcia znacznikiem czasu: czytelnik przeczytał do dalszej z dwóch, a

@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { Masthead } from '@/components/masthead/masthead';
+import { SKIP_TARGET_ID } from '@/components/skip/skip-link';
 import { registerHref, signInHref } from '@/lib/account-href';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { indexHref } from '@/lib/index-href';
@@ -52,7 +53,7 @@ import styles from '../credentials-form.module.css';
 
 export const dynamic = 'force-dynamic';
 
-/** The tab, in the page's edition — `/login`'s reason (ADR-0067). */
+/** The tab, in the page's edition — `/login`'s reason (ADR-0069). */
 export async function generateMetadata({
   searchParams,
 }: {
@@ -158,26 +159,19 @@ export default async function RegisterPage({
 
   // Every way on carries the destination and the edition (issue #166) — the fresh page
   // under an answer too, which was a bare `/register` and dropped where the reader was going.
-  // None of them prefetches, for `/login`'s reason (ADR-0067).
+  // None of them prefetches, for `/login`'s reason (ADR-0069).
   const signIn = signInHref({ redirect: intended, edition });
   const startAgain = registerHref({ redirect: intended, edition });
   const home = indexHref({ edition });
 
   return (
     <main className="shell" lang={chrome.language}>
-      <SkipLink language={chrome.language} />
-      <header className="masthead">
-        {/* The way home, as on `/login` (issue #166). */}
-        <p className="wordmark">
-          <Link href={home} prefetch={false}>
-            ab<span>-</span>ovo
-          </Link>
-        </p>
-        <h1 className="lede" id={SKIP_TARGET_ID}>
-          {strings.lede}
-        </h1>
-        <p className="standfirst">{strings.standfirst}</p>
-      </header>
+      {/* The one masthead and its way home, as on `/login` (#169, issue #166). */}
+      <Masthead home={home} language={chrome.language} />
+      <h1 className="lede" id={SKIP_TARGET_ID}>
+        {strings.lede}
+      </h1>
+      <p className="standfirst">{strings.standfirst}</p>
 
       {problemWords ? (
         <section className={styles.problem} aria-live="polite">

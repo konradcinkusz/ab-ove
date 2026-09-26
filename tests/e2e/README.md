@@ -58,12 +58,14 @@ was first written with.
 | `accessibility.spec.ts` | every screen holds WCAG 2.2 A and AA as far as axe-core can decide — both schemes, each panel open, 360 px, the forms behind an account, and a legal document |
 | `account-deletion.spec.ts` | closing an account, and everything about it that needs no account |
 | `account-overview.spec.ts` | opening one's own account: whose it is, the place it holds in each program, and the ways out — sign-out and the deletion screen |
+| `account-recovery.spec.ts` | a forgotten password, and a lost confirmation email, each asked for and ended on a page that says what happens next — the new password's link asked for in Polish too; the link followed from the reader's mail — another site — and nothing about the account in any address the app shows after it lands; a spent link says so and offers only a new one, in English and, to a browser that remembers Polish, in Polish; a device holding no link says how to get one; and a site with no accounts says it has none (#170) |
 | `adopt-at-sign-in.spec.ts` | reading without an account and then signing in — with a password, with a second factor, or by making an account — leaves the account at the frame read, with no step sent from the browser, and the place read without an account still there after signing out; and a forget — with no account, with one, or cut off once — that no later sign-in brings back (ADR-0068) |
 | `app-icon.spec.ts` | the tab shows the mark, served by this origin to a reader with no account, and `theme-color` is the paper in each scheme |
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
+| `buttons.spec.ts` | the buttons it names off the reading screens — the index's, the argument's, the 404s', the error page's, the lab's, the sign-in and registration forms' and the account's — have the shared set's shape, are a finger tall, and answer the pointer with a change of fill or edge, never a filter (#169) |
 | `consent.spec.ts` | being asked once whether answers may be counted, the question one press from the index's first screen, focus landing on the answer given, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
-| `edition-pages.spec.ts` | from the Polish index, sign-in, registration and `/about` are Polish, down to the document's own language and the tab's title — after the edition changes in place too, because no link into those pages prefetches them (ADR-0067); a failed sign-in keeps the address without the URL; restarting the second step keeps the destination; a new password's rules are its field's description, checked by the browser (#166) |
+| `edition-pages.spec.ts` | from the Polish index, sign-in, registration and `/about` are Polish, down to the document's own language and the tab's title — after the edition changes in place too, because no link into those pages prefetches them (ADR-0069); a failed sign-in keeps the address without the URL; restarting the second step keeps the destination; a new password's rules are its field's description, checked by the browser (#166) |
 | `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload; a program's contents and summary fail the same way |
 | `focus-ring.spec.ts` | the controls that showed focus by a colour or a brightness wear the shared ring, in light, dark and forced colours |
 | `frame-loading.spec.ts` | a frame on its way says so where the reader pressed — `Previous`, clicked or pressed as `←`, or the program map's door — while the API is held back for that one reader, and the pager does not move (#160) |
@@ -77,6 +79,7 @@ was first written with.
 | `lab-p01.spec.ts` | the Lab P1 pane, Python in the browser |
 | `landing.spec.ts` | the landing page is the programs, one click from one of them, and a first-time reader is told what they are looking at |
 | `language-choice.spec.ts` | the same frame in the other edition, and the choice remembered |
+| `masthead.spec.ts` | every page off the reading screens has the one masthead — one header, first in its `<main>`, the wordmark leading home in the page's edition, the heading after it — in one place, with a way home and a trail a finger can press (#169) |
 | `narrow-screen.spec.ts` | the reading surface at 360 px: nothing scrolls sideways, and the loop still runs |
 | `navigation.spec.ts` | finding a program, opening it, and coming back to the same frame; the contents lock what the gate would refuse, and the summary opens only from the last frame |
 | `no-backend.spec.ts` | the app with no backend in reach of the browser, and the index saying that no program will open |
@@ -654,6 +657,16 @@ in the tree rather than in the environment because a test's inputs must not depe
 deployment. `TWO_FACTOR`'s code is a fixed string and not a real TOTP — computing one would
 make every assertion depend on the clock, and the exchange is what is under test.
 
+**The fixture also plays the reader's mail** (#170). Its recovery endpoints answer as
+[the probe](../../docs/architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md) captured the pinned
+authservice answering, and what they "send" lands in an outbox, `GET /__outbox?to=<address>` —
+a route labelled in the fixture as not authservice's — whose page carries the email's own link.
+`specs/support/outbox.ts` opens it under `localhost` while the identity deployment is
+`127.0.0.1`, so clicking the link is a navigation another site started, as it is from a real
+mail client. An address at `unconfirmed.example.test` registers as an instance that sends
+email would — waiting to be confirmed, with a confirmation email — which is how a spec gets an
+unconfirmed account of its own; every other address registers as before.
+
 **Every script in `package.json` is executed by a CI context.** An unreferenced test entry
 point is not a latent capability, it is documentation that lies.
 
@@ -791,7 +804,10 @@ per run, and that is the price of reading through the real gate.
 **Registration writes too, into the identity fixture's memory** (`specs/registration.spec.ts`,
 and `specs/furthest-frame.spec.ts`, which needs an account whose furthest frame no other test
 has moved): each test registers a generated address, the fixture forgets it when its process
-exits, and no account is shared between tests. What such an account then reads is written to
+exits, and no account is shared between tests. `specs/account-recovery.spec.ts` goes further
+and changes what it registered — a password reset, an address confirmed, emails in the
+outbox — which is why it never uses a fixture account: a reset would change the password of an
+account every other spec signs in with. What such an account then reads is written to
 `AbOvo.Api` under its own subject, which nobody else holds either — so, like a reader id's
 rows, it needs no teardown. `specs/account-overview.spec.ts` registers one the same way when it
 needs the account's places to be its own — they are `AbOvo.Api` rows, which
@@ -878,9 +894,10 @@ tests/e2e/
   package.json                      scripts; every one is run by a CI context
   playwright.config.ts              base URL, layers, harness defaults, webServer
   tsconfig.json                     strict; `pnpm run typecheck` is a real gate
-  fixtures/                         the identity service stub (and the legal-document host it also
-                                    plays), its accounts, the content ingest, and the API
-                                    pass-through that can cut one reader off or slow them down
+  fixtures/                         the identity service stub (and the legal-document host and the
+                                    reader's mail it also plays), its accounts, the content
+                                    ingest, and the API pass-through that can cut one reader off
+                                    or slow them down
   specs/
     *.spec.ts                       one journey each — the table under *What this suite covers*
     support/
@@ -888,6 +905,7 @@ tests/e2e/
       forget.ts                     forgetting the reader's place, as the page's own control does
       gate.ts                       seeding the record ADR-0051's program gate reads
       lab.ts                        the pinned book's exercise file, solutions and splices
+      outbox.ts                     the fixture's outbox, and following an email's link from it
       page-errors.ts                uncaught-exception collector
       pane.ts                       a worksheet pane, and the button that opens it
       register.ts                   registering through `/register`, with a fresh address

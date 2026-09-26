@@ -82,7 +82,7 @@ export default function RootLayout({
       (React's flag is not inherited by children), so the guard that spec exists for is
       untouched.
 
-      `lang` IS THE SERVER'S ANSWER AND NOT THE LAST WORD (ADR-0067). This layout sees neither
+      `lang` IS THE SERVER'S ANSWER AND NOT THE LAST WORD (ADR-0069). This layout sees neither
       the query nor the path that name a reader's edition, and is not rendered again on a
       client navigation, so it says English — `FALLBACK_LANGUAGE`, the language of its own
       title — and each page puts its own language here once it is in the browser

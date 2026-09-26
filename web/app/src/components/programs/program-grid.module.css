@@ -14,84 +14,12 @@
 }
 
 /*
- * The top row: the wordmark, the theme switch, and the ways off this page (issue #165).
- *
- * ONE ROW AT A DESKTOP'S WIDTH, and `landing.spec.ts` measures it at 1280 px with every control
- * a reader can have. It was two rows once a reader had read one frame: the resume link,
- * *Export my worksheets* and the two destructive controls were in it too, and they are the card
- * above the grid and the block at the foot now.
- *
- * `align-items: baseline` and `wrap`, for the reason the reading index's crumb row gives — the
- * account control is read from the session and arrives AFTER the first paint, so it has to
- * extend a line rather than add a block. It is last, and the wordmark's `auto` margin sets
- * everything after it at the row's far end.
- *
- * THE ROW'S TYPE IS SET HERE, for everything in it but the wordmark: the theme switch has no
- * font of its own (`theme-switch.module.css` says why) and it left the `<nav>` that used to
- * give it one.
+ * THE TOP ROW IS THE ONE MASTHEAD's (#169): `components/masthead/masthead.module.css` is where
+ * its rule, its type, its wrap and its finger-sized links are set — they were set here, for
+ * this page, and copied once for `/courses`. What this page puts in it is `program-grid.tsx`'s
+ * to say, and `landing.spec.ts` measures it one row at 1280 px with every control a reader can
+ * have (issue #165).
  */
-.top {
-  align-items: baseline;
-  border-bottom: 1px solid var(--rule);
-  color: var(--ink-faint);
-  display: flex;
-  flex-wrap: wrap;
-  font-family: var(--font-ui);
-  font-size: 0.8125rem;
-  gap: 0.75rem 1.5rem;
-  margin: 0 0 2.25rem;
-  padding-bottom: 1.25rem;
-}
-
-.wordmark {
-  color: var(--ink);
-  font-family: var(--font-mono);
-  font-size: 0.9375rem;
-  letter-spacing: 0.06em;
-  margin: 0;
-  margin-inline-end: auto;
-}
-
-.wordmark span {
-  color: var(--ink-faint);
-}
-
-/* The ways off this page: the courses, the argument, and the account. */
-.chrome {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-}
-
-/*
- * ON A PHONE THE NAVIGATION HAS A LINE OF ITS OWN, FROM THE FIRST PAINT.
- *
- * The wordmark and the theme switch share the first line and the links the second. Left to
- * wrap by itself, the `<nav>` fitted beside the switch at some widths before the session
- * answered and not after — *Sign in* is a word longer than nothing, *Account* and *Sign out*
- * two — and dropped to a new line under the reader when it did. A line of its own is as wide
- * as the page, which is room for the two links and either answer in both editions.
- */
-@media (max-width: 40rem) {
-  .chrome {
-    flex-basis: 100%;
-  }
-}
-
-/*
- * A FINGER'S TARGET ON A LINE OF SMALL TYPE (issue #147, UI-UX.md "every control is a finger
- * tall"). The words are 13px and were a 21px box to press. The padding grows the box to 44px
- * and the matching negative margin gives the space back, so the row lays out exactly as it did
- * — the language and theme controls' own pattern. Half a rem across rather than their
- * three-eighths, because `Kursy` is a short word and the target has to be a finger WIDE as
- * well; the row's 1.25rem gap still keeps two neighbours' boxes apart.
- */
-.chromeLink {
-  color: inherit;
-  margin: -0.75rem -0.5rem;
-  padding: 0.75rem 0.5rem;
-}
 
 /*
  * The page's heading and its one language control, sharing a line. The control is at the far
@@ -192,8 +120,8 @@
 
 /*
  * THE NOTICE'S WAY ON (issue #163): the program named above it, as a link. A finger's target on
- * a line of small type, by the chrome row's pattern (`.chromeLink`) — padded to 44 px and the
- * space given back, so the notice is no taller for it.
+ * a line of small type, by the masthead's links' pattern (`masthead.module.css`'s `.link`) —
+ * padded to 44 px and the space given back, so the notice is no taller for it.
  */
 .shutWayOn {
   display: inline-block;
@@ -313,9 +241,9 @@
 /*
  * The way to *Your data in this browser* and the question beside it, from the first screen —
  * the same words for every reader. Quiet, under the card rather than in it: the card is the
- * way into the book, and this is the way to a setting. A finger's target by the chrome row's
- * own pattern (`.chromeLink`), padded to 44 px and the space given back, on the body's line
- * height for the reason `.carryLink` gives.
+ * way into the book, and this is the way to a setting. A finger's target by the masthead's
+ * links' own pattern (`masthead.module.css`'s `.link`), padded to 44 px and the space given
+ * back, on the body's line height for the reason `.carryLink` gives.
  */
 .toData {
   font-family: var(--font-ui);

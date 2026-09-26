@@ -20,6 +20,12 @@ programs behind them into one line ([`web/mcp/README.md`](../../web/mcp/README.m
 [`MCP-SERVER-SKETCH.md`](../architecture/MCP-SERVER-SKETCH.md) §3). The one sentence it
 overtook is annotated below; the gate and the refusals are unchanged.
 
+Since 2026-09-26 (#171) the MCP server holds no cursor store. It reads the reader's places
+from `AbOvo.Api` in one call, and asks `isOpenWhere` of them before it records an opening.
+`web/mcp/src/cursor.ts`, quoted in the Context, is gone, and its sentence about a second table
+is in `web/mcp/src/api.ts`'s header; where the Decision calls `shutBehind` an adapter over the
+cursor store, it is one over those places. The gate and the refusals are unchanged.
+
 ## Context
 
 The owner put it in one sentence: *there is nowhere I can find out why a program will not
