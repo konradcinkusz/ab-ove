@@ -1,7 +1,7 @@
 /**
- * The MCP wiring, and nothing else. Every decision worth testing is in reveal.ts, cursor.ts
- * and tools.ts; this file turns those into a protocol and is deliberately thin enough that
- * reading it tells you nothing you would want to assert.
+ * The MCP wiring, and nothing else. Every decision worth testing is in tools.ts, api.ts and
+ * identity.ts, and the gate is `AbOvo.Api`'s; this file turns those into a protocol and is
+ * deliberately thin enough that reading it tells you nothing you would want to assert.
  *
  * TRANSPORT: stdio today, which is the one a reader can run locally against a checkout and
  * the one this package can be exercised on without a deployment. The shape a stranger using
@@ -30,23 +30,20 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { ApiCursorStore, MemoryCursorStore } from './cursor.ts';
-import type { CursorStore } from './cursor.ts';
-import { liveBundles } from './content.ts';
-import type { BundleSource } from './content.ts';
+import { AbOvoApi } from './api.ts';
 import { framingFor } from './framing.ts';
+import { heldReaderId, originOf } from './identity.ts';
+import type { HeldIn } from './identity.ts';
 import { PROMPTS, completeArgument, promptMessages } from './prompts.ts';
 import { SERVER_INSTRUCTIONS, TOOLS, handle } from './tools.ts';
 import type { EditionOffered, EditionOutcome, ElicitOutcome, Session } from './tools.ts';
 
-export interface ServerOptions {
-  /** Where the content comes from; the live loader unless a test injects the fixture. */
-  readonly bundles?: BundleSource;
-  /** Whether the place is kept in memory only, so the results can say so to the reader. */
-  readonly placeIsEphemeral?: boolean;
-}
-
-export function createServer(cursors: CursorStore, options: ServerOptions = {}): Server {
+/**
+ * A server over one reader's `AbOvo.Api` — the book and the place both (`api.ts`). The unit
+ * tier hands it one whose `fetch` is a stub API; `main()` hands it the one the environment
+ * names (`apiFromEnvironment`).
+ */
+export function createServer(api: AbOvoApi): Server {
   const server = new Server(
     { name: 'ab-ovo', version: '0.1.0' },
     {
@@ -63,8 +60,6 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
       instructions: SERVER_INSTRUCTIONS,
     },
   );
-
-  const bundles = (): BundleSource => options.bundles ?? liveBundles;
 
   /*
     ASK THE READER DIRECTLY, WHEN THE HOST WILL LET US — MCP elicitation, checked at call
@@ -175,8 +170,7 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
 
   server.setRequestHandler(CompleteRequestSchema, async (request) => {
     const { ref, argument } = request.params;
-    const values =
-      ref.type === 'ref/prompt' ? completeArgument(bundles(), ref.name, argument) : [];
+    const values = ref.type === 'ref/prompt' ? await completeArgument(api, ref.name, argument) : [];
     return { completion: { values: [...values], total: values.length, hasMore: false } };
   });
 
@@ -188,14 +182,7 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
     const result = await handle(
       request.params.name,
       (request.params.arguments ?? {}) as Record<string, unknown>,
-      {
-        cursors,
-        bundles: bundles(),
-        elicit: elicitAnswer,
-        chooseEdition,
-        session,
-        ...(options.placeIsEphemeral ? { placeIsEphemeral: true } : {}),
-      },
+      { api, elicit: elicitAnswer, chooseEdition, session },
     );
 
     const content = [{ type: 'text' as const, text: result.text }];
@@ -208,37 +195,77 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
 }
 
 /**
- * Which store the process runs against, and whether it forgets.
+ * The API this process reads from, and who it reads as — from the environment a host starts
+ * it with (`web/mcp/README.md` has the host configuration).
  *
- * The in-memory one is offered ONLY when there is no API to talk to, and it says so on
- * stderr rather than degrading quietly: a reader whose place is forgotten at every restart
- * has lost the one thing an account buys, and finding that out by losing their place is
- * the worst available way to be told (P8 — degrade visibly). Stderr reaches whoever runs
- * the server; the `ephemeral` flag reaches the READER, through the results — `tools.ts`
- * says it in the text of the first one and as data on every one — because an MCP host
- * shows a reader the results and never the log.
+ * - `AB_OVO_API_URL` is where the book and the reader's place both are. Unset, there is
+ *   nothing to serve: every call says so, with the fix (`tools.ts`'s `noBookNote`), and so
+ *   does stderr, once.
+ * - `AB_OVO_READER_TOKEN`, when set, is a bearer, and it wins — the order
+ *   `ReaderIdentity.Resolve` reads in. It is the developer's way to an account's place, for as
+ *   long as the token lives; nothing refreshes it (ADR-0066 §2).
+ * - Otherwise the reader is anonymous, under an opaque id kept in the user's state directory,
+ *   one per API origin (`identity.ts`). It is looked for, or minted, the first time a call
+ *   needs it — ADR-0066 §2's "the first time it needs a place" — and when it cannot be kept
+ *   the process holds it in memory and says so: stderr names the file and the error, or that
+ *   no state directory was found and what names one, for whoever runs the server, and the
+ *   results tell the reader their place lasts only as long as this process (P8). Stderr never
+ *   carries the id.
  */
-export function storeFromEnvironment(env: NodeJS.ProcessEnv): {
-  readonly store: CursorStore;
-  readonly ephemeral: boolean;
-} {
-  const api = env.AB_OVO_API_URL;
-  const token = env.AB_OVO_READER_TOKEN;
+export function apiFromEnvironment(
+  env: NodeJS.ProcessEnv,
+  options: {
+    readonly warn?: (line: string) => void;
+    readonly platform?: NodeJS.Platform;
+    readonly home?: string;
+    /** The `fetch` requests go through; the unit tier's is a stub API. */
+    readonly fetch?: typeof fetch;
+  } = {},
+): AbOvoApi {
+  const warn = options.warn ?? ((line: string) => void process.stderr.write(line));
+  const baseUrl = env['AB_OVO_API_URL']?.trim() || undefined;
+  const token = env['AB_OVO_READER_TOKEN']?.trim() || undefined;
+  const through = options.fetch === undefined ? {} : { fetch: options.fetch };
 
-  if (api && token) return { store: new ApiCursorStore(api, () => token), ephemeral: false };
+  if (baseUrl === undefined) {
+    warn(
+      'ab-ovo MCP: AB_OVO_API_URL is not set. This server reads the book, and keeps the ' +
+        "reader's place, through the ab-ovo API, so it has nothing to serve; every call will say " +
+        'so. Set AB_OVO_API_URL to the API\'s address.\n',
+    );
+    return new AbOvoApi({ baseUrl, reader: { kind: 'nobody' }, ...through });
+  }
+  if (token !== undefined) return new AbOvoApi({ baseUrl, reader: { kind: 'account', bearer: token }, ...through });
 
-  process.stderr.write(
-    'ab-ovo MCP: AB_OVO_API_URL and AB_OVO_READER_TOKEN are not both set, so this process ' +
-      'keeps the reader\'s place IN MEMORY and forgets it on restart. Fine for trying the ' +
-      'server out; not a deployment.\n',
-  );
-  return { store: new MemoryCursorStore(), ephemeral: true };
+  // An address with no http or https origin keys no id, and nothing is sent to it: every call
+  // is refused before a request, with the fix (`api.ts`).
+  const origin = originOf(baseUrl);
+  if (origin === undefined) return new AbOvoApi({ baseUrl, reader: { kind: 'nobody' }, ...through });
+
+  // `heldReaderId` does not throw: whatever keeps the id from being kept, including no state
+  // directory to be found, ends here as an id held in memory, and is said (#171's review).
+  const hold = (): HeldIn => {
+    const held = heldReaderId(origin, env, options.platform, options.home);
+    if (!held.kept) {
+      const why = held.why ?? 'unknown';
+      warn(
+        `ab-ovo MCP: the reader id for ${origin} ` +
+          (held.file === undefined
+            ? `could not be kept: no state directory was found (${why}). Setting XDG_STATE_HOME to an ` +
+              'absolute path names one. Until then this process holds the id in memory: '
+            : `could not be kept in ${held.file} (${why}), so this process holds it in memory: `) +
+          "the API keeps the reader's place under an id only this process knows, and a restart " +
+          'begins every program again. The results say so to the reader.\n',
+      );
+    }
+    return held;
+  };
+  return new AbOvoApi({ baseUrl, reader: { kind: 'anonymous', hold }, ...through });
 }
 
 /** Start serving over stdio. Exported so `bin/ab-ovo-mcp.mjs` can call it after its own checks. */
 export async function main(): Promise<void> {
-  const { store, ephemeral } = storeFromEnvironment(process.env);
-  const server = createServer(store, { placeIsEphemeral: ephemeral });
+  const server = createServer(apiFromEnvironment(process.env));
   await server.connect(new StdioServerTransport());
 }
 

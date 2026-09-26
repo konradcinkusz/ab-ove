@@ -8,6 +8,10 @@ Narrows [`MCP-SERVER-SKETCH.md`](../architecture/MCP-SERVER-SKETCH.md) §3's own
 limit on a host that supports the mechanism this ADR adds; changes nothing on one that
 does not.
 
+Since 2026-09-26 (#171) `web/mcp/src/reveal.ts`, quoted below, is gone: the gate is
+`AbOvo.Api`'s, and the sentence lives on in `web/mcp/src/refusal.ts`, which tells a refusal
+and decides none.
+
 ## Context
 
 `MCP-SERVER-SKETCH.md` §3 named the one problem no gate in this server can decide: whether

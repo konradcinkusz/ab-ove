@@ -44,8 +44,10 @@ import {
   unitBefore,
   unitIn,
 } from './bundle.ts';
+import type { ProgramGroup } from './bundle.ts';
 import type { Bundle, Unit } from './schema.ts';
 import { validateBundle } from './validate.ts';
+import type { ProgramSummary } from './wire.ts';
 import { skipWithoutBundle } from './have-bundle.ts';
 
 const FIXTURE: Bundle = (() => {
@@ -415,4 +417,38 @@ test('a program the bundle does not carry has nothing before it', () => {
   // The same answer as the first program, and the gate reads both as the open door: a
   // program the book does not list is not one a reader can be sent back from.
   assert.equal(unitBefore(withUnits(['F01', 'F02']), 'P27'), undefined);
+});
+
+/*
+ * The content API's listing of a track, which the MCP server groups and orders with the same
+ * two functions now that it holds no bundle (#171). Its programs say "no part" with `null`,
+ * where a bundle's units leave the field out, and the two must group alike.
+ */
+const listed = (id: string, part: string | null): ProgramSummary => ({
+  id,
+  titles: { en: id },
+  part: part === null ? null : { id: part, titles: { en: `Part ${part}` } },
+  stepCount: 4,
+});
+
+test("the API's listing of a track groups and orders as the bundle it was served from does", () => {
+  const shape = (groups: readonly ProgramGroup<{ readonly id: string }>[]) =>
+    groups.map((group) => [group.prefix, group.part?.id, group.units.map((unit) => unit.id)]);
+
+  const byPrefix = [listed('F01', null), listed('F02', null), listed('P01', null)];
+  assert.deepEqual(shape(groupsOf({ units: byPrefix })), shape(groupsOf(withUnits(['F01', 'F02', 'P01']))));
+
+  assert.deepEqual(shape(groupsOf({ units: [listed('F01', 'I'), listed('P01', 'II')] })), [
+    [undefined, 'I', ['F01']],
+    [undefined, 'II', ['P01']],
+  ]);
+  // One program whose part is `null` sends the listing back to prefixes, as one bundle unit
+  // with no part does.
+  assert.deepEqual(
+    groupsOf({ units: [listed('F01', 'I'), listed('P01', null)] }).map((group) => group.prefix),
+    ['F', 'P'],
+  );
+
+  assert.equal(unitBefore({ units: byPrefix }, 'P01')?.id, 'F02');
+  assert.equal(unitBefore({ units: byPrefix }, 'F01'), undefined);
 });

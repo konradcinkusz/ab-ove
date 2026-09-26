@@ -27,19 +27,28 @@ namespace AbOvo.Api.Extensions;
 public static class ReaderIdentity
 {
     /// <summary>
-    /// ADR-0061 — the header the web app's BFF proxy injects server-side, from the reader's
-    /// <c>ab_ovo_rid</c> cookie, the same way it already injects <c>Authorization</c> from a
-    /// session cookie. Never trusted from anywhere else: a client that could set this itself
-    /// could claim any other anonymous reader's cursor.
+    /// ADR-0061 — the header that names an anonymous reader. Each caller that sends it holds
+    /// its own reader's id: the web app's BFF injects it server-side from the reader's
+    /// <c>ab_ovo_rid</c> cookie, the way it injects <c>Authorization</c> from a session cookie,
+    /// and the MCP server sends the id it minted for its reader and keeps in a file of that
+    /// user's (ADR-0066 §2, issue #171).
+    /// <para>
+    /// What protects an id is that nobody can guess it, not where it came from: this service
+    /// cannot tell a BFF from any other caller, so a request carrying an id is that id's
+    /// reader, and possession is the only credential (ADR-0061). What the BFF enforces is that
+    /// a BROWSER never picks the value (FRONTEND-BFF.md §1). An MCP process is not a browser,
+    /// and it holds its own reader's id just as the BFF holds a cookie's.
+    /// </para>
     /// </summary>
     public const string HeaderName = "X-Ab-Ovo-Reader-Id";
 
     /// <summary>
     /// The authenticated subject if the request carries one, else the anonymous reader-id
     /// header if it is present and shaped like one, else <c>null</c>. A caller with neither
-    /// has no cursor to read or write and must be told so — this method does not invent one;
-    /// minting happens once, in the web app's middleware (ADR-0061), not on every API call
-    /// that happens to be missing it.
+    /// has no cursor to read or write and must be told so — this method does not invent one.
+    /// An id is minted once, by the client that goes on holding it — the web app's middleware
+    /// for a browser (ADR-0061), the MCP process for its reader (ADR-0066 §2) — and never by
+    /// this service (P5), here or on any call that happens to be missing one.
     /// </summary>
     public static string? Resolve(HttpContext context)
     {
@@ -55,8 +64,9 @@ public static class ReaderIdentity
     /// like one. <see cref="Resolve"/> lets a bearer win, which is right for every read and
     /// every advance: one request, one cursor. A call that acts on the anonymous cursor as a
     /// cursor of its own — beside the account the bearer names, as adoption at sign-in and the
-    /// account's forget do, or with no account at all, as the anonymous forget does — asks for
-    /// this half by name (ADR-0068, issue #176).
+    /// account's forget do (ADR-0068, issue #176), or with no account at all, as the anonymous
+    /// read and the anonymous forget do (ADR-0066 §2, issue #171; ADR-0068 §5) — asks for this
+    /// half by name.
     /// </summary>
     public static string? Anonymous(HttpContext context) =>
         context.Request.Headers.TryGetValue(HeaderName, out var values)
@@ -67,9 +77,11 @@ public static class ReaderIdentity
     /// <summary>
     /// Bounds what can reach <c>ReaderProgress.Subject</c> from a header, the same discipline
     /// <c>ProgressEndpoints.IdentifierShape</c> applies to route segments: not injection
-    /// defence (EF parameterises), a bound on what a key column may hold. The cookie this
-    /// header carries is always minted as <see cref="Guid"/>-shaped by
-    /// <c>web/app/src/middleware.ts</c>; anything else did not come from there.
+    /// defence (EF parameterises), a bound on what a key column may hold. Both clients that
+    /// mint an id mint a <see cref="Guid"/> from a CSPRNG — <c>web/app/src/middleware.ts</c>
+    /// and <c>web/mcp/src/identity.ts</c> — so anything not shaped like one was minted by
+    /// neither, and is refused whoever sent it. A value shaped like one is taken from anyone:
+    /// this checks the shape and not the sender, which it cannot see (<see cref="HeaderName"/>).
     /// </summary>
     private static bool TryParseAnonymousId(string? raw, [NotNullWhen(true)] out string? id)
     {

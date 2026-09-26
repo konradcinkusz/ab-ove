@@ -14,6 +14,12 @@ changes the Reason and the Exit of one row in the deviation register
 ([`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md)): "`PUT
 /api/v1/progress/{track}/{unit}` can still name a step it did not earn".
 
+Since 2026-09-26 #171 has landed as well: `web/mcp` no longer calls `PUT`, `PUT` raises no step,
+and the register row is discharged
+([ADR-0066](0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)'s
+dated note). Where this record says `web/mcp` still raises `Step` through `PUT` until #171, that
+is how things stood when it was decided.
+
 Constrained by these, and amends none of them:
 
 - [ADR-0009](0009-the-instrument-measures-the-book.md) and

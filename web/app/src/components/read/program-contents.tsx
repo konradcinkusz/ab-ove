@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
 import { say } from '@ab-ovo/web-kit';
+import type { TrackContent, UnitSummary } from '@ab-ovo/web-kit/wire';
 
 import { neighboursOf } from '@/lib/content/neighbours';
-import type { TrackContent, UnitSummary } from '@/lib/content/wire';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { editionHrefs } from '@/lib/language/hrefs';
 import { isReachable, openingEnds, sectionSpansOf } from '@/lib/read/place';

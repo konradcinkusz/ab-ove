@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
 import { say } from '@ab-ovo/web-kit';
+import type { SectionSummary, StepContent } from '@ab-ovo/web-kit/wire';
 
 import { chromeFor } from '@/lib/i18n/chrome';
-import type { SectionSummary, StepContent } from '@/lib/content/wire';
 import { revealStep } from '@/lib/actions/reveal';
 import { editionHrefs } from '@/lib/language/hrefs';
 import { sectionSpansOf, spanAt } from '@/lib/read/place';

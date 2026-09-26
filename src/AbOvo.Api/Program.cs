@@ -74,7 +74,9 @@ openWriteApi.MapOutcomeEndpoints();
 
 // ADR-0068 §5 — the forget of a reader with no account, which has to reach the anonymous
 // cursor adoption would otherwise copy into the next account signed in on that browser. It
-// WRITES with no account, so it is this group's and not authApi's.
+// WRITES with no account, so it is this group's and not authApi's. Beside it, the read of
+// every place that reader has (ADR-0066 §2, #171), for an MCP reader with no account: needed
+// with no account, and made again at every call a session makes, so rate-limited as well.
 openWriteApi.MapAnonymousProgressEndpoints();
 
 // ADR-0060 — content reads share openWriteApi's shape (anonymous, explicitly rate-limited)

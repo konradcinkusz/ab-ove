@@ -1,4 +1,4 @@
-import type { SectionSummary } from '../content/wire.ts';
+import type { SectionSummary } from '@ab-ovo/web-kit/wire';
 
 /**
  * Where a reader is inside a program, and where they may go from there — the arithmetic

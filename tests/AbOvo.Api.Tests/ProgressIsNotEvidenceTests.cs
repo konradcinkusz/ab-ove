@@ -124,9 +124,11 @@ public sealed class ProgressIsNotEvidenceTests
         using var client = factory.ClientFor(Reader);
         var token = TestContext.Current.CancellationToken;
 
+        // Step 1, the only place a PUT may record since #171 (a later step is refused before
+        // its query runs, which would test nothing here).
         using var put = await client.PutAsJsonAsync(
             "/api/v1/progress/math-for-ai-engineers/P01",
-            new Contracts.ProgressUpdate { Step = 4, Language = "en" },
+            new Contracts.ProgressUpdate { Step = 1, Language = "en" },
             token);
         Assert.True(put.IsSuccessStatusCode, $"PUT was refused: {put.StatusCode}");
 
@@ -168,6 +170,33 @@ public sealed class ProgressIsNotEvidenceTests
 
         using var anonymous = factory.CreateClient();
         anonymous.DefaultRequestHeaders.Add(Extensions.ReaderIdentity.HeaderName, readerId.ToString());
+
+        // The two an MCP reader with no account makes (#171): opening a program, which reads
+        // and may write the one place the request names, and the read of every place it has.
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AbOvoDbContext>();
+            db.ContentBundles.Add(new ContentBundle
+            {
+                Track = "math-for-ai-engineers",
+                Tag = "fixture-0",
+                BundleJson = """
+                    {"tag":"fixture-0","track":{"id":"math-for-ai-engineers","languages":["en"]},
+                     "units":[{"id":"P01","titles":{"en":"P01"},"steps":[{"n":1,"kind":"frame","body":{"en":"One."}}]}]}
+                    """,
+                IngestedAt = DateTimeOffset.UnixEpoch,
+            });
+            await db.SaveChangesAsync(token);
+        }
+        using var opened = await anonymous.PostAsJsonAsync(
+            "/api/v1/content/math-for-ai-engineers/P01/open",
+            new Contracts.OpenRequest { Language = "en" },
+            token);
+        Assert.True(opened.IsSuccessStatusCode, $"the opening was refused: {opened.StatusCode}");
+
+        using var placesRead = await anonymous.GetAsync("/api/v1/progress/anonymous", token);
+        Assert.True(placesRead.IsSuccessStatusCode, $"the anonymous read was refused: {placesRead.StatusCode}");
+
         using var forgettingCursor = await anonymous.DeleteAsync("/api/v1/progress/anonymous", token);
         Assert.True(
             forgettingCursor.IsSuccessStatusCode,

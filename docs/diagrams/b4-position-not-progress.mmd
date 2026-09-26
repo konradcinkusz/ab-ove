@@ -8,9 +8,10 @@
 %% THE BROWSER SENDS THE ACCOUNT NO PLACE (ADR-0068). What the web app puts on the account
 %% comes from the API's own writes: a reveal moves the cursor the reader reads under, and
 %% signing in adopts the places read without an account. The browser's copy is a resume hint
-%% (ADR-0060). Until #171, web/mcp still raises the account through PUT, which is a row in the
-%% deviation register. A forget reaches the cookie's place as well as the browser's and the
-%% account's. An account buys one thing: the same place on a second machine.
+%% (ADR-0060). Since #171 web/mcp moves a place through the same writes, an opening at the
+%% first step and an advance, and PUT can no longer raise a step. A forget reaches the cookie's
+%% place as well as the browser's and the account's. An account buys one thing: the same place
+%% on a second machine.
 
 %% FURTHEST FRAME WINS (ADR-0019). Two machines that disagree are not a conflict to resolve
 %% with a timestamp: the reader has read up to the furthest of the two, and a reconciliation

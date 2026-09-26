@@ -4,7 +4,7 @@ import type {
   StepResponse,
   TrackContent,
   UnitSummary,
-} from '@/lib/content/wire';
+} from '@ab-ovo/web-kit/wire';
 
 import { backendCandidates } from './backends.ts';
 
@@ -12,12 +12,13 @@ import { backendCandidates } from './backends.ts';
  * The reading surface's only door to the book — ADR-0060. Every read and every advance goes
  * through `AbOvo.Api`'s content endpoints; nothing under `src/app/read/**` reads a compiled
  * bundle from disk any more — the contents and the summary were the last two that did, until
- * issue #158 (`@ab-ovo/web-kit`'s `bundleFor` still exists for `web/mcp` and for the unit
- * tier, which is deliberately not this). The index, `/courses` and `/instrument` still list
- * the programs from the bundle compiled into the app, and the deviation register in
- * `docs/architecture/00-ARCHITECTURE.md` says why and until when.
+ * issue #158 (`@ab-ovo/web-kit`'s `bundleFor` still exists for the pages named next and for
+ * the unit tier, which is deliberately not this). The index, `/courses` and `/instrument`
+ * still list the programs from the bundle compiled into the app, and the deviation register
+ * in `docs/architecture/00-ARCHITECTURE.md` says why and until when.
  *
- * The wire shapes live in `lib/content/wire.ts`, not here — see that file for why. This
+ * The wire shapes live in `@ab-ovo/web-kit/wire`, not here — see that file for why; they
+ * moved there when `web/mcp` became the second client of these endpoints (#171). This
  * module holds only the calls: the candidate ladder, the per-candidate timeout, and an
  * OUTCOME union rather than a thrown error or a raw `Response`, on `account-deletion.ts`'s
  * pattern exactly (the candidate ladder, `redirect: 'manual'`, `cache: 'no-store'`).

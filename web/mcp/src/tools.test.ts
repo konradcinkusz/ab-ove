@@ -1,9 +1,10 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { ApiCursorStore, MemoryCursorStore } from './cursor.ts';
-import { BundleNotFound, ContentUnavailable, REPOSITORY_ROOT, fixtureBundles, say, unitIn } from './content.ts';
-import type { Bundle, BundleSource, Text, Unit } from './content.ts';
+import { say, unitIn } from '@ab-ovo/web-kit';
+import type { Bundle, Text, Unit } from '@ab-ovo/web-kit';
+
+import { AbOvoApi } from './api.ts';
 import { framingFor } from './framing.ts';
 import {
   ANSWER_CONTRACT,
@@ -13,24 +14,24 @@ import {
   handle,
 } from './tools.ts';
 import type { ToolResult } from './tools.ts';
+import { STUB_API, StubApi, fixtureBundle } from './testing/stub-api.ts';
+import type { StubCall } from './testing/stub-api.ts';
 
 const TRACK = 'math-for-ai-engineers';
 const UNIT = 'P01';
 const LANG = 'en';
 
-const BUNDLES = fixtureBundles();
+const BUNDLE = fixtureBundle();
 
 /**
  * Every edition the fixture is published in. The leak walks run once in each (#167): the
  * server's own sentences follow the edition now, so the words around a step differ from one
  * edition to another, and "no answer before its step" is a claim about every one of them.
  */
-const EDITIONS = BUNDLES.for(TRACK)!.track.languages;
+const EDITIONS = BUNDLE.track.languages;
 
 function program() {
-  const bundle = BUNDLES.for(TRACK);
-  assert.ok(bundle, 'the fixture bundle must load');
-  const unit = unitIn(bundle, UNIT);
+  const unit = unitIn(BUNDLE, UNIT);
   assert.ok(unit, 'the fixture must carry P01');
   return unit;
 }
@@ -42,16 +43,51 @@ function answers(): { n: number; text: string }[] {
     .flatMap((step) => Object.values(step.answer!).map((text) => ({ n: step.n, text })));
 }
 
-const deps = () => ({ cursors: new MemoryCursorStore(), bundles: BUNDLES });
+/**
+ * The anonymous reader every harness below reads as. A fixed id, so a test can look for it
+ * where it must never be: in a result, or sent to anything but the API's own origin.
+ */
+const READER_ID = '6f1c2d3e-4a5b-4c6d-8e7f-9a0b1c2d3e4f';
+const READER = StubApi.anonymous(READER_ID);
+
+/**
+ * THE SERVER'S VIEW OF `AbOvo.Api`, AND THE API'S OWN (#171). The server under test holds no
+ * book and no place: it asks a stub API (`testing/stub-api.ts`) serving `books`, as one
+ * anonymous reader, and `place()` reads where that reader is from the stub's own store — what
+ * the API holds, not what the server believes. `kept: false` is a reader whose id could not be
+ * kept on this computer (`identity.ts`), whose place lasts as long as the process.
+ */
+interface Harness {
+  readonly api: AbOvoApi;
+  readonly stub: StubApi;
+  place(unit: string): { readonly step: number; readonly language: string } | undefined;
+}
+
+function against(
+  books: readonly Bundle[] = [BUNDLE],
+  options: { readonly kept?: boolean; readonly tracks?: readonly string[] } = {},
+): Harness {
+  const stub = new StubApi(books);
+  const api = new AbOvoApi({
+    baseUrl: STUB_API,
+    reader: { kind: 'anonymous', hold: () => ({ id: READER_ID, kept: options.kept ?? true }) },
+    tracks: options.tracks ?? books.map((book) => book.track.id),
+    fetch: stub.fetch,
+  });
+  return { api, stub, place: (unit) => stub.place(READER, TRACK, unit) };
+}
+
+const deps = (): Harness => against();
 
 /**
  * EVERY ANSWER-BEARING TEXT IN THE BUNDLE, not only the steps'.
  *
  * Schema v2 added two that are not steps: `Route.answer` is Appendix A's answer to a quiz
  * question, and `Exercise.answer` is required on every Test exercise and Further problem.
- * The gate in reveal.ts governs `Step.answer` and says NOTHING about either, so whether
- * they reach a reader is a property of this tool surface alone -- which makes it something
- * to assert rather than to believe. In every edition, whichever one the walk reads in.
+ * The API's gate governs `Step.answer` and says NOTHING about either, and the API sends
+ * neither (`ReturnRoute` and `StepContent` have no field for them), so whether they reach a
+ * reader is a property of what this surface is sent and says -- which makes it something to
+ * assert rather than to believe. In every edition, whichever one the walk reads in.
  */
 function everyAnswerInTheBundle(): { label: string; text: string }[] {
   const found: { label: string; text: string }[] = [];
@@ -59,7 +95,7 @@ function everyAnswerInTheBundle(): { label: string; text: string }[] {
     for (const written of Object.values(text ?? {})) if (written) found.push({ label, text: written });
   };
 
-  for (const bundle of BUNDLES.all()) {
+  for (const bundle of [BUNDLE]) {
     for (const unit of bundle.units) {
       for (const step of unit.steps) add(`step ${step.n}`, step.answer);
       for (const route of unit.routes ?? []) add(`route ${route.kind}`, route.answer);
@@ -102,7 +138,7 @@ async function everythingSaid(d: ReturnType<typeof deps>): Promise<string> {
   for (let n = 1; n <= program().steps.length + 2; n += 1) {
     said.push(wordsOf(await handle('review_step', { track: TRACK, unit: UNIT, step: n }, d)));
   }
-  const here = await d.cursors.read(TRACK, UNIT);
+  const here = d.place(UNIT);
   if (here && here.step > 1) {
     said.push(wordsOf(await handle('submit_answer', { unit: UNIT, step: here.step - 1, answer: 'again' }, d)));
   }
@@ -261,8 +297,8 @@ for (const edition of EDITIONS) {
  * from one program would read as a line legitimately shown from another. Here every answer
  * — a step's, a route's, an exercise's, in each edition — ends with its program's id.
  */
-function distinctBook(ids: readonly string[]): BundleSource {
-  const bundle = BUNDLES.for(TRACK)!;
+function distinctBook(ids: readonly string[]): Bundle {
+  const bundle = BUNDLE;
   const bare: { -readonly [K in keyof Unit]?: Unit[K] } = { ...bundle.units[0]! };
   delete bare.part;
   const unit = bare as Unit;
@@ -278,7 +314,7 @@ function distinctBook(ids: readonly string[]): BundleSource {
       exercises: unit.exercises?.map((exercise) => ({ ...exercise, answer: mark(exercise.answer, id) })),
     })),
   };
-  return { for: (id) => (id === TRACK ? book : undefined), all: () => [book] };
+  return book;
 }
 
 for (const edition of EDITIONS) {
@@ -295,15 +331,15 @@ for (const edition of EDITIONS) {
       worded per edition now, and every one of them is a way out too.
     */
     const book = distinctBook(['F01', 'F02', 'F03']);
-    const units = book.all()[0]!.units;
+    const units = book.units;
     const session = { ephemeralNoteSaid: false };
-    const d = { cursors: new MemoryCursorStore(), bundles: book, placeIsEphemeral: true, session };
+    const d = { ...against([book], { kept: false }), session };
 
     /** Everything every tool says about every program at the present places, without moving anybody. */
     const askEverything = async (): Promise<ToolResult[]> => {
       const results = [await handle('list_programs', {}, d), await handle('list_programs', { all: true }, d)];
       for (const program of units) {
-        const here = await d.cursors.read(TRACK, program.id);
+        const here = d.place(program.id);
         if (here) {
           // A resume writes the place it read, and a retry for the step before is refused.
           results.push(await handle('open_program', { unit: program.id }, d));
@@ -320,7 +356,7 @@ for (const edition of EDITIONS) {
     };
 
     const check = async (results: readonly ToolResult[], where: string): Promise<void> => {
-      const furthest = new Map((await d.cursors.readAll()).map((cursor) => [cursor.unit, cursor.step]));
+      const furthest = new Map(d.stub.rowsOf(READER).map((row) => [row.unit, row.step]));
       const said = results.map(wordsOf).join('\n');
       const never = (words: string, what: string): void => assert.ok(!said.includes(words), `${where}: ${what} was said`);
       for (const program of units) {
@@ -380,7 +416,7 @@ async function atTheFirstQuestion(d: ReturnType<typeof deps>): Promise<void> {
   await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
   const moved = await handle('submit_answer', { track: TRACK, unit: UNIT, step: 1 }, d);
   assert.ok(!moved.isError, moved.text);
-  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 2);
+  assert.equal(d.place(UNIT)?.step, 2);
 }
 
 test('submitting advances exactly one step', async () => {
@@ -388,7 +424,7 @@ test('submitting advances exactly one step', async () => {
   await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
   await handle('submit_answer', { track: TRACK, unit: UNIT, step: 1, answer: 'x' }, d);
 
-  const cursor = await d.cursors.read(TRACK, UNIT);
+  const cursor = d.place(UNIT);
   assert.equal(cursor?.step, 2);
 });
 
@@ -410,7 +446,7 @@ test('an empty answer to a step that asks is refused with a sentence aimed at th
   assert.ok(result.isError);
   assert.match(result.text, /do not answer the step for them/i);
 
-  const cursor = await d.cursors.read(TRACK, UNIT);
+  const cursor = d.place(UNIT);
   assert.equal(cursor?.step, 2, 'a refused submit must not move the reader');
 });
 
@@ -450,7 +486,7 @@ test('elicitation can supply an answer the model never sent at all', async () =>
   const result = await handle('submit_answer', { track: TRACK, unit: UNIT, step: 2 }, elicited);
   assert.ok(!result.isError, result.text);
   assert.ok(result.text.includes('typed straight into the form'));
-  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 3);
+  assert.equal(d.place(UNIT)?.step, 3);
 });
 
 test('a declined elicitation records nothing and does not move the reader', async () => {
@@ -465,7 +501,7 @@ test('a declined elicitation records nothing and does not move the reader', asyn
   );
   assert.ok(!result.isError, 'a decline is the method working, not a fault');
   assert.match(result.text, /declined or cancelled/);
-  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 2, 'a declined confirmation must not move the reader');
+  assert.equal(d.place(UNIT)?.step, 2, 'a declined confirmation must not move the reader');
 });
 
 test('elicitation reported unavailable falls back to the argument, unchanged', async () => {
@@ -502,7 +538,7 @@ test('a step that asks nothing needs no answer, and says nothing was recorded', 
   const result = await handle('submit_answer', { track: TRACK, unit: UNIT, step: 1 }, d);
   assert.ok(!result.isError, result.text);
   assert.match(result.text, /Step 1 asked nothing, so nothing was recorded/);
-  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 2);
+  assert.equal(d.place(UNIT)?.step, 2);
 });
 
 test('a submit that does not name its step is refused, and does not move the reader', async () => {
@@ -512,7 +548,7 @@ test('a submit that does not name its step is refused, and does not move the rea
   const result = await handle('submit_answer', { track: TRACK, unit: UNIT, answer: 'x' }, d);
   assert.ok(result.isError);
   assert.match(result.text, /needs "step"/);
-  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 1);
+  assert.equal(d.place(UNIT)?.step, 1);
 });
 
 test('a retried submit does not move the reader twice', async () => {
@@ -526,7 +562,7 @@ test('a retried submit does not move the reader twice', async () => {
   assert.match(again.text, /Nothing recorded/);
   assert.match(again.text, /already answered/);
   assert.match(again.text, /step 2 of 4/, 'the step the reader is actually on comes back');
-  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 2);
+  assert.equal(d.place(UNIT)?.step, 2);
 });
 
 test('a submit for a step ahead of the reader is refused the same way', async () => {
@@ -536,7 +572,7 @@ test('a submit for a step ahead of the reader is refused the same way', async ()
   const ahead = await handle('submit_answer', { track: TRACK, unit: UNIT, step: 3, answer: 'x' }, d);
   assert.ok(!ahead.isError);
   assert.match(ahead.text, /on step 1, not step 3\./);
-  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 1);
+  assert.equal(d.place(UNIT)?.step, 1);
 });
 
 test('review_step refuses a step beyond the furthest, says it is the method, and is not an error', async () => {
@@ -544,7 +580,7 @@ test('review_step refuses a step beyond the furthest, says it is the method, and
   await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
 
   const result = await handle('review_step', { track: TRACK, unit: UNIT, step: 3 }, d);
-  // The gate working is the product working (reveal.ts says so in as many words), and a
+  // The gate working is the product working (refusal.ts says so in as many words), and a
   // result flagged as an error is painted red by a host and apologised for by a model. The
   // first version of this test asserted `isError` here; that was the defect, pinned.
   assert.ok(!result.isError, 'the gate holding was reported as a fault');
@@ -590,7 +626,7 @@ test('finishing the program is a hand-off, not an error and not a dead end', asy
   // The fixture has one program, so there is no next one — and it says so rather than
   // ending on nothing.
   assert.match(last.text, /last program in the track/);
-  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, total, 'finishing moved the cursor');
+  assert.equal(d.place(UNIT)?.step, total, 'finishing moved the cursor');
   // As data (#164): finished, and no step shown, because the text shows none.
   assert.deepEqual(last.structured?.finished, { unit: UNIT, total });
   assert.equal(last.structured?.step, undefined);
@@ -609,16 +645,13 @@ test('finishing the program is a hand-off, not an error and not a dead end', asy
 
 test('the hand-off names the next program and the call that opens it', async () => {
   // Two programs, from the fixture's one: the next is found by adjacency in the manifest.
-  const bundle = BUNDLES.for(TRACK)!;
+  const bundle = BUNDLE;
   const unit = bundle.units[0]!;
   const two: Bundle = {
     ...bundle,
     units: [unit, { ...unit, id: 'P02', titles: { en: 'The second program', pl: 'Drugi program' } }],
   };
-  const d = {
-    cursors: new MemoryCursorStore(),
-    bundles: { for: (id: string) => (id === TRACK ? two : undefined), all: () => [two] },
-  };
+  const d = against([two]);
   const total = await finish(d);
 
   const last = await handle('submit_answer', { unit: UNIT, step: total, answer: 'x' }, d);
@@ -632,82 +665,81 @@ test('the hand-off names the next program and the call that opens it', async () 
   }
 });
 
-/** A source whose every call fails the way `liveBundles` does when the loader throws `cause`. */
-function failingWith(cause: Error): BundleSource {
-  return {
-    for: () => {
-      throw new ContentUnavailable(cause);
-    },
-    all: () => {
-      throw new ContentUnavailable(cause);
-    },
-  };
+/**
+ * The same server, reading as an account: `AB_OVO_READER_TOKEN` set, whose bearer the stub
+ * files the reader's places under (`ReaderIdentity.Resolve`: a bearer wins).
+ */
+function asAccount(bearer: string, books: readonly Bundle[] = [BUNDLE]): Harness {
+  const stub = new StubApi(books);
+  const api = new AbOvoApi({
+    baseUrl: STUB_API,
+    reader: { kind: 'account', bearer },
+    tracks: books.map((book) => book.track.id),
+    fetch: stub.fetch,
+  });
+  return { api, stub, place: (unit) => stub.place(bearer, TRACK, unit) };
 }
 
-const notFound = (checked: readonly string[], override?: string) =>
-  new BundleNotFound('no compiled content bundle found (the loader\'s own words)', checked, override);
+/**
+ * A server whose every request to the API gets the same answer — the failures, through the
+ * stub's own `intercept` rather than a network (#137).
+ */
+function apiAnswering(answer: (call: StubCall) => Promise<Response>, harness: Harness = against()): Harness {
+  harness.stub.intercept = answer;
+  return harness;
+}
 
-test('a book never fetched is a sentence naming the script, the checkout and the paths — not a protocol error', async () => {
-  // `bundleFor()` throws when the content was never fetched; wrapped at the one crossing in
-  // content.ts, it reaches a reader as a result with the fix in it rather than as a
-  // JSON-RPC error on their first call.
-  const checked = [`${REPOSITORY_ROOT}/web/content/bundle/bundle.json`];
-  const d = { cursors: new MemoryCursorStore(), bundles: failingWith(notFound(checked)) };
+test('with no API to ask, every call says so and names the variable — not a protocol error', async () => {
+  // The book is the API's since #171, so a server started with no AB_OVO_API_URL has none;
+  // it says so on each call, as the missing bundle was said before it (#136), with the fix.
+  const d = { api: new AbOvoApi({ baseUrl: undefined, reader: { kind: 'nobody' } }) };
+  for (const [name, args] of [
+    ['list_programs', {}],
+    ['open_program', { unit: UNIT, language: LANG }],
+    ['current_step', { unit: UNIT }],
+    ['submit_answer', { unit: UNIT, step: 1 }],
+  ] as const) {
+    const result = await handle(name, args, d);
+    assert.ok(result.isError, name);
+    assert.match(result.text, /has no book to serve/, name);
+    assert.match(result.text, /AB_OVO_API_URL is not set/, name);
+  }
+});
 
+test('an API that holds no book for the track says so, and what fixes it, rather than blaming the reader', async () => {
+  // A 404 for the listing of a track this server carries is the deployment's: nothing was
+  // ingested into that API, or what answers there is not the ab-ovo API.
+  const d = against([], { tracks: [TRACK] });
   for (const call of [
     handle('list_programs', {}, d),
     handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d),
   ]) {
     const result = await call;
     assert.ok(result.isError);
-    assert.match(result.text, /never been fetched into the checkout it runs from/);
-    assert.match(result.text, /fetch-book-content\.sh/);
-    assert.ok(result.text.includes(`from ${REPOSITORY_ROOT}`), 'the checkout to run it in is named');
-    assert.ok(result.text.includes(`  ${checked[0]}`), 'the path it looked at is named');
-    assert.ok(result.text.includes('AB_OVO_CONTENT_BUNDLE'), 'the override is offered for a book compiled elsewhere');
+    assert.match(result.text, /holds no content for the track "math-for-ai-engineers"/);
+    assert.match(result.text, /POST \/api\/v1\/admin\/content\/bundles/);
+    assert.doesNotMatch(result.text, /does not carry the track/, 'a track the server carries was called unknown');
   }
 });
 
-test('a book looked for where the override points, and not there, says so rather than blaming the fetch', async () => {
-  // #136: the book can be on the machine and the process looking somewhere else. Then the
-  // fetch script is not the fix, and the note must not lead with it.
-  const override = '/srv/elsewhere/bundle.json';
-  const checked = [override, `${REPOSITORY_ROOT}/web/content/bundle/bundle.json`];
-  const d = { cursors: new MemoryCursorStore(), bundles: failingWith(notFound(checked, override)) };
-
-  const result = await handle('list_programs', {}, d);
-  assert.ok(result.isError);
-  assert.match(result.text, /AB_OVO_CONTENT_BUNDLE says the compiled content bundle is at \/srv\/elsewhere\/bundle\.json/);
-  assert.match(result.text, /not where this process was told to look/);
-  assert.doesNotMatch(result.text, /never been fetched/);
-  for (const path of checked) assert.ok(result.text.includes(`  ${path}`), `${path} was not named`);
-});
-
-test('a book found and refused by the validator is not called missing', async () => {
-  const d = {
-    cursors: new MemoryCursorStore(),
-    bundles: failingWith(new Error('the bundle at here does not validate against content-schema.v1')),
-  };
-
-  const result = await handle('list_programs', {}, d);
-  assert.ok(result.isError);
-  assert.match(result.text, /found its book and cannot load it/);
-  assert.doesNotMatch(result.text, /no book to serve/);
-  assert.match(result.text, /does not validate against content-schema\.v1/, 'the loader\'s own message follows');
-});
-
-/**
- * An API that gives every request the same answer — the store's failures, through its own
- * injectable `fetchImpl` rather than a network (#137).
- */
-function apiAnswering(answer: (method: string) => Promise<Response>): ApiCursorStore {
-  const fetchImpl = (async (_input: string | URL | Request, init?: RequestInit) =>
-    answer(init?.method ?? 'GET')) as typeof fetch;
-  return new ApiCursorStore('https://api.example', () => 'the-token', fetchImpl);
-}
-
-const UNREACHABLE: readonly { name: string; answer: () => Promise<Response>; fix: RegExp }[] = [
-  { name: 'an expired token (401)', answer: async () => new Response('', { status: 401 }), fix: /fresh AB_OVO_READER_TOKEN/ },
+const UNREACHABLE: readonly {
+  readonly name: string;
+  readonly answer: () => Promise<Response>;
+  readonly fix: RegExp;
+  readonly bearer?: string;
+}[] = [
+  {
+    name: 'an expired token (401)',
+    answer: async () => new Response('', { status: 401 }),
+    fix: /fresh AB_OVO_READER_TOKEN/,
+    bearer: 'the-token',
+  },
+  {
+    // A reader with no account has no token to renew: what refused it is not the ab-ovo API.
+    name: 'a 401 with no token to renew',
+    answer: async () => new Response('', { status: 401 }),
+    fix: /reads without an account[\s\S]*check that AB_OVO_API_URL names the ab-ovo API/,
+  },
   { name: 'a service that is down (503)', answer: async () => new Response('', { status: 503 }), fix: /Try again shortly/ },
   {
     name: 'a rejected fetch',
@@ -727,7 +759,7 @@ test('a place that cannot be reached is a result the reader can act on, never a 
     ['submit_answer', { unit: UNIT, step: 1 }],
   ];
   for (const failure of UNREACHABLE) {
-    const d = { cursors: apiAnswering(failure.answer), bundles: BUNDLES };
+    const d = apiAnswering(failure.answer, failure.bearer === undefined ? against() : asAccount(failure.bearer));
     for (const [name, args] of calls) {
       // `handle()` resolving at all is the first assertion: it used to reject, and the SDK
       // turned that into `MCP error -32603: progress read failed: 401`.
@@ -738,7 +770,7 @@ test('a place that cannot be reached is a result the reader can act on, never a 
       assert.match(result.text, failure.fix, where);
       assert.doesNotMatch(
         result.text,
-        /fetch failed|progress read failed/,
+        /fetch failed|progress read failed|GET |POST /,
         `${where}: the developer's string reached the reader`,
       );
     }
@@ -748,12 +780,11 @@ test('a place that cannot be reached is a result the reader can act on, never a 
 test('a write that fails does not claim it recorded nothing, and says the same call is safe to make again', async () => {
   // A 502 can follow a commit, so "nothing was recorded" could be false; "may not have
   // been" is what is known.
-  const placed = { track: TRACK, unit: UNIT, step: 1, language: LANG, updatedAt: '2026-09-24T00:00:00Z' };
-  const cursors = apiAnswering(async (method) =>
-    method === 'GET' ? Response.json({ records: [placed] }) : new Response('', { status: 502 }),
-  );
+  const d = deps();
+  d.stub.seed(READER, { track: TRACK, unit: UNIT, step: 1, language: LANG });
+  d.stub.intercept = (call) => (call.method === 'POST' ? new Response('', { status: 502 }) : undefined);
 
-  const result = await handle('submit_answer', { unit: UNIT, step: 1 }, { cursors, bundles: BUNDLES });
+  const result = await handle('submit_answer', { unit: UNIT, step: 1 }, d);
   assert.ok(result.isError);
   assert.match(result.text, /This call may not have been recorded; either way, the same call is safe/);
   assert.doesNotMatch(result.text, /Nothing from this call was recorded/);
@@ -766,9 +797,12 @@ test('an address that is not the API is named as the thing to check, not as some
   const notTheApi = [
     async () => new Response('not here', { status: 404 }),
     async () => new Response('a sign-in page', { status: 200, headers: { 'content-type': 'text/html' } }),
+    // JSON, and not an object: `null` parses, and reading a field of it used to throw a
+    // TypeError out of `handle()`.
+    async () => new Response('null'),
   ];
   for (const answer of notTheApi) {
-    const result = await handle('list_programs', {}, { cursors: apiAnswering(answer), bundles: BUNDLES });
+    const result = await handle('list_programs', {}, apiAnswering(answer));
     assert.ok(result.isError);
     assert.match(result.text, /check that AB_OVO_API_URL names the ab-ovo API/);
     assert.match(result.text, /trying again will not change the answer/);
@@ -776,38 +810,41 @@ test('an address that is not the API is named as the thing to check, not as some
 });
 
 test('an AB_OVO_API_URL that is not an address says so, and not to try again shortly', async () => {
-  const cursors = new ApiCursorStore('not-a-url', () => 'the-token', (async () => {
-    throw new Error('nothing may be sent to an address that is not one');
-  }) as typeof fetch);
-  const result = await handle('list_programs', {}, { cursors, bundles: BUNDLES });
+  const api = new AbOvoApi({
+    baseUrl: 'not-a-url',
+    reader: { kind: 'nobody' },
+    fetch: (async () => {
+      throw new Error('nothing may be sent to an address that is not one');
+    }) as typeof fetch,
+  });
+  const result = await handle('list_programs', {}, { api });
   assert.ok(result.isError);
   assert.match(result.text, /AB_OVO_API_URL is not an http or https address/);
   assert.match(result.text, /trying again will not change the answer/);
   assert.doesNotMatch(result.text, /Try again shortly/);
 });
 
-test('a JSON answer that is not an object is a result, never a protocol error', async () => {
-  // `null` parses; `body.records` then threw a TypeError out of `handle()`.
-  const result = await handle('list_programs', {}, { cursors: apiAnswering(async () => new Response('null')), bundles: BUNDLES });
+test('a redirect is not followed: the reader id goes to the origin it was minted for and nowhere else', async () => {
+  // ADR-0066 §2. `fetch` carries a custom header across a redirect, and an id sent to another
+  // origin would let that origin's operator replay it. So a 3xx is an answer, and refused.
+  const d = apiAnswering(async () =>
+    new Response(null, { status: 302, headers: { location: 'https://elsewhere.example/api/v1/progress/anonymous' } }),
+  );
+  const result = await handle('list_programs', {}, d);
   assert.ok(result.isError);
+  assert.match(result.text, /refused the request \(HTTP 302\)/);
   assert.match(result.text, /check that AB_OVO_API_URL names the ab-ovo API/);
-});
-
-test("the gate's refusals are untouched: a shut program is still an ordinary result over the API store", async () => {
-  // #137 is about the store, not the gate. A reader with no places, asking for the second
-  // program, is refused by the reading order, and a store that answers properly must not
-  // turn that into anything else.
-  const { bundles } = sequence();
-  const cursors = apiAnswering(async () => Response.json({ records: [] }));
-  const asked = await handle('open_program', { unit: 'F02', language: LANG }, { cursors, bundles });
-  assert.ok(!asked.isError, asked.text);
-  assert.match(asked.text, /"F02" is not open/);
+  assert.ok(d.stub.calls.length > 0);
+  for (const call of d.stub.calls) {
+    assert.equal(call.redirect, 'manual', `${call.method} ${call.url} would have followed a redirect`);
+    assert.equal(new URL(call.url).origin, STUB_API);
+  }
 });
 
 test('a place kept in memory is said once per session in the text, on every result as data, and only then', async () => {
   // #164: it used to end every list and every opening — twice before a reader's first step,
   // and again at every re-check of the list.
-  const ephemeral = { ...deps(), placeIsEphemeral: true, session: { ephemeralNoteSaid: false } };
+  const ephemeral = { ...against([BUNDLE], { kept: false }), session: { ephemeralNoteSaid: false } };
 
   // An error does not spend it: its text is a fix the model acts on, not a line it relays.
   const unopened = await handle('current_step', { unit: UNIT }, ephemeral);
@@ -830,7 +867,7 @@ test('a place kept in memory is said once per session in the text, on every resu
   // too often rather than too late.
   const renewed = { ...ephemeral, session: { ephemeralNoteSaid: false } };
   assert.ok((await handle('list_programs', {}, renewed)).text.endsWith(ephemeralNote(LANG)));
-  const forgetful = { ...deps(), placeIsEphemeral: true };
+  const forgetful = against([BUNDLE], { kept: false });
   for (const name of ['list_programs', 'list_programs']) {
     assert.ok((await handle(name, {}, forgetful)).text.endsWith(ephemeralNote(LANG)));
   }
@@ -877,7 +914,7 @@ test('reopening resumes where the reader was rather than restarting', async () =
 
   const reopened = await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
   assert.match(reopened.text, /Resuming "P01" at step 2\./);
-  assert.equal((await d.cursors.read(TRACK, UNIT))?.step, 2);
+  assert.equal(d.place(UNIT)?.step, 2);
 });
 
 test('resuming needs no edition; with none known anywhere, the answer is a question and not an error', async () => {
@@ -895,7 +932,7 @@ test('resuming needs no edition; with none known anywhere, the answer is a quest
   );
   assert.match(unopened.text, /Ask them which/);
   assert.match(unopened.text, /It is asked once/);
-  assert.equal(await d.cursors.read(TRACK, UNIT), undefined, 'nothing was opened');
+  assert.equal(d.place(UNIT), undefined, 'nothing was opened');
 
   await handle('open_program', { track: TRACK, unit: UNIT, language: LANG }, d);
   await handle('submit_answer', { track: TRACK, unit: UNIT, step: 1 }, d);
@@ -903,18 +940,17 @@ test('resuming needs no edition; with none known anywhere, the answer is a quest
   const resumed = await handle('open_program', { track: TRACK, unit: UNIT }, d);
   assert.ok(!resumed.isError, resumed.text);
   assert.match(resumed.text, /Resuming "P01" at step 2\./);
-  assert.equal((await d.cursors.read(TRACK, UNIT))?.language, LANG);
+  assert.equal(d.place(UNIT)?.language, LANG);
 });
 
 test('the edition is asked once per reader: after F01 is opened in pl, F02 starts in pl', async () => {
-  const { bundles } = sequence();
-  const d = { cursors: new MemoryCursorStore(), bundles };
+  const d = against([sequence()]);
 
   await handle('open_program', { unit: 'F01', language: 'pl' }, d);
   const second = await handle('open_program', { unit: 'F02' }, d);
   assert.ok(!second.isError, second.text);
   assert.match(second.text, /Starting "F02" in the "pl" edition, the one the reader already reads in/);
-  assert.equal((await d.cursors.read(TRACK, 'F02'))?.language, 'pl');
+  assert.equal(d.place('F02')?.language, 'pl');
   assert.ok(second.text.includes(say(program().titles, 'pl')), 'the step is in the Polish edition');
 
   // The most recent place is what says it: switching F02 to English moves the reader's
@@ -927,8 +963,7 @@ test('the edition is asked once per reader: after F01 is opened in pl, F02 start
 test('with an elicitation-capable host, the edition is chosen by the reader from the track\'s own list', async () => {
   const asked: { unit: string; offered: readonly string[] }[] = [];
   const d = {
-    cursors: new MemoryCursorStore(),
-    bundles: sequence().bundles,
+    ...against([sequence()]),
     chooseEdition: async (unit: string, offered: readonly { language: string; title: string }[]) => {
       asked.push({ unit, offered: offered.map((edition) => edition.language) });
       return { kind: 'chosen' as const, language: 'pl' };
@@ -961,7 +996,7 @@ test('a declined edition question opens nothing and is not an error; a named edi
   assert.ok(!declined.isError, declined.text);
   assert.match(declined.text, /Nothing opened: the reader was asked directly/);
   assert.match(declined.text, /Ask them in the conversation instead/);
-  assert.equal(await declining.cursors.read(TRACK, UNIT), undefined);
+  assert.equal(declining.place(UNIT), undefined);
 
   await handle('open_program', { unit: UNIT, language: LANG }, declining);
   assert.equal(calls, 1, 'an edition the call already named was asked for again');
@@ -971,33 +1006,38 @@ test('a declined edition question opens nothing and is not an error; a named edi
   assert.ok(unpublished.isError);
 });
 
-test("over the API store, a first opening starts in the edition the reader chose on the website", async () => {
-  // `GET /api/v1/preferences/language` — ADR-0052's ReaderPreference — and, when the
-  // reader never chose there, the edition of their most recent place.
-  const serving = (preference: string | null, records: readonly object[]) =>
-    new ApiCursorStore(
-      'https://api.example',
-      () => 'the-token',
-      (async (input: string | URL | Request) =>
-        String(input).endsWith('/preferences/language')
-          ? Response.json({ language: preference, updatedAt: null })
-          : String(input).endsWith('/progress')
-            ? Response.json({ records })
-            : Response.json({ track: TRACK, unit: UNIT, step: 1, language: preference ?? 'pl', updatedAt: 'now' })) as typeof fetch,
-    );
-
-  const chosen = await handle('open_program', { unit: UNIT }, { cursors: serving('pl', []), bundles: BUNDLES });
+test("over the API, a first opening starts in the edition the reader chose on the website", async () => {
+  // `GET /api/v1/preferences/language` — ADR-0052's ReaderPreference, kept for an account —
+  // and, when the reader never chose there, the edition of their most recent place.
+  const chose = asAccount('the-token');
+  chose.stub.prefer('the-token', 'pl');
+  const chosen = await handle('open_program', { unit: UNIT }, chose);
   assert.ok(!chosen.isError, chosen.text);
   assert.match(chosen.text, /Starting "P01" in the "pl" edition/);
 
-  const older = { track: TRACK, unit: 'X01', step: 3, language: 'en', updatedAt: '2026-09-01T00:00:00Z' };
-  const newer = { track: TRACK, unit: 'X02', step: 1, language: 'pl', updatedAt: '2026-09-20T00:00:00Z' };
-  const fromPlaces = await handle('open_program', { unit: UNIT }, { cursors: serving(null, [older, newer]), bundles: BUNDLES });
+  const placed = asAccount('the-token');
+  placed.stub.seed('the-token', { track: TRACK, unit: 'X01', step: 3, language: 'en' });
+  placed.stub.seed('the-token', { track: TRACK, unit: 'X02', step: 1, language: 'pl' });
+  const fromPlaces = await handle('open_program', { unit: UNIT }, placed);
   assert.match(fromPlaces.text, /Starting "P01" in the "pl" edition/);
 
-  const nothing = await handle('open_program', { unit: UNIT }, { cursors: serving(null, []), bundles: BUNDLES });
+  const nothing = await handle('open_program', { unit: UNIT }, asAccount('the-token'));
   assert.ok(!nothing.isError);
   assert.match(nothing.text, /none is known for this reader yet/);
+});
+
+test('a reader with no account starts a new program in the edition of their most recent place, and no preference is asked', async () => {
+  // A preference is kept for an account (ADR-0052); an anonymous reader has none, so the
+  // place last moved is what says which edition they read in — on whichever surface.
+  const d = deps();
+  d.stub.seed(READER, { track: TRACK, unit: 'X01', step: 3, language: 'en' });
+  d.stub.seed(READER, { track: TRACK, unit: 'X02', step: 1, language: 'pl' });
+  const opened = await handle('open_program', { unit: UNIT }, d);
+  assert.match(opened.text, /Starting "P01" in the "pl" edition, the one the reader already reads in/);
+  assert.ok(
+    d.stub.calls.every((call) => !call.url.endsWith('/preferences/language')),
+    'a reader with no account was asked for an account\'s preference',
+  );
 });
 
 test('switching edition keeps the step, says so, and renders in the new one', async () => {
@@ -1010,8 +1050,16 @@ test('switching edition keeps the step, says so, and renders in the new one', as
   assert.match(switched.text, /switched to the "pl" edition/);
   assert.ok(switched.text.includes(say(program().titles, 'pl')), 'the place line is in Polish');
 
-  const cursor = await d.cursors.read(TRACK, UNIT);
-  assert.deepEqual([cursor?.step, cursor?.language], [2, 'pl']);
+  /*
+    THE SWITCH IS THIS PROCESS'S UNTIL AN ADVANCE CARRIES IT (ADR-0066 §2). An opening writes
+    nothing on a place that exists, so the API still holds step 2 in English — and the server
+    reads on in Polish, and the next step it is sent is filed with the Polish edition, which
+    the advance carries with the step it raises (ADR-0019).
+  */
+  assert.deepEqual([d.place(UNIT)?.step, d.place(UNIT)?.language], [2, 'en']);
+  assert.ok((await handle('current_step', { unit: UNIT }, d)).text.includes('ramka 2 z 4'), 'the switch did not hold');
+  await handle('submit_answer', { unit: UNIT, step: 2, answer: 'x' }, d);
+  assert.deepEqual([d.place(UNIT)?.step, d.place(UNIT)?.language], [3, 'pl']);
 });
 
 /*
@@ -1076,8 +1124,7 @@ test('a Polish place renders Polish framing: the place line, the banners, the cl
 });
 
 test('the refusals follow the reader\'s edition, and what they tell the assistant stays English', async () => {
-  const { bundles } = sequence();
-  const d = { cursors: new MemoryCursorStore(), bundles };
+  const d = against([sequence()]);
   await handle('open_program', { unit: 'F01', language: 'pl' }, d);
 
   // The step gate: a step past the furthest is the method working, in Polish.
@@ -1112,16 +1159,13 @@ test('the refusals follow the reader\'s edition, and what they tell the assistan
 });
 
 test('a Polish reader who finishes a program is handed off in Polish, and the call that opens the next stays English', async () => {
-  const bundle = BUNDLES.for(TRACK)!;
+  const bundle = BUNDLE;
   const unit = bundle.units[0]!;
   const two: Bundle = {
     ...bundle,
     units: [unit, { ...unit, id: 'P02', titles: { en: 'The second program', pl: 'Drugi program' } }],
   };
-  const d = {
-    cursors: new MemoryCursorStore(),
-    bundles: { for: (id: string) => (id === TRACK ? two : undefined), all: () => [two] },
-  };
+  const d = against([two]);
   await handle('open_program', { unit: UNIT, language: 'pl' }, d);
   const total = program().steps.length;
   for (let n = 1; n < total; n += 1) await handle('submit_answer', { unit: UNIT, step: n, answer: 'x' }, d);
@@ -1147,20 +1191,20 @@ test('a Polish reader who finishes a program is handed off in Polish, and the ca
 });
 
 test('the in-memory note is said in the edition of the result it ends, and English where none is known', async () => {
-  const d = { ...deps(), placeIsEphemeral: true, session: { ephemeralNoteSaid: false } };
+  const d = { ...against([BUNDLE], { kept: false }), session: { ephemeralNoteSaid: false } };
   const opened = await handle('open_program', { unit: UNIT, language: 'pl' }, d);
   assert.ok(opened.text.endsWith(`\n\n${ephemeralNote('pl')}`), opened.text);
   assert.match(ephemeralNote('pl'), /^Twoja pozycja w lekturze jest zapamiętana tylko na czas tej sesji/);
   assert.equal(opened.structured?.text, opened.text);
 
   // The edition question is asked because no edition is known, so its note has none to follow.
-  const fresh = { ...deps(), placeIsEphemeral: true, session: { ephemeralNoteSaid: false } };
+  const fresh = { ...against([BUNDLE], { kept: false }), session: { ephemeralNoteSaid: false } };
   const asked = await handle('open_program', { unit: UNIT }, fresh);
   assert.ok(asked.text.endsWith(`\n\n${ephemeralNote('en')}`), asked.text);
 });
 
 test('a Polish list heads its groups in Polish; its rule, states and notes stay the assistant\'s', async () => {
-  const d = { cursors: new MemoryCursorStore(), bundles: wholeBook() };
+  const d = against([wholeBook()]);
   const asked = (await handle('list_programs', { language: 'pl' }, d)).text;
   assert.match(asked, /\n {2}Podstawy\n/);
   assert.match(asked, /\n {2}Część główna\n/);
@@ -1174,14 +1218,9 @@ test('a Polish list heads its groups in Polish; its rule, states and notes stay 
 
 test('a place out of reach is told in the edition the session last spoke in, and the fix for whoever runs it in English', async () => {
   let failing: number | undefined;
-  const placed = { track: TRACK, unit: UNIT, step: 1, language: 'pl', updatedAt: '2026-09-26T00:00:00Z' };
-  const cursors = new ApiCursorStore('https://api.example', () => 'the-token', (async (input: string | URL | Request) =>
-    failing !== undefined
-      ? new Response('', { status: failing })
-      : String(input).endsWith('/progress')
-        ? Response.json({ records: [placed] })
-        : Response.json(placed)) as typeof fetch);
-  const d = { cursors, bundles: BUNDLES, session: { ephemeralNoteSaid: false } };
+  const d = { ...asAccount('the-token'), session: { ephemeralNoteSaid: false } };
+  d.stub.seed('the-token', { track: TRACK, unit: UNIT, step: 1, language: 'pl' });
+  d.stub.intercept = () => (failing === undefined ? undefined : new Response('', { status: failing }));
 
   const here = await handle('current_step', { unit: UNIT }, d);
   assert.ok(here.text.includes('ramka 1 z 4'), here.text);
@@ -1197,8 +1236,9 @@ test('a place out of reach is told in the edition the session last spoke in, and
   assert.match(refused.text, /nic nie przepadło/);
   assert.match(refused.text, /Whoever runs the server should give it a fresh AB_OVO_READER_TOKEN/);
 
-  // An edition the call names is the one it is told in, with no session to remember one.
-  const named = await handle('list_programs', { language: 'pl' }, { cursors, bundles: BUNDLES });
+  // An edition the call names is the one it is told in, with no session to remember one: the
+  // track's editions are the ones the API last listed.
+  const named = await handle('list_programs', { language: 'pl' }, { api: d.api });
   assert.match(named.text, /nic nie przepadło/);
 });
 
@@ -1212,37 +1252,48 @@ test('a language no track is published in is not the edition a place out of reac
   */
   const english = /^Your place in the book could not be reached just now, and nothing is lost/;
   for (const status of [401, 404, 503]) {
-    const cursors = apiAnswering(async () => new Response('', { status }));
+    const d = apiAnswering(async () => new Response('', { status }));
     for (const language of ['constructor', '__proto__', 'toString', 'valueOf', 'hasOwnProperty']) {
       const where = `HTTP ${status}, "${language}"`;
       // Resolving at all is the first assertion: it used to reject, as a protocol error.
-      const result = await handle('list_programs', { language }, { cursors, bundles: BUNDLES });
+      const result = await handle('list_programs', { language }, d);
       assert.ok(result.isError, where);
       assert.match(result.text, english, where);
       assert.doesNotMatch(result.text, /undefined/, where);
     }
   }
 
-  // A name `languageIn` does not resolve falls through to the edition the session last spoke.
-  const down = apiAnswering(async () => new Response('', { status: 503 }));
-  const spokePolish = { cursors: down, bundles: BUNDLES, session: { ephemeralNoteSaid: false, spokenIn: 'pl' } };
+  /** A server that has been answered once — so it knows the track's editions — and is then refused. */
+  const knownThenDown = async (book: Bundle, spokenIn?: string) => {
+    let down = false;
+    const d = against([book]);
+    d.stub.intercept = () => (down ? new Response('', { status: 503 }) : undefined);
+    await handle('list_programs', {}, d);
+    down = true;
+    return { ...d, session: { ephemeralNoteSaid: false, ...(spokenIn ? { spokenIn } : {}) } };
+  };
+
+  // A name the track's editions do not include falls through to the edition the session last
+  // spoke — though the track has "pl", its spelling is the track's alone.
+  const spokePolish = await knownThenDown(BUNDLE, 'pl');
   for (const language of ['PL', 'pl-PL', 'de']) {
     const result = await handle('list_programs', { language }, spokePolish);
     assert.match(result.text, /^Nie udało się teraz dotrzeć do twojej pozycji w lekturze/, `"${language}"`);
   }
+  // The positive control: a name the track has is honoured over the session's.
+  assert.match((await handle('list_programs', { language: 'en' }, spokePolish)).text, english);
+
   // An edition the track does not have is not honoured either, though the table has words for it.
-  const bundle = BUNDLES.for(TRACK)!;
-  const englishOnly: Bundle = { ...bundle, track: { ...bundle.track, languages: ['en'] } };
-  const onlyEnglish: BundleSource = { for: (id) => (id === TRACK ? englishOnly : undefined), all: () => [englishOnly] };
-  const lacked = await handle('open_program', { unit: UNIT, language: 'pl' }, { cursors: down, bundles: onlyEnglish });
+  const englishOnly: Bundle = { ...BUNDLE, track: { ...BUNDLE.track, languages: ['en'] } };
+  const lacked = await handle('open_program', { unit: UNIT, language: 'pl' }, await knownThenDown(englishOnly));
   assert.match(lacked.text, english);
   // The positive control: the same call on the track that has it is told in Polish.
-  const had = await handle('open_program', { unit: UNIT, language: 'pl' }, { cursors: down, bundles: BUNDLES });
+  const had = await handle('open_program', { unit: UNIT, language: 'pl' }, await knownThenDown(BUNDLE));
   assert.match(had.text, /^Nie udało się teraz dotrzeć do twojej pozycji w lekturze/);
 
-  // With no book either, no edition can be named, and the note owed is still the place's.
-  const neither = { cursors: down, bundles: failingWith(notFound([`${REPOSITORY_ROOT}/web/content/bundle/bundle.json`])) };
-  const lost = await handle('list_programs', { language: 'pl' }, neither);
+  // Refused from its first request, a server has never been told a track's editions, so no
+  // edition can be named, and the note owed is still the place's.
+  const lost = await handle('list_programs', { language: 'pl' }, apiAnswering(async () => new Response('', { status: 503 })));
   assert.ok(lost.isError);
   assert.match(lost.text, english);
 });
@@ -1275,13 +1326,8 @@ test('the track can be left out when the server carries one', async () => {
 });
 
 test('with several tracks the call must name one, and the refusal names them', async () => {
-  const bundle = BUNDLES.for(TRACK)!;
-  const other: Bundle = { ...bundle, track: { ...bundle.track, id: 'another-track' } };
-  const two: BundleSource = {
-    for: (id) => (id === TRACK ? bundle : id === other.track.id ? other : undefined),
-    all: () => [bundle, other],
-  };
-  const d = { cursors: new MemoryCursorStore(), bundles: two };
+  const other: Bundle = { ...BUNDLE, track: { ...BUNDLE.track, id: 'another-track' } };
+  const d = against([BUNDLE, other]);
 
   const unnamed = await handle('open_program', { unit: UNIT, language: LANG }, d);
   assert.ok(unnamed.isError);
@@ -1298,8 +1344,8 @@ test('a program id in any case is the program, filed under its own spelling', as
   assert.ok(!opened.isError, opened.text);
   assert.match(opened.text, /Starting "P01"/);
 
-  assert.ok(await d.cursors.read(TRACK, 'P01'), 'the place is keyed by the bundle\'s spelling');
-  assert.equal(await d.cursors.read(TRACK, 'p01'), undefined, 'and not by the reader\'s');
+  assert.ok(d.place('P01'), 'the place is keyed by the bundle\'s spelling');
+  assert.equal(d.place('p01'), undefined, 'and not by the reader\'s');
 });
 
 test('every rendered step opens with where it is: program, title, section, position', async () => {
@@ -1347,8 +1393,7 @@ test('every step shown says where it is as data too: its number, its length, whe
 });
 
 test('a refusal carries its kind as data, with the step the reader is on when its text shows it', async () => {
-  const { bundles } = sequence();
-  const d = { cursors: new MemoryCursorStore(), bundles };
+  const d = against([sequence()]);
 
   // The reading order: what opens the program is a field, not a sentence to parse.
   const shut = await handle('open_program', { unit: 'F02' }, d);
@@ -1421,16 +1466,15 @@ test("list_programs names the programs in one edition: English until the reader 
  * sequence, the pinned bundle's shape — built from the fixture's one unit, so the budget
  * below is measured on something the length of what a reader's agent actually receives.
  */
-function wholeBook(): BundleSource {
-  const bundle = BUNDLES.for(TRACK)!;
+function wholeBook(): Bundle {
+  const bundle = BUNDLE;
   const bare: { -readonly [K in keyof Unit]?: Unit[K] } = { ...bundle.units[0]! };
   delete bare.part;
   const ids = [
     ...Array.from({ length: 13 }, (_, i) => `F${String(i + 1).padStart(2, '0')}`),
     ...Array.from({ length: 34 }, (_, i) => `P${String(i + 1).padStart(2, '0')}`),
   ];
-  const book: Bundle = { ...bundle, units: ids.map((id) => ({ ...(bare as Unit), id })) };
-  return { for: (id) => (id === TRACK ? book : undefined), all: () => [book] };
+  return { ...bundle, units: ids.map((id) => ({ ...(bare as Unit), id })) };
 }
 
 /** What a new reader's list is allowed to cost: 1.5 KiB, the ephemeral note included. */
@@ -1445,7 +1489,7 @@ const LIST_DATA_BUDGET_BYTES = LIST_BUDGET_BYTES + 512;
 test('for a new reader, list_programs fits its budget and still names the open program and the next', async () => {
   // #145: measured on 2026-09-24 at about 7 KB — every unopened program in both editions,
   // and "SHUT, opens after …" once per shut program — paid again at every re-check.
-  const d = { cursors: new MemoryCursorStore(), bundles: wholeBook(), placeIsEphemeral: true };
+  const d = against([wholeBook()], { kept: false });
   const result = await handle('list_programs', {}, d);
   const listed = result.text;
 
@@ -1466,7 +1510,7 @@ test('for a new reader, list_programs fits its budget and still names the open p
 });
 
 test('the fold follows the reader: what is open is named, and the run starts after the next one', async () => {
-  const d = { cursors: new MemoryCursorStore(), bundles: wholeBook() };
+  const d = against([wholeBook()]);
   await handle('open_program', { unit: 'F01', language: LANG }, d);
   await handle('open_program', { unit: 'F02' }, d);
 
@@ -1479,11 +1523,11 @@ test('the fold follows the reader: what is open is named, and the run starts aft
 });
 
 test('list_programs with all: true names every program, the folded ones too', async () => {
-  const bundles = wholeBook();
-  const d = { cursors: new MemoryCursorStore(), bundles };
+  const book = wholeBook();
+  const d = against([book]);
 
   const listed = (await handle('list_programs', { all: true }, d)).text;
-  for (const unit of bundles.all()[0]!.units) {
+  for (const unit of book.units) {
     assert.match(listed, new RegExp(`\\n    ${unit.id} · How a computer stores a number — 4 steps — `), `${unit.id} is missing`);
   }
   assert.match(listed, /P34 · .* — SHUT, opens after P33/);
@@ -1495,7 +1539,7 @@ test('list_programs with all: true names every program, the folded ones too', as
 
 test('the list names as data the programs its text names: open or not, where the reader is, what opens it', async () => {
   // #164: whether a program is open, and how far the reader has got, used to be prose.
-  const d = { cursors: new MemoryCursorStore(), bundles: wholeBook() };
+  const d = against([wholeBook()]);
   const title = say(program().titles, LANG);
 
   const fresh = await handle('list_programs', {}, d);
@@ -1529,9 +1573,9 @@ test('the list names as data the programs its text names: open or not, where the
 });
 
 test('list_programs divides the book the way the index does', async () => {
-  // The same `groupsOf` the reading surface uses, through content.ts — one rule, two
+  // The same `groupsOf` the reading surface uses, over the API's listing — one rule, two
   // surfaces. The fixture has one program, so a three-program track is built from it.
-  const bundle = BUNDLES.for(TRACK)!;
+  const bundle = BUNDLE;
   const bare: { -readonly [K in keyof Unit]?: Unit[K] } = { ...bundle.units[0]! };
   delete bare.part;
   const three: Bundle = {
@@ -1542,10 +1586,7 @@ test('list_programs divides the book the way the index does', async () => {
       { ...(bare as Unit), id: 'P01' },
     ],
   };
-  const d = {
-    cursors: new MemoryCursorStore(),
-    bundles: { for: (id: string) => (id === TRACK ? three : undefined), all: () => [three] },
-  };
+  const d = against([three]);
 
   const listed = (await handle('list_programs', {}, d)).text.split('\n');
   const headings = listed.filter((line) => /^  (Foundation|Main sequence)$/.test(line));
@@ -1561,8 +1602,8 @@ test('list_programs divides the book the way the index does', async () => {
  * grouping test above gives: what is under test is the gate, and a second hand-authored
  * bundle would be a second thing that can drift from the schema.
  */
-function sequence(): { bundles: BundleSource; ids: readonly string[] } {
-  const bundle = BUNDLES.for(TRACK)!;
+function sequence(): Bundle {
+  const bundle = BUNDLE;
   const bare: { -readonly [K in keyof Unit]?: Unit[K] } = { ...bundle.units[0]! };
   delete bare.part;
   const three: Bundle = {
@@ -1573,20 +1614,16 @@ function sequence(): { bundles: BundleSource; ids: readonly string[] } {
       { ...(bare as Unit), id: 'F03' },
     ],
   };
-  return {
-    bundles: { for: (id: string) => (id === TRACK ? three : undefined), all: () => [three] },
-    ids: ['F01', 'F02', 'F03'],
-  };
+  return three;
 }
 
 test('the book is entered at the beginning: a program past the reader is refused', async () => {
-  const { bundles } = sequence();
-  const d = { cursors: new MemoryCursorStore(), bundles };
+  const d = against([sequence()]);
 
   const asked = await handle('open_program', { unit: 'F02', language: LANG }, d);
 
   /*
-    NOT AN ERROR, and that is the assertion this test exists for. `reveal.ts` — "a model
+    NOT AN ERROR, and that is the assertion this test exists for. `refusal.ts` — "a model
     will report the refusal as a fault and the reader will think the server is broken". A
     reader who starts at the wrong end of a book has not broken anything.
   */
@@ -1597,12 +1634,11 @@ test('the book is entered at the beginning: a program past the reader is refused
   assert.match(asked.text, /ONE step/);
   assert.match(asked.text, /not a permission/);
 
-  assert.equal(await d.cursors.read(TRACK, 'F02'), undefined, 'a refused program recorded a place');
+  assert.equal(d.place('F02'), undefined, 'a refused program recorded a place');
 });
 
 test('one step of the program before it is the whole of what opens the next', async () => {
-  const { bundles } = sequence();
-  const d = { cursors: new MemoryCursorStore(), bundles };
+  const d = against([sequence()]);
 
   // Not finished, not answered — opened. ADR-0051 chose the weakest gate that still makes
   // the order true, and this is the test of exactly that choice.
@@ -1617,7 +1653,7 @@ test('one step of the program before it is the whole of what opens the next', as
   // SECOND reader rather than on this one, because opening F02 above is itself a place in
   // F02 and therefore opens F03 — which is the rule, not a leak. The claim under test is
   // that one step of F01 reaches exactly one program further.
-  const other = { cursors: new MemoryCursorStore(), bundles };
+  const other = against([sequence()]);
   await handle('open_program', { unit: 'F01', language: LANG }, other);
   const third = await handle('open_program', { unit: 'F03', language: LANG }, other);
   assert.match(third.text, /"F03" is not open/);
@@ -1625,13 +1661,11 @@ test('one step of the program before it is the whole of what opens the next', as
 });
 
 test('a reader already inside a program is not shut out of it', async () => {
-  const { bundles } = sequence();
-  const cursors = new MemoryCursorStore();
+  const d = against([sequence()]);
   // The valve: a record written before this rule existed, or adopted from another machine
   // (ADR-0019), names a program the order would not have opened. A door cannot shut behind
   // a reader who is through it.
-  await cursors.save({ track: TRACK, unit: 'F02', language: LANG, step: 2 });
-  const d = { cursors, bundles };
+  d.stub.seed(READER, { track: TRACK, unit: 'F02', language: LANG, step: 2 });
 
   const resumed = await handle('open_program', { unit: 'F02' }, d);
   assert.ok(!resumed.isError, resumed.text);
@@ -1642,8 +1676,7 @@ test('a reader already inside a program is not shut out of it', async () => {
 });
 
 test('a shut program is refused before the reader is asked which edition to read', async () => {
-  const { bundles } = sequence();
-  const d = { cursors: new MemoryCursorStore(), bundles };
+  const d = against([sequence()]);
 
   // No language argument: the edition question is what an unopened program normally asks
   // first, and asking it before the gate spends the reader's answer on nothing.
@@ -1653,8 +1686,7 @@ test('a shut program is refused before the reader is asked which edition to read
 });
 
 test('re-reading a shut program says why, rather than sending the model into the refusal', async () => {
-  const { bundles } = sequence();
-  const d = { cursors: new MemoryCursorStore(), bundles };
+  const d = against([sequence()]);
 
   for (const name of ['current_step', 'review_step', 'submit_answer']) {
     const said = await handle(name, { unit: 'F02', step: 1, answer: 'x' }, d);
@@ -1668,8 +1700,7 @@ test('re-reading a shut program says why, rather than sending the model into the
 });
 
 test('list_programs says which programs are open, and states the rule once', async () => {
-  const { bundles } = sequence();
-  const d = { cursors: new MemoryCursorStore(), bundles };
+  const d = against([sequence()]);
 
   const fresh = (await handle('list_programs', {}, d)).text;
   assert.match(fresh, /Programs open in order/);
@@ -1686,8 +1717,7 @@ test('list_programs says which programs are open, and states the rule once', asy
 });
 
 test('the first program of a track is never shut, whatever the reader has read', async () => {
-  const { bundles } = sequence();
-  const d = { cursors: new MemoryCursorStore(), bundles };
+  const d = against([sequence()]);
 
   const opened = await handle('open_program', { unit: 'F01', language: LANG }, d);
   assert.ok(!opened.isError, opened.text);
@@ -1703,4 +1733,100 @@ test('the order is stated where the model reads it, not only where it is enforce
   assert.match(open.description, /PROGRAMS OPEN IN ORDER/);
   const list = TOOLS.find((tool) => tool.name === 'list_programs')!;
   assert.match(list.description, /open/);
+});
+
+/*
+  ──────────────────────────────────────────────────────────────────────────────────────
+  WHAT THE SERVER SENDS THE API, AND WHAT IT NEVER SAYS (#171).
+
+  The server is a client of `AbOvo.Api` now, and the wire is where its promises are kept or
+  broken: it names no step to the API (only an answer raises one, `POST …/advance`), it
+  sends no `PUT` (whose narrowing this issue lands with), it sends the reader's words
+  nowhere, and the id that is its reader's only credential goes to the API's origin and into
+  no result.
+  ──────────────────────────────────────────────────────────────────────────────────────
+*/
+
+/** Read, open, answer and finish two programs, re-reading and retrying on the way — every call a reader's session makes. */
+async function aWholeSession(d: Harness): Promise<ToolResult[]> {
+  const said: ToolResult[] = [await handle('list_programs', {}, d), await handle('list_programs', { all: true }, d)];
+  for (const unit of ['F01', 'F02']) {
+    said.push(await handle('open_program', { unit, language: 'pl' }, d));
+    for (let n = 1; n <= program().steps.length; n += 1) {
+      said.push(await handle('current_step', { unit }, d));
+      said.push(await handle('review_step', { unit, step: n }, d));
+      said.push(await handle('submit_answer', { unit, step: n, answer: 'the reader wrote this' }, d));
+      said.push(await handle('submit_answer', { unit, step: n, answer: 'again' }, d));
+    }
+    said.push(await handle('open_program', { unit, language: 'en' }, d));
+  }
+  said.push(await handle('open_program', { unit: 'F03' }, d), await handle('list_programs', {}, d));
+  return said;
+}
+
+test('the server opens through POST …/open, moves through POST …/advance, and never sends a PUT', async () => {
+  const d = against([sequence()]);
+  await aWholeSession(d);
+
+  const writes = d.stub.calls.filter((call) => call.method !== 'GET');
+  assert.ok(writes.length > 0, 'the session wrote nothing, so this proves nothing');
+  for (const call of writes) {
+    assert.equal(call.method, 'POST', `${call.method} ${call.url}`);
+    assert.match(new URL(call.url).pathname, /^\/api\/v1\/content\/[^/]+\/[^/]+\/(open|advance)$/, call.url);
+  }
+  assert.ok(!d.stub.calls.some((call) => new URL(call.url).pathname.startsWith('/api/v1/progress/')
+    && call.method !== 'GET'), 'a write reached the progress endpoints');
+
+  // An opening names an edition and no step; an advance names the step it answers — the one
+  // the reader is on — and never a step to move to.
+  for (const call of writes) {
+    const body = call.body as Record<string, unknown>;
+    if (call.url.endsWith('/open')) assert.deepEqual(Object.keys(body), ['language']);
+    else assert.deepEqual(Object.keys(body).sort(), ['answeringStep', 'language']);
+  }
+});
+
+test("the reader's words are echoed to them and sent nowhere", async () => {
+  // Nothing here is kept as evidence about the reader (MCP-SERVER-SKETCH.md §5), and the API
+  // keeps no answer: so the words stay in this process.
+  const d = against([sequence()]);
+  await handle('open_program', { unit: 'F01', language: LANG }, d);
+  await handle('submit_answer', { unit: 'F01', step: 1 }, d);
+  const echoed = await handle('submit_answer', { unit: 'F01', step: 2, answer: 'my own working, 2^53' }, d);
+  assert.ok(echoed.text.includes('my own working, 2^53'));
+  assert.ok(!JSON.stringify(d.stub.calls).includes('my own working'), 'the answer was sent to the API');
+});
+
+test('the anonymous reader id is sent to the API it was minted for, and said in no result', async () => {
+  // ADR-0066 §2: possession is the only credential, so the id goes nowhere a person or a
+  // model could copy it from — not the text, not the data, not an error's words.
+  const d = against([sequence()]);
+  const said = await aWholeSession(d);
+  said.push(await handle('review_step', { unit: 'F01', step: 900 }, d));
+  said.push(await handle('open_program', { unit: 'nope' }, d));
+
+  for (const result of said) assert.ok(!wordsOf(result).includes(READER_ID), `the id was said: ${result.text}`);
+  for (const call of d.stub.calls) {
+    assert.equal(new URL(call.url).origin, STUB_API, `sent to ${call.url}`);
+    assert.equal(call.readerId, READER_ID, `${call.method} ${call.url} carried no reader, or another`);
+    assert.equal(call.authorization, undefined, 'a reader with no account sent a bearer');
+  }
+
+  // And an account's bearer, when there is one, is sent instead of an id and not beside it:
+  // the order `ReaderIdentity.Resolve` reads in.
+  const account = asAccount('the-token', [sequence()]);
+  await handle('open_program', { unit: 'F01', language: LANG }, account);
+  for (const call of account.stub.calls) {
+    assert.equal(call.authorization, 'Bearer the-token');
+    assert.equal(call.readerId, undefined, `${call.method} ${call.url} sent an id beside the bearer`);
+  }
+});
+
+test('a program the reading order keeps shut is refused before anything is written', async () => {
+  // The API records an opening of any program (ADR-0065: it does not hold the order), so the
+  // gate is asked first, as the browser asks it before it records a place.
+  const d = against([sequence()]);
+  const refused = await handle('open_program', { unit: 'F03', language: LANG }, d);
+  assert.match(refused.text, /"F03" is not open/);
+  assert.ok(!d.stub.calls.some((call) => call.method === 'POST'), 'a shut program was recorded as opened');
 });

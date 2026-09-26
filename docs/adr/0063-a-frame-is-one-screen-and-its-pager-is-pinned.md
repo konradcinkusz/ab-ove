@@ -126,6 +126,10 @@ settings* rather than under the question. The buttons carry the key in their too
 **The API contract grows one optional field.** Existing callers and constructions are
 unaffected; `web/mcp` has its own gate and does not read it.
 
+> Since 2026-09-26 (#171) `web/mcp` has no gate of its own: it asks this one, and reads steps
+> through the same endpoint. It does not need the field either, because it knows its reader's
+> furthest step from the reader's places.
+
 **The acceptance suite moved with the structure it pins**: the reveal is found by the
 `frame-reveal` test id rather than as the article's own child; the section picker's spec
 became the map's; the place row's width spec became the pager's; *Reading settings* opens

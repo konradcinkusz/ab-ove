@@ -1,4 +1,4 @@
-import type { ProgramSummary } from './wire.ts';
+import type { ProgramSummary } from '@ab-ovo/web-kit/wire';
 
 /** The programs either side of one, in the book's order — either may be absent. */
 export interface Neighbours {

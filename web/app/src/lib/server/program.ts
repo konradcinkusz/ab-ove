@@ -1,6 +1,6 @@
 import { cache } from 'react';
 
-import type { TrackContent, UnitSummary } from '@/lib/content/wire';
+import type { TrackContent, UnitSummary } from '@ab-ovo/web-kit/wire';
 
 import { fetchTrackContent, fetchUnitSummary } from './content.ts';
 import { readerIdentity } from './reader-identity.ts';

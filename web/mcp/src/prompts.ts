@@ -11,8 +11,11 @@
  * Pure logic, no protocol: `server.ts` registers these on the low-level `Server`, and
  * `server.test.ts` drives them over an in-memory transport.
  */
-import { groupsOf } from './content.ts';
-import type { BundleSource } from './content.ts';
+import { groupsOf } from '@ab-ovo/web-kit';
+import type { TrackContent } from '@ab-ovo/web-kit/wire';
+
+import { ApiUnavailable, NoBook } from './api.ts';
+import type { AbOvoApi } from './api.ts';
 
 export interface PromptArgument {
   readonly name: string;
@@ -118,33 +121,42 @@ export function promptMessages(
 /**
  * What the host offers as the reader types an argument. A completion value is what the
  * host inserts, so these are ids — the titles stay in `list_programs` and in the prompt's
- * own description. Matched on the id's start, in any case, in the manifest's order; the
+ * own description. Matched on the id's start, in any case, in the book's order; the
  * protocol caps a list at a hundred and the book is under that.
+ *
+ * THE BOOK IS THE API'S (#171), so the ids and editions come from each track's listing. A
+ * completion is a convenience a host asks for as the reader types: when the API cannot be
+ * asked, the answer is no suggestions rather than a protocol error, and the call the reader
+ * then makes says what is wrong in words (`tools.ts`).
  */
-export function completeArgument(
-  bundles: BundleSource,
+export async function completeArgument(
+  api: AbOvoApi,
   promptName: string,
   argument: { readonly name: string; readonly value: string },
-): readonly string[] {
+): Promise<readonly string[]> {
   if (promptName !== READ_PROMPT.name) return [];
+  if (argument.name !== 'program' && argument.name !== 'language') return [];
   const typed = argument.value.toLowerCase();
 
+  const listings: TrackContent[] = [];
+  try {
+    for (const track of api.tracks) listings.push(await api.track(track));
+  } catch (error) {
+    if (error instanceof ApiUnavailable || error instanceof NoBook) return [];
+    throw error;
+  }
+
   if (argument.name === 'program') {
-    return bundles
-      .all()
-      .flatMap((bundle) => groupsOf(bundle).flatMap((group) => group.units))
-      .map((unit) => unit.id)
+    return listings
+      .flatMap((content) => groupsOf({ units: content.programs }).flatMap((group) => group.units))
+      .map((program) => program.id)
       .filter((id) => id.toLowerCase().startsWith(typed))
       .slice(0, 100);
   }
 
-  if (argument.name === 'language') {
-    const seen = new Set<string>();
-    for (const bundle of bundles.all()) {
-      for (const language of bundle.track.languages) seen.add(language);
-    }
-    return [...seen].filter((language) => language.toLowerCase().startsWith(typed));
+  const seen = new Set<string>();
+  for (const content of listings) {
+    for (const language of content.languages) seen.add(language);
   }
-
-  return [];
+  return [...seen].filter((language) => language.toLowerCase().startsWith(typed));
 }

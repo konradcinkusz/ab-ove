@@ -13,6 +13,24 @@ Status gains one line naming this ADR, and the refused list in
 entry. A model stays refused at a frame, and it stays refused wherever it would be ab-ovo's
 rather than the reader's.
 
+Since 2026-09-26, #171 has moved what this record names in `web/mcp`, and the decision does not
+change with it ([ADR-0066](0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)'s
+dated note). Where the record names these, it describes the server as it stood when it was
+written:
+
+- **`web/mcp/src/reveal.ts`, `cursor.ts` and `MemoryCursorStore` are gone.** The advance is
+  `AbOvoApi.advance` in `web/mcp/src/api.ts`, and it sends no answer, as `reveal.ts`'s took none.
+- **The gate is the API's.** Where §3 reads the book's answer to step *k* through `serve()`
+  rather than `unit.steps`, the server now has neither. It asks `AbOvo.Api` for step *k*+1
+  (`AbOvoApi.step`), and the API's gate is still what emits every answer.
+- **The header that says the package keeps nothing is `api.ts`'s:** "THIS PACKAGE KEEPS NOTHING
+  OF ITS OWN", about the book, the gate and the reader's place. Where the Context and §4 name
+  `cursor.ts`'s header, read `api.ts`'s.
+- **An anonymous reader's place outlives the process.** Its id is kept in the user's state
+  directory and the API keeps the place under it; only an id that cannot be kept is held in
+  memory, and the results say so. Where §4 says the answers die with the process "as
+  `MemoryCursorStore`'s place does", the answers die with it and the place does not.
+
 Constrained by these, and amends none of them:
 [ADR-0009](0009-the-instrument-measures-the-book.md) (the instrument),
 [ADR-0039](0039-a-frame-accepts-the-readers-answer-as-a-commitment.md) (the answer line and

@@ -9,7 +9,8 @@
 [ADR-0017](0017-progress-is-local-first-and-holds-nothing-worth-scoring.md).
 The "future MCP client" below is settled on 2026-09-25 by
 [ADR-0066](0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
-§1: `web/mcp` stays in TypeScript and becomes a client of these endpoints.
+§1: `web/mcp` stays in TypeScript and becomes a client of these endpoints. #171 did so on
+2026-09-26, and `web/mcp/src/reveal.ts`, the copy of the gate named below, is gone.
 
 ## Context
 
