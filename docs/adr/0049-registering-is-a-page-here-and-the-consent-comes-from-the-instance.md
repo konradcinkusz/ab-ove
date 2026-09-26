@@ -107,8 +107,12 @@ because only `unavailable` may advance the candidate ladder — walking on from 
 would mean posting the same registration twice. The reader is told the address already has an
 account, which is true, and is sent to the sign-in form, where it is waiting.
 
-**The page is English only**, like `/login`, on the same recorded reasoning: the chrome string
-table is keyed by the reading language and this page sits outside `/read/[lang]`.
+~~**The page is English only**, like `/login`, on the same recorded reasoning: the chrome string
+table is keyed by the reading language and this page sits outside `/read/[lang]`.~~ **It follows
+the reader's edition since issue #166**, as `/login` does and for the reason
+[ADR-0018](0018-password-sign-in-happens-server-side.md) now gives. The consent names the two
+documents in that edition; the pages they open, and the documents, stay in whatever language
+this deployment published them in.
 
 **It does not close the contract question, even so.** The measurement above is evidence about
 one afternoon and one build of one tag, exactly as ADR-0018's was.

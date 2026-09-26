@@ -1,8 +1,10 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { deletionProblem, deletionProblemMessage } from '@/lib/account-deletion-problem';
 import { chromeFor } from '@/lib/i18n/chrome';
+import { indexHref } from '@/lib/index-href';
 import { backendConfigured } from '@/lib/server/backends';
 
 import styles from './delete.module.css';
@@ -22,14 +24,12 @@ import styles from './delete.module.css';
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
- * THE WORDING IS THE FEATURE, WHICH IS WHY THIS PAGE IS BILINGUAL AND `/login` IS NOT.
+ * THE WORDING IS THE FEATURE, WHICH IS WHY THIS PAGE WAS BILINGUAL BEFORE `/login` WAS.
  *
- * `/login`'s own comment argues, correctly, that it is English-only because there is no
- * language for it to follow: the middleware bounces arbitrary requests there, "what is a
- * reader's interface language" is a different question from "which edition are they
- * reading", and it declines to answer the first by guessing at the second.
- *
- * This page differs in both halves of that argument.
+ * `/login` argued it was English only because it had no language to follow — the middleware
+ * bounces arbitrary requests there, and "what is a reader's interface language" is a
+ * different question from "which edition are they reading". This page differed in both
+ * halves of that argument, and still does.
  *
  * It HAS a language to follow. It is reached from the account's overview, which is reached
  * from a link in the index's chrome — and that link already knows which edition the reader
@@ -42,8 +42,10 @@ import styles from './delete.module.css';
  * screen "says plainly that it cannot retract an anonymous outcome already folded into a
  * rate". A reader who cannot read those four paragraphs has not been told, and a deletion
  * screen whose explanation is in a language the reader does not have is the screen the
- * issue is written against. `/login` can afford English because a reader can guess at
- * "email" and "password"; nobody guesses at this.
+ * issue is written against.
+ *
+ * Issue #166 took the first half away from `/login` too: since ADR-0052 a reader always has
+ * an edition, and every link into the sign-in pages carries it now, as the links here do.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * Private by default: it is in neither `PUBLIC_PATHS` nor `PUBLIC_PREFIXES`, so the
@@ -58,6 +60,20 @@ import styles from './delete.module.css';
  */
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * The tab, in the page's edition: since ADR-0067 the document's language is the page's, and a
+ * title left as the site's English one would be read out in the page's voice.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const requested = (await searchParams)['lang'];
+  const chrome = chromeFor(typeof requested === 'string' ? requested : '');
+  return { title: `${chrome.deleteAccount.title} — ab-ovo` };
+}
 
 export default async function AccountDeletePage({
   searchParams,
@@ -83,8 +99,11 @@ export default async function AccountDeletePage({
     <main className="shell" lang={chrome.language}>
       <SkipLink language={chrome.language} />
       <header className="masthead">
+        {/* The way home, to the programs in this edition — it was text (issue #166). */}
         <p className="wordmark">
-          ab<span>-</span>ovo
+          <Link href={indexHref({ edition: chrome.language })}>
+            ab<span>-</span>ovo
+          </Link>
         </p>
         <h1 className="lede" id={SKIP_TARGET_ID}>{strings.title}</h1>
       </header>

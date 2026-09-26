@@ -12,9 +12,9 @@ import type { Page } from '@playwright/test';
  * name — measured on the first draft, which doubled the identity project's count.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * The form is located by field NAME rather than by label, on purpose: `/login` is English
- * only by its own recorded reasoning, and a spec that read its labels would be a copy of
- * two strings that have a source.
+ * The form is located by field NAME rather than by label, on purpose: the name is the same in
+ * every edition `/login` follows (issue #166), and a spec that read its labels would be a
+ * copy of two strings that have a source.
  */
 export interface Credentials {
   readonly email: string;

@@ -6,7 +6,7 @@ import { LanguageChoice } from '@/components/language/language-choice';
 import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
 import { editionsOffered } from '@/lib/content/chosen-edition';
 import { chromeFor, endonym } from '@/lib/i18n/chrome';
-import { coursesHref, indexHref } from '@/lib/index-href';
+import { aboutHref, coursesHref, indexHref } from '@/lib/index-href';
 import { editionHrefs } from '@/lib/language/hrefs';
 
 import styles from './course-list.module.css';
@@ -97,7 +97,7 @@ export function CourseList({ bundles, chosen }: CourseListProps): React.JSX.Elem
             <Link className={styles.chromeLink} href={indexHref({ edition: chosen })}>
               {chrome.programsCrumb}
             </Link>
-            <Link className={styles.chromeLink} href="/about">
+            <Link className={styles.chromeLink} href={aboutHref(chosen)}>
               {chrome.about}
             </Link>
           </nav>

@@ -31,8 +31,9 @@ import { freshEmail, GOOD_PASSWORD, register } from './support/register.ts';
  *
  * LOCATORS. Role plus accessible name, then text — E2E-ACCEPTANCE-TESTING.md §3's ranked
  * table. The form's own fields are located by NAME, as `support/sign-in.ts` locates
- * `/login`'s and for the same reason: these pages are English-only by their own recorded
- * reasoning, and a spec reading their labels would be a second copy of two strings.
+ * `/login`'s and for the same reason: a field's name is the same in every edition, and a spec
+ * reading their labels would be a second copy of two strings. What the labels say in each
+ * edition is `edition-pages.spec.ts`'s, which reads them from the chrome table.
  */
 
 /** A page behind the middleware — in neither PUBLIC_PATHS nor PUBLIC_PREFIXES. */
@@ -252,10 +253,17 @@ test.describe('a reader with no account can get one', () => {
   }) => {
     await page.goto('/register');
 
-    // Eight characters, so the browser's own minlength lets it through and the answer comes
-    // from the identity service — which is the path under test. No upper case, no digit,
-    // no symbol.
-    await register(page, freshEmail(), 'abcdefgh', /\/register\?/);
+    /*
+      THE ONE PASSWORD THE BROWSER LETS THROUGH AND THE SERVICE REFUSES (issue #166).
+
+      This sent `abcdefgh`, which only `minlength` stood between, and the answer came from
+      the identity service. The browser now checks what the service checks
+      (`lib/password-policy.ts`), so that password never leaves it — `edition-pages.spec.ts`
+      asserts that — and the path under test is reached through the gap `password-policy.ts`
+      names: every class present and fifty-three characters as a browser counts them, which is
+      a hundred and three as the service counts them, over its ceiling of a hundred.
+    */
+    await register(page, freshEmail(), `Aa1${'\u{1F600}'.repeat(50)}`, /\/register\?/);
 
     expect(new URL(page.url()).searchParams.get('error')).toBe('weak-password');
 

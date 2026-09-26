@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 
@@ -59,6 +60,20 @@ import styles from './account.module.css';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * The tab, in the page's edition: since ADR-0067 the document's language is the page's, and a
+ * title left as the site's English one would be read out in the page's voice.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const requested = (await searchParams)['lang'];
+  const chrome = chromeFor(typeof requested === 'string' ? requested : '');
+  return { title: `${chrome.accountOverview.title} — ab-ovo` };
+}
+
 export default async function AccountPage({
   searchParams,
 }: {
@@ -102,8 +117,11 @@ export default async function AccountPage({
     <main className="shell" lang={chrome.language}>
       <SkipLink language={chrome.language} />
       <header className="masthead">
+        {/* The way home, to the programs in this edition — it was text (issue #166). */}
         <p className="wordmark">
-          ab<span>-</span>ovo
+          <Link href={programs}>
+            ab<span>-</span>ovo
+          </Link>
         </p>
         <h1 className="lede" id={SKIP_TARGET_ID}>
           {strings.title}

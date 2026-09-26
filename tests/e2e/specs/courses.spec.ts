@@ -210,9 +210,10 @@ test.describe('the index narrowed to one course', () => {
       edition half; this is the half a `usePathname()` answer would drop silently — a reader
       signing in from a narrowed index and landing on the unnarrowed one.
     */
+    // And the sign-in page is in the edition itself (issue #166), so the link names it twice.
     await expect(page.getByRole('link', { name: 'Zaloguj się' })).toHaveAttribute(
       'href',
-      `/login?redirect=${encodeURIComponent(`${COURSE.href}&lang=pl`)}`,
+      `/login?redirect=${encodeURIComponent(`${COURSE.href}&lang=pl`)}&lang=pl`,
     );
   });
 });

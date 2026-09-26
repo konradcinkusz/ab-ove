@@ -66,3 +66,14 @@ export function coursesHref(edition: string | undefined): string {
   const search = query.toString();
   return search ? `/courses?${search}` : '/courses';
 }
+
+/**
+ * And for `/about`, which follows the reader's edition as well since issue #166 — the
+ * index's *O ab-ovo* used to open the English page, because this link carried nothing.
+ */
+export function aboutHref(edition: string | undefined): string {
+  const query = new URLSearchParams();
+  if (edition) query.set('lang', edition);
+  const search = query.toString();
+  return search ? `/about?${search}` : '/about';
+}

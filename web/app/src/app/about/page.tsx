@@ -3,6 +3,9 @@ import Link from 'next/link';
 
 import { IntegrationReport } from '@/components/integration-report';
 import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { chromeFor } from '@/lib/i18n/chrome';
+import { indexHref } from '@/lib/index-href';
+import { readerEdition } from '@/lib/server/reader-edition';
 
 /**
  * What ab-ovo is, and what its instrument is for.
@@ -49,42 +52,65 @@ import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
  * both halves.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * ISSUE #166 — IN THE READER'S EDITION, SO THE ANTI-GOAL IS PROMISED TO EVERY READER.
+ *
+ * The index's *O ab-ovo* opened this page in English. It is the page a reader opens to decide
+ * whether to trust what the product measures, and a commitment written in one of the two
+ * editions is a commitment made to half the readers, so the words are `chrome.aboutPage` and
+ * the page resolves its edition as the index does: `?lang=`, which every link here carries
+ * (`aboutHref`), else the edition this browser remembers, else English.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
  * A Server Component that renders from content compiled into the app and nothing else: no
- * fetch, no cookie, no backend. That is a fact about this page, not about reading, and it is
+ * fetch and no backend. It reads one cookie, this origin's own — the remembered edition —
+ * which is why it is rendered per request where it used to be prerendered (ADR-0067 records
+ * what that cost). Needing no backend is a fact about this page, not about reading, and it is
  * why the page can still tell a reader what is wrong when the API is not there. The one live
  * thing is <IntegrationReport />, a Client Component that asks this app's own origin what
  * the API has, and it is below the whole of the argument on purpose — everything above it is
- * true whether or not that panel finds anything.
+ * true whether or not that panel finds anything. It is in English in both editions, and says
+ * so: it reports the API's own words, which are English.
  */
-export const metadata: Metadata = {
-  title: 'About — ab-ovo',
-  description:
-    'What ab-ovo is, how the reader loop works, and what the instrument measures — the book, never the reader.',
-};
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const strings = chromeFor(await readerEdition((await searchParams)['lang'])).aboutPage;
+  return { title: strings.tabTitle, description: strings.description };
+}
 
-export default function AboutPage(): React.JSX.Element {
+export default async function AboutPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<React.JSX.Element> {
+  const edition = await readerEdition((await searchParams)['lang']);
+  const chrome = chromeFor(edition);
+  const strings = chrome.aboutPage;
+  const programs = indexHref({ edition });
+
   return (
-    <main className="shell">
-      <SkipLink language="en" />
+    <main className="shell" lang={chrome.language}>
+      <SkipLink language={chrome.language} />
       <header className="masthead">
         {/*
           The way back to the programs, first in the document, because this page is a
           detour from the loop rather than a step in it.
         */}
         <p className="wordmark">
-          <Link href="/">
+          <Link href={programs}>
             ab<span>-</span>ovo
           </Link>
         </p>
         <h1 className="lede" id={SKIP_TARGET_ID}>
-          A book you work, not a book you read.
+          {strings.lede}
         </h1>
         <p className="standfirst">
-          ab-ovo encapsulates <em>Mathematics from Zero for the AI Engineer</em> — 47 programs
-          of programmed-learning frames, in English and Polish, together with the book&rsquo;s
-          computer exercises. The frames are Stroud&rsquo;s: each one asks for something before
-          it tells you anything, and the next frame opens with the answer you should have
-          written.
+          {strings.standfirst.before}
+          <em>{strings.standfirst.work}</em>
+          {strings.standfirst.after}
         </p>
         {/*
           The entry point, and on this page it is the way back to the first screen. Nothing
@@ -92,7 +118,7 @@ export default function AboutPage(): React.JSX.Element {
           server, which is the claim the section two below it makes (ADR-0060).
         */}
         <p className="enter">
-          <Link href="/">Open the programs</Link>
+          <Link href={programs}>{chrome.openPrograms}</Link>
         </p>
       </header>
 
@@ -106,47 +132,31 @@ export default function AboutPage(): React.JSX.Element {
         a claim made publicly is one a later feature has to argue with — and ADR-0036 moved
         the page it is said on without weakening the claim or the test that holds it.
       */}
-      <section className="antigoal" aria-label="What this instrument is for">
+      <section className="antigoal" aria-label={strings.antigoalLabel}>
         <p>
-          <strong>The instrument measures the book, never the reader.</strong>
+          <strong>{strings.antigoalClaim}</strong>
         </p>
-        <p>
-          When a frame is answered wrongly by many readers, that is a finding about the
-          frame — its wording, its position, the frame before it — and it goes into
-          revising the book. ab-ovo does not score you, rank you, or build a profile of
-          what you are bad at. There is no leaderboard and there will not be one.
-        </p>
+        <p>{strings.antigoal}</p>
       </section>
 
       <section className="section">
-        <h2>The loop</h2>
+        <h2>{strings.loopTitle}</h2>
         <ol className="loop">
-          <li>Read a frame. It is short by construction — one idea, sometimes one line.</li>
+          <li>{strings.loop[0]}</li>
           {/*
             ADR-0040 — the worksheet, in the place the lab used to hold as step four, and
             moved up to where it is used: a reader works a frame out before committing to an
             answer, not after seeing the book's. What a frame asks for is not a program, so
             this is the step that says no step asks for one.
           */}
-          <li>
-            Work it out, on paper or on the worksheet under a frame that asks for something:
-            a line to answer on, a pad that does the arithmetic and a canvas to draw on. What a
-            frame asks for is a number, a word or a line of working &mdash; not a program
-            &mdash; so nothing in the loop asks you to write code.
-          </li>
-          <li>
-            Commit an answer before you turn over. The commitment is the mechanism; a frame
-            you skimmed teaches nothing, and the book is built on that assumption.
-          </li>
-          <li>
-            Reveal the next frame, which opens with the answer. Compare, and carry on or go
-            back one.
-          </li>
+          <li>{strings.loop[1]}</li>
+          <li>{strings.loop[2]}</li>
+          <li>{strings.loop[3]}</li>
         </ol>
       </section>
 
       <section className="section">
-        <h2>What it needs from you</h2>
+        <h2>{strings.needsTitle}</h2>
         {/*
           ADR-0060 — two requirements, stated as two, because they are independent and only
           one of them was reversed. The first sentence is what `specs/about.spec.ts` asserts.
@@ -156,15 +166,11 @@ export default function AboutPage(): React.JSX.Element {
           the gate on the first", which read the roadmap below it — gone since issue #162 —
           back to the reader.
         */}
-        <p>
-          Reading needs no account, but it does need this site&rsquo;s book server: every frame
-          and every reveal is fetched from it as you read, so while it is down, no frame will
-          open. An account is for carrying your place from one device to another.
-        </p>
+        <p>{strings.needs}</p>
       </section>
 
       <section className="section">
-        <h2>Which edition you read</h2>
+        <h2>{strings.editionTitle}</h2>
         {/*
           ADR-0052: the book still has two editions and no primary one — its own parity
           tooling gates them frame for frame — and this product opens in English and
@@ -172,38 +178,23 @@ export default function AboutPage(): React.JSX.Element {
           text until issue #162; it says what that means for a reader, and the record is
           named here.
         */}
-        <p>
-          Either, and the choice is yours to make rather than ours to guess. The book has two
-          editions, matched frame for frame, and neither comes first — but this site has to
-          open in one of them, so it opens in English and offers the switch at the top of
-          every screen. Change it once and it stays changed: in this browser, and on your
-          account if you have one. Nothing is guessed from your browser&rsquo;s settings, and
-          each choice on the switch is an ordinary link you can share.
-        </p>
+        <p>{strings.edition}</p>
       </section>
 
       <section className="section">
-        <h2>The computer exercises</h2>
+        <h2>{strings.exercisesTitle}</h2>
         {/*
           ADR-0040, said to a reader: where the lab is, and that it is not in the loop. It
           was the first of four phases in a roadmap until issue #162, and the only one a
           reader could act on.
         */}
-        <p>
-          Some programs have computer exercises from the book, in Python. They run in your
-          browser, they are optional, and they are offered at the end of the program that has
-          them &mdash; never beside a frame, because no frame asks you to write code.
-        </p>
+        <p>{strings.exercises}</p>
       </section>
 
       <IntegrationReport />
 
       <footer className="colophon">
-        <p>
-          This page is served entirely from its own origin. No font, stylesheet, script or
-          icon is fetched from anywhere else, and the browser never talks to a backend
-          directly — everything goes through this site.
-        </p>
+        <p>{strings.colophon}</p>
         <p>
           <a href="https://github.com/konradcinkusz/ab-ovo">github.com/konradcinkusz/ab-ovo</a>
         </p>

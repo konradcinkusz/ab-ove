@@ -39,8 +39,11 @@ import styles from '../../legal.module.css';
  * PUBLIC, and carved out of the login redirect by `middleware.ts` (FRONTEND-BFF.md §4): a
  * reader deciding whether to make an account has, by definition, none yet.
  *
- * English only in its own words, as `/register` is and for its reason; the document itself
- * is in whatever language the deployment published it in.
+ * English only in its own words, and the document itself is in whatever language the
+ * deployment published it in. `/register` names the two documents in the reader's edition
+ * since issue #166 (`chrome.registerPage.accept`) and links here unchanged: this page is a
+ * frame round a text this repository does not write, and it did not move with the pages that
+ * issue named.
  */
 
 export const dynamic = 'force-dynamic';

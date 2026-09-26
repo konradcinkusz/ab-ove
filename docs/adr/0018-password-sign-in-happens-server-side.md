@@ -56,10 +56,16 @@ that did not would be the first thing in the product to require it.
 303 rather than 302 because the browser must follow it with GET: a 302 after a POST may
 repeat the POST, which here means re-submitting a password on a reload.
 
-The consequence taken on purpose: the email is **not** filled back in after a failed
+~~The consequence taken on purpose: the email is **not** filled back in after a failed
 attempt. The only channel a redirect has is the URL, and an address bar is the one place a
 value reaches browser history and every access log between here and the reader. One retype
-is cheaper than that.
+is cheaper than that.~~ **Since issue #166 it is filled back in, and still never through the
+URL.** The URL is not the redirect's only channel: the 303 can set a cookie, which the browser
+sends with the GET it makes next. The route leaves the address in one set by this origin's
+server — HttpOnly, SameSite=strict, scoped to `/login`, and gone in a minute
+(`web/app/src/lib/server/sign-in-address.ts`) — and removes it as soon as a password is
+accepted. The reasoning against the URL is unchanged, and it is why the address travels this
+way instead.
 
 ### A 200 is not a session
 
@@ -215,11 +221,16 @@ than a line of code. And its whole effect is at `authservice`'s limiter behind a
 neither of which exists in the sandbox this was measured in: it would have shipped unmeasured.
 [#31](https://github.com/konradcinkusz/ab-ove/issues/31) carries the options.
 
-**The sign-in page is English only.** The chrome string table is keyed by the *reading*
+~~**The sign-in page is English only.** The chrome string table is keyed by the *reading*
 language — the edition of the book a reader is in — and this page sits outside `/read/[lang]`,
 so there is no language for it to follow. Giving it one is a decision about what a reader's
 *interface* language is, which is a different question from which edition they read, and it
-is not made here.
+is not made here.~~ **It follows the reader's edition since issue #166.** The premise went
+with [ADR-0052](0052-one-language-control-remembered-and-english-by-default.md): a reader always
+has an edition — asked for, remembered, or English by default — so there is one to follow, and
+no guess about an interface language is needed to follow it. Every link into the page carries
+`?lang=`, the form carries it on to every page the route answers with, and the words are in
+`chrome.ts` beside every other word a reader sees.
 
 **The deployed web app was configured with five variables nothing reads, and this is what
 found it.** `flyio/web.fly.toml` carried `AbOvo__ApiBaseUrl`, `AbOvo__AuthBaseUrl`,

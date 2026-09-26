@@ -173,7 +173,8 @@ for (const [screen, viewport] of SCREENS) {
 
       // The two destinations, and the reader's way back in.
       await isAFingersTarget(row.locator('a[href^="/courses"]'), where);
-      await isAFingersTarget(row.locator('a[href="/about"]'), where);
+      // By prefix, as `/courses` is: the link carries the edition since issue #166.
+      await isAFingersTarget(row.locator('a[href^="/about"]'), where);
       await isAFingersTarget(row.locator(`a[href^="/read/${track}/${UNIT}/"]`), where);
 
       /*
@@ -262,6 +263,6 @@ for (const [screen, viewport] of SCREENS) {
 
     // In the navigation, not the wordmark, which goes to the same place and is not this issue's.
     await isAFingersTarget(page.locator('header nav a[href^="/?"]'), where);
-    await isAFingersTarget(page.locator('header nav a[href="/about"]'), where);
+    await isAFingersTarget(page.locator('header nav a[href^="/about"]'), where);
   });
 }

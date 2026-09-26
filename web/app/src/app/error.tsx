@@ -38,9 +38,12 @@ import { RenderFailure } from '@/components/render-failure';
  *
  * IN THE READER'S EDITION, read off the address (`/read/<track>/<unit>/<lang>/…`), with the
  * words in `lib/i18n/chrome.ts` beside every other string a reader sees. This used to be
- * English only, on `/login`'s reasoning that "there is no edition to follow when the page that
- * would have carried one is the page that failed" — but the ADDRESS did not fail, and on the
- * reading surface it always names one. Elsewhere there is none, and the page is English.
+ * English only, on the reasoning `/login` gave then, that "there is no edition to follow when
+ * the page that would have carried one is the page that failed" — but the ADDRESS did not
+ * fail, and on the reading surface it always names one. Elsewhere there is none, and the page
+ * is English. (The 404 reads the same address and, where it names nothing, the edition this
+ * browser remembers, because its server half can read the cookie; this page is a Client
+ * Component that renders where the server's did not, and has no server half to ask.)
  *
  * A CLIENT COMPONENT BY REQUIREMENT — `error.tsx` must be one, because it renders after the
  * server-side tree failed. `error.message` is never rendered: in production Next redacts it

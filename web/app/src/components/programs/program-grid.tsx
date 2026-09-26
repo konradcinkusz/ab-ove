@@ -11,7 +11,7 @@ import { editionsOffered } from '@/lib/content/chosen-edition';
 import { shownBundles } from '@/lib/content/chosen-track';
 import { runReasons } from '@/lib/content/run-reasons';
 import { chromeFor } from '@/lib/i18n/chrome';
-import { coursesHref, indexHref } from '@/lib/index-href';
+import { aboutHref, coursesHref, indexHref } from '@/lib/index-href';
 import { editionHrefs } from '@/lib/language/hrefs';
 
 import { ClearWorksheets, ExportWorksheets } from '../read/clear-controls.tsx';
@@ -211,7 +211,7 @@ export function ProgramGrid({
           <Link className={styles.chromeLink} href={coursesHref(chosen)}>
             {chrome.courses}
           </Link>
-          <Link className={styles.chromeLink} href="/about">
+          <Link className={styles.chromeLink} href={aboutHref(chosen)}>
             {chrome.about}
           </Link>
           {/*

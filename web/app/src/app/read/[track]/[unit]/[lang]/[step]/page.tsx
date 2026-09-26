@@ -8,6 +8,7 @@ import { say } from '@ab-ovo/web-kit';
 
 import { FrameView } from '@/components/read/frame-view';
 import { NotReached } from '@/components/read/not-reached';
+import { signInHref } from '@/lib/account-href';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { contentUnavailable } from '@/lib/read/render-failure';
 import { READER_ID_COOKIE } from '@/lib/reader-cookie';
@@ -117,8 +118,9 @@ export async function generateMetadata({
   if (program.kind === 'unavailable') {
     return { title: n === undefined ? 'ab-ovo' : `${chromeFor(lang).frameNumbered(n)} — ab-ovo` };
   }
+  // A 404 is titled as one, in the address's edition too (issue #166): the 404 page speaks it.
   if (program.kind === 'not-found' || n === undefined || n > program.unit.stepCount) {
-    return { title: 'Not found — ab-ovo' };
+    return { title: chromeFor(lang).notFound.tabTitle };
   }
 
   const chrome = chromeFor(program.language);
@@ -170,10 +172,11 @@ export default async function FramePage({
     const chrome = chromeFor(language);
     const reading = `/read/${track}/${unit.id}/${language}`;
     // Issue #157 — a reader with no session was gated on the anonymous cursor, and may have
-    // read this frame signed in. Offered only where signing in exists (P8), and returning here.
-    const signInHref =
+    // read this frame signed in. Offered only where signing in exists (P8), returning here, and
+    // in this frame's edition, which the sign-in page follows (issue #166).
+    const signIn =
       identity.bearer === undefined && backendConfigured('authservice')
-        ? `/login?redirect=${encodeURIComponent(`${reading}/${requestedStep}`)}`
+        ? signInHref({ redirect: `${reading}/${requestedStep}`, edition: language })
         : undefined;
     return (
       <NotReached
@@ -182,7 +185,7 @@ export default async function FramePage({
         furthest={refusal.furthest}
         furthestHref={`${reading}/${refusal.furthest}`}
         language={language}
-        signInHref={signInHref}
+        signInHref={signIn}
         trackLanguages={trackContent.languages}
         unitId={unit.id}
         unitTitle={say(unit.titles, language)}

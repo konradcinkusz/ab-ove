@@ -47,7 +47,8 @@ export async function generateMetadata({
   if (resolved.kind === 'unavailable') {
     return { title: `${chromeFor(resolvedParams.lang).contents} — ab-ovo` };
   }
-  if (resolved.kind === 'not-found') return { title: 'Not found — ab-ovo' };
+  // A 404 is titled as one, in the address's edition too (issue #166): the 404 page speaks it.
+  if (resolved.kind === 'not-found') return { title: chromeFor(resolvedParams.lang).notFound.tabTitle };
 
   const { trackContent, unit, language } = resolved;
   const chrome = chromeFor(language);

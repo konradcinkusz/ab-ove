@@ -1,7 +1,13 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { registerHref, signInHref } from '@/lib/account-href';
+import { chromeFor, type Chrome } from '@/lib/i18n/chrome';
+import { indexHref } from '@/lib/index-href';
 import { backendConfigured } from '@/lib/server/backends';
+import { readerEdition } from '@/lib/server/reader-edition';
+import { rememberedAddress } from '@/lib/server/sign-in-address';
 import { destinationAt } from '@/lib/page-gate';
 import { safeRedirectTarget } from '@/lib/redirect-target';
 import { signInProblem } from '@/lib/sign-in-problem';
@@ -26,11 +32,20 @@ import styles from '../credentials-form.module.css';
  * first thing in the product to require it.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * The page is English-only, as it was before the form arrived. The chrome string table is
- * keyed by the READING language — the edition of the book a reader is in — and this page
- * sits outside `/read/[lang]`, so there is no language for it to follow. Giving it one is a
- * decision about what a reader's interface language IS, and that is a separate question
- * from which edition they are reading.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * IN THE READER'S EDITION SINCE ISSUE #166.
+ *
+ * It was English only, on the argument that the chrome table is keyed by the READING language
+ * and this page sits outside `/read/[lang]` with none to follow. ADR-0052 answered that: a
+ * reader always has an edition, asked for or remembered, and a Polish reader pressing
+ * *Zaloguj się* was sent to an English page. Every link here carries `?lang=`
+ * (`account-href.ts`), the page resolves it as the index does (`readerEdition`), the words are
+ * `chrome.signInPage` and `chrome.signInProblems`, and every link and redirect out of here —
+ * the form's own, through a hidden field — carries the edition on.
+ *
+ * A FAILED ATTEMPT KEEPS THE ADDRESS, and still not in the URL: the route leaves it in a
+ * minute-long HttpOnly cookie scoped to this page (`lib/server/sign-in-address.ts`).
+ * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
  * AN ADDRESS NO PAGE ANSWERS IS SAID TO BE ONE (issue #140).
@@ -75,6 +90,26 @@ import styles from '../credentials-form.module.css';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * The tab, in the page's edition: since ADR-0067 the document's language is the page's, and it
+ * is the title Next's route announcer reads out. An address no page answers is titled as one.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const chrome = chromeFor(await readerEdition(params['lang']));
+  const intended = safeRedirectTarget(params['redirect']);
+  return {
+    title:
+      intended !== null && destinationAt(intended) === 'no-page'
+        ? chrome.notFound.tabTitle
+        : `${chrome.signIn} — ab-ovo`,
+  };
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -82,6 +117,9 @@ export default async function LoginPage({
 }): Promise<React.JSX.Element> {
   const params = await searchParams;
   const intended = safeRedirectTarget(params['redirect']);
+  const edition = await readerEdition(params['lang']);
+  const chrome = chromeFor(edition);
+  const strings = chrome.signInPage;
 
   /**
    * P8 — a deployment with no identity service is a supported state, so the page says which
@@ -100,13 +138,21 @@ export default async function LoginPage({
   // Issue #140 — see the header. The address is never carried any further when no page
   // answers it: not into the form, not onward to `/register`.
   if (destination?.kind === 'no-page') {
-    return <NoPageAt address={destination.address} identityConfigured={identityConfigured} />;
+    return (
+      <NoPageAt
+        address={destination.address}
+        chrome={chrome}
+        edition={edition}
+        identityConfigured={identityConfigured}
+      />
+    );
   }
 
   // Validated against a closed set, never rendered from the URL. See sign-in-problem.ts:
   // a page that echoed `?error=<text>` would put any sentence an attacker chose into this
   // site's own chrome, on the screen where a password is being asked for.
   const problem = signInProblem(params['error']);
+  const problemWords = problem ? chrome.signInProblems[problem.code] : null;
 
   /*
     WHETHER THE FORM IS WORTH OFFERING, which `SignInProblem.retryable` was written to
@@ -119,11 +165,17 @@ export default async function LoginPage({
   const offersForm =
     identityConfigured && (problem === null || problem.retryable || problem.startsOver === true);
 
-  const startAgainHref = intended ? `/login?redirect=${encodeURIComponent(intended)}` : '/login';
+  // Every way on carries where the reader was going and the edition they read in (#166).
+  const startAgainHref = signInHref({ redirect: intended, edition });
+  const createHref = registerHref({ redirect: intended, edition });
+  const home = indexHref({ edition });
 
-  const registerHref = intended
-    ? `/register?redirect=${encodeURIComponent(intended)}`
-    : '/register';
+  /*
+    The address a failed attempt was made with, which the route left in a cookie scoped to
+    this page — read only where there is a form to put it in, and put into the field and
+    nowhere else. See `lib/server/sign-in-address.ts`.
+  */
+  const address = offersForm ? await rememberedAddress() : null;
 
   /*
     A private page is named whatever else the page says, because it is the one reason for
@@ -142,22 +194,29 @@ export default async function LoginPage({
   const asked =
     destination?.kind === 'private-page' ? (
       <p>
-        You asked for <code>{destination.address}</code>, which is one of the few pages that
-        needs to know who you are.
+        {chrome.askedPrivate.before}
+        <code>{destination.address}</code>
+        {chrome.askedPrivate.after}
         {offersForm
-          ? ' Sign in and you will be taken straight there.'
+          ? strings.askedPrivateSignIn
           : identityConfigured
-            ? ' Starting again will still take you there.'
+            ? strings.askedPrivateStartAgain
             : null}
       </p>
     ) : null;
 
   return (
-    <main className="shell">
-      <SkipLink language="en" />
+    <main className="shell" lang={chrome.language}>
+      <SkipLink language={chrome.language} />
       <header className="masthead">
+        {/*
+          The wordmark is the way home — to the programs, in this edition — as it is on
+          `/about` and the 404. On the account's pages it was text (issue #166).
+        */}
         <p className="wordmark">
-          ab<span>-</span>ovo
+          <Link href={home}>
+            ab<span>-</span>ovo
+          </Link>
         </p>
         {/*
           What signing in is for, and then that reading does not need it (issue #162). The
@@ -168,24 +227,20 @@ export default async function LoginPage({
           and this browser is what it is kept under.
         */}
         <h1 className="lede" id={SKIP_TARGET_ID}>
-          Signing in keeps your place across devices.
+          {strings.lede}
         </h1>
-        <p className="standfirst">
-          You do not need an account to read: every frame and the lab work without one, and
-          this browser already remembers where you are. An account carries your place to your
-          other devices, and that is what it is for.
-        </p>
+        <p className="standfirst">{strings.standfirst}</p>
       </header>
 
-      {problem ? (
+      {problemWords ? (
         <section className={styles.problem} aria-live="polite">
-          <h2 className={styles.problemTitle}>{problem.title}</h2>
-          <p className={styles.problemDetail}>{problem.detail}</p>
+          <h2 className={styles.problemTitle}>{problemWords.title}</h2>
+          <p className={styles.problemDetail}>{problemWords.detail}</p>
         </section>
       ) : null}
 
       <section className="section">
-        <h2>Sign in</h2>
+        <h2>{chrome.signIn}</h2>
         {identityConfigured && !offersForm ? (
           <>
             {/*
@@ -199,9 +254,9 @@ export default async function LoginPage({
               attempt the panel has just said cannot work.
             */}
             <p>
-              Typing your password again cannot fix the problem described above, so there is
-              no form here. When the problem has cleared,{' '}
-              <Link href={startAgainHref}>start again</Link> from a fresh sign-in page.
+              {strings.withdrawn.before}
+              <Link href={startAgainHref}>{strings.withdrawn.link}</Link>
+              {strings.withdrawn.after}
             </p>
             {asked}
           </>
@@ -209,9 +264,9 @@ export default async function LoginPage({
           <>
             {asked}
             {destination === null ? (
-              <p>Use the email address and password you created your account with.</p>
+              <p>{strings.useYourAccount}</p>
             ) : destination.kind === 'open' ? (
-              <p>Sign in and you will be taken back to where you were.</p>
+              <p>{strings.takenBack}</p>
             ) : null}
             {/*
               method="post" and a real action, so this works with no JavaScript. The route
@@ -226,10 +281,15 @@ export default async function LoginPage({
                 nothing about what the route is handed.
               */}
               {intended ? <input type="hidden" name="redirect" value={intended} /> : null}
+              {/*
+                The edition rides the same way, so the page the route answers with — this one
+                with a problem, the code screen, or where the reader was going — is in it.
+              */}
+              <input type="hidden" name="lang" value={edition} />
 
               <div className={styles.field}>
                 <label className={styles.label} htmlFor="email">
-                  Email address
+                  {chrome.emailAddress}
                 </label>
                 <input
                   className={styles.input}
@@ -239,13 +299,14 @@ export default async function LoginPage({
                   autoComplete="username"
                   autoCapitalize="none"
                   spellCheck={false}
+                  defaultValue={address ?? undefined}
                   required
                 />
               </div>
 
               <div className={styles.field}>
                 <label className={styles.label} htmlFor="password">
-                  Password
+                  {chrome.password}
                 </label>
                 <input
                   className={styles.input}
@@ -258,15 +319,9 @@ export default async function LoginPage({
               </div>
 
               <button className={styles.submit} type="submit">
-                Sign in
+                {chrome.signIn}
               </button>
             </form>
-            {/*
-              The email is deliberately NOT filled back in after a failed attempt. The only
-              way to carry it through a form post that answers with a redirect is the query
-              string, and an address bar is the one place a value ends up in browser history
-              and in every access log between here and the reader. One retype is cheaper.
-            */}
             {/*
               The way to GET an account, which this page invited the reader to have and for
               a long time did not say how to obtain. It carries the destination onward, so a
@@ -274,9 +329,9 @@ export default async function LoginPage({
               were going rather than at the top of the site.
             */}
             <p>
-              No account yet? <Link href={registerHref}>Create one</Link> — it takes an email
-              address and a password, and it is only needed to carry your place between
-              devices.
+              {strings.noAccount.before}
+              <Link href={createHref}>{strings.noAccount.link}</Link>
+              {strings.noAccount.after}
             </p>
           </>
         ) : (
@@ -289,7 +344,7 @@ export default async function LoginPage({
               is true and is said to the operator (issue #162). That reading is unaffected is
               the standfirst's to say, and it already has.
             */}
-            <p>This site has no accounts, so there is nothing to sign in to.</p>
+            <p>{strings.noAccounts}</p>
           </>
         )}
       </section>
@@ -302,9 +357,9 @@ export default async function LoginPage({
       <footer className="colophon">
         <p>
           {destination?.kind === 'open' ? (
-            <Link href={destination.address}>Back to where you were</Link>
+            <Link href={destination.address}>{strings.backToWhereYouWere}</Link>
           ) : (
-            <Link href="/">Back to the reader</Link>
+            <Link href={home}>{chrome.backToReader}</Link>
           )}
         </p>
       </footer>
@@ -322,46 +377,54 @@ export default async function LoginPage({
  * after `safeRedirectTarget` has refused anything that is not a same-origin path.
  *
  * The way to sign in is a FRESH `/login`, with no destination: the one this address would
- * have carried is a page that does not exist.
+ * have carried is a page that does not exist. It keeps the edition, as every way out of these
+ * pages does (issue #166), and it has the skip link and the wordmark home every page has.
  */
 function NoPageAt({
   address,
+  chrome,
+  edition,
   identityConfigured,
 }: {
   address: string;
+  chrome: Chrome;
+  edition: string;
   identityConfigured: boolean;
 }): React.JSX.Element {
+  const strings = chrome.signInPage;
+  const home = indexHref({ edition });
   return (
-    <main className="shell">
+    <main className="shell" lang={chrome.language}>
+      <SkipLink language={chrome.language} />
       <header className="masthead">
         <p className="wordmark">
-          ab<span>-</span>ovo
+          <Link href={home}>
+            ab<span>-</span>ovo
+          </Link>
         </p>
-        <h1 className="lede">There is no page at this address.</h1>
+        <h1 className="lede" id={SKIP_TARGET_ID}>
+          {chrome.notFound.title}
+        </h1>
         <p className="standfirst">
-          You asked for <code>{address}</code>, and nothing in ab-ovo is there &mdash; a
-          mistyped address or an out-of-date link does this. It is not a page that needs an
-          account, and signing in would not make one appear.
+          {strings.noPage.before}
+          <code>{address}</code>
+          {strings.noPage.after}
         </p>
         <p className="enter">
-          <Link href="/">Open the programs</Link>
+          <Link href={home}>{chrome.openPrograms}</Link>
           {identityConfigured ? (
-            <Link className="quiet" href="/login">
-              Sign in
+            <Link className="quiet" href={signInHref({ edition })}>
+              {chrome.signIn}
             </Link>
           ) : null}
         </p>
       </header>
 
       <section className="section">
-        <h2>Why you are on the sign-in page</h2>
+        <h2>{strings.whyHereTitle}</h2>
         <p>
-          An address this site does not recognise is treated as private until it is shown
-          otherwise, so a mistyped one lands here rather than on a page that says it is
-          missing. The programs, the frames and the lab need no account at all.
-          {identityConfigured
-            ? null
-            : ' And this site has no accounts, so there is nothing here to sign in to.'}
+          {strings.whyHere}
+          {identityConfigured ? null : strings.whyHereNoAccounts}
         </p>
       </section>
     </main>

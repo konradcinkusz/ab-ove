@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useSyncExternalStore } from 'react';
 
+import { signInHref } from '@/lib/account-href';
 import { chromeFor } from '@/lib/i18n/chrome';
 import { ask, serverSnapshot, signOut, snapshot, subscribe } from '@/lib/session/client';
 
@@ -86,11 +87,13 @@ export function AccountControl({
   if (status === 'signed-out') {
     // Carrying the current location means signing in returns the reader to the page they
     // were on rather than to the top of the site — the same `?redirect=` contract the
-    // middleware's own bounce uses, and validated by the same `safeRedirectTarget`.
+    // middleware's own bounce uses, and validated by the same `safeRedirectTarget`. And the
+    // edition rides beside it, as it rides to `/account` below: the sign-in page follows it
+    // since issue #166, and *Zaloguj się* used to open an English one.
     return (
       <Link
         className={styles.account}
-        href={`/login?redirect=${encodeURIComponent(target)}`}
+        href={signInHref({ redirect: target, edition: chrome.language })}
         lang={chrome.language}
       >
         {chrome.signIn}
@@ -108,8 +111,7 @@ export function AccountControl({
     The language rides the href. It is the edition the reading chrome is already in — the
     same signal that decided the word on this link — and the overview hands it on to the
     deletion screen, which is what makes that screen's four paragraphs readable by the reader
-    they are for. See `app/account/delete/page.tsx` for why those pages follow an edition
-    where `/login` declines to.
+    they are for (`app/account/delete/page.tsx`).
   */
   return (
     <span className={styles.group}>

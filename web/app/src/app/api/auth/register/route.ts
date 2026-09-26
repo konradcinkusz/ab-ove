@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+import { registerHref } from '@/lib/account-href';
+import { indexHref } from '@/lib/index-href';
+import { isLanguageTag } from '@/lib/language/store';
 import { backendConfigured } from '@/lib/server/backends';
 import { readerAddress } from '@/lib/server/client-ip';
 import { isSameOrigin } from '@/lib/server/same-origin';
@@ -36,13 +39,13 @@ import type { RegistrationNoticeCode, RegistrationProblemCode } from '@/lib/regi
  * Equal, they are the same string and the registration proceeds. Different, the versions
  * moved while the page was open, and the answer is `consent-stale` — reload and read it,
  * rather than retry and accept something unseen.
+ *
+ * Every `Location` carries the edition the form was in, as `/api/auth/login`'s do (issue
+ * #166).
  */
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-
-/** Where a reader goes when registering worked and nothing said where they were headed. */
-const DEFAULT_DESTINATION = '/';
 
 interface Submission {
   readonly email: string;
@@ -53,6 +56,8 @@ interface Submission {
   readonly terms: string;
   readonly privacy: string;
   readonly redirectTo: string | null;
+  /** The edition the form was in — its shape checked here, as the sign-in route does. */
+  readonly edition: string | undefined;
   /**
    * Whether this caller is a plain HTML form, and therefore whether the answer is a 303 or
    * a status. Decided by the branch that actually parsed the body, for the reason
@@ -83,6 +88,7 @@ async function readSubmission(request: Request): Promise<Submission | null> {
         terms: String(form.get('terms') ?? '').trim(),
         privacy: String(form.get('privacy') ?? '').trim(),
         redirectTo: safeRedirectTarget(String(form.get('redirect') ?? '')),
+        edition: editionOf(form.get('lang')),
         wantsRedirect: true,
       };
     }
@@ -98,6 +104,7 @@ async function readSubmission(request: Request): Promise<Submission | null> {
         terms: str('terms').trim(),
         privacy: str('privacy').trim(),
         redirectTo: safeRedirectTarget(str('redirect')),
+        edition: editionOf(body['lang']),
         wantsRedirect: false,
       };
     }
@@ -106,6 +113,11 @@ async function readSubmission(request: Request): Promise<Submission | null> {
   }
 
   return null;
+}
+
+/** A `lang` field worth carrying on: the shape of a language tag, or nothing. */
+function editionOf(value: unknown): string | undefined {
+  return isLanguageTag(value) ? value : undefined;
 }
 
 /**
@@ -132,19 +144,22 @@ const PROBLEM_STATUS: Readonly<Record<RegistrationProblemCode, number>> = {
 };
 
 /**
- * The register page, carrying what went wrong and where the reader was headed.
+ * The register page, carrying what went wrong (or the notice), where the reader was headed and
+ * the edition — `account-href.ts`'s order.
  *
  * A PATH rather than an absolute URL, for the reason `login/route.ts` measured: the only
  * absolute origin available on this side is `request.url`, which names the server's own
  * address rather than the one the browser used.
  */
 function registerPagePath(
-  query: Record<string, string>,
-  redirectTo: string | null,
+  outcome: { readonly error: string } | { readonly notice: string },
+  submission: Submission,
 ): string {
-  const search = new URLSearchParams(query);
-  if (redirectTo) search.set('redirect', redirectTo);
-  return `/register?${search.toString()}`;
+  return registerHref({
+    ...outcome,
+    redirect: submission.redirectTo,
+    edition: submission.edition,
+  });
 }
 
 /** 303, not 302: a reload after registering must re-request a page, not re-post a password. */
@@ -173,7 +188,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const fail = (problem: RegistrationProblemCode): NextResponse =>
     submission.wantsRedirect
-      ? seeOther(registerPagePath({ error: problem }, submission.redirectTo))
+      ? seeOther(registerPagePath({ error: problem }, submission))
       : NextResponse.json(
           { problem },
           { status: PROBLEM_STATUS[problem], headers: { 'cache-control': 'no-store' } },
@@ -181,7 +196,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const notice = (code: RegistrationNoticeCode): NextResponse =>
     submission.wantsRedirect
-      ? seeOther(registerPagePath({ notice: code }, submission.redirectTo))
+      ? seeOther(registerPagePath({ notice: code }, submission))
       : NextResponse.json(
           { notice: code },
           { status: 202, headers: { 'cache-control': 'no-store' } },
@@ -260,7 +275,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (session.status === 'rejected') return fail('token-rejected');
   if (session.status === 'unverifiable') return fail('unverifiable');
 
-  const destination = submission.redirectTo ?? DEFAULT_DESTINATION;
+  // Where the reader was going; else the programs, in the edition they registered from.
+  const destination = submission.redirectTo ?? indexHref({ edition: submission.edition });
 
   return submission.wantsRedirect
     ? seeOther(destination)

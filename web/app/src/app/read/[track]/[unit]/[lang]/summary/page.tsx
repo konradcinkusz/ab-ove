@@ -50,7 +50,8 @@ export async function generateMetadata({
   if (resolved.kind === 'unavailable') {
     return { title: `${chromeFor(resolvedParams.lang).summaryHeading} — ab-ovo` };
   }
-  if (resolved.kind === 'not-found') return { title: 'Not found — ab-ovo' };
+  // A 404 is titled as one, in the address's edition too (issue #166): the 404 page speaks it.
+  if (resolved.kind === 'not-found') return { title: chromeFor(resolvedParams.lang).notFound.tabTitle };
 
   // In the reader's edition (issue #158: "Summary — …" and "The return index for …" were
   // English on the Polish page). The title names the program and not a word of its index,

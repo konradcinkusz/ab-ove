@@ -194,7 +194,8 @@ test.describe('landing page', () => {
     // asserts what is on the other end; this asserts that the other end is reachable.
     const about = page.getByRole('link', { name: 'About ab-ovo' });
     await expect(about).toBeVisible();
-    await expect(about).toHaveAttribute('href', '/about');
+    // In the edition this page is in, which the argument follows since issue #166.
+    await expect(about).toHaveAttribute('href', '/about?lang=en');
 
     // And the way to the other courses, which is in the same row and is the one link on this
     // page that is not about the course below it (ADR-0048). `specs/courses.spec.ts` asserts
@@ -221,12 +222,14 @@ test.describe('landing page', () => {
     // product whose location can include a query string, and the plain `usePathname()`
     // answer would silently drop the edition on the way back from the form. It carries the
     // default too — a reader who has chosen nothing is still reading an edition (ADR-0052).
-    await expect(signIn).toHaveAttribute('href', '/login?redirect=%2F%3Flang%3Den');
+    // And the sign-in page is in that edition itself, so the link says it twice: once as the
+    // way back, once as the page's own `lang` (issue #166).
+    await expect(signIn).toHaveAttribute('href', '/login?redirect=%2F%3Flang%3Den&lang=en');
 
     await page.goto('/?lang=pl');
     await expect(page.getByRole('link', { name: 'Zaloguj się' })).toHaveAttribute(
       'href',
-      '/login?redirect=%2F%3Flang%3Dpl',
+      '/login?redirect=%2F%3Flang%3Dpl&lang=pl',
     );
   });
 

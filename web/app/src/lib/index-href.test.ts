@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { coursesHref, indexHref } from './index-href.ts';
+import { aboutHref, coursesHref, indexHref } from './index-href.ts';
 
 test('no choice is the bare index, with no empty query string on the end', () => {
   assert.equal(indexHref(), '/');
@@ -44,4 +44,10 @@ test('the courses page carries the edition and nothing else', () => {
   assert.equal(coursesHref(undefined), '/courses');
   assert.equal(coursesHref(''), '/courses');
   assert.equal(coursesHref('pl'), '/courses?lang=pl');
+});
+
+test('so does the about page, which follows the edition since issue #166', () => {
+  assert.equal(aboutHref(undefined), '/about');
+  assert.equal(aboutHref(''), '/about');
+  assert.equal(aboutHref('pl'), '/about?lang=pl');
 });
