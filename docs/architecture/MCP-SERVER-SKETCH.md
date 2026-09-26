@@ -75,12 +75,17 @@ It holds by construction: no field of the data is read from an answer's words, a
 read every string of both halves, value by value rather than through a serialisation that
 would escape a backslash, and one of them walks a three-program track whose answers name
 their program. At every place in every program it asks every tool about every program, and
-checks that no step shown in the data lies past the furthest.
+checks that no step shown in the data lies past the furthest. Each walk runs once in each
+edition, because the server's own sentences differ between the two (#167), and each checks
+that it was framed in the edition it names.
 
 Watched failing: carrying the next step's answer in a step's data turns the leak walks red,
 and the output-schema validation in `server.test.ts` with them. Carrying the next program's
 answer in a finished program's `finished.next` turns the three-program walk red and leaves
-the single-program walks green, which is why that walk crosses programs at all.
+the single-program walks green, which is why that walk crosses programs at all. A place line
+that ignores the edition turns every Polish walk red and leaves every English one green, which
+is why each walk checks its framing: without that, the Polish walk could pass as a second
+English one.
 
 ### Why this is not the DOM assertion wearing a new hat
 
@@ -193,11 +198,30 @@ the cursor. So `ApiCursorStore` keeps a switch made on the current step in the p
 that step only, writes it to the account with the next step, and drops it the moment the
 account's step moves past — another machine reading on, whose edition travels with its step.
 
-**The sentences around a step are English in every edition.** The place line's *step n of
-N*, the answer banner and the closing line are the server's, not the book's, and they have
-one language; the step itself is in the reader's edition. The host's model relays them. A
-table like the reading surface's `chrome.ts` is the fix, when a reader of the Polish edition
-asks for it.
+**The sentences around a step are in the reader's edition too** (#167). They were English in
+every edition: measured on 2026-09-24 through a real MCP client, a Polish step arrived between
+an English place line, English banners and an English closing line, and the refusals, the
+hand-off and the in-memory note were English as well. The host's model translated them, against
+the instruction to show a step as it is served. `web/mcp/src/framing.ts` is now a table on the
+reading surface's `chrome.ts` pattern — an entry per language, English as the fallback, a count
+through `Intl.PluralRules` — and in its vocabulary
+([`translate-a-document.md`](../how-to/translate-a-document.md)). So where this server's English
+says *step*, the Polish says *ramka*, as the book and the reading surface do: `F01 · Liczby,
+potęgi i pierwiastki › Jakie są liczby · ramka 1 z 45`.
+
+The table holds only what the reader is shown: the place line, the banners and the closing line
+of `render()`, the refusals of `explain()`, the hand-off of `completion()`, the notes about the
+reader's place, the group headings of `list_programs` and the form that confirms an answer.
+**What is addressed to the assistant stays English**: the tool descriptions,
+`SERVER_INSTRUCTIONS`, the output schemas, the prompt, the edition question (asked because no
+edition is known), and the sentences of a result that tell the model about its call — what was
+started, recorded or not, and which call opens the next program. A shut program is refused in
+the reader's edition, and the `open_program` call that opens it follows in English. The list's
+apparatus around its titles stays English too: its rule, each program's state and its notes are
+what the model reads to choose a program. `framing.test.ts` holds that line from the table's
+side, since no sentence there may name a tool. It also holds the Polish to ADR-0016's rule,
+under which no sentence may make the reader a man or a woman. The data does not change:
+`step.language` was already there, and the only words in it are `text`.
 
 **Finishing a program is a hand-off, not an error and not a dead end.** The last
 `submit_answer` used to be refused as `program-complete`, and a reader who had worked
@@ -246,6 +270,11 @@ is `refused` before anything is sent, rather than `unreachable` and retried for 
 a JSON answer that is not an object is `refused` rather than a `TypeError` out of
 `handle()`. The gate's refusals are untouched. Anything else `handle()` cannot name still
 throws, because a sentence would dress a defect in this package up as the deployment's.
+What the note tells the reader follows their edition: the one the call named, else the one the
+session last spoke in. The store that says which edition a reader reads in is the thing out of
+reach, so nothing is asked of it. The fixes for whoever runs the server stay English with the
+variables they name, and so does the whole of the note for a deployment with no book, which has
+no editions to follow.
 
 **A place kept in memory is said in the results, once.** `server.ts` warned on stderr, which
 no reader of a host sees, so the results carry the same sentence, and the reader learns it
@@ -253,8 +282,8 @@ before losing their place rather than by losing it. It used to end every `list_p
 and `open_program` result, so a reader heard it at each call and at every re-check of the
 list. It now ends the first result of a session that is not an error — an error's text is a
 fix the model acts on, and a note spent there may never be relayed — and every result
-carries `placeIsEphemeral` in its data. The session is the server's, one per connection
-over stdio.
+carries `placeIsEphemeral` in its data. It is in the edition of the result it ends. The
+session is the server's, one per connection over stdio.
 
 **Every result carries the same thing as data** (#164). A result that is not an error has a
 `structuredContent` beside its text, described by the tool's `outputSchema`, so an agent
@@ -309,7 +338,8 @@ argument in front of the reader directly and records what comes back from *that*
 which is the gate the paragraph above says nothing can be, on the one transport where a
 form can stand between the model's claim and the record.
 [ADR-0054](../adr/0054-submit-answer-elicits-the-reader-before-it-trusts-the-argument.md) is
-that decision.
+that decision. The form is written in the edition of the step it confirms (#167): a host shows
+it to the reader with no model in between to translate it.
 
 **On a host that does not support elicitation, the limit is exactly what it was.**
 `submit_answer` **echoes back what it recorded**, so a reader who was answered *for* can see

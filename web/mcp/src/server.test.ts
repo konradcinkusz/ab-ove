@@ -217,6 +217,40 @@ test('a host that can elicit is asked for the edition with the track\'s editions
   await client.close();
 });
 
+test('a host that can elicit shows the reader the answer form in the edition of the step', async () => {
+  // #167: a host shows the form to the reader with no model in between to translate it, so a
+  // Polish step is confirmed in Polish.
+  const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+  const server = createServer(new MemoryCursorStore(), { bundles: fixtureBundles() });
+  await server.connect(serverSide);
+  const client = new Client({ name: 'server.test', version: '0.0.0' }, { capabilities: { elicitation: { form: {} } } });
+
+  const asked: unknown[] = [];
+  client.setRequestHandler(ElicitRequestSchema, async (request) => {
+    asked.push(request.params);
+    return { action: 'accept', content: { answer: 'mantysa' } };
+  });
+  await client.connect(clientSide);
+
+  await client.callTool({ name: 'open_program', arguments: { unit: 'P01', language: 'pl' } });
+  await client.callTool({ name: 'submit_answer', arguments: { unit: 'P01', step: 1 } });
+  const moved = await client.callTool({ name: 'submit_answer', arguments: { unit: 'P01', step: 2 } });
+  assert.match(text(moved), /"mantysa"/, 'what the reader confirmed is what was recorded');
+
+  assert.equal(asked.length, 1);
+  const form = asked[0] as {
+    message: string;
+    requestedSchema: { properties: { answer: { title: string; description: string } } };
+  };
+  assert.equal(
+    form.message,
+    'Ramka 2: sprawdź to, zanim zostanie zapisane jako twoja odpowiedź. Wpisz swoją odpowiedź — asystent nic nie przesłał.',
+  );
+  assert.equal(form.requestedSchema.properties.answer.title, 'Twoja odpowiedź');
+  assert.equal(form.requestedSchema.properties.answer.description, 'Popraw, jeśli to nie jest twoja odpowiedź, a potem potwierdź.');
+  await client.close();
+});
+
 test('the prompt is listed, and renders the method before it asks for a step', async () => {
   const client = await connected();
   const { prompts } = await client.listPrompts();

@@ -26,8 +26,10 @@ whether the answer that arrived is the reader's" stops being true: the gate is t
 ## Decision
 
 `submit_answer` takes an optional `elicit` function on `Deps` (`web/mcp/src/tools.ts`):
-`(step, proposed) => Promise<ElicitOutcome>`, where `ElicitOutcome` is `confirmed` (carries
-the reader's own text), `declined`, or `unavailable`. `server.ts` wires it to a closure that
+`(step, proposed, language) => Promise<ElicitOutcome>`, where `ElicitOutcome` is `confirmed`
+(carries the reader's own text), `declined`, or `unavailable`. `language` is the step's
+edition, which the form's words follow; it was added with #167, and the decision recorded
+here does not change with it. `server.ts` wires it to a closure that
 checks `getClientCapabilities()?.elicitation?.form` and, if present, calls `elicitInput`
 with the model's proposed answer as the form field's `default` — pre-filled, editable,
 never assumed correct.

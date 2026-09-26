@@ -173,6 +173,25 @@ error carries its text alone, so every host forwards it as before.
 **The data carries no answer.** `answersStep` says that a step opens with one; the answer
 itself is only in the words, in the step after the one it answers, where the gate put it.
 
+## In the reader's edition
+
+A step arrives in the reader's edition, and so does everything the server says to the reader
+around it. That covers the place line (`ramka 5 z 48` in Polish), the banners around the
+book's answer, the closing line, the refusals and the hand-off at the end of a program. It
+also covers the notes about the reader's place, the group headings of the list and the form a
+host shows to confirm an answer. The words are in `src/framing.ts`, a table on the reading
+surface's `chrome.ts` pattern and in its vocabulary
+([`translate-a-document.md`](../../docs/how-to/translate-a-document.md)).
+
+What is said to the assistant stays English in every edition: the tool descriptions, the
+server instructions, the output schemas and the prompt. So do the lines of a result that tell
+the model about its call, such as `Starting "P01".`, the answer it recorded, and the
+`open_program` call that opens a program. The list of programs is the model's menu, so only its
+titles and group headings follow the edition. The edition question is asked because no edition
+is known, and is English. When the reader's place cannot be reached, the note says so in the
+edition the call named, or else in the one the session last spoke in. An edition with no
+sentences in the table is framed in English.
+
 ## Tests
 
 ```bash
