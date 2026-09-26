@@ -26,7 +26,7 @@ import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
-import { PRIVATE_PAGES, destinationAt, opensWithoutSession, pageAnswers } from './page-gate.ts';
+import { PRIVATE_PAGES, destinationAt, isCarveOut, opensWithoutSession, pageAnswers } from './page-gate.ts';
 
 /** What the middleware's `gate()` does with no session: carve-outs and public paths pass. */
 const closed = (pathname: string): boolean => !opensWithoutSession(pathname);
@@ -184,6 +184,26 @@ test('the overview and the deletion screen need a session; the page after them n
   assert.equal(closed('/account/delete'), true);
   assert.equal(closed('/account/deleted'), false);
   assert.equal(destinationAt('/account/delete?lang=pl&error=confirm'), 'private-page');
+});
+
+/*
+ * THE WAY BACK INTO AN ACCOUNT IS OPEN, AND HAS TO BE (issue #170): its reader is one who cannot
+ * sign in. Pinned by name for the account pages' reason above — the walk would agree with a page
+ * dropped from the lists together with the page. The two addresses the emails link to are
+ * carve-outs, let through before anything looks at a cookie, so the query they arrive with — the
+ * token and the address — reaches the route that moves it into the server, and is never written
+ * into a `?redirect=` on the way to `/login`.
+ */
+test('the way back into an account needs no session, and a link keeps its query on arrival', () => {
+  for (const page of ['/login/forgot', '/login/reset', '/login/resend', '/login/confirm']) {
+    assert.equal(closed(page), false, page);
+  }
+  for (const landing of ['/reset-password', '/verify-email']) {
+    assert.equal(isCarveOut(landing), true, landing);
+    assert.equal(destinationAt(`${landing}?token=abc&email=reader%40example.test`), 'open', landing);
+  }
+  // Opened by name, not as a prefix: a page under `/login/` nobody has written stays closed.
+  assert.equal(closed('/login/anything-else'), true);
 });
 
 test('the address is resolved as the request would have been', () => {

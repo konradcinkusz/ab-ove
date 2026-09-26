@@ -9,7 +9,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  SIGN_IN_NOTICES,
   SIGN_IN_PROBLEMS,
+  signInNotice,
   signInProblem,
   type SignInProblem,
   type SignInProblemCode,
@@ -91,4 +93,28 @@ test('the second-factor codes each sit on the right side of that line', () => {
     (code) => (SIGN_IN_PROBLEMS[code] as Omit<SignInProblem, 'code'>).startsOver === true,
   );
   assert.deepEqual(startsOver.sort(), ['second-factor', 'second-factor-expired']);
+});
+
+/**
+ * THE WAY BACK FOR AN ADDRESS NEVER CONFIRMED (issue #170), and where it is offered. `unverified`
+ * is the problem that names it; `rejected` is the one such an address actually meets, because the
+ * pinned authservice refuses an unconfirmed account's right password with the same 401 as a wrong
+ * one (docs/architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md §5). Nowhere else: under a locked
+ * account or a service that is down, asking for an email is not the way out.
+ */
+test('the confirmation link is offered under the two problems an unconfirmed address meets', () => {
+  const offering = CODES.filter(
+    (code) => (SIGN_IN_PROBLEMS[code] as Omit<SignInProblem, 'code'>).offersResend === true,
+  );
+  assert.deepEqual(offering.sort(), ['rejected', 'unverified']);
+  assert.equal(signInProblem('rejected')?.offersResend, true);
+});
+
+/** Where a way back into an account ends: `?notice=` is on a URL too, and as closed as `?error=`. */
+test('a notice on the sign-in page is one of its own, or nothing', () => {
+  for (const code of SIGN_IN_NOTICES) assert.equal(signInNotice(code), code);
+  for (const forged of ['Your account is suspended', 'password-reset ', 'toString', '', undefined]) {
+    assert.equal(signInNotice(forged), null);
+  }
+  assert.equal(signInNotice(['email-verified', 'password-reset']), 'email-verified');
 });

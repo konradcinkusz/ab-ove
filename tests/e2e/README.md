@@ -58,6 +58,7 @@ was first written with.
 | `accessibility.spec.ts` | every screen holds WCAG 2.2 A and AA as far as axe-core can decide — both schemes, each panel open, 360 px, the forms behind an account, and a legal document |
 | `account-deletion.spec.ts` | closing an account, and everything about it that needs no account |
 | `account-overview.spec.ts` | opening one's own account: whose it is, the place it holds in each program, and the ways out — sign-out and the deletion screen |
+| `account-recovery.spec.ts` | a forgotten password, and a lost confirmation email, each asked for and ended on a page that says what happens next; the link followed from the reader's mail — another site — and nothing about the account in any address the app shows after it lands; a spent link says so, in either edition, and a site with no accounts says it has none (#170) |
 | `adopt-at-sign-in.spec.ts` | reading without an account and then signing in — with a password, with a second factor, or by making an account — leaves the account at the frame read, with no step sent from the browser, and the place read without an account still there after signing out; and a forget — with no account, with one, or cut off once — that no later sign-in brings back (ADR-0068) |
 | `app-icon.spec.ts` | the tab shows the mark, served by this origin to a reader with no account, and `theme-color` is the paper in each scheme |
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
@@ -654,6 +655,16 @@ in the tree rather than in the environment because a test's inputs must not depe
 deployment. `TWO_FACTOR`'s code is a fixed string and not a real TOTP — computing one would
 make every assertion depend on the clock, and the exchange is what is under test.
 
+**The fixture also plays the reader's mail** (#170). Its recovery endpoints answer as
+[the probe](../../docs/architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md) captured the pinned
+authservice answering, and what they "send" lands in an outbox, `GET /__outbox?to=<address>` —
+a route labelled in the fixture as not authservice's — whose page carries the email's own link.
+`specs/support/outbox.ts` opens it under `localhost` while the identity deployment is
+`127.0.0.1`, so clicking the link is a navigation another site started, as it is from a real
+mail client. An address at `unconfirmed.example.test` registers as an instance that sends
+email would — waiting to be confirmed, with a confirmation email — which is how a spec gets an
+unconfirmed account of its own; every other address registers as before.
+
 **Every script in `package.json` is executed by a CI context.** An unreferenced test entry
 point is not a latent capability, it is documentation that lies.
 
@@ -791,7 +802,10 @@ per run, and that is the price of reading through the real gate.
 **Registration writes too, into the identity fixture's memory** (`specs/registration.spec.ts`,
 and `specs/furthest-frame.spec.ts`, which needs an account whose furthest frame no other test
 has moved): each test registers a generated address, the fixture forgets it when its process
-exits, and no account is shared between tests. What such an account then reads is written to
+exits, and no account is shared between tests. `specs/account-recovery.spec.ts` goes further
+and changes what it registered — a password reset, an address confirmed, emails in the
+outbox — which is why it never uses a fixture account: a reset would change the password of an
+account every other spec signs in with. What such an account then reads is written to
 `AbOvo.Api` under its own subject, which nobody else holds either — so, like a reader id's
 rows, it needs no teardown. `specs/account-overview.spec.ts` registers one the same way when it
 needs the account's places to be its own — they are `AbOvo.Api` rows, which
@@ -878,9 +892,10 @@ tests/e2e/
   package.json                      scripts; every one is run by a CI context
   playwright.config.ts              base URL, layers, harness defaults, webServer
   tsconfig.json                     strict; `pnpm run typecheck` is a real gate
-  fixtures/                         the identity service stub (and the legal-document host it also
-                                    plays), its accounts, the content ingest, and the API
-                                    pass-through that can cut one reader off or slow them down
+  fixtures/                         the identity service stub (and the legal-document host and the
+                                    reader's mail it also plays), its accounts, the content
+                                    ingest, and the API pass-through that can cut one reader off
+                                    or slow them down
   specs/
     *.spec.ts                       one journey each — the table under *What this suite covers*
     support/
@@ -888,6 +903,7 @@ tests/e2e/
       forget.ts                     forgetting the reader's place, as the page's own control does
       gate.ts                       seeding the record ADR-0051's program gate reads
       lab.ts                        the pinned book's exercise file, solutions and splices
+      outbox.ts                     the fixture's outbox, and following an email's link from it
       page-errors.ts                uncaught-exception collector
       pane.ts                       a worksheet pane, and the button that opens it
       register.ts                   registering through `/register`, with a fresh address

@@ -61,6 +61,13 @@ var authDb = postgres.AddDatabase("authdb");
 const int authServicePort = 8081;
 var authServicePublicUrl = $"http://localhost:{authServicePort}";
 
+// The address a BROWSER reaches the web app at — the port `web` is published on below — written
+// once because the settings that name it have to agree with it: the origin both services allow,
+// and the base of the links in authservice's emails (FrontendBaseUrl). A literal for the reason
+// authServicePublicUrl is one: an endpoint reference resolved for a container's own environment
+// names the host as the container sees it, and a link in an email is opened by a browser.
+const string webPublicUrl = "http://localhost:3000";
+
 var authservice = builder.AddContainer("authservice", "ghcr.io/konradcinkusz/authservice", "v0.3.1")
     .WithHttpEndpoint(port: authServicePort, targetPort: 8080, name: "http")
     .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
@@ -87,7 +94,18 @@ var authservice = builder.AddContainer("authservice", "ghcr.io/konradcinkusz/aut
     .WithEnvironment("Jwt__PublicBaseUrl", authServicePublicUrl)
     .WithEnvironment("Database__SchemaMode", "EnsureCreated")
     .WithEnvironment("ConnectionStrings__DefaultConnection", authDb.Resource.ConnectionStringExpression)
-    .WithEnvironment("Cors__AllowedOrigins__0", "http://localhost:3000")
+    .WithEnvironment("Cors__AllowedOrigins__0", webPublicUrl)
+    // THE BASE OF THE LINKS IN ITS EMAILS, which are pages of the web app's:
+    // `{FrontendBaseUrl}/reset-password?…` and `/verify-email?…`, the paths fixed upstream
+    // (docs/architecture/AUTHSERVICE-ACCOUNT-RECOVERY-PROBE.md §3, issue #170). Unset, v0.3.1's
+    // appsettings.json leaves it an EMPTY string, which its `?? "http://localhost:3000"` fallback
+    // never replaces, so the links come out relative — measured, and no mail client opens one.
+    //
+    // No email is SENT here: with no SendGrid__ApiKey, authservice's no-op service writes each
+    // email's link to its console log instead, in Development only — so under the AppHost the
+    // way back into an account is followed from the `authservice` log in the dashboard, and this
+    // line is what makes the link there one a browser can open.
+    .WithEnvironment("FrontendBaseUrl", webPublicUrl)
     // The one account authservice makes itself. Its own DbSeeder creates the three role
     // rows and, from these two keys, a SuperAdmin — the only role that may grant a role, so
     // without it `AbOvo.Api`'s admin group is unreachable from a fresh clone and `seed`
@@ -114,7 +132,7 @@ var api = builder.AddProject<Projects.AbOvo_Api>("api")
     // The AppHost's own endpoint is plain http, so metadata discovery must be allowed over
     // it. On Fly the issuer is https and this is never set (see flyio/api.fly.toml).
     .WithEnvironment("Jwt__RequireHttpsMetadata", "false")
-    .WithEnvironment("Cors__AllowedOrigins__0", "http://localhost:3000")
+    .WithEnvironment("Cors__AllowedOrigins__0", webPublicUrl)
     .WithHttpHealthCheck("/health");
 
 // ── Product surface ─────────────────────────────────────────────────────────────────────
@@ -127,7 +145,13 @@ builder.AddNextJsApp("web", "../../web/app")
     // NEXT_PUBLIC_* address costs one image per environment and breaks build-once-deploy-many
     // (FRONTEND-BFF.md §2, P12). The web app re-reads these per request in /api/config.
     .WithEnvironment("AB_OVO_API_URL", api.GetEndpoint("http"))
-    .WithEnvironment("AB_OVO_AUTH_URL", authservice.GetEndpoint("http"));
+    .WithEnvironment("AB_OVO_AUTH_URL", authservice.GetEndpoint("http"))
+    // Whether the pages that ASK for an email — a new password's link, the confirmation again —
+    // offer their forms (issue #170). No endpoint of authservice's says whether it can deliver one
+    // (the probe, §4), so the deployment says it. Here it can, to its log: the no-op service
+    // writes each link where the dashboard shows it (above). A deployment with neither a mail
+    // provider nor that log leaves this unset, and the pages say it sends no email.
+    .WithEnvironment("AB_OVO_AUTH_SENDS_EMAIL", "true");
 
 // ── Development tools ───────────────────────────────────────────────────────────────────
 // The example accounts, made on demand rather than at startup.

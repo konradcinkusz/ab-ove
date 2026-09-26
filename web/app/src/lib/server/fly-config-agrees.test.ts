@@ -86,3 +86,22 @@ test('forwarding is switched on deliberately, in the file that knows a proxy is 
   // is the safe direction and it is still not what flyio/web.fly.toml means to say.
   assert.equal(settingIn(web, 'AB_OVO_TRUST_PROXY_CLIENT_IP'), 'true');
 });
+
+/*
+ * THE LINKS IN authservice's EMAILS LEAD TO THE WEB APP (issue #170): `{FrontendBaseUrl}/reset-password?…`
+ * and `/verify-email?…`, the paths fixed upstream. So their base is the web app's public origin —
+ * which `Cors__AllowedOrigins__0`, in the same file, already names from the other side. Were the
+ * two to part company, every link in every email would point somewhere that is not this app, and
+ * both lines would still look configured.
+ */
+test('authservice links its emails to the origin it lets call it', () => {
+  const links = settingIn(authservice, 'FrontendBaseUrl');
+  const allowed = settingIn(authservice, 'Cors__AllowedOrigins__0');
+
+  assert.equal(typeof links, 'string', 'flyio/authservice.fly.toml no longer sets FrontendBaseUrl');
+  assert.equal(typeof allowed, 'string', 'flyio/authservice.fly.toml no longer sets Cors__AllowedOrigins__0');
+  assert.equal(links, allowed);
+  // An origin and nothing more: upstream appends its fixed paths to it, so a path or a trailing
+  // slash here would be a link to a page that does not exist.
+  assert.equal(new URL(links!).origin, links);
+});

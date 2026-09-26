@@ -51,6 +51,15 @@ const PUBLIC_PATHS = new Set<string>([
   // nothing an account provides.
   '/courses',
   '/login',
+  // The way back into an account (issue #170): asking for a link to choose a new password,
+  // choosing it, asking for the confirmation link again, and confirming. Public for `/login`'s
+  // reason — each is a step of signing in, taken by a reader who cannot sign in — and each by
+  // name rather than as a `/login/` prefix, which would open whatever is written under it next.
+  // The two addresses the emails' links land on are carve-outs, below.
+  '/login/forgot',
+  '/login/reset',
+  '/login/resend',
+  '/login/confirm',
   '/register',
   // The platform health check. `flyio/web.fly.toml` points [[http_service.checks]] at
   // /healthz, and Fly's checker does NOT follow redirects — so without this entry the
@@ -128,8 +137,20 @@ const PUBLIC_PREFIXES: readonly string[] = [
  *
  * Legal pages are here for a different reason with the same shape: a consent or policy
  * link carries the parameters that say where the reader came from, and they must survive.
+ *
+ * The addresses the identity service's emails link to are callbacks in all but name (issue
+ * #170): `/reset-password` and `/verify-email`, paths authservice fixes, reached as a rule by a
+ * reader who is not signed in, carrying in the query the token and the address the route there
+ * moves into this origin's server. Bounced to `/login`, the link would arrive with neither, and
+ * its query would be written into `?redirect=` besides.
  */
-const CARVE_OUT_PREFIXES: readonly string[] = ['/auth/callback', '/login/2fa', '/legal/'];
+const CARVE_OUT_PREFIXES: readonly string[] = [
+  '/auth/callback',
+  '/login/2fa',
+  '/legal/',
+  '/reset-password',
+  '/verify-email',
+];
 
 export function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.has(pathname)) return true;

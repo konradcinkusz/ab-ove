@@ -10,9 +10,11 @@ import { readerEdition } from '@/lib/server/reader-edition';
 import { rememberedAddress } from '@/lib/server/sign-in-address';
 import { destinationAt } from '@/lib/page-gate';
 import { safeRedirectTarget } from '@/lib/redirect-target';
-import { signInProblem } from '@/lib/sign-in-problem';
+import { signInNotice, signInProblem } from '@/lib/sign-in-problem';
 
 import styles from '../credentials-form.module.css';
+
+import { ForgotPasswordLink, ResendConfirmation } from './recovery-links.tsx';
 
 /**
  * The sign-in page.
@@ -61,6 +63,15 @@ import styles from '../credentials-form.module.css';
  *
  * The gate itself is untouched by this: the typo still meets the sign-in redirect. What
  * changed is only what the sign-in page says when it gets there.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * A WAY BACK INTO AN ACCOUNT STARTS HERE, AND ENDS HERE (issue #170).
+ *
+ * *Forgot your password?* under the form, and the confirmation link again inside the panel of a
+ * problem an unconfirmed address meets — `recovery-links.tsx` says when each is offered. Each
+ * way ends back on this page with a NOTICE from a closed set (`?notice=`, `sign-in-problem.ts`):
+ * the password was changed, or the address confirmed, and the form under it is the next step.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
@@ -153,6 +164,10 @@ export default async function LoginPage({
   // site's own chrome, on the screen where a password is being asked for.
   const problem = signInProblem(params['error']);
   const problemWords = problem ? chrome.signInProblems[problem.code] : null;
+  // Where a way back into an account ended (issue #170) — a closed set too, for the same reason,
+  // and only where there are accounts for a password to have changed on.
+  const notice = identityConfigured ? signInNotice(params['notice']) : null;
+  const noticeWords = notice ? chrome.signInNotices[notice] : null;
 
   /*
     WHETHER THE FORM IS WORTH OFFERING, which `SignInProblem.retryable` was written to
@@ -238,6 +253,21 @@ export default async function LoginPage({
         <section className={styles.problem} aria-live="polite">
           <h2 className={styles.problemTitle}>{problemWords.title}</h2>
           <p className={styles.problemDetail}>{problemWords.detail}</p>
+          {/* The way back for an address never confirmed, where one would meet it (#170). */}
+          {identityConfigured && problem ? (
+            <ResendConfirmation chrome={chrome} edition={edition} redirect={intended} problem={problem} />
+          ) : null}
+        </section>
+      ) : null}
+
+      {/*
+        The end of a way back into an account (issue #170): `/register`'s notice panel, in the
+        accent rather than the warning colour, because something was done.
+      */}
+      {noticeWords ? (
+        <section className={styles.notice} aria-live="polite">
+          <h2 className={styles.noticeTitle}>{noticeWords.title}</h2>
+          <p className={styles.noticeDetail}>{noticeWords.detail}</p>
         </section>
       ) : null}
 
@@ -324,6 +354,8 @@ export default async function LoginPage({
                 {chrome.signIn}
               </button>
             </form>
+            {/* Issue #170: the way back from a forgotten password, beside the field it is about. */}
+            <ForgotPasswordLink chrome={chrome} edition={edition} redirect={intended} />
             {/*
               The way to GET an account, which this page invited the reader to have and for
               a long time did not say how to obtain. It carries the destination onward, so a

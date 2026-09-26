@@ -118,6 +118,16 @@ Both links are built from **`FrontendBaseUrl`** and a fixed path, in `AuthContro
   bar before the reader does anything, for instance by keeping them server-side and
   redirecting to the bare path. This probe did not try that.
 
+  > **What 700 did with this** (#170, recorded here so the question above has its answer
+  > beside it). The arriving URL is upstream's and stays so; the rule covers every address
+  > the app shows after it. `/reset-password` and `/verify-email` are routes, not pages: they
+  > move the pair into a short-lived HttpOnly cookie and answer 303 with `/login/reset` or
+  > `/login/confirm`, and `specs/account-recovery.spec.ts` holds every address after that to
+  > carrying neither. The cookie had to be `SameSite=Lax` — a `Strict` one set on a
+  > navigation another site started is not sent on the redirect that follows — which
+  > `web/app/src/lib/server/emailed-link-cookie.ts` records. `docs/ux/UI-UX.md`, under
+  > `/login`, has the rest.
+
 ## 4. Whether any email is sent at all
 
 **Not in any configuration this repository has.** `Program.cs` chooses

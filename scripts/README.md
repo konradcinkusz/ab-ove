@@ -134,6 +134,7 @@ not fail — it silently picks the other behaviour.**
 | `Jwt__Issuer`, `Jwt__Audience` | API, authservice |
 | `Jwt__Algorithm` | authservice — **set it explicitly; the inferred value is HS256** |
 | `Jwt__PublicBaseUrl` | authservice |
+| `FrontendBaseUrl` | authservice, wherever it sends email — the base of the links in them, and **the web app's origin, as `Cors__AllowedOrigins__0` is** |
 | `AB_OVO_API_URL`, `AB_OVO_AUTH_URL` | web |
 | `PORT`, `HOSTNAME` | web (set in the Dockerfile) |
 
@@ -150,6 +151,8 @@ not fail — it silently picks the other behaviour.**
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
 | `AB_OVO_AUTH_PUBLIC_URL` | the server-side address is reused |
 | `AB_OVO_LEGAL_URL` | no Terms or Privacy text is published, so `/register` withdraws its form (ADR-0049's amendment) |
+| `AB_OVO_AUTH_SENDS_EMAIL` | `/login/forgot` and `/login/resend` say this site sends no email and offer no form (#170) — **`true` wherever authservice delivers its email: with `SendGrid__ApiKey`, or to its log under the AppHost** |
+| `SendGrid__FromEmail` | with `SendGrid__ApiKey` set, every email fails to send while authservice says it went |
 | `AB_OVO_JWT_ISSUER`, `AB_OVO_JWT_AUDIENCE` | `AbOvo` |
 | `AB_OVO_TRUST_PROXY_CLIENT_IP` | `false` — the BFF forwards no address, and authservice buckets its sign-in limit per web machine |
 | `AB_OVO_CLIENT_IP_HEADER` | `Fly-Client-IP` — **must equal `Network__ClientIpHeader` on authservice** |
@@ -170,6 +173,7 @@ about this that fails silently.
 | `ConnectionStrings__apidb` | the workflow, **assembled** from a password and a known host |
 | `ConnectionStrings__DefaultConnection` | the workflow, assembled, `authdb` only |
 | `Jwt__PrivateKeyPem` | the workflow (deployed) / `setup.sh` step 3 (local) |
+| `SendGrid__ApiKey` | nothing yet — without it authservice sends no email (`flyio/SECRETS.md`); never set locally, where it writes each email's link to its log |
 | `Parameters:auth-signing-key` | `setup.sh` step 3 — local store, never the tree |
 | `Parameters:auth-db-password` | `setup.sh` step 3 |
 
