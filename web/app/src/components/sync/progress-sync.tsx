@@ -40,9 +40,10 @@ import styles from './progress-sync.module.css';
  * back from frame 40 to 39 on this one: the record held the frame last viewed, the account
  * held 40, and the sync "raised" the reader to where they had just been. The record now
  * keeps the furthest frame apart from the frame last viewed (`lib/progress/store.ts`), so
- * going back raises nothing; `settle` in `reconcile.ts` drops a raise this browser reached
- * on its own while a sync was in flight, and `shownHere` withdraws one the moment this browser
- * shows that frame itself (a sync that raced a reveal). What is left is reading done elsewhere —
+ * going back raises nothing; a sync merges the record as it stands once its pull has answered,
+ * so a frame this browser reached while the pull was out is no raise (`sync.ts`), and
+ * `shownHere` withdraws one the moment this browser shows that frame itself (a sync that raced
+ * a reveal). What is left is reading done elsewhere —
  * another machine, or an agent reading on the account, and the reveals of this browser's own
  * that nothing in a pull tells apart from it, which `tell` in `lib/progress/sync.ts` names —
  * and each line says so as a fact and offers `Go to frame 40`, because a notice about a frame
@@ -56,10 +57,10 @@ import styles from './progress-sync.module.css';
  * element takes part in no layout at all, so it can appear at any moment and move nothing.
  *
  * THE FRAME IT NAMES IS THE ACCOUNT'S, AND THE RESUME CONTROL'S IS CLAMPED TO THE
- * CONTENT — so the two can differ, and it is worth knowing when. `ResumeLast` and
- * `positionIn` clamp a stored place to the length of the program it is in, because a
- * program can get shorter (revised, retagged) and a link to a frame that no longer exists
- * is a 404. This notice cannot clamp: it renders from the root layout and has no bundle to
+ * CONTENT — so the two can differ, and it is worth knowing when. The index's *Continue*
+ * (`start-card.tsx`) and `positionIn` clamp a stored place to the length of the program it
+ * is in, because a program can get shorter (revised, retagged) and a link to a frame that
+ * no longer exists is a 404. This notice cannot clamp: it renders from the root layout and has no bundle to
  * ask. So a reader whose account holds frame 40 of a program this deployment now serves in
  * 30 would read "to frame 40" beside a *Continue* to 30 — and the notice's own `Go to frame
  * 40` answers with the frame route's 404, because frame 40 is past the program's end.

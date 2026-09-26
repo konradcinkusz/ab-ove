@@ -69,8 +69,13 @@ export function ReadingTop({
   return (
     <header className={styles.top} lang={chrome.language}>
       <div className={styles.inner}>
-        {/* The index's own wordmark, hyphen and all (program-grid.tsx), so home looks like home. */}
-        <Link className={styles.mark} href="/">
+        {/*
+          The index's own wordmark, hyphen and all (program-grid.tsx), so home looks like home.
+          Not prefetched: the index titles its tab in the edition the browser remembers, and a
+          head prefetched here before *polski* was pressed titled the Polish index in English
+          (ADR-0067, `index-href.ts`).
+        */}
+        <Link className={styles.mark} href="/" prefetch={false}>
           ab<span className={styles.hyphen}>-</span>ovo
         </Link>
 

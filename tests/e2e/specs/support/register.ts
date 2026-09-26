@@ -14,8 +14,8 @@ import type { Page } from '@playwright/test';
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * The form is located by field NAME, as `sign-in.ts` locates `/login`'s and for the same
- * reason: the page is English-only by its own recorded reasoning, and a helper that read
- * its labels would be a second copy of strings that have a source.
+ * reason: a field's name is the same in every edition the page follows (issue #166), and a
+ * helper that read its labels would be a second copy of strings that have a source.
  */
 
 /**
@@ -27,7 +27,10 @@ import type { Page } from '@playwright/test';
 export const freshEmail = (): string =>
   `new-reader-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.test`;
 
-/** Satisfies the identity service's policy: eight or more, upper, lower, digit, symbol. */
+/**
+ * Satisfies the identity service's policy — eight to a hundred characters, an upper and a
+ * lower case letter from A to Z, a digit, a symbol — and so the browser's check of it too.
+ */
 export const GOOD_PASSWORD = 'Fixture-password-1!';
 
 /** Fill `/register`'s form, accept the consent, and wait for wherever the route sends it. */

@@ -73,6 +73,11 @@ napisałeś, z tym, co mówi książka. To porównanie jest nauczaniem** — nic
 wynik nie jest zapamiętywany i nie jest wołany żaden model językowy
 ([ADR-0010](../adr/0010-no-language-model-in-the-loop.md)).
 
+Jeśli coś jest w notatniku albo na płótnie poprzedniej ramki, pudełko z odpowiedzią pozwala to
+pokazać — *Pokaż moje obliczenia (ramka 3)*, *Pokaż mój szkic (ramka 3)* albo jedno i drugie
+naraz — więc porównujesz całą swoją pracę, a nie tylko wpisaną linię. Jak wszystko inne, co
+piszesz, jest to czytane z twojej przeglądarki i nigdzie dalej nie trafia.
+
 Tam, gdzie cała odpowiedź książki to jedna liczba, aplikacja może powiedzieć *zgadza się z
 książką*. Nie mówi nigdy nic innego. W szczególności nigdy nie mówi *źle*: nie wie, co miałeś
 na myśli, a maszyna, która by zgadywała, byłaby gorsza od takiej, która milczy.
@@ -111,7 +116,10 @@ wrócić. Po to jest ta lista i jest to jedyna ocena w produkcie.
 
 ## Krok 6 — zdecyduj w sprawie zaproszenia
 
-U dołu strony startowej jest karta zatytułowana **Pomożesz poprawić książkę?**
+U dołu strony startowej jest karta zatytułowana **Pomożesz poprawić książkę?** Nie trzeba
+przewijać wszystkich programów, żeby do niej dotrzeć: link pod *Zacznij* albo *Kontynuuj*
+na górze strony, *Twoje dane w tej przeglądarce i to, czy twoje odpowiedzi są liczone*,
+przenosi prosto do niej.
 
 ![Zaproszenie do zgody u dołu strony startowej.](../assets/screenshots/landing-polish.png)
 

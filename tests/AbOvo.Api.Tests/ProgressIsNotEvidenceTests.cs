@@ -112,10 +112,10 @@ public sealed class ProgressIsNotEvidenceTests
     }
 
     /// <summary>
-    /// And the service's own three paths, through the real pipeline. `ProgressEndpointTests`
-    /// asserts what they DO; this asserts that the guard above does not refuse them — which
-    /// is the failure mode of a rule written slightly too tightly, and it would take the
-    /// whole feature down rather than one query.
+    /// And the service's own paths, through the real pipeline. `ProgressEndpointTests` and
+    /// `ProgressAdoptionTests` assert what they DO; this asserts that the guard above does not
+    /// refuse them — which is the failure mode of a rule written slightly too tightly, and it
+    /// would take the whole feature down rather than one query.
     /// </summary>
     [Fact]
     public async Task The_service_own_queries_are_not_caught_by_the_rule()
@@ -135,6 +135,43 @@ public sealed class ProgressIsNotEvidenceTests
 
         using var deleted = await client.DeleteAsync("/api/v1/progress", token);
         Assert.True(deleted.IsSuccessStatusCode, $"DELETE was refused: {deleted.StatusCode}");
+
+        // Adoption at sign-in (ADR-0068) reads two readers' rows — the account's and the
+        // anonymous cursor's the request carries — in two queries, each pinned by an equality.
+        // A guard that took a second Subject for a span would refuse it and every sign-in with
+        // it. The cursor holds a row, so every query the adoption makes is asked.
+        var readerId = Guid.NewGuid();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AbOvoDbContext>();
+            db.ReaderProgress.Add(new ReaderProgress
+            {
+                Subject = $"anon:{readerId:D}",
+                Track = "math-for-ai-engineers",
+                Unit = "P01",
+                Step = 3,
+                Language = "en",
+                UpdatedAt = DateTimeOffset.UnixEpoch,
+            });
+            await db.SaveChangesAsync(token);
+        }
+
+        using var adopting = factory.ClientFor(Reader);
+        adopting.DefaultRequestHeaders.Add(Extensions.ReaderIdentity.HeaderName, readerId.ToString());
+        using var adopted = await adopting.PostAsync("/api/v1/progress/adopt", content: null, token);
+        Assert.True(adopted.IsSuccessStatusCode, $"the adoption was refused: {adopted.StatusCode}");
+
+        // And the forget that reaches the cursor as well (ADR-0068 §5): the account's, carrying
+        // the cursor's header, and the anonymous one — each reader in a query of its own.
+        using var forgettingBoth = await adopting.DeleteAsync("/api/v1/progress", token);
+        Assert.True(forgettingBoth.IsSuccessStatusCode, $"the forget was refused: {forgettingBoth.StatusCode}");
+
+        using var anonymous = factory.CreateClient();
+        anonymous.DefaultRequestHeaders.Add(Extensions.ReaderIdentity.HeaderName, readerId.ToString());
+        using var forgettingCursor = await anonymous.DeleteAsync("/api/v1/progress/anonymous", token);
+        Assert.True(
+            forgettingCursor.IsSuccessStatusCode,
+            $"the anonymous forget was refused: {forgettingCursor.StatusCode}");
 
         // And the preference group's three, for the same reason: a rule written slightly too
         // tightly takes a whole feature down rather than one query.

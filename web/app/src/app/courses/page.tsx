@@ -44,10 +44,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   /*
     The document title follows the reader's edition, as every other word on this page does
-    (ADR-0016). `/login` is English-only because it sits outside any edition and has none to
-    follow; this page has the same `?lang=` the index has, so a Polish page with an English
-    tab title would be this application disagreeing with itself in the one place a reader
-    cannot see the disagreement.
+    (ADR-0016), and as every page's does that has an edition to follow — which since issue
+    #166 is the sign-in pages and `/about` too. A Polish page with an English tab title would
+    be this application disagreeing with itself in the one place a reader cannot see the
+    disagreement, and since ADR-0067 it would be read out in a Polish voice as well.
   */
   const remembered = (await cookies()).get(LANGUAGE_COOKIE)?.value;
   const chosen = chosenEdition(

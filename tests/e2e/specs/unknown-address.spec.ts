@@ -49,7 +49,7 @@ test.describe('an address no page answers', () => {
     // address that is not there — not a form's hidden field, not a link to registration.
     await expect(main.getByRole('link', { name: 'Open the programs' })).toHaveAttribute(
       'href',
-      '/',
+      '/?lang=en',
     );
     await expect(page.locator('input[name="redirect"]')).toHaveCount(0);
     await expect(page.locator('main a[href*="nope"]')).toHaveCount(0);
@@ -64,11 +64,12 @@ test.describe('an address no page answers', () => {
     // appear, so the page offers a fresh sign-in rather than a form aimed at the typo.
     await expect(page.locator('form[action="/api/auth/login"]')).toHaveCount(0);
 
+    // Fresh, and in the page's edition (issue #166) — English, as nothing here chose another.
     const signIn = page.getByRole('main').getByRole('link', { name: 'Sign in', exact: true });
-    await expect(signIn).toHaveAttribute('href', '/login');
+    await expect(signIn).toHaveAttribute('href', '/login?lang=en');
 
     await signIn.click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/login\?lang=en$/);
     await expect(page.locator('form[action="/api/auth/login"]')).toHaveCount(1);
     await expect(page.locator('input[name="redirect"]')).toHaveCount(0);
   });

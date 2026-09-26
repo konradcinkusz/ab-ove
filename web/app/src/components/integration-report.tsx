@@ -152,7 +152,13 @@ export function IntegrationReport(): React.JSX.Element {
   }, []);
 
   return (
-    <section className="panel" aria-labelledby="integration-report-heading">
+    /*
+      English in both editions of `/about`, and SAYS so (issue #166, WCAG 3.1.2): what it
+      reports is the API's own words — integration names, states and details — and a Polish
+      frame round English rows would be a panel in two voices. The `lang` keeps a screen
+      reader on a Polish page from reading it in a Polish voice.
+    */
+    <section className="panel" aria-labelledby="integration-report-heading" lang="en">
       <div className="panel-head">
         <h2 id="integration-report-heading">Integration report</h2>
         <span className="meta">

@@ -1,7 +1,12 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { signInHref } from '@/lib/account-href';
+import { chromeFor } from '@/lib/i18n/chrome';
+import { indexHref } from '@/lib/index-href';
 import { readChallenge } from '@/lib/server/challenge';
+import { readerEdition } from '@/lib/server/reader-edition';
 import { safeRedirectTarget } from '@/lib/redirect-target';
 import { signInProblem } from '@/lib/sign-in-problem';
 
@@ -27,9 +32,29 @@ import styles from '../../credentials-form.module.css';
  * of this page. `session-cookies.ts` carries the full reasoning.
  *
  * So the only thing this form collects is the thing the reader knows.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * IN THE READER'S EDITION, AND EVERY WAY BACK KEEPS WHERE THEY WERE GOING (issue #166).
+ *
+ * `/login`'s reasoning for the edition, one step on: the words are `chrome.secondFactorPage`
+ * and `chrome.signInProblems`, and the edition rides the form and every link. And *Start
+ * again* — the way out for a reader whose challenge has lapsed — linked a bare `/login`, so a
+ * reader bounced off `/instrument` who took five minutes over the code finished signing in on
+ * the index. It carries the destination now, as the route's own restart always did.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  */
 
 export const dynamic = 'force-dynamic';
+
+/** The tab, in the page's edition — `/login`'s reason (ADR-0067). */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const chrome = chromeFor(await readerEdition((await searchParams)['lang']));
+  return { title: `${chrome.secondFactorPage.heading} — ab-ovo` };
+}
 
 export default async function SecondFactorPage({
   searchParams,
@@ -39,6 +64,15 @@ export default async function SecondFactorPage({
   const params = await searchParams;
   const intended = safeRedirectTarget(params['redirect']);
   const problem = signInProblem(params['error']);
+  const edition = await readerEdition(params['lang']);
+  const chrome = chromeFor(edition);
+  const strings = chrome.secondFactorPage;
+  const problemWords = problem ? chrome.signInProblems[problem.code] : null;
+
+  // The password screen, carrying the destination and the edition — the way back from here
+  // in every state, and the one that was a bare `/login` (issue #166). No link on this page
+  // prefetches, for `/login`'s reason (ADR-0067).
+  const startAgainHref = signInHref({ redirect: intended, edition });
 
   /**
    * Whether this browser is holding a challenge at all.
@@ -53,40 +87,40 @@ export default async function SecondFactorPage({
   const hasChallenge = (await readChallenge()) !== null;
 
   return (
-    <main className="shell">
-      <SkipLink language="en" />
+    <main className="shell" lang={chrome.language}>
+      <SkipLink language={chrome.language} />
       <header className="masthead">
+        {/* The way home, as on `/login` (issue #166). */}
         <p className="wordmark">
-          ab<span>-</span>ovo
+          <Link href={indexHref({ edition })} prefetch={false}>
+            ab<span>-</span>ovo
+          </Link>
         </p>
-        <h1 className="lede" id={SKIP_TARGET_ID}>One more step.</h1>
-        <p className="standfirst">
-          That account has a second factor. Your password was accepted; this is the other
-          half, and it is the last thing between you and the page you asked for.
-        </p>
+        <h1 className="lede" id={SKIP_TARGET_ID}>
+          {strings.lede}
+        </h1>
+        <p className="standfirst">{strings.standfirst}</p>
       </header>
 
-      {problem ? (
+      {problemWords ? (
         <section className={styles.problem} aria-live="polite">
-          <h2 className={styles.problemTitle}>{problem.title}</h2>
-          <p className={styles.problemDetail}>{problem.detail}</p>
+          <h2 className={styles.problemTitle}>{problemWords.title}</h2>
+          <p className={styles.problemDetail}>{problemWords.detail}</p>
         </section>
       ) : null}
 
       <section className="section">
-        <h2>Your code</h2>
+        <h2>{strings.heading}</h2>
         {hasChallenge ? (
           <>
-            <p>
-              Open your authenticator app and enter the current code. If you cannot reach it,
-              one of your recovery codes works instead — each of those can be used once.
-            </p>
+            <p>{strings.instructions}</p>
             <form className={styles.form} method="post" action="/api/auth/2fa">
               {intended ? <input type="hidden" name="redirect" value={intended} /> : null}
+              <input type="hidden" name="lang" value={edition} />
 
               <div className={styles.field}>
                 <label className={styles.label} htmlFor="code">
-                  Authenticator code
+                  {strings.codeLabel}
                 </label>
                 {/*
                   `inputMode="numeric"` and `autoComplete="one-time-code"` are what put a
@@ -110,7 +144,7 @@ export default async function SecondFactorPage({
 
               <div className={styles.field}>
                 <label className={styles.label} htmlFor="recoveryCode">
-                  Or a recovery code
+                  {strings.recoveryLabel}
                 </label>
                 <input
                   className={styles.input}
@@ -130,41 +164,29 @@ export default async function SecondFactorPage({
                 code on a form they left half-filled.
               */}
               <button className={styles.submit} type="submit">
-                Finish signing in
+                {strings.submit}
               </button>
             </form>
           </>
         ) : (
           <p>
-            There is no sign-in in progress on this device. The first step is good for about
-            five minutes, and if it has been longer than that nothing is wrong — the account
-            and the password are fine. <Link href="/login">Start again</Link> and you will get
-            a fresh one.
+            {strings.noChallenge.before}
+            <Link href={startAgainHref} prefetch={false}>{strings.noChallenge.link}</Link>
+            {strings.noChallenge.after}
           </p>
         )}
       </section>
 
       <section className="section">
-        <h2>If you have lost both</h2>
-        {/*
-          Whose the reset is, in the reader's terms: the service that holds their account.
-          It said "the identity service this deployment is configured against", which is how
-          an operator finds it (issue #162).
-        */}
-        <p>
-          Recovery codes are the way back when the authenticator is gone, and they run out.
-          ab-ovo cannot reset a second factor or issue new recovery codes; only the identity
-          service that holds your account can.
-        </p>
-        <p>
-          Nothing except progress that follows you between machines needs an account at all,
-          so a locked-out reader still has the whole book and the whole lab.
-        </p>
+        <h2>{strings.lostBothTitle}</h2>
+        <p>{strings.lostBoth}</p>
+        <p>{strings.lostBothReading}</p>
       </section>
 
       <footer className="colophon">
         <p>
-          <Link href="/login">Back to sign in</Link> · <Link href="/">Back to the reader</Link>
+          <Link href={startAgainHref} prefetch={false}>{strings.backToSignIn}</Link> ·{' '}
+          <Link href={indexHref({ edition })} prefetch={false}>{chrome.backToReader}</Link>
         </p>
       </footer>
     </main>

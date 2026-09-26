@@ -266,7 +266,11 @@ test.describe('the destination carried through sign-in', () => {
     // which is true and is this file's vocabulary rather than a reader's (issue #162).
     const main = page.getByRole('main');
     await expect(main.getByRole('link', { name: 'Back to where you were' })).toHaveCount(0);
-    await expect(main.getByRole('link', { name: 'Back to the reader' })).toHaveAttribute('href', '/');
+    // The programs, in the edition the page is in — English, as nothing here chose another.
+    await expect(main.getByRole('link', { name: 'Back to the reader' })).toHaveAttribute(
+      'href',
+      '/?lang=en',
+    );
   });
 });
 

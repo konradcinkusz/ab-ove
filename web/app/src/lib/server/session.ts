@@ -1,11 +1,13 @@
 import { cookies } from 'next/headers';
 
+import { READER_ID_COOKIE } from '@/lib/reader-cookie';
 import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
   CLEARABLE_COOKIES,
   sessionCookieAttributes,
 } from '@/lib/session-cookies';
+import { adoptOnSignIn } from './adopt-places.ts';
 import { verifyAccessToken } from './token.ts';
 
 /**
@@ -45,7 +47,8 @@ export type EstablishOutcome =
 const REFRESH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 /**
- * Verify the access token and, only then, write the two cookies.
+ * Verify the access token and, only then, write the two cookies — and then have the account
+ * adopt the places this browser read without one (ADR-0068), which never changes the outcome.
  *
  * The verification is not ceremony. Without it this is a way for anything that can reach
  * the route to install a session cookie of its choosing, which the proxy would then inject
@@ -84,6 +87,9 @@ export async function establishSession(
       maxAge: REFRESH_COOKIE_MAX_AGE_SECONDS,
     });
   }
+
+  // ADR-0068 — every route that begins a session passes here, so every sign-in adopts.
+  await adoptOnSignIn(accessToken, store.get(READER_ID_COOKIE)?.value);
 
   return { status: 'established', expiresAt: verification.claims.expiresAt };
 }

@@ -1,9 +1,15 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { SKIP_TARGET_ID, SkipLink } from '@/components/skip/skip-link';
+import { registerHref, signInHref } from '@/lib/account-href';
+import { chromeFor } from '@/lib/i18n/chrome';
+import { indexHref } from '@/lib/index-href';
 import { destinationAt } from '@/lib/page-gate';
+import { PASSWORD_MIN_LENGTH, PASSWORD_PATTERN } from '@/lib/password-policy';
 import { backendConfigured } from '@/lib/server/backends';
 import { legalDocument, legalPath, offersRegistrationForm } from '@/lib/server/legal';
+import { readerEdition } from '@/lib/server/reader-edition';
 import { consentVersions } from '@/lib/server/register';
 import { safeRedirectTarget } from '@/lib/redirect-target';
 import { registrationNotice, registrationProblem } from '@/lib/registration-problem';
@@ -31,12 +37,33 @@ import styles from '../credentials-form.module.css';
  * disabled, exactly as reading does.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * English only, as `/login` is and for the same recorded reason: the chrome string table is
- * keyed by the READING language — which edition of the book a reader is in — and this page
- * sits outside `/read/[lang]`, so there is no language for it to follow.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * IN THE READER'S EDITION SINCE ISSUE #166, for `/login`'s reason and by `/login`'s means: the
+ * edition rides every link in and out and the form's hidden field, and the words are
+ * `chrome.registerPage` and `chrome.registrationProblems`.
+ *
+ * AND THE PASSWORD'S RULES ARE THE FIELD'S OWN. They were a paragraph under it that nothing
+ * tied to it, and the browser checked one of the five, so a reader typing `password1` met
+ * the other four as a round trip and a refusal. Now the paragraph is the field's description
+ * (`aria-describedby`), which a screen reader says with it, and the browser refuses before
+ * anything is sent what the identity service would refuse after (`lib/password-policy.ts`).
+ * ──────────────────────────────────────────────────────────────────────────────────────
  */
 
 export const dynamic = 'force-dynamic';
+
+/** The tab, in the page's edition — `/login`'s reason (ADR-0067). */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const chrome = chromeFor(await readerEdition((await searchParams)['lang']));
+  return { title: `${chrome.registerPage.heading} — ab-ovo` };
+}
+
+/** The password field's description, by id — the paragraph that states the rules. */
+const PASSWORD_RULES_ID = 'password-rules';
 
 export default async function RegisterPage({
   searchParams,
@@ -45,6 +72,9 @@ export default async function RegisterPage({
 }): Promise<React.JSX.Element> {
   const params = await searchParams;
   const intended = safeRedirectTarget(params['redirect']);
+  const edition = await readerEdition(params['lang']);
+  const chrome = chromeFor(edition);
+  const strings = chrome.registerPage;
 
   /*
     What stands at the destination, by the gate's own lists — `/login`'s question, asked for
@@ -64,6 +94,8 @@ export default async function RegisterPage({
   // attacker chose into this site's chrome, on the screen where a password is being chosen.
   const problem = registrationProblem(params['error']);
   const notice = registrationNotice(params['notice']);
+  const problemWords = problem ? chrome.registrationProblems[problem.code] : null;
+  const noticeWords = notice ? chrome.registrationNotices[notice] : null;
 
   /**
    * THE VERSIONS ARE FETCHED, NOT WRITTEN DOWN HERE.
@@ -124,41 +156,45 @@ export default async function RegisterPage({
     documents,
   });
 
-  const signInHref = intended ? `/login?redirect=${encodeURIComponent(intended)}` : '/login';
+  // Every way on carries the destination and the edition (issue #166) — the fresh page
+  // under an answer too, which was a bare `/register` and dropped where the reader was going.
+  // None of them prefetches, for `/login`'s reason (ADR-0067).
+  const signIn = signInHref({ redirect: intended, edition });
+  const startAgain = registerHref({ redirect: intended, edition });
+  const home = indexHref({ edition });
 
   return (
-    <main className="shell">
-      <SkipLink language="en" />
+    <main className="shell" lang={chrome.language}>
+      <SkipLink language={chrome.language} />
       <header className="masthead">
+        {/* The way home, as on `/login` (issue #166). */}
         <p className="wordmark">
-          ab<span>-</span>ovo
+          <Link href={home} prefetch={false}>
+            ab<span>-</span>ovo
+          </Link>
         </p>
         <h1 className="lede" id={SKIP_TARGET_ID}>
-          An account is optional, and this is where one is made.
+          {strings.lede}
         </h1>
-        <p className="standfirst">
-          The frames, the worksheet and the programs all work without one, and your place is
-          already kept on this device. An account carries that place between machines. That
-          is the whole of what it buys, and nothing you read is recorded against it.
-        </p>
+        <p className="standfirst">{strings.standfirst}</p>
       </header>
 
-      {problem ? (
+      {problemWords ? (
         <section className={styles.problem} aria-live="polite">
-          <h2 className={styles.problemTitle}>{problem.title}</h2>
-          <p className={styles.problemDetail}>{problem.detail}</p>
+          <h2 className={styles.problemTitle}>{problemWords.title}</h2>
+          <p className={styles.problemDetail}>{problemWords.detail}</p>
         </section>
       ) : null}
 
-      {notice ? (
+      {noticeWords ? (
         <section className={styles.notice} aria-live="polite">
-          <h2 className={styles.noticeTitle}>{notice.title}</h2>
-          <p className={styles.noticeDetail}>{notice.detail}</p>
+          <h2 className={styles.noticeTitle}>{noticeWords.title}</h2>
+          <p className={styles.noticeDetail}>{noticeWords.detail}</p>
         </section>
       ) : null}
 
       <section className="section">
-        <h2>Create an account</h2>
+        <h2>{strings.heading}</h2>
 
         {!identityConfigured ? (
           /*
@@ -166,7 +202,7 @@ export default async function RegisterPage({
             no accounts here (issue #162, as on `/login`). The standfirst has already said
             that nothing a reader reads needs one.
           */
-          <p>This site has no accounts, so there is nothing to create here.</p>
+          <p>{strings.noAccounts}</p>
         ) : consent === null ? (
           /*
             Configured, and not answering — or answering something this app cannot read.
@@ -174,29 +210,26 @@ export default async function RegisterPage({
             reader, so the sentence says what it means for them: nothing they can do, and
             nothing they need an account for is affected.
           */
-          <p>
-            The identity service could not be asked which terms an account is created
-            under, so the form is not offered — an account made without that answer would
-            be one it refuses. This is our side rather than yours; reading needs no account
-            and is unaffected. Try again in a few minutes.
-          </p>
+          <p>{strings.versionsUnavailable}</p>
         ) : answered ? (
           <p>
             {notice ? (
               <>
-                Nothing else is needed here. When the address is confirmed,{' '}
-                <Link href={signInHref}>sign in</Link>.
+                {strings.noticeNext.before}
+                <Link href={signIn} prefetch={false}>{strings.noticeNext.link}</Link>
+                {strings.noticeNext.after}
               </>
             ) : problem?.signInInstead ? (
               <>
-                There is nothing to create, so the form is not offered under it.{' '}
-                <Link href={signInHref}>Sign in</Link> instead.
+                {strings.signInInstead.before}
+                <Link href={signIn} prefetch={false}>{strings.signInInstead.link}</Link>
+                {strings.signInInstead.after}
               </>
             ) : (
               <>
-                Submitting the same details again cannot change that answer, so the form is
-                not offered under it. Once the sentence above says an attempt is worth
-                making, <Link href="/register">start again</Link> from a fresh page.
+                {strings.answered.before}
+                <Link href={startAgain} prefetch={false}>{strings.answered.link}</Link>
+                {strings.answered.after}
               </>
             )}
           </p>
@@ -207,36 +240,30 @@ export default async function RegisterPage({
             versions above, which of those it was matters to the operator and not to the
             reader, and none of it is something the reader can fix.
           */
-          <p>
-            The Terms of Use and the Privacy Policy an account here is created under cannot
-            be shown right now, so the form is not offered — accepting them unread would not
-            be a consent. This is our side rather than yours; reading needs no account and is
-            unaffected.
-          </p>
+          <p>{strings.documentsUnavailable}</p>
         ) : (
           <>
             <p>
               {destination === 'private-page' ? (
                 <>
-                  You asked for <code>{intended}</code>, which is one of the few pages that
-                  needs to know who you are. Make an account and you will be taken straight
-                  there — or <Link href={signInHref}>sign in</Link> if you already have one.
+                  {chrome.askedPrivate.before}
+                  <code>{intended}</code>
+                  {chrome.askedPrivate.after}
+                  {strings.askedPrivateNext.before}
+                  <Link href={signIn} prefetch={false}>{strings.askedPrivateNext.link}</Link>
+                  {strings.askedPrivateNext.after}
                 </>
               ) : destination === 'open' ? (
                 <>
-                  Make an account and you will be taken back to where you were — or{' '}
-                  <Link href={signInHref}>sign in</Link> if you already have one.
+                  {strings.takenBack.before}
+                  <Link href={signIn} prefetch={false}>{strings.takenBack.link}</Link>
+                  {strings.takenBack.after}
                 </>
               ) : (
-                /*
-                  Where the two go, said as the reader meets it: the service that holds the
-                  accounts. It named "the identity service this deployment is configured
-                  against", which is where an operator looks for it (issue #162).
-                */
                 <>
-                  Your address and password go to the identity service that holds the
-                  accounts here; this site never stores either.{' '}
-                  <Link href={signInHref}>Sign in</Link> if you already have an account.
+                  {strings.whereItGoes.before}
+                  <Link href={signIn} prefetch={false}>{strings.whereItGoes.link}</Link>
+                  {strings.whereItGoes.after}
                 </>
               )}
             </p>
@@ -254,6 +281,8 @@ export default async function RegisterPage({
                 about what the route is handed.
               */}
               {intended ? <input type="hidden" name="redirect" value={intended} /> : null}
+              {/* The edition rides the same way, so the page the route answers with is in it. */}
+              <input type="hidden" name="lang" value={edition} />
 
               {/*
                 WHAT WAS ON SCREEN WHEN THE BOX WAS TICKED. The route re-reads the live
@@ -267,7 +296,7 @@ export default async function RegisterPage({
 
               <div className={styles.field}>
                 <label className={styles.label} htmlFor="email">
-                  Email address
+                  {chrome.emailAddress}
                 </label>
                 <input
                   className={styles.input}
@@ -283,23 +312,29 @@ export default async function RegisterPage({
 
               <div className={styles.field}>
                 <label className={styles.label} htmlFor="password">
-                  Password
+                  {chrome.password}
                 </label>
+                {/*
+                  THE BROWSER REFUSES WHAT THE IDENTITY SERVICE WOULD (issue #166): the floor as
+                  `minLength`, the four classes and the ceiling as `pattern` — both read from the
+                  pinned service's source, and `password-policy.ts` says why the ceiling is not
+                  `maxLength`. The browser's own message for a pattern names no rule, so the
+                  paragraph below is the field's DESCRIPTION: said with the field when it is
+                  reached, and there to read when the browser points at it.
+                */}
                 <input
                   className={styles.input}
                   id="password"
                   name="password"
                   type="password"
                   autoComplete="new-password"
-                  // authservice's own policy, read from its Program.cs. The browser enforces
-                  // the length; the other four rules are its to enforce and this page's to
-                  // state, which is why the sentence below says all five.
-                  minLength={8}
+                  minLength={PASSWORD_MIN_LENGTH}
+                  pattern={PASSWORD_PATTERN}
+                  aria-describedby={PASSWORD_RULES_ID}
                   required
                 />
-                <p className={styles.hint}>
-                  At least eight characters, with an upper case letter, a lower case letter,
-                  a digit, and one character that is none of those.
+                <p className={styles.hint} id={PASSWORD_RULES_ID}>
+                  {strings.passwordRules}
                 </p>
               </div>
 
@@ -320,27 +355,26 @@ export default async function RegisterPage({
                   inside a <label> does not tick the box it labels — activating it follows the
                   link and nothing else.
 
-                  "The" Terms, not "the identity service's": authservice records which version
-                  was accepted and publishes no text, so the documents are this deployment's
-                  (ADR-0049's amendment), and the sentence does not name an owner they lack.
+                  The names are the reader's edition's (`chrome.registerPage.accept`, whose note
+                  says why they name no owner); the pages they open are English, as the legal
+                  pages are.
                 */}
                 <label className={styles.consentLabel} htmlFor="accept">
-                  I accept the{' '}
+                  {strings.accept.before}
                   <a href={legalPath('terms', consent.terms)} target="_blank" rel="noopener">
-                    Terms of Use <span className={styles.version}>{consent.terms}</span>
-                  </a>{' '}
-                  and{' '}
-                  <a href={legalPath('privacy', consent.privacy)} target="_blank" rel="noopener">
-                    Privacy Policy <span className={styles.version}>{consent.privacy}</span>
+                    {strings.accept.terms} <span className={styles.version}>{consent.terms}</span>
                   </a>
-                  . Each opens in a new tab, so nothing typed here is lost. Those versions are
-                  recorded against the account, with the time and this device&rsquo;s address,
-                  because that is what makes the acceptance evidence rather than a claim.
+                  {strings.accept.between}
+                  <a href={legalPath('privacy', consent.privacy)} target="_blank" rel="noopener">
+                    {strings.accept.privacy}{' '}
+                    <span className={styles.version}>{consent.privacy}</span>
+                  </a>
+                  {strings.accept.after}
                 </label>
               </div>
 
               <button className={styles.submit} type="submit">
-                Create account
+                {strings.submit}
               </button>
             </form>
           </>
@@ -348,24 +382,18 @@ export default async function RegisterPage({
       </section>
 
       <section className="section">
-        <h2>What an account does not do</h2>
+        <h2>{strings.whatNotTitle}</h2>
         {/*
           ADR-0009 §1: an outcome is keyed by a frame in a bundle version, an attempt and a
-          check run, and never by a reader. The page said so in those words — "a frame, a
-          bundle version and whether an answer matched" — until issue #162; it now says it
-          in the consent's (#153), which is the question the reader was actually asked.
+          check run, and never by a reader — said in the consent's words (#153), which are the
+          question the reader was actually asked (`chrome.registerPage.whatNot`).
         */}
-        <p>
-          It does not unlock any part of the book, and it is not how the book is measured.
-          With your agreement, ab-ovo counts whether answers matched the book&rsquo;s — for
-          each frame, each version of the book and each try, never for each reader — so there
-          is no score of yours to sign in and see, and making an account does not start one.
-        </p>
+        <p>{strings.whatNot}</p>
       </section>
 
       <footer className="colophon">
         <p>
-          <Link href="/">Back to the reader</Link>
+          <Link href={home} prefetch={false}>{chrome.backToReader}</Link>
         </p>
       </footer>
     </main>

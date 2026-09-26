@@ -74,6 +74,11 @@ what the book says. That comparison is the teaching** — nothing grades it, no 
 and no language model is consulted
 ([ADR-0010](../adr/0010-no-language-model-in-the-loop.md)).
 
+If you worked something out in the pad, or drew it, the answer box offers that too — *Show my
+working (frame 3)*, *Show my sketch (frame 3)*, or both at once — so you compare everything
+you did, not only the line you typed. Like the rest of what you write, it is read from your
+browser and goes nowhere else.
+
 Where the book's whole answer is a single number, the application may say *matches the book*.
 It never says anything else. In particular it never says *wrong*: it does not know what you
 meant, and a machine that guessed would be worse than one that stays quiet.
@@ -112,7 +117,9 @@ the checklist is for, and it is the only assessment in the product.
 
 ## Step 6 — decide about the invitation
 
-At the foot of the landing page is a card headed **Help fix the book?**
+At the foot of the landing page is a card headed **Help fix the book?** You need not scroll
+past every program to find it: the link under *Start* or *Continue* at the top of the page,
+*Your data in this browser, and whether your answers are counted*, brings it into view.
 
 ![The consent invitation at the foot of the landing page.](../assets/screenshots/landing-english.png)
 

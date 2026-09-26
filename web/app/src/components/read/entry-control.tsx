@@ -61,9 +61,9 @@ const useEntry = ({ track, unit, last, language }: EntryControlProps) => {
  * to write one at all, because the summary is not a frame. Branching a control on a value
  * that cannot carry the distinction is guessing with extra steps.
  *
- * AND THE TWO RESUME CONTROLS MUST AGREE. `ResumeLast` on the index and this one look
- * alike and mean the same thing, so one of them quietly leading somewhere else is worse
- * for a reader than either destination is better. The hand-off to the summary is already
+ * AND THE TWO RESUME CONTROLS MUST AGREE. The index's card (`start-card.tsx`) and this one
+ * say the same words and mean the same thing, so one of them quietly leading somewhere else
+ * is worse for a reader than either destination is better. The hand-off to the summary is already
  * the last frame's own filled control and its `→`, which are the two places a reader who
  * has just finished is actually looking.
  * ──────────────────────────────────────────────────────────────────────────────────────

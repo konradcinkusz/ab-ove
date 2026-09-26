@@ -1,3 +1,4 @@
+import { DocumentLanguage } from '@/components/language/document-language';
 import { chromeFor } from '@/lib/i18n/chrome';
 
 import styles from './skip-link.module.css';
@@ -30,9 +31,9 @@ export const SKIP_TARGET_ID = 'content';
 
 export interface SkipLinkProps {
   /**
-   * The reader's edition — the language this page's own controls are in. A page that is
-   * English only today (`/about`, sign-in, the error pages) says `en`, and the link follows
-   * the day the page does.
+   * The language this page speaks: the reader's edition on a page that follows one, and `en`
+   * on the lab and the author's view, which are English only. It is also the document's
+   * language (ADR-0067), which this component sets.
    */
   readonly language: string;
 }
@@ -49,6 +50,12 @@ export interface SkipLinkProps {
  * the component that knows — `ReadingScreen` for every reading screen, the index and the
  * courses page from their chrome, and each shell page with the edition it already speaks —
  * and a page that renders none is one a keyboard reader has to tab the whole masthead of.
+ *
+ * THE SAME REASON MAKES IT THE PLACE THE DOCUMENT'S LANGUAGE IS SET (ADR-0067). `<html lang>`
+ * is the layout's, and it is the page that knows the answer; every page a reader meets renders
+ * this component once, with exactly that answer — except the legal documents' pages, which are
+ * English and render none — so `DocumentLanguage` rides with it rather than being a second
+ * thing each page must remember to render.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * A PLAIN `<a>`, NOT `next/link`: the destination is a fragment of this document, which
@@ -62,8 +69,11 @@ export function SkipLink({ language }: SkipLinkProps): React.JSX.Element {
   const chrome = chromeFor(language);
 
   return (
-    <a className={styles.skip} href={`#${SKIP_TARGET_ID}`} lang={chrome.language}>
-      {chrome.skipToContent}
-    </a>
+    <>
+      <a className={styles.skip} href={`#${SKIP_TARGET_ID}`} lang={chrome.language}>
+        {chrome.skipToContent}
+      </a>
+      <DocumentLanguage language={language} />
+    </>
   );
 }

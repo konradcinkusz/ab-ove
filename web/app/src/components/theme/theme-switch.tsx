@@ -23,16 +23,22 @@ import styles from './theme-switch.module.css';
  * choice made here rather than somewhere else.
  *
  * THE SYSTEM IS A POSITION, NOT THE ABSENCE OF ONE. A light/dark pair has a default by
- * construction — whichever is lit on arrival — and `EditionSwitch` in `program-grid.tsx`
- * carries a third position for exactly that reason (ADR-0015, ADR-0036). `System` is the
- * way back after trying the other two, and it is the only one that costs no JavaScript.
+ * construction — whichever is lit on arrival — which is the objection ADR-0015 made to a
+ * default edition, and the index's edition switch once carried a third position for it
+ * (ADR-0036). That switch is gone: nothing a browser sends says which edition a reader
+ * wants, so ADR-0052 made English the default. `prefers-color-scheme` does say which theme,
+ * so here the third position stays: `System` is the way back after trying the other two,
+ * and it is the only one that costs no JavaScript.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * IT RENDERS ON THE SERVER, WHICH IS WHY THE FOOT DOES NOT MOVE. `ConsentControl` and
+ * IT RENDERS ON THE SERVER, WHICH IS WHY NOTHING AROUND IT MOVES. `ConsentControl` and
  * `AccountControl` render `null` until they know, because what they render DEPENDS on the
  * answer. Nothing here does: three controls, same words, same width, whatever the reader
- * chose. Only which one is live differs, so the markup can go out in the first paint and
- * the layout-shift bound `specs/reading.spec.ts` asserts is untouched.
+ * chose. Only which one is live differs, so the markup can go out in the first paint — in
+ * the index's masthead, where it sits before the account control rather than among the ways
+ * off the page (issue #165), and in the reading screens' *Reading settings* (ADR-0058) — and
+ * the layout-shift bounds `specs/progress.spec.ts` and `specs/reading.spec.ts` assert are
+ * untouched.
  *
  * WHICH ONE LOOKS LIVE COMES FROM `<html>` AND NOT FROM THIS COMPONENT'S STATE. The
  * stylesheet reads `data-theme` — put there before the first paint by `lib/theme/boot.ts`

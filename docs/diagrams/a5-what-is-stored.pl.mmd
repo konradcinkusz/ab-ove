@@ -16,8 +16,10 @@
 %% wliczonego do wskaźnika, i dlatego ekran usuwania mówi to wprost (ADR-0021).
 
 %% NIC, CO CZYTELNIK PISZE NA RAMCE, NIE JEST PRZECHOWYWANE POZA JEGO PRZEGLĄDARKĄ
-%% (ADR-0039). Arkusz, notatnik i płótno są lokalne; taka jest też zgoda (ADR-0022) i takie
-%% jest miejsce w lekturze, dopóki konto go nie zsynchronizuje.
+%% (ADR-0039). Arkusz, notatnik i płótno są lokalne, taka jest też zgoda (ADR-0022). Miejsce
+%% w lekturze nie jest: API trzyma je pod ciasteczkiem czytelnika albo na jego koncie
+%% (ADR-0060, ADR-0061), a przeglądarka zachowuje kopię jako podpowiedź, gdzie wrócić, i nigdy
+%% jej nie wysyła (ADR-0068).
 
 flowchart TD
   subgraph browser["Własna przeglądarka czytelnika - domyślnie, i to wystarcza"]
@@ -38,7 +40,7 @@ flowchart TD
   RULE2["BundlePinnedQueries<br/>zapytanie przez wiele wersji<br/>paczki jest odrzucane"]
   RULE3["Zamknięte listy kolumn<br/>wynik, czas trwania albo liczba<br/>podejść psują build"]
 
-  LOCAL -.->|"tylko z kontem"| RP
+  RP -.->|"kopiowane do przeglądarki, z kontem"| LOCAL
   LOCAL -.->|"tylko z kontem"| RPF
   LOCAL -.->|"tylko za zgodą"| FO
 

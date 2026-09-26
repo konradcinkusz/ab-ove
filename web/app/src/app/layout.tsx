@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import { LanguageSync } from '@/components/language/language-sync';
 import { ProgressSync } from '@/components/sync/progress-sync';
 import { ThemeFlag } from '@/components/theme/theme-flag';
+import { FALLBACK_LANGUAGE, chromeFor } from '@/lib/i18n/chrome';
 import { THEME_BOOT } from '@/lib/theme/boot';
 import { PAPER } from '@/lib/theme/paper';
 
@@ -28,9 +29,12 @@ import './globals.css';
   `@ab-ovo/web-kit`'s `bundle.ts`, and a deployment that pins two must not have one of them in the
   title of the other's pages. The first course is named in the description, where it is a
   fact about this deployment rather than a claim about the product.
+
+  The words are `chrome.siteTitle`, in English here because this is the title of a page that
+  names none of its own, and the index names its own in the reader's edition (issue #166).
 */
 export const metadata: Metadata = {
-  title: 'ab-ovo — courses you work, a frame at a time',
+  title: chromeFor(FALLBACK_LANGUAGE).siteTitle,
   description:
     'A learning platform for programmed-learning courses: each one a sequence of programs in the editions it is published in, worked a frame at a time, with its computer exercises running in the browser. The first is "Mathematics from Zero for the AI Engineer" — 47 programs in English and Polish. The instrument measures the book, never the reader.',
   applicationName: 'ab-ovo',
@@ -77,8 +81,14 @@ export default function RootLayout({
       It suppresses the warning for THIS element's own attributes and nothing below it
       (React's flag is not inherited by children), so the guard that spec exists for is
       untouched.
+
+      `lang` IS THE SERVER'S ANSWER AND NOT THE LAST WORD (ADR-0067). This layout sees neither
+      the query nor the path that name a reader's edition, and is not rendered again on a
+      client navigation, so it says English — `FALLBACK_LANGUAGE`, the language of its own
+      title — and each page puts its own language here once it is in the browser
+      (`DocumentLanguage`, which `SkipLink` renders) and puts this one back when it goes.
     */
-    <html lang="en" suppressHydrationWarning>
+    <html lang={FALLBACK_LANGUAGE} suppressHydrationWarning>
       <head>
         {/*
           THE THEME, BEFORE THE FIRST PAINT (ADR-0048).

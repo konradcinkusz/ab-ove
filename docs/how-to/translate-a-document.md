@@ -31,13 +31,23 @@ name. Diagrams use the same suffix on `.mmd`. The LaTeX editions use it on `.tex
 
 ## Translate against the vocabulary that already exists
 
-This product already speaks Polish: `web/app/src/lib/i18n/chrome.ts` holds every string the
-interface shows a Polish reader. **Match it rather than inventing your own**, or one concept
-acquires two names inside one estate.
+This product already speaks Polish. `web/app/src/lib/i18n/chrome.ts` holds every string the
+reading surface shows a Polish reader. The MCP server's own sentences to that reader are a
+table of their own, `web/mcp/src/framing.ts` (#167), built on `chrome.ts`'s pattern. They
+include the words around a step, the refusals and the hand-off at the end of a program.
+**Match them rather than inventing your own**, or one concept acquires two names inside one
+estate.
+
+The words the reading surface and the MCP server share are **copied** into `framing.ts`, not
+imported, because the MCP server takes nothing from the web app
+([ADR-0053](../adr/0053-the-web-kit-package-is-extracted-on-its-own-exit-condition.md)).
+Nothing checks one copy against the other, so **a word changed in one table is changed in the
+other in the same commit**.
 
 | English | Polish, as the product says it |
 | --- | --- |
 | frame | ramka |
+| step (the MCP server's word for a frame) | ramka |
 | section | sekcja |
 | program | program |
 | course (a whole work; a *track* in the schema) | kurs |

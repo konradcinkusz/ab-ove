@@ -58,10 +58,12 @@ was first written with.
 | `accessibility.spec.ts` | every screen holds WCAG 2.2 A and AA as far as axe-core can decide — both schemes, each panel open, 360 px, the forms behind an account, and a legal document |
 | `account-deletion.spec.ts` | closing an account, and everything about it that needs no account |
 | `account-overview.spec.ts` | opening one's own account: whose it is, the place it holds in each program, and the ways out — sign-out and the deletion screen |
+| `adopt-at-sign-in.spec.ts` | reading without an account and then signing in — with a password, with a second factor, or by making an account — leaves the account at the frame read, with no step sent from the browser, and the place read without an account still there after signing out; and a forget — with no account, with one, or cut off once — that no later sign-in brings back (ADR-0068) |
 | `app-icon.spec.ts` | the tab shows the mark, served by this origin to a reader with no account, and `theme-color` is the paper in each scheme |
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
-| `consent.spec.ts` | being asked once whether answers may be counted, focus landing on the answer given, and being left alone |
+| `consent.spec.ts` | being asked once whether answers may be counted, the question one press from the index's first screen, focus landing on the answer given, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
+| `edition-pages.spec.ts` | from the Polish index, sign-in, registration and `/about` are Polish, down to the document's own language and the tab's title — after the edition changes in place too, because no link into those pages prefetches them (ADR-0067); a failed sign-in keeps the address without the URL; restarting the second step keeps the destination; a new password's rules are its field's description, checked by the browser (#166) |
 | `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload; a program's contents and summary fail the same way |
 | `focus-ring.spec.ts` | the controls that showed focus by a colour or a brightness wear the shared ring, in light, dark and forced colours |
 | `frame-loading.spec.ts` | a frame on its way says so where the reader pressed — `Previous`, clicked or pressed as `←`, or the program map's door — while the API is held back for that one reader, and the pager does not move (#160) |
@@ -86,6 +88,7 @@ was first written with.
 | `reading.spec.ts` | reading a program end to end from the keyboard, the frame's ergonomics, and the frame on paper |
 | `registration.spec.ts` | a reader with no account gets one, and can read the two documents it accepts first |
 | `reveal-failure.spec.ts` | a reveal the API does not take says so beside `Next` and keeps the frame — with the mouse, `→`, `Ctrl+Enter` and no JavaScript (#138) |
+| `reveal-working.spec.ts` | the frame after a reveal offers what the reader worked out on the frame it answers — the pad's lines and the sketch, read from this browser and sent nowhere — offers nothing when there is nothing, moves nothing when it arrives, turned to or loaded, and on paper prints only open (#168) |
 | `runtime-config.spec.ts` | `/api/config` resolved at request time, and the `/healthz` check the platform polls |
 | `runtime-cost.spec.ts` | what the Python runtime costs in this browser, cold and warm |
 | `screenshots.spec.ts` | the pictures `docs/SCREENSHOTS.md` shows, captured from the real application — not a gate |
@@ -148,8 +151,8 @@ The grid is divided into the book's own runs — *Foundation* and *Main sequence
 level-three headings, and the test that says so also says the level-one heading is still the
 only one: a heading list that reads as a tree is the property, and a second `<h1>` would
 pass every other assertion here. The returning reader's half of the index — the tile that
-says `at frame N`, the filled resume control, and the layout not moving when either arrives
-— is in `specs/progress.spec.ts`, because it needs a place to have been recorded first.
+says `at frame N`, the card's *Continue*, and the layout not moving when either arrives — is
+in `specs/progress.spec.ts`, because it needs a place to have been recorded first.
 
 The first visit has a block of its own, which seeds nothing (#163). On a phone's first
 screen, with nothing hovered, a reader who has never been here sees the standfirst — what a
@@ -163,6 +166,20 @@ grid is divided under. The Polish edition says the same in Polish, also on its f
 and the other edition is drawn as a control with an edge.
 The notice a reader gets when the gate turns them away, and its way on, are
 `specs/gate.spec.ts`'s.
+
+The top of the page has a block of its own too (#165). At 1280 px, in both editions, signed
+out and signed in, with a place and a worksheet stored, the masthead is one row — measured by
+where the words of every item in it are, because the padded boxes of two rows overlap — and
+its only buttons are the theme's and *Sign out*: *Export my worksheets*, *Clear my worksheets*
+and *Forget where I am* are asserted in *Your data in this browser* instead, so they are
+proved moved rather than gone. The navigation is named for what it holds and does not hold the
+theme. A reader with no place is offered *Start with F01*, in the server's HTML before any
+script runs, and it opens that program's contents; a returning reader finds *Continue* in the
+same card and no start beside it. The quiet line — *Your place is kept in this browser* — is
+asserted absent where there is no identity service, and on the identity deployment present
+for a reader with no account who has a place: beside *Continue* on a desktop and at 768 px in
+Polish, at the foot on a phone, with the card the same height on every frame from the first,
+and absent for a reader with no place or with an account.
 
 ### 2. `GET /api/config` returns runtime-resolved addresses — `specs/runtime-config.spec.ts`
 
@@ -792,19 +809,27 @@ reader's requests for as long as the spec asked before passing it on, which is h
 live in the fixture's memory and go with it; one a failed test leaves behind names a reader
 nobody else holds.
 
-**And one file now does create server-side state, so the paragraph above has an exception
-rather than a slow drift into being false.** `specs/bearer-hop.spec.ts` writes progress rows
-to a real `AbOvo.Api`, because a hop that carries nothing proves nothing. Two consequences,
-both taken deliberately:
+**And writing to a fixture account other tests share is an exception to the paragraph above,
+named here rather than left to drift into being false.** `specs/bearer-hop.spec.ts` writes
+progress rows to a real `AbOvo.Api`, because a hop that carries nothing proves nothing. Two
+consequences, both taken deliberately:
 
-- **It cleans up after itself.** The service offers exactly one teardown — `DELETE /progress`
-  forgets every row for the caller's own subject — and the file calls it before and after the
-  tests that write, so a crashed earlier run cannot decide what "the furthest frame" is.
+- **It cleans up after itself.** The service's teardown for an account is `DELETE /progress`,
+  which forgets every row for the caller's own subject — and, since ADR-0068 §5, those of the
+  anonymous cursor the request carries — and the file calls it before and after the tests that
+  write, so a crashed earlier run cannot decide what "the furthest frame" is.
 - **It is the one file in `specs/` that is not `fullyParallel`-safe by construction**, and it
   says so at its own `test.describe.configure({ mode: 'serial' })`. The fixture's accounts
   exist for claim shapes rather than for scenarios, so these tests share one account, and the
   only teardown available is "forget everything for this subject". CI already runs one worker;
   the serial mode is what makes a local run deterministic as well.
+
+**`specs/adopt-at-sign-in.spec.ts` writes to a shared fixture account too, for a journey a
+registered account cannot make:** signing in with a second factor, which a registered account
+never has and the fixture's `TWO_FACTOR` account does. It empties that account's places before the test and after it, as `bearer-hop.spec.ts`
+does for its own, and no other test reads them — so it needs no serial mode. A test signing
+in as `TWO_FACTOR` at the same moment, in a local parallel run, can at most be shown a sync
+notice it asserts nothing about.
 
 Generating an identity per test would be the right answer for these as well, and they keep
 the fixture's own accounts (`fixtures/accounts.mts`) instead: the accounts exist for the claim

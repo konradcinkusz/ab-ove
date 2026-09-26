@@ -179,8 +179,10 @@ async function subjectOf(page: Page): Promise<string | null> {
  * It also runs BEFORE each of them: a row left by a crashed earlier run would otherwise
  * decide what "the furthest frame" is, and the failure would read as a merge defect.
  *
- * `DELETE /progress` removes every row for the caller's own subject and nothing else — it
- * cannot reach another reader's, because there is no route on that service that takes one.
+ * `DELETE /progress` removes every row for the caller's own subject, and those of the anonymous
+ * cursor the request carries — the proxy sends this browser's beside the bearer (ADR-0068 §5) —
+ * and nothing else: it cannot reach another reader's, because no route or body on that service
+ * names one.
  */
 async function emptyTheAccount(page: Page): Promise<void> {
   await throughProxy(page, PROGRESS, { method: 'DELETE' });
@@ -331,9 +333,9 @@ test.describe('a frame a reader reads reaches the account and comes back', () =>
   });
 
   test('reading a frame puts it on the account, through the proxy @identity', async ({ page }) => {
-    // The bundle is four frames long and `ResumeLast` clamps a stored place to the length of
-    // the program it is in, so a step past the end would be asserting the clamp. Frame 3 is
-    // inside it and is not frame 1, which is where a reader who did nothing would be.
+    // The bundle is four frames long and the index's *Continue* clamps a stored place to the
+    // length of the program it is in, so a step past the end would be asserting the clamp.
+    // Frame 3 is inside it and is not frame 1, which is where a reader who did nothing would be.
     const STEP = 3;
 
     // ADR-0051: the reader of this journey is one who walked here, so the record says so.
@@ -345,9 +347,10 @@ test.describe('a frame a reader reads reaches the account and comes back', () =>
     await page.goto(`/read/${TRACK}/${UNIT}/en/${STEP}`);
     await expect(page.locator('article')).toBeVisible();
 
-    // `sync.ts` debounces a frame turn by three seconds and pulls before it pushes, so this
-    // polls rather than asserting once. The ceiling is a ceiling and not a sleep: it passes
-    // the moment the row is there.
+    // The walk's advances are what put the frame on the account: a signed-in reveal is the
+    // write, and `sync.ts` sends the account nothing (ADR-0068). This polls rather than
+    // asserting once all the same, and the ceiling is a ceiling and not a sleep: it passes the
+    // moment the row is there.
     await expect
       .poll(
         async () => {

@@ -84,6 +84,8 @@ interface Screen {
   readonly path: string;
   /** The frame the reader must have reached for the path to be served (ADR-0060). */
   readonly walk?: number;
+  /** What this browser holds before the page loads, for a screen that shows a reader's own work. */
+  readonly seed?: (page: Page) => Promise<void>;
   /** What to open once the page has settled, so the scan covers the panel too. */
   readonly open?: (page: Page) => Promise<void>;
   readonly smoke?: boolean;
@@ -104,6 +106,40 @@ const openBothPanes = async (page: Page): Promise<void> => {
   await openPane(page, 'sketch');
 };
 
+/**
+ * The pad's lines and a sketch on the frame that asks, written where the panes write them — the
+ * sheet in `localStorage`, the strokes in IndexedDB, whose store is made as
+ * `lib/sheet/sketch-store.ts` makes it — so the frame that answers it has the reader's work to
+ * offer (#168). Before every load, and idempotent: the same record each time.
+ */
+const seedWorkOn =
+  (n: number) =>
+  async (page: Page): Promise<void> => {
+    await page.addInitScript(
+      ([key]) => {
+        const sheet = { v: 1, tag: 'e2e', answer: '', working: '2 + 2\nw = 0.5', hasSketch: true };
+        window.localStorage.setItem(key!, JSON.stringify(sheet));
+        const open = indexedDB.open('ab-ovo-sheet', 1);
+        open.onupgradeneeded = () => {
+          if (!open.result.objectStoreNames.contains('sketches')) open.result.createObjectStore('sketches');
+        };
+        open.onsuccess = () => {
+          const database = open.result;
+          const write = database.transaction('sketches', 'readwrite');
+          write.objectStore('sketches').put([[60, 60, 200, 180, 340, 90]], key);
+          write.oncomplete = () => database.close();
+        };
+      },
+      [`ab-ovo:sheet:v1:${track}/${UNIT}/${n}`] as const,
+    );
+  };
+
+const openPreviousWork = async (page: Page): Promise<void> => {
+  await page.locator('details[data-kept] > summary').click();
+  // By the drawing's name, so the scan reads the offer with both of its halves open in it.
+  await expect(page.getByRole('img', { name: 'Your sketch' })).toBeVisible();
+};
+
 /** Every screen of the reading surface and its shell, as a reader with no account meets it. */
 const SCREENS: readonly Screen[] = [
   { what: 'the index', path: '/' },
@@ -111,6 +147,9 @@ const SCREENS: readonly Screen[] = [
   // the server for a reader with no record, whom the gate turns away from every program but
   // the first.
   { what: 'the index, after the gate turned a reader away', path: `/?shut=${served.units[1]!.id}` },
+  // A reader who has been here (issue #165): the card's *Continue*, and *Forget where I am* in
+  // *Your data in this browser* — the walk records the frame it starts from as the place.
+  { what: 'the index, for a reader with a place', path: '/', walk: asks.n },
   { what: 'the argument', path: '/about' },
   { what: 'the courses', path: '/courses' },
   { what: 'a program’s contents', path: contentsAt('en') },
@@ -120,6 +159,13 @@ const SCREENS: readonly Screen[] = [
   { what: 'the program map, open over a frame', path: frameAt('en', asks.n), walk: asks.n, open: openMap },
   { what: 'the reading settings, open over a frame', path: frameAt('en', asks.n), walk: asks.n, open: openSettings },
   { what: 'both worksheet panes, open', path: frameAt('en', asks.n), walk: asks.n, open: openBothPanes },
+  {
+    what: 'the working and sketch of the frame before, open on the frame that answers it',
+    path: frameAt('en', asks.n + 1),
+    walk: asks.n + 1,
+    seed: seedWorkOn(asks.n),
+    open: openPreviousWork,
+  },
   // Walked to the last frame: before it, the summary is the gate's "Not there yet" (#158).
   { what: 'a program’s summary', path: `${contentsAt('en')}/summary`, walk: program.steps.length },
   { what: 'a frame the reader has not reached', path: frameAt('en', program.steps.length) },
@@ -132,6 +178,7 @@ const SCREENS: readonly Screen[] = [
 ];
 
 async function arrive(page: Page, screen: Screen): Promise<void> {
+  if (screen.seed) await screen.seed(page);
   if (screen.walk) await walkTo(page, UNIT, screen.path.includes('/pl/') ? 'pl' : 'en', screen.walk);
   await page.goto(screen.path);
   await settle(page);

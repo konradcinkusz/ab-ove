@@ -21,6 +21,9 @@ export interface RenderFailureProps {
  * The edition is the failed address's (`failedReading`), English where the address has none
  * or names one this application has no words for, and `lang` says which one the page ended
  * up in — `chromeFor`'s contract, kept here as on every reading screen.
+ *
+ * Its links to the index do not prefetch, as none does: the index titles its tab in the
+ * edition, and a prefetched head outlives a change of it (ADR-0067, `index-href.ts`).
  */
 export function RenderFailure({ error, retry }: RenderFailureProps): React.JSX.Element {
   const { language, contentsHref } = failedReading(usePathname());
@@ -34,7 +37,7 @@ export function RenderFailure({ error, retry }: RenderFailureProps): React.JSX.E
       <SkipLink language={chrome.language} />
       <header className="masthead">
         <p className="wordmark">
-          <Link href="/">
+          <Link href="/" prefetch={false}>
             ab<span>-</span>ovo
           </Link>
         </p>
@@ -54,7 +57,7 @@ export function RenderFailure({ error, retry }: RenderFailureProps): React.JSX.E
               {words.toContents}
             </Link>
           ) : (
-            <Link className="quiet" href="/">
+            <Link className="quiet" href="/" prefetch={false}>
               {words.toPrograms}
             </Link>
           )}

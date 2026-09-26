@@ -198,6 +198,32 @@ export function readSheet(slot: Slot | undefined, frame: FrameRef): Sheet | unde
 }
 
 /**
+ * What a sheet holds BESIDE its answer line: the Working pad's text, a sketch, or both.
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE REVEAL ASKS THIS OF THE FRAME BEFORE IT, AND NOTHING MORE (issue #168).
+ *
+ * The next frame opens with the book's answer and puts the reader's line beside it
+ * (`you-wrote.tsx`). This is the rest of the reader's side of that comparison, named by
+ * what there is, so the next frame's offer can say *working*, *sketch* or both — and say
+ * nothing at all where there is neither, which is most frames.
+ *
+ * A pad holding only whitespace holds nothing. The sketch is answered by `hasSketch`, its
+ * synchronous shadow, so this needs no database — which is what that flag is for
+ * (`sketch-store.ts`): the strokes are read only when the reader asks to see them.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+export type Kept = 'working' | 'sketch' | 'both';
+
+export function keptOn(sheet: Sheet | undefined): Kept | undefined {
+  const working = (sheet?.working.trim().length ?? 0) > 0;
+  const sketch = sheet?.hasSketch === true;
+  if (working && sketch) return 'both';
+  if (working) return 'working';
+  return sketch ? 'sketch' : undefined;
+}
+
+/**
  * Write one frame's sheet. Returns what was stored, so a caller can render from it without
  * a second read; returns `undefined` when there was nowhere to write.
  *

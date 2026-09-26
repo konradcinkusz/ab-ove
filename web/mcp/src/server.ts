@@ -34,6 +34,7 @@ import { ApiCursorStore, MemoryCursorStore } from './cursor.ts';
 import type { CursorStore } from './cursor.ts';
 import { liveBundles } from './content.ts';
 import type { BundleSource } from './content.ts';
+import { framingFor } from './framing.ts';
 import { PROMPTS, completeArgument, promptMessages } from './prompts.ts';
 import { SERVER_INSTRUCTIONS, TOOLS, handle } from './tools.ts';
 import type { EditionOffered, EditionOutcome, ElicitOutcome, Session } from './tools.ts';
@@ -73,21 +74,25 @@ export function createServer(cursors: CursorStore, options: ServerOptions = {}):
     to know whether the reader actually confirmed something, so every failure path here
     collapses to `unavailable` and `submit_answer` falls back to trusting the argument —
     exactly what it already does for a host with no elicitation at all.
+
+    IN THE STEP'S EDITION (#167). The host puts this form in front of the reader with no
+    model in between to translate it, so its words are `framing.ts`'s, in the edition of the
+    step it confirms. The edition question below stays English: it is asked because no
+    edition is known, and each edition is offered by the track's own title in it.
   */
-  const elicitAnswer = async (step: number, proposed: string): Promise<ElicitOutcome> => {
+  const elicitAnswer = async (step: number, proposed: string, language: string): Promise<ElicitOutcome> => {
     if (!server.getClientCapabilities()?.elicitation?.form) return { kind: 'unavailable' };
+    const framing = framingFor(language);
     try {
       const result = await server.elicitInput({
-        message:
-          `Step ${step}: check this before it is recorded as your answer.` +
-          (proposed ? '' : ' Type what you wrote — the assistant sent nothing.'),
+        message: framing.confirmAnswer(step) + (proposed ? '' : ` ${framing.nothingSent}`),
         requestedSchema: {
           type: 'object',
           properties: {
             answer: {
               type: 'string',
-              title: 'Your answer',
-              description: 'Edit this if it is not what you wrote, then confirm.',
+              title: framing.answerLabel,
+              description: framing.answerHint,
               ...(proposed ? { default: proposed } : {}),
             },
           },

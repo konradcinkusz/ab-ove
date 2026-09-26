@@ -1,6 +1,7 @@
 'use client';
 
 import { RenderFailure } from '@/components/render-failure';
+import { FALLBACK_LANGUAGE } from '@/lib/i18n/chrome';
 
 import './globals.css';
 
@@ -20,8 +21,9 @@ import './globals.css';
  * broke should depend on as little of the shell as it can, so it follows the reader's system
  * colour scheme rather than their chosen theme, and syncs nothing.
  *
- * `lang="en"` on `<html>` as in `app/layout.tsx`; the page's own `<main>` says which edition
- * it is actually in.
+ * `FALLBACK_LANGUAGE` on `<html>` as in `app/layout.tsx`: the server's answer, which the page's
+ * own `SkipLink` replaces with the edition it is actually in once it is in the browser
+ * (ADR-0067), as its `<main>` says from the first byte.
  */
 export default function GlobalError({
   error,
@@ -31,7 +33,7 @@ export default function GlobalError({
   readonly retry: () => void;
 }): React.JSX.Element {
   return (
-    <html lang="en">
+    <html lang={FALLBACK_LANGUAGE}>
       <head>
         <title>ab-ovo</title>
       </head>

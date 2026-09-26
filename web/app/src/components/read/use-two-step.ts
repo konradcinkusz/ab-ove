@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
  * What a press has to land on to count as the reader going elsewhere: anything a reader can
  * operate, the sketch's canvas among them. Everything else is bare page (see "A PRESS ON
  * NOTHING" below). `[tabindex]` takes in whatever a page made focusable on purpose, the
- * index's heading included.
+ * heading of the index's *Your data in this browser* included.
  */
 const OPERABLE =
   'a[href], button, input, select, textarea, summary, label, canvas, [contenteditable], [role="button"], [tabindex]';
@@ -79,12 +79,15 @@ export interface TwoStep {
  *
  * Where the box CAN be kept, it is: `two-step-label.tsx` puts both labels in the button from
  * the first paint, so arming moves nothing and the second press lands on the control. The
- * sketch's `Clear` and `Clear my answer` use it. The index's two do not — their second
- * labels are the longer ones, and the row they sit in arrives after hydration and wraps
- * (`program-grid.tsx`): reserving both second labels' width made it one or two lines
- * (29 to 59 px) taller as it arrived at most widths from 320 to 480 px, which is the grid
- * moving under the reader (measured 2026-09-25, en and pl, a worksheet and a place stored).
- * `worksheet.spec.ts` presses them twice at one point where they move.
+ * sketch's `Clear` and `Clear my answer` use it. The index's two need neither that nor the
+ * miss: since issue #165 each is on a line of its own at the foot of the index, start-aligned,
+ * and a second label longer than the first grows the control to the right of where it was
+ * pressed (`program-grid.tsx`). They were in the masthead's row before, which arrives after
+ * hydration and wraps — reserving both second labels' width there made it one or two lines
+ * (29 to 59 px) taller as it arrived at most widths from 320 to 480 px (measured 2026-09-25,
+ * en and pl, a worksheet and a place stored), so they kept one label at a time and could move.
+ * `worksheet.spec.ts` presses them twice at one point, and holds whichever of the two happens
+ * to clear or to miss, never to cancel.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * ──────────────────────────────────────────────────────────────────────────────────────
@@ -109,8 +112,8 @@ export interface TwoStep {
  * there is nothing left to clear — the rule `clear-controls.tsx` states — is removed by the
  * very press it received, and focus falls to `<body>`: a keyboard reader starts again from
  * the top of the page, and a screen reader says nothing about where they are. Each caller
- * names a stable element instead — the field it emptied, the canvas it cleared, the
- * index's heading.
+ * names a stable element instead — the field it emptied, the canvas it cleared, the heading
+ * of the index's *Your data in this browser*.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * Shared by the worksheet's clear controls (`clear-controls.tsx`), the sketch's `Clear`

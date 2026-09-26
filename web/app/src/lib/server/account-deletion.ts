@@ -16,8 +16,11 @@ import { deleteAccount, type DeleteAccountOutcome, type FetchLike } from './dele
  *   authservice is asked anything, so at that point the synced rows are already gone. The
  *   reader keeps their account, keeps their session, and — because signing out leaves
  *   local progress intact (ADR-0019, issue #11) — their browser still holds every position
- *   it held a second ago. The next sync cycle finds a remote with nothing in it and pushes
- *   the lot back up. The loss is zero and it repairs itself.
+ *   it held a second ago. It used to be that the next sync cycle found a remote with nothing
+ *   in it and pushed the lot back up, and the loss was zero. Since ADR-0068 the sync sends
+ *   the account no place, so what is lost is the account's copy: the browser keeps its own
+ *   as a resume hint, and what the reader read without an account is adopted again at their
+ *   next sign-in, because the anonymous rows were never touched.
  *
  *   ACCOUNT FIRST. The same wrong password costs nothing, which is better. But the rare
  *   failure — anything at all going wrong between the two calls — leaves the account gone
@@ -26,14 +29,25 @@ import { deleteAccount, type DeleteAccountOutcome, type FetchLike } from './dele
  *   operator with database access. That is an unremovable row produced by the feature
  *   whose entire purpose is removing rows.
  *
- * One order's worst case repairs itself; the other's is permanent and is precisely the
- * thing the feature exists to prevent. So: progress, then the account.
+ * One order's worst case costs the account's copy of a reader's places, in the middle of
+ * the reader asking for them to go; the other's is permanent and is precisely the thing the
+ * feature exists to prevent. So: progress, then the account.
  *
- * NOTE WHAT THAT ARGUMENT DEPENDS ON. It is only recoverable because #11 decided that
- * local progress survives losing a session. Reverse that decision and this ordering
- * becomes the wrong one. The two are coupled, and the coupling is written down here
- * because the code does not show it.
+ * NOTE WHAT THAT ARGUMENT DEPENDED ON, AND WHAT MOVED UNDER IT. It was written when a
+ * failed deletion repaired itself, because #11 decided that local progress survives losing a
+ * session AND the sync pushed that progress back. ADR-0068 took the push away, so the
+ * comparison is now a lost copy against a permanent orphan rather than nothing against one.
+ * The order stands on that; whether it should now be reversed is a decision of its own, and
+ * ADR-0068 leaves it open rather than taking it in passing. What it does not leave is the
+ * reader uninformed: the password refusals are exactly this state — the account kept, its
+ * reading position gone — and their sentences say so (`problemPasswordRequired` and
+ * `problemPasswordRejected` in `lib/i18n/chrome.ts`).
  * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * NO READER-ID HEADER GOES WITH THE PROGRESS CALL, and that is what keeps the anonymous cursor
+ * this browser reads under out of a deletion: `AbOvo.Api`'s forget removes that cursor's rows
+ * too when a request names it (ADR-0068 §5), and this one does not. The cursor is the
+ * browser's, as its own record is, and the deletion leaves both (ADR-0021).
  *
  * The cookies are cleared LAST, and only on success, for the reason in `delete-account.ts`:
  * authservice revokes refresh tokens and leaves the access token to expire on its own, so

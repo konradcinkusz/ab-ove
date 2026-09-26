@@ -2,7 +2,13 @@
 
 ## Status
 
-**Accepted.** Date: 2026-09-15.
+**Accepted.** Date: 2026-09-15. Its first reason for the order was taken away on 2026-09-26 by
+[ADR-0068](0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md),
+which keeps the order; the notes under the Decision and the Consequences say what a mistyped
+password costs now, and the screen's password refusals say it to the reader.
+
+Amended on 2026-09-26 (#166): the screen is no longer a deviation from `/login`, which follows
+the reader's edition too — see the end of _The screen is bilingual_ in _Consequences_.
 
 ## Context
 
@@ -55,6 +61,23 @@ One order's worst case repairs itself and the other's is permanent. **That recov
 is inherited from ADR-0019 and is not a property of this file**; reverse that decision and
 this ordering becomes the wrong one.
 
+> **Since 2026-09-26 the first order does not repair itself.**
+> [ADR-0068](0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)
+> stopped the sync sending the account any place, so nothing pushes the browser's copy back
+> after a mistyped password. What that costs is the account's copy of the reader's places. The
+> browser keeps its own as a resume hint, and what the reader read without an account is
+> adopted again at their next sign-in. The order is kept: the other order's worst case is still
+> rows nobody can remove, and the reader was deleting the account. Whether it should now be
+> reversed is a decision of its own, which ADR-0068 does not take. The refusals that land in
+> this state — no password given, and a wrong one — say so on the screen, in each edition: the
+> reading position stored on the account was removed before the password was checked, and this
+> browser does not send it back. They do not say the chosen edition is lost, because it is not:
+> the root layout's `LanguageSync` writes this browser's choice back to an account holding none.
+>
+> The same note, for the other half of "leave the reader's local progress alone" below: the
+> progress call sends no reader-id header, so the anonymous cursor this browser reads under,
+> which `AbOvo.Api`'s forget also removes when a request names it, is left with the browser.
+
 **Clear the session cookies last, and only on success.** authservice revokes only the
 _refresh_ tokens; the access token stays valid until its own `exp`, and nothing in this
 deployment consults authservice per request. Until this origin drops its own cookies the
@@ -87,13 +110,20 @@ back on the next sync from the browser that submitted the form — but a reader 
 from one device and then opens a _different_ one before that sync has run sees an empty
 account. Accepted, because the alternative is the permanent orphan above.
 
+> Since 2026-09-26 it does not come back that way (the note under the Decision above): what
+> the reader read without an account is adopted again at their next sign-in, and the rest of
+> the account's copy is gone. The refusal on the screen says that it is gone.
+
 **The screen is bilingual where `/login` is English-only, which is a deviation from that
 page's own recorded reasoning.** `/login` argues it has no language to follow and declines
 to guess; this page is reached from a link in the reading chrome that already knows the
 edition, and — unlike a sign-in form, where a reader can guess at "email" and "password" —
 its four paragraphs _are_ the deliverable. A reader who cannot read them has not been told,
 which is the thing issue #13 asks for. No deviation-register row: this is a decision about
-one page, not a departure from a reference-architecture rule.
+one page, not a departure from a reference-architecture rule. **No longer a deviation since
+issue #166:** `/login` follows the edition too, on this page's own argument that the link into
+it already knows the edition ([ADR-0018](0018-password-sign-in-happens-server-side.md)'s
+amendment).
 
 **`/account/deleted` is a second page, and public.** `/account?deleted=1` cannot work: the
 route's last act ends the session, so the middleware would bounce the reader to a sign-in

@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+import { secondFactorHref, signInHref } from '@/lib/account-href';
+import { indexHref } from '@/lib/index-href';
+import { isLanguageTag } from '@/lib/language/store';
 import { backendConfigured } from '@/lib/server/backends';
 import { clearChallenge, readChallenge } from '@/lib/server/challenge';
 import { readerAddress } from '@/lib/server/client-ip';
@@ -29,16 +32,19 @@ import type { SignInProblemCode } from '@/lib/sign-in-problem';
  * because the reader may try again and the challenge is still good; everything else —
  * success, expiry, lockout, our own failures — removes it, because in none of those cases
  * can it be used again and a credential nobody can spend should not sit in a browser.
+ *
+ * Every `Location` carries the edition the code screen was in, as `/api/auth/login`'s do
+ * (issue #166).
  */
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const DEFAULT_DESTINATION = '/';
-
 interface Submission {
   readonly factor: SecondFactor | null;
   readonly redirectTo: string | null;
+  /** The edition the code screen was in — its shape checked here, as the sign-in route does. */
+  readonly edition: string | undefined;
   readonly wantsRedirect: boolean;
 }
 
@@ -57,13 +63,20 @@ interface Submission {
 async function readSubmission(request: Request): Promise<Submission | null> {
   const contentType = request.headers.get('content-type') ?? '';
 
-  const build = (code: string, recoveryCode: string, redirect: string, form: boolean): Submission => ({
+  const build = (
+    code: string,
+    recoveryCode: string,
+    redirect: string,
+    lang: string,
+    form: boolean,
+  ): Submission => ({
     factor: code
       ? { kind: 'code', value: code }
       : recoveryCode
         ? { kind: 'recovery-code', value: recoveryCode }
         : null,
     redirectTo: safeRedirectTarget(redirect),
+    edition: isLanguageTag(lang) ? lang : undefined,
     wantsRedirect: form,
   });
 
@@ -74,6 +87,7 @@ async function readSubmission(request: Request): Promise<Submission | null> {
         String(form.get('code') ?? '').trim(),
         String(form.get('recoveryCode') ?? '').trim(),
         String(form.get('redirect') ?? ''),
+        String(form.get('lang') ?? ''),
         true,
       );
     }
@@ -81,7 +95,7 @@ async function readSubmission(request: Request): Promise<Submission | null> {
     if (contentType.includes('application/json')) {
       const body = (await request.json()) as Record<string, unknown>;
       const str = (key: string) => (typeof body[key] === 'string' ? (body[key] as string).trim() : '');
-      return build(str('code'), str('recoveryCode'), str('redirect'), false);
+      return build(str('code'), str('recoveryCode'), str('redirect'), str('lang'), false);
     }
   } catch {
     return null;
@@ -113,11 +127,10 @@ const PROBLEM_STATUS: Readonly<Record<SignInProblemCode, number>> = {
  * cannot use — the sign-in loop the problem set exists to prevent, at the one step where
  * the reader has already typed a correct password.
  */
-function pageFor(problem: SignInProblemCode, redirectTo: string | null): string {
+function pageFor(problem: SignInProblemCode, submission: Submission): string {
   const restart = problem === 'second-factor-expired' || problem === 'locked';
-  const query = new URLSearchParams({ error: problem });
-  if (redirectTo) query.set('redirect', redirectTo);
-  return `${restart ? '/login' : '/login/2fa'}?${query.toString()}`;
+  const query = { error: problem, redirect: submission.redirectTo, edition: submission.edition };
+  return restart ? signInHref(query) : secondFactorHref(query);
 }
 
 /** 303, not 302: the browser must follow with GET, or a reload re-submits the code. */
@@ -146,7 +159,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const fail = (problem: SignInProblemCode): NextResponse =>
     submission.wantsRedirect
-      ? seeOther(pageFor(problem, submission.redirectTo))
+      ? seeOther(pageFor(problem, submission))
       : NextResponse.json(
           { problem },
           { status: PROBLEM_STATUS[problem], headers: { 'cache-control': 'no-store' } },
@@ -206,7 +219,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (session.status === 'rejected') return fail('token-rejected');
   if (session.status === 'unverifiable') return fail('unverifiable');
 
-  const destination = submission.redirectTo ?? DEFAULT_DESTINATION;
+  // Where the reader was going; else the programs, in the edition they signed in from.
+  const destination = submission.redirectTo ?? indexHref({ edition: submission.edition });
 
   return submission.wantsRedirect
     ? seeOther(destination)

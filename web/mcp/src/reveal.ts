@@ -25,9 +25,12 @@
  * NOTHING HERE DOES I/O, and that is deliberate (P13: test at the layer with the logic).
  * The property worth protecting is decided by these functions; a test that had to stand up
  * a server to assert it would be an acceptance test doing a unit's job, and would be the
- * first thing skipped when it got slow.
+ * first thing skipped when it got slow. The one import that runs is `framing.ts`, the
+ * refusals' own sentences, which imports nothing in turn.
  */
 import type { Step, Unit } from '@ab-ovo/web-kit';
+
+import { framingFor } from './framing.ts';
 
 /**
  * Where one reader is in one program.
@@ -144,35 +147,34 @@ export function advance(unit: Unit, cursor: Cursor): Advanced {
 }
 
 /**
- * The reader's own sentence for a refusal.
+ * The reader's own sentence for a refusal, in the reader's edition (#167).
  *
  * Here rather than in the tool handlers because a model rewrites what it is given, and the
  * one thing it must not rewrite into "the server failed" is the gate working as designed.
+ * The sentences are `framing.ts`'s, so a Polish reader is refused in Polish rather than in
+ * an English the model has to translate — a rewrite this file exists to make unnecessary.
+ *
+ * WHAT OPENS A SHUT PROGRAM IS SAID TWICE, AND ONLY ONE OF THE TWO IS THE READER'S. The
+ * reader is told in their edition that the book is read in order, which program opens this
+ * one and that one step of it is enough; the model is told in English, after that, which
+ * call opens it and not to report a failure. A sentence naming a tool is the assistant's,
+ * whatever the edition (`framing.ts`), and it used to sit between the reader's sentences.
  */
-export function explain(refusal: Refusal): string {
+export function explain(refusal: Refusal, language: string): string {
+  const framing = framingFor(language);
   switch (refusal.kind) {
     case 'not-reached':
-      return (
-        `Step ${refusal.requested} has not been reached yet; the furthest is ${refusal.furthest}. ` +
-        'This is the method working, not a fault: the answer to a step is the opening of the ' +
-        'next one, so the next step arrives when an answer has been submitted for this one.'
-      );
+      return framing.notReached(refusal.requested, refusal.furthest);
     case 'no-such-step':
-      return `This program has ${refusal.steps} steps; step ${refusal.requested} is not one of them.`;
+      return framing.noSuchStep(refusal.requested, refusal.steps);
     case 'program-complete':
-      return `This program is finished — all ${refusal.steps} steps have been worked.`;
+      return framing.programComplete(framing.steps(refusal.steps));
     case 'not-open':
       return (
-        `"${refusal.unit}" is not open to this reader yet, and that is the book's order ` +
-        'rather than a fault. A program opens as soon as the reader has a place in the one ' +
-        `before it: "${refusal.after}" is what opens "${refusal.unit}", and there is no ` +
-        `place recorded in "${refusal.after}".\n\n` +
-        `What opens it: call open_program with unit "${refusal.after}". ONE step of it is ` +
-        `enough — not the whole program — and "${refusal.unit}" is open from that moment, ` +
-        'in this conversation and on the website, because both read the same record.\n\n' +
-        'Nothing is hidden, missing or paid for: this is a reading order, not a permission. ' +
-        'Tell the reader what opens it rather than reporting that something failed, and ' +
-        'offer them the program that does.'
+        `${framing.notOpen(refusal.unit, refusal.after)}\n\n` +
+        `What opens it: call open_program with unit "${refusal.after}". Tell the reader what ` +
+        'opens it rather than reporting that something failed, and offer them the program ' +
+        'that does.'
       );
   }
 }

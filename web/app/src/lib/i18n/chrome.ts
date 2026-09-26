@@ -23,6 +23,8 @@
  * compiler responsible for this application's chrome. The book compiles frames; it does not
  * compile the word for "Contents".
  */
+import type { RegistrationNoticeCode, RegistrationProblemCode } from '../registration-problem.ts';
+import type { SignInProblemCode } from '../sign-in-problem.ts';
 
 /**
  * The forms a count takes. The keys are `Intl.PluralRules` categories, and `other` is
@@ -190,12 +192,177 @@ interface DeleteAccountStrings {
   readonly done: string;
   readonly keepReading: string;
   readonly problemConfirm: string;
+  /**
+   * The password refusals arrive AFTER what the account had stored was removed — ADR-0021's
+   * order, progress first — and since ADR-0068 nothing sends the reading position back: the
+   * sync no longer pushes the browser's copy to the account. So both say so, rather than leaving
+   * a reader who keeps the account to find their frames refused. They name the reading position
+   * and not the edition the reader chose, because the edition IS sent back: `LanguageSync`,
+   * mounted in the root layout, writes this browser's choice to an account holding none on the
+   * very page that shows the refusal (`lib/language/sync.ts`).
+   */
   readonly problemPasswordRequired: string;
   readonly problemPasswordRejected: string;
   readonly problemSignedOut: string;
   readonly problemProgress: string;
   readonly problemAccount: string;
   readonly problemUnconfigured: string;
+}
+
+/**
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * THE PAGES AROUND THE BOOK, IN THE READER'S EDITION SINCE ISSUE #166.
+ *
+ * `/login`, its second step, `/register`, `/about` and the 404 were English whatever the
+ * reader read in. Their headers argued that this table was keyed by the READING language and
+ * that they sat outside `/read/[lang]`, with no edition to follow. ADR-0052 took that away:
+ * a reader always has an edition — asked for in the URL, else remembered, else English — and
+ * the index's *Zaloguj się* and *O ab-ovo* opened English pages. So every link into
+ * them carries `?lang=` (`account-href.ts`, `index-href.ts`), they resolve it as the index
+ * does, and their words are here with every other word a reader sees. The reasoning about
+ * the wording moved with it, from the pages and from `sign-in-problem.ts` and
+ * `registration-problem.ts`, which keep the codes and what each code does.
+ *
+ * The Polish keeps this table's rules: impersonal or imperative wherever a second-person
+ * past tense would pick a gender (ADR-0016); `serwis tożsamości` for the identity service and
+ * `Tutaj nie ma kont` for a site with none, as `deleteAccount` says them; `ćwiczenia
+ * komputerowe` for the lab (`labOptional`); `notatki` for the worksheet.
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ */
+
+/**
+ * Words set around one thing the page supplies — a link, or an address in `<code>` — so a
+ * translation can put that thing where its own grammar wants it. A string with the address
+ * glued in would lose the `<code>`, and a page gluing English halves round it would decide
+ * the word order of every language for them.
+ */
+export interface Around {
+  readonly before: string;
+  readonly after: string;
+}
+
+/** A sentence with one link in it: `before`, the link's own words, then `after`. */
+export interface Linked extends Around {
+  readonly link: string;
+}
+
+/** A problem or a notice on the account's pages: the sentence at the top, and what to do. */
+export interface Explained {
+  readonly title: string;
+  readonly detail: string;
+}
+
+/** `/login`, and the page it becomes for an address no page answers (issue #140's `NoPageAt`). */
+interface SignInPageStrings {
+  readonly lede: string;
+  readonly standfirst: string;
+  /** After `askedPrivate`, where the form will take the reader there. */
+  readonly askedPrivateSignIn: string;
+  /** After `askedPrivate`, where the form is withdrawn and starting again still will. */
+  readonly askedPrivateStartAgain: string;
+  /** Why there is no form, under a problem no password fixes; the link is a fresh sign-in. */
+  readonly withdrawn: Linked;
+  readonly useYourAccount: string;
+  readonly takenBack: string;
+  readonly noAccount: Linked;
+  readonly noAccounts: string;
+  readonly backToWhereYouWere: string;
+  /** Around the address nothing answers — `notFound.title`'s fact, with the address in it. */
+  readonly noPage: Around;
+  readonly whyHereTitle: string;
+  readonly whyHere: string;
+  readonly whyHereNoAccounts: string;
+}
+
+/** `/login/2fa` — the code, one factor after the password (ADR-0029). */
+interface SecondFactorPageStrings {
+  /** The section's heading, and the tab's title. */
+  readonly heading: string;
+  readonly lede: string;
+  readonly standfirst: string;
+  readonly instructions: string;
+  readonly codeLabel: string;
+  readonly recoveryLabel: string;
+  readonly submit: string;
+  readonly noChallenge: Linked;
+  readonly lostBothTitle: string;
+  readonly lostBoth: string;
+  readonly lostBothReading: string;
+  readonly backToSignIn: string;
+}
+
+/** `/register` (ADR-0049). */
+interface RegisterPageStrings {
+  /** The section's heading, and the tab's title. */
+  readonly heading: string;
+  readonly lede: string;
+  readonly standfirst: string;
+  readonly noAccounts: string;
+  readonly versionsUnavailable: string;
+  readonly noticeNext: Linked;
+  readonly signInInstead: Linked;
+  readonly answered: Linked;
+  readonly documentsUnavailable: string;
+  /** After `askedPrivate`, on the form's own page. */
+  readonly askedPrivateNext: Linked;
+  readonly takenBack: Linked;
+  readonly whereItGoes: Linked;
+  /**
+   * The password field's DESCRIPTION — its `aria-describedby` since issue #166, so a screen
+   * reader says it with the field — and the only explanation a reader gets when the browser
+   * refuses a password, because the refusal is the browser's own and names no rule. So it
+   * states the rules `password-policy.ts` read from the pinned identity service, all of them:
+   * the ceiling, which it never said, and letters "from A to Z", because to the service `Ł` is
+   * not an upper case letter and a Polish reader would reasonably think it was.
+   */
+  readonly passwordRules: string;
+  /** Around the two documents' names, each a link carrying its version (#141). */
+  readonly accept: {
+    readonly before: string;
+    readonly terms: string;
+    readonly between: string;
+    readonly privacy: string;
+    readonly after: string;
+  };
+  readonly submit: string;
+  readonly whatNotTitle: string;
+  readonly whatNot: string;
+}
+
+/**
+ * `/about` — the product's argument (ADR-0036). The anti-goal is the part a later feature has
+ * to argue with, so it is said in both editions or it is a promise made to half the readers.
+ */
+interface AboutPageStrings {
+  readonly tabTitle: string;
+  readonly description: string;
+  readonly lede: string;
+  /** Around the book's title, which the page sets in italics. */
+  readonly standfirst: Around & { readonly work: string };
+  /** The anti-goal's accessible name, which makes its `<section>` a region a reader can find. */
+  readonly antigoalLabel: string;
+  readonly antigoalClaim: string;
+  readonly antigoal: string;
+  readonly loopTitle: string;
+  /** The four steps, in the order that IS the method (`specs/about.spec.ts`). */
+  readonly loop: readonly [string, string, string, string];
+  readonly needsTitle: string;
+  readonly needs: string;
+  readonly editionTitle: string;
+  readonly edition: string;
+  readonly exercisesTitle: string;
+  readonly exercises: string;
+  readonly colophon: string;
+}
+
+/** The 404 (`app/not-found.tsx`), in the edition of the address it stands behind. */
+interface NotFoundStrings {
+  /** The tab, for the reading routes that answer 404 and for the page itself. */
+  readonly tabTitle: string;
+  readonly title: string;
+  readonly standfirst: string;
+  readonly followedTitle: string;
+  readonly followed: string;
 }
 
 /**
@@ -312,6 +479,34 @@ interface Strings {
   /** The page `account` links to: the reader's overview (issue #161). */
   readonly accountOverview: AccountOverviewStrings;
   readonly deleteAccount: DeleteAccountStrings;
+  /**
+   * THE PAGES AROUND THE BOOK (issue #166) — see the block above `SignInPageStrings`.
+   *
+   * `siteTitle` is the product's title (ADR-0048), which the root layout gives every page
+   * without one of its own and the index gives itself in the reader's edition: since ADR-0067
+   * the document's `lang` follows the edition, and a tab reading English on a Polish page would
+   * be spoken in a Polish voice. `askedPrivate` is said on `/login` and on `/register` alike.
+   */
+  readonly siteTitle: string;
+  readonly emailAddress: string;
+  readonly password: string;
+  readonly backToReader: string;
+  readonly openPrograms: string;
+  /** Around the address of a page the gate closes, which the reader was bounced off. */
+  readonly askedPrivate: Around;
+  readonly signInPage: SignInPageStrings;
+  /**
+   * `?error=` on `/login` and `/login/2fa`, keyed by the closed set in `sign-in-problem.ts` —
+   * so a code added there without words here, in every edition, does not build.
+   */
+  readonly signInProblems: Readonly<Record<SignInProblemCode, Explained>>;
+  readonly secondFactorPage: SecondFactorPageStrings;
+  readonly registerPage: RegisterPageStrings;
+  /** `?error=` and `?notice=` on `/register`, keyed as `signInProblems` is. */
+  readonly registrationProblems: Readonly<Record<RegistrationProblemCode, Explained>>;
+  readonly registrationNotices: Readonly<Record<RegistrationNoticeCode, Explained>>;
+  readonly aboutPage: AboutPageStrings;
+  readonly notFound: NotFoundStrings;
   readonly consent: ConsentStrings;
   /**
    * The conflict rule, said where the conflict happened — `components/sync/progress-sync.tsx`.
@@ -386,6 +581,18 @@ interface Strings {
    * move from the first screen.
    */
   readonly about: string;
+  /**
+   * The accessible name of the index's masthead navigation (issue #165) — the landmark that
+   * holds `courses`, `about` and the account's own control, which is what a reader hears it
+   * called in a screen reader's list of landmarks.
+   *
+   * It was `programs`, the index heading's word, on a `<nav>` that also held the theme switch
+   * and both of the reader's destructive controls: a landmark named after the page and holding
+   * neither navigation alone nor the page. It is named for what it is now — the site's own
+   * ways off this page — and the language control beside it keeps its own name, so the list
+   * reads two different landmarks rather than one word twice.
+   */
+  readonly siteNav: string;
   /**
    * ────────────────────────────────────────────────────────────────────────────────────
    * THE WORD FOR A TRACK, AND THE ONLY PLACE IT IS SAID TO A READER.
@@ -462,6 +669,15 @@ interface Strings {
   readonly position: (n: number, total: number) => string;
   readonly startAtFrame: (n: number) => string;
   readonly continueAtFrame: (n: number) => string;
+  /**
+   * The index's card for a reader with no place yet (issue #165): the way into the first
+   * program, which is open to everybody (ADR-0051). It names the program by its ID, as
+   * `continueAtFrame`'s card names the program it continues, because the title is printed
+   * over it and a link's name carrying the title would be a second link called by it —
+   * the tile's is the first. It opens the program's contents, where `startAtFrame` is the
+   * filled control, so the two read as one move and then the next.
+   */
+  readonly startWith: (unit: string) => string;
   readonly frame: Plural;
   readonly section: Plural;
   /**
@@ -498,6 +714,28 @@ interface Strings {
   readonly youWrote: string;
   /** The one thing the machine ever says about an answer, and only when it is certain. */
   readonly matchesBook: string;
+  /**
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * ON THE REVEAL, THE WAY TO WHAT THE READER WORKED OUT ON THE FRAME IT ANSWERS (#168).
+   *
+   * `youWrote` puts the reader's line beside the book's answer; this opens the rest of what
+   * they wrote there — the pad's lines, the sketch — and says which it holds (`keptOn` in
+   * `lib/sheet/store.ts`), so it never offers a sketch that is not there. It names the
+   * frame, because the frame it is on may have a pad and a sketch of its own further down,
+   * and `Show my working` alone would read as those. `Show my sketch` is the pane's own
+   * wording for a frame that holds a drawing (ADR-0059), kept rather than rephrased.
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  readonly showMyWork: (n: number, kept: 'working' | 'sketch' | 'both') => string;
+  /** Over the drawing that offer shows again, as `workingLabel` is over the pad's lines. */
+  readonly yourSketch: string;
+  /**
+   * In the drawing's place when this browser holds the flag saying one was drawn and not the
+   * strokes — a database refused (a private window, storage switched off) or cleared since
+   * (`lib/sheet/sketch-store.ts`). It says what is true rather than drawing an empty box
+   * under words that promised a sketch.
+   */
+  readonly sketchNotKept: string;
   /** Under a locked line, saying why it cannot be edited. */
   readonly writtenBefore: string;
   /**
@@ -549,6 +787,29 @@ interface Strings {
   readonly clearWorksheets: string;
   /** Its second press — this one cannot be undone and says so. */
   readonly clearWorksheetsConfirm: string;
+  /**
+   * ────────────────────────────────────────────────────────────────────────────────────
+   * THE BLOCK AT THE FOOT OF THE INDEX THAT HOLDS THE READER'S OWN DATA — issue #165.
+   *
+   * *Export my worksheets*, *Clear my worksheets* and *Forget where I am* sat in the
+   * masthead, two destructive controls beside the page's primary action. They are here now,
+   * under this heading and beside the consent question, which is the other thing this
+   * browser keeps for the reader (ADR-0022). `yourDataLead` says what the block is about in
+   * one sentence, so a reader with nothing stored yet is not looking at an empty heading;
+   * it promises only what holds for every reader — what they write is never sent anywhere
+   * (the consent counts whether an answer matched, never its words), and the place is kept
+   * in this browser, which is true whether or not an account keeps a copy as well.
+   *
+   * `toYourData` is the way to it from the top of the page, under the index's card: the
+   * block and the question are below every tile, and the audit of 2026-09-24 measured the
+   * question some 3170 px down on a desktop. It names the question as well as the data,
+   * and it is the same words whatever the reader answered — a link to where a setting is,
+   * not a second ask (ADR-0022: no nag, no second ask).
+   * ────────────────────────────────────────────────────────────────────────────────────
+   */
+  readonly yourData: string;
+  readonly yourDataLead: string;
+  readonly toYourData: string;
   /** `← Programs`, the contents page's own way back up — a NEW key rather than reusing
    * `programs`, because that string is also this application's index heading and an arrow
    * belongs on the crumb's link and nowhere near an `<h1>`. */
@@ -789,6 +1050,23 @@ interface Strings {
   readonly readWhileSignedIn: string;
   readonly signInToContinue: string;
   /**
+   * THE QUIET LINE BESIDE THE INDEX'S *CONTINUE*, for a reader with no account who has a
+   * place (issue #165) — `start-card.tsx` says when it is shown, and it is never shown where
+   * this deployment cannot sign anybody in (P8).
+   *
+   * The audit found that an anonymous reader was never told where their place is kept. It is
+   * kept for this browser — in its storage, and under its cookie on the book's server
+   * (ADR-0061), which is device-scoped on purpose — and an account is what carries it to
+   * another device (ADR-0004: an account buys synchronisation and nothing else). The first
+   * sentence says the first half and `signInToCarry`, a link, offers the second. The link is
+   * the whole clause rather than the two words *Sign in*, which the masthead's own control
+   * already is. On a phone, where the card has no room for the line, `signInToCarry` alone
+   * ends `yourDataLead` instead, whose own sentence already says where the place is kept — so
+   * it has to read on from that sentence too, in each edition.
+   */
+  readonly placeKeptHere: string;
+  readonly signInToCarry: string;
+  /**
    * The index's line when the book's server does not answer (issue #158). The index renders
    * from the bundle compiled into the app, so it is still there when no program would open;
    * this says so above the list rather than leaving every tile to lead to the error page.
@@ -892,14 +1170,357 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       done: 'The reading position stored on it has been removed, and the identity service has marked the account deleted and scheduled its erasure.',
       keepReading: 'Carry on reading',
       problemConfirm: 'That is not the confirmation word. Nothing has been deleted.',
-      problemPasswordRequired: 'This account has a password, and the field was empty.',
-      problemPasswordRejected: 'That password was not accepted.',
+      problemPasswordRequired:
+        'This account has a password, and the field was empty, so the account itself was not removed. The reading position stored on it was removed before the password was checked, and this browser does not send it back.',
+      problemPasswordRejected:
+        'That password was not accepted, so the account itself was not removed. The reading position stored on it was removed before the password was checked, and this browser does not send it back.',
       problemSignedOut: 'Your session ended before this could finish. Sign in and try again.',
       problemProgress:
         'What your account had stored — your reading position, the edition you chose — could not be removed, so nothing else was attempted. Your account is untouched. Try again.',
       problemAccount:
         'What your account had stored has been removed, but the account itself could not be. It is still yours, and this device still knows where you are in the book. Try again.',
       problemUnconfigured: 'This site has no accounts, so there is no account to delete.',
+    },
+    siteTitle: 'ab-ovo — courses you work, a frame at a time',
+    emailAddress: 'Email address',
+    password: 'Password',
+    backToReader: 'Back to the reader',
+    openPrograms: 'Open the programs',
+    askedPrivate: {
+      before: 'You asked for ',
+      after: ', which is one of the few pages that needs to know who you are.',
+    },
+    signInPage: {
+      // What signing in is for, and then that reading does not need it (issue #162). The
+      // heading was "Signing in is optional", which is the second half on its own. "This
+      // browser remembers" is the reader's view of ADR-0061's cookie.
+      lede: 'Signing in keeps your place across devices.',
+      standfirst:
+        'You do not need an account to read: every frame and the lab work without one, and this browser already remembers where you are. An account carries your place to your other devices, and that is what it is for.',
+      askedPrivateSignIn: ' Sign in and you will be taken straight there.',
+      askedPrivateStartAgain: ' Starting again will still take you there.',
+      withdrawn: {
+        before:
+          'Typing your password again cannot fix the problem described above, so there is no form here. When the problem has cleared, ',
+        link: 'start again',
+        after: ' from a fresh sign-in page.',
+      },
+      useYourAccount: 'Use the email address and password you created your account with.',
+      takenBack: 'Sign in and you will be taken back to where you were.',
+      noAccount: {
+        before: 'No account yet? ',
+        link: 'Create one',
+        after:
+          ' — it takes an email address and a password, and it is only needed to carry your place between devices.',
+      },
+      // P8, in the reader's words: no identity service means no accounts here (issue #162).
+      noAccounts: 'This site has no accounts, so there is nothing to sign in to.',
+      backToWhereYouWere: 'Back to where you were',
+      noPage: {
+        before: 'You asked for ',
+        after:
+          ', and nothing in ab-ovo is there — a mistyped address or an out-of-date link does this. It is not a page that needs an account, and signing in would not make one appear.',
+      },
+      whyHereTitle: 'Why you are on the sign-in page',
+      whyHere:
+        'An address this site does not recognise is treated as private until it is shown otherwise, so a mistyped one lands here rather than on a page that says it is missing. The programs, the frames and the lab need no account at all.',
+      whyHereNoAccounts: ' And this site has no accounts, so there is nothing here to sign in to.',
+    },
+    signInProblems: {
+      incomplete: {
+        title: 'Both fields are needed.',
+        detail: 'Enter the email address and the password for your account.',
+      },
+      rejected: {
+        title: 'That email address and password were not accepted.',
+        detail:
+          'Check both and try again. Nothing else is said here on purpose: which of the two was wrong is not information this page will give out.',
+      },
+      locked: {
+        title: 'The account is locked for a few minutes.',
+        detail:
+          'Too many sign-in attempts failed. Wait, then try again — nothing needs to be reset and no email will arrive.',
+      },
+      unverified: {
+        title: 'That email address has not been verified yet.',
+        detail:
+          'The account exists and the password was right. Open the verification email the identity service sent when the account was created, then sign in here.',
+      },
+      // `sign-in-problem.ts` keeps what this code has meant since issue #30: the one case in
+      // which the second factor is genuinely out of reach.
+      'second-factor': {
+        title: 'That account uses a second factor and this sign-in could not complete it.',
+        detail:
+          'The password was correct and the code never got a fair hearing: something between here and the identity service failed on the second step. That is our side rather than yours, and the sign-in has to start from the password again.',
+      },
+      // This and the next are the pair a reader must tell apart — "try the code again" and
+      // "start over" — which is the whole reason there are two; `chrome.test.ts` holds their
+      // titles apart in every edition.
+      'second-factor-rejected': {
+        title: 'That code was not accepted.',
+        detail:
+          'Check the current code in your authenticator app and enter it again — they change every thirty seconds, and one that has just expired will be refused. A recovery code works here too if you have one left.',
+      },
+      'second-factor-expired': {
+        title: 'That sign-in took too long and has to start again.',
+        detail:
+          'The challenge from the first step is good for about five minutes. Nothing is wrong with the account or the password — enter them again and you will get a fresh one.',
+      },
+      /*
+        WORDED TO BE TRUE UNDER BOTH CONFIGURATIONS, which is the only reason it says "an
+        address" rather than naming one. authservice rate-limits by the address it sees. With
+        `AB_OVO_TRUST_PROXY_CLIENT_IP` off that address is this server's, so the bucket is
+        shared by every reader at once; with it on it is the reader's own, and is still shared
+        with anyone behind the same network. The wording before said the limit "counts
+        attempts from this server rather than from you" — true today, and false on a Fly
+        deployment the moment the flag is turned on, which is a sentence that would have gone
+        quietly wrong rather than visibly.
+      */
+      'rate-limited': {
+        title: 'Too many sign-in attempts have been made recently.',
+        detail:
+          'The identity service is refusing new attempts for a minute or so. The limit counts an address rather than an account, so you can meet it on your first attempt — someone else on the same network, or using this site at the same time, may have spent it.',
+      },
+      unavailable: {
+        title: 'The identity service could not be reached.',
+        detail:
+          'This is our side, not yours. Reading and the lab do not need an account and are unaffected; try signing in again in a few minutes.',
+      },
+      /*
+        THE MECHANISM IS IN `sign-in-problem.ts`, AND THE SCREEN SAYS WHAT IT MEANS (issue
+        #162): an issuer or audience this deployment expects and the signer does not use. What
+        a reader can use of that is whose fault it is and that trying again will not help.
+      */
+      'token-rejected': {
+        title: 'Your password was accepted, but this site could not sign you in.',
+        detail:
+          'The fault is in how this site is set up, not in anything you typed, and trying again will not get past it until it is fixed. Reading needs no account and is unaffected.',
+      },
+      // Said without the token since issue #162, and said once: that the password was
+      // accepted is the fact, so the detail does not add that it was "almost certainly right".
+      unverifiable: {
+        title: 'Your sign-in could not be confirmed.',
+        detail:
+          'Your password was accepted, and then the identity service could not be reached to confirm the sign-in. Try again shortly.',
+      },
+      // P8 — "this deployment" is the operator's name for it; to a reader it is a site with no
+      // accounts (issue #162).
+      'not-configured': {
+        title: 'This site has no accounts.',
+        detail:
+          'There is nothing to sign in to, and nothing else needs an account: the frames and the lab work without one.',
+      },
+    },
+    secondFactorPage: {
+      heading: 'Your code',
+      lede: 'One more step.',
+      standfirst:
+        'That account has a second factor. Your password was accepted; this is the other half, and it is the last thing between you and the page you asked for.',
+      instructions:
+        'Open your authenticator app and enter the current code. If you cannot reach it, one of your recovery codes works instead — each of those can be used once.',
+      codeLabel: 'Authenticator code',
+      recoveryLabel: 'Or a recovery code',
+      submit: 'Finish signing in',
+      noChallenge: {
+        before:
+          'There is no sign-in in progress on this device. The first step is good for about five minutes, and if it has been longer than that nothing is wrong — the account and the password are fine. ',
+        link: 'Start again',
+        after: ' and you will get a fresh one.',
+      },
+      // Whose the reset is, in the reader's terms: the service that holds their account. It
+      // said "the identity service this deployment is configured against" (issue #162).
+      lostBothTitle: 'If you have lost both',
+      lostBoth:
+        'Recovery codes are the way back when the authenticator is gone, and they run out. ab-ovo cannot reset a second factor or issue new recovery codes; only the identity service that holds your account can.',
+      lostBothReading:
+        'Nothing except progress that follows you between machines needs an account at all, so a locked-out reader still has the whole book and the whole lab.',
+      backToSignIn: 'Back to sign in',
+    },
+    registerPage: {
+      heading: 'Create an account',
+      lede: 'An account is optional, and this is where one is made.',
+      standfirst:
+        'The frames, the worksheet and the programs all work without one, and your place is already kept on this device. An account carries that place between machines. That is the whole of what it buys, and nothing you read is recorded against it.',
+      noAccounts: 'This site has no accounts, so there is nothing to create here.',
+      versionsUnavailable:
+        'The identity service could not be asked which terms an account is created under, so the form is not offered — an account made without that answer would be one it refuses. This is our side rather than yours; reading needs no account and is unaffected. Try again in a few minutes.',
+      noticeNext: {
+        before: 'Nothing else is needed here. When the address is confirmed, ',
+        link: 'sign in',
+        after: '.',
+      },
+      signInInstead: {
+        before: 'There is nothing to create, so the form is not offered under it. ',
+        link: 'Sign in',
+        after: ' instead.',
+      },
+      answered: {
+        before:
+          'Submitting the same details again cannot change that answer, so the form is not offered under it. Once the sentence above says an attempt is worth making, ',
+        link: 'start again',
+        after: ' from a fresh page.',
+      },
+      documentsUnavailable:
+        'The Terms of Use and the Privacy Policy an account here is created under cannot be shown right now, so the form is not offered — accepting them unread would not be a consent. This is our side rather than yours; reading needs no account and is unaffected.',
+      askedPrivateNext: {
+        before: ' Make an account and you will be taken straight there — or ',
+        link: 'sign in',
+        after: ' if you already have one.',
+      },
+      takenBack: {
+        before: 'Make an account and you will be taken back to where you were — or ',
+        link: 'sign in',
+        after: ' if you already have one.',
+      },
+      // Where the two go, said as the reader meets it: the service that holds the accounts. It
+      // named "the identity service this deployment is configured against" (issue #162).
+      whereItGoes: {
+        before:
+          'Your address and password go to the identity service that holds the accounts here; this site never stores either. ',
+        link: 'Sign in',
+        after: ' if you already have an account.',
+      },
+      passwordRules:
+        'Eight to a hundred characters, with an upper case and a lower case letter from A to Z, a digit, and one character that is none of those — a space or an accented letter will do.',
+      // "The" Terms, not "the identity service's": authservice records which version was
+      // accepted and publishes no text, so the documents are this deployment's (ADR-0049's
+      // amendment), and the sentence does not name an owner they lack.
+      accept: {
+        before: 'I accept the ',
+        terms: 'Terms of Use',
+        between: ' and ',
+        privacy: 'Privacy Policy',
+        after:
+          '. Each opens in a new tab, so nothing typed here is lost. Those versions are recorded against the account, with the time and this device’s address, because that is what makes the acceptance evidence rather than a claim.',
+      },
+      submit: 'Create account',
+      // ADR-0009 §1, in the consent's words (#153), which is the question the reader was
+      // actually asked — not "a frame, a bundle version and whether an answer matched".
+      whatNotTitle: 'What an account does not do',
+      whatNot:
+        'It does not unlock any part of the book, and it is not how the book is measured. With your agreement, ab-ovo counts whether answers matched the book’s — for each frame, each version of the book and each try, never for each reader — so there is no score of yours to sign in and see, and making an account does not start one.',
+    },
+    registrationProblems: {
+      incomplete: {
+        title: 'Both fields are needed.',
+        detail: 'Enter the email address you want the account under, and a password.',
+      },
+      'consent-required': {
+        title: 'The terms have to be accepted before an account can be created.',
+        detail:
+          'The identity service records which version of its Terms of Use and Privacy Policy an account was created under, and it will not create one without that. Tick the box and submit again.',
+      },
+      'consent-stale': {
+        title: 'The terms changed while this page was open.',
+        detail:
+          'What the form offered to accept is no longer the current version, so nothing was recorded. Load the page again and read what it says before accepting it.',
+      },
+      taken: {
+        title: 'That email address already has an account.',
+        detail:
+          'Nothing was changed and no email was sent. Sign in with it instead — or, if the password is the thing that is missing, the identity service is where it gets reset.',
+      },
+      /*
+        WORDED FROM THE IDENTITY SERVICE'S OWN POLICY, read from its source at the pinned tag
+        rather than guessed (`password-policy.ts`), and in `passwordRules`' words. A sentence
+        saying only "not strong enough" would send the reader round the same refusal with a
+        longer password. Since issue #166 the form checks the same rules before anything is
+        sent, so the service's refusal is reached through the one gap the browser cannot close
+        — a password over a hundred characters the way the service counts them — or by a
+        caller that is not this form.
+      */
+      'weak-password': {
+        title: 'The identity service will not accept that password.',
+        detail:
+          'It asks for eight to a hundred characters, including an upper case and a lower case letter from A to Z, a digit, and one character that is none of those. Nothing was created; choose another and submit again.',
+      },
+      'invalid-email': {
+        title: 'That address was not accepted as an email address.',
+        detail: 'Check it for a typo — a missing @, a stray space — and submit again.',
+      },
+      refused: {
+        title: 'The identity service refused those details.',
+        detail:
+          'It did not say anything this page knows how to explain, and nothing was created. Check the address and the password, and try once more.',
+      },
+      'rate-limited': {
+        title: 'Too many attempts have been made recently.',
+        detail:
+          'The identity service is refusing new ones for a minute or so. The limit counts an address rather than an account, so you can meet it on your first attempt — someone else on the same network may have spent it.',
+      },
+      unavailable: {
+        title: 'The identity service could not be reached.',
+        detail:
+          'This is our side, not yours, and nothing was created. Reading and the worksheet need no account and are unaffected; try again in a few minutes.',
+      },
+      // The mechanism — an issuer or audience this deployment will not accept — is in
+      // `registration-problem.ts` and not on the screen (issue #162).
+      'token-rejected': {
+        title: 'Your account was created, but this site could not sign you in.',
+        detail:
+          'The fault is in how this site is set up, not in anything you typed. The account exists; signing in will fail the same way until the fault is fixed.',
+      },
+      unverifiable: {
+        title: 'Your account was created, but the sign-in could not be confirmed.',
+        detail:
+          'The identity service could not be reached to confirm it. The account exists — wait a moment, then sign in.',
+      },
+      'not-configured': {
+        title: 'This site has no accounts.',
+        detail:
+          'There is nothing to register with, and nothing else needs an account: the frames and the worksheet work without one.',
+      },
+    },
+    registrationNotices: {
+      // "Will not issue a session until…" was the service's account of it (issue #162).
+      'verify-email': {
+        title: 'The account was created. One step is left.',
+        detail:
+          'Signing in waits until the address is confirmed, so a message with a link is on its way to it. Open that, then sign in here.',
+      },
+    },
+    aboutPage: {
+      tabTitle: 'About — ab-ovo',
+      description:
+        'What ab-ovo is, how the reader loop works, and what the instrument measures — the book, never the reader.',
+      lede: 'A book you work, not a book you read.',
+      standfirst: {
+        before: 'ab-ovo encapsulates ',
+        work: 'Mathematics from Zero for the AI Engineer',
+        after:
+          ' — 47 programs of programmed-learning frames, in English and Polish, together with the book’s computer exercises. The frames are Stroud’s: each one asks for something before it tells you anything, and the next frame opens with the answer you should have written.',
+      },
+      antigoalLabel: 'What this instrument is for',
+      antigoalClaim: 'The instrument measures the book, never the reader.',
+      antigoal:
+        'When a frame is answered wrongly by many readers, that is a finding about the frame — its wording, its position, the frame before it — and it goes into revising the book. ab-ovo does not score you, rank you, or build a profile of what you are bad at. There is no leaderboard and there will not be one.',
+      loopTitle: 'The loop',
+      loop: [
+        'Read a frame. It is short by construction — one idea, sometimes one line.',
+        'Work it out, on paper or on the worksheet under a frame that asks for something: a line to answer on, a pad that does the arithmetic and a canvas to draw on. What a frame asks for is a number, a word or a line of working — not a program — so nothing in the loop asks you to write code.',
+        'Commit an answer before you turn over. The commitment is the mechanism; a frame you skimmed teaches nothing, and the book is built on that assumption.',
+        'Reveal the next frame, which opens with the answer. Compare, and carry on or go back one.',
+      ],
+      needsTitle: 'What it needs from you',
+      needs:
+        'Reading needs no account, but it does need this site’s book server: every frame and every reveal is fetched from it as you read, so while it is down, no frame will open. An account is for carrying your place from one device to another.',
+      editionTitle: 'Which edition you read',
+      edition:
+        'Either, and the choice is yours to make rather than ours to guess. The book has two editions, matched frame for frame, and neither comes first — but this site has to open in one of them, so it opens in English and offers the switch at the top of every screen. Change it once and it stays changed: in this browser, and on your account if you have one. Nothing is guessed from your browser’s settings, and each choice on the switch is an ordinary link you can share.',
+      exercisesTitle: 'The computer exercises',
+      exercises:
+        'Some programs have computer exercises from the book, in Python. They run in your browser, they are optional, and they are offered at the end of the program that has them — never beside a frame, because no frame asks you to write code.',
+      colophon:
+        'This page is served entirely from its own origin. No font, stylesheet, script or icon is fetched from anywhere else, and the browser never talks to a backend directly — everything goes through this site.',
+    },
+    notFound: {
+      tabTitle: 'Not found — ab-ovo',
+      title: 'There is no page at this address.',
+      standfirst:
+        'A frame number past the end of a program, a program the book does not have, or an edition it is not published in all answer this way. The book itself is fine, and the programs are one link away.',
+      followedTitle: 'If you followed a link',
+      followed:
+        'A frame’s address ends with its number. Take the number off, with the slash before it, to reach that program’s contents, which list every section and the frame it opens at.',
     },
     raised: (unit, step) =>
       `You had read ${unit} to frame ${step} elsewhere. The furthest frame wins.`,
@@ -914,6 +1535,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     programsLead:
       'Each program is a chapter of the course, made of frames: short, numbered steps, one screen each. Most frames end with a question, and the next frame opens with its answer — so write yours down before you go on.',
     about: 'About ab-ovo',
+    siteNav: 'Site',
     courses: 'Courses',
     coursesLead:
       'Every course ab-ovo offers, each a sequence of programs worked through a frame at a time. Open one to see only its programs; until you do, the Programs page lists the programs of every course.',
@@ -928,6 +1550,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     position: (n, total) => `${n} of ${total}`,
     startAtFrame: (n) => `Start at frame ${n}`,
     continueAtFrame: (n) => `Continue at frame ${n}`,
+    startWith: (unit) => `Start with ${unit}`,
     frame: { one: 'frame', other: 'frames' },
     section: { one: 'section', other: 'sections' },
     program: { one: 'program', other: 'programs' },
@@ -935,6 +1558,14 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     writeItDown: 'Write it down before you read on',
     youWrote: 'You wrote',
     matchesBook: 'Matches the book',
+    showMyWork: (n, kept) =>
+      kept === 'working'
+        ? `Show my working (frame ${n})`
+        : kept === 'sketch'
+          ? `Show my sketch (frame ${n})`
+          : `Show my working and sketch (frame ${n})`,
+    yourSketch: 'Your sketch',
+    sketchNotKept: 'This browser did not keep the sketch.',
     writtenBefore: 'written before the reveal',
     earlierEdition: 'written for an earlier version of the book',
     clearAnswer: 'Clear my answer',
@@ -956,6 +1587,10 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     exportWorksheets: 'Export my worksheets',
     clearWorksheets: 'Clear my worksheets',
     clearWorksheetsConfirm: 'Clear them — this cannot be undone',
+    yourData: 'Your data in this browser',
+    yourDataLead:
+      'What you write on a frame stays in this browser and is never sent anywhere, and your place in the book is kept here too.',
+    toYourData: 'Your data in this browser, and whether your answers are counted',
     programsCrumb: '← Programs',
     goToFrame: 'Go to frame',
     ofTotal: (total) => `of ${total}`,
@@ -1041,6 +1676,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       `This frame has not been reached yet. The furthest read frame in this program is ${furthest}.`,
     readWhileSignedIn: 'You read this while signed in.',
     signInToContinue: 'Sign in to continue',
+    placeKeptHere: 'Your place is kept in this browser.',
+    signInToCarry: 'Sign in to carry it to another device',
     summaryNotReachedBody: (last, furthest) =>
       `The Summary opens at the end of this program, after frame ${last}. The furthest read frame in this program is ${furthest}.`,
     backToLastFrame: (n) => `Back to frame ${n}`,
@@ -1111,8 +1748,10 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       done: 'Zapisana na nim pozycja w lekturze zosta\u0142a usuni\u0119ta, a serwis to\u017csamo\u015bci oznaczy\u0142 konto jako usuni\u0119te i zaplanowa\u0142 jego wymazanie.',
       keepReading: 'Czytaj dalej',
       problemConfirm: 'To nie jest s\u0142owo potwierdzenia. Nic nie zosta\u0142o usuni\u0119te.',
-      problemPasswordRequired: 'To konto ma has\u0142o, a pole by\u0142o puste.',
-      problemPasswordRejected: 'To has\u0142o nie zosta\u0142o przyj\u0119te.',
+      problemPasswordRequired:
+        'To konto ma has\u0142o, a pole by\u0142o puste, wi\u0119c samego konta nie usuni\u0119to. Zapisan\u0105 na nim pozycj\u0119 w lekturze usuni\u0119to przed sprawdzeniem has\u0142a, a ta przegl\u0105darka nie wy\u015ble jej z powrotem.',
+      problemPasswordRejected:
+        'To has\u0142o nie zosta\u0142o przyj\u0119te, wi\u0119c samego konta nie usuni\u0119to. Zapisan\u0105 na nim pozycj\u0119 w lekturze usuni\u0119to przed sprawdzeniem has\u0142a, a ta przegl\u0105darka nie wy\u015ble jej z powrotem.',
       problemSignedOut:
         'Twoja sesja zako\u0144czy\u0142a si\u0119, zanim to si\u0119 uda\u0142o doko\u0144czy\u0107. Zaloguj si\u0119 i spr\u00f3buj ponownie.',
       problemProgress:
@@ -1120,6 +1759,320 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       problemAccount:
         'To, co przechowywa\u0142o twoje konto, zosta\u0142o usuni\u0119te, ale samego konta nie uda\u0142o si\u0119 usun\u0105\u0107. Nadal nale\u017cy do ciebie, a to urz\u0105dzenie nadal wie, gdzie jeste\u015b w ksi\u0105\u017cce. Spr\u00f3buj ponownie.',
       problemUnconfigured: 'Tutaj nie ma kont, wi\u0119c nie ma konta do usuni\u0119cia.',
+    },
+    // `przerabiane ramka po ramce`, as `coursesLead` already says "worked a frame at a time".
+    siteTitle: 'ab-ovo — kursy przerabiane ramka po ramce',
+    emailAddress: 'Adres e-mail',
+    password: 'Hasło',
+    backToReader: 'Wróć do czytania',
+    // `renderError.toPrograms`' words, because it is the same link.
+    openPrograms: 'Przejdź do programów',
+    // The address first, as Polish names the thing it is talking about, and `prosisz` in the
+    // present tense: *prosiłeś* would pick a gender (ADR-0016).
+    askedPrivate: {
+      before: 'Strona ',
+      after: ', o którą prosisz, jest jedną z nielicznych, które muszą wiedzieć, kim jesteś.',
+    },
+    signInPage: {
+      lede: 'Logowanie zachowuje twoją pozycję w lekturze na wszystkich urządzeniach.',
+      standfirst:
+        'Do czytania konto nie jest potrzebne: każda ramka i ćwiczenia komputerowe działają bez niego, a ta przeglądarka już pamięta, gdzie jesteś. Konto przenosi twoją pozycję w lekturze na inne urządzenia i do tego właśnie służy.',
+      askedPrivateSignIn: ' Zaloguj się, a trafisz prosto na nią.',
+      askedPrivateStartAgain: ' Rozpoczęcie od nowa nadal cię tam zaprowadzi.',
+      withdrawn: {
+        before:
+          'Ponowne wpisanie hasła nie rozwiąże opisanego wyżej problemu, więc nie ma tu formularza. Gdy problem minie, ',
+        link: 'zacznij od nowa',
+        after: ' na świeżej stronie logowania.',
+      },
+      useYourAccount: 'Użyj adresu e-mail i hasła podanych przy zakładaniu konta.',
+      // "Where you were" without *byłeś*: the page the reader came here from, in the present.
+      takenBack: 'Zaloguj się, a wrócisz do miejsca, z którego tu przychodzisz.',
+      noAccount: {
+        before: 'Nie masz jeszcze konta? ',
+        link: 'Załóż je',
+        after:
+          ' — wystarczy adres e-mail i hasło, a potrzebne jest tylko do przenoszenia pozycji w lekturze między urządzeniami.',
+      },
+      noAccounts: 'Tutaj nie ma kont, więc nie ma się do czego logować.',
+      backToWhereYouWere: 'Wróć do poprzedniej strony',
+      noPage: {
+        before: 'Pod adresem ',
+        after:
+          ' w ab-ovo nic nie ma — tak kończy się literówka w adresie albo nieaktualny link. To nie jest strona, która wymaga konta, i po zalogowaniu też się nie pojawi.',
+      },
+      whyHereTitle: 'Dlaczego jesteś na stronie logowania',
+      whyHere:
+        'Adres, którego ta witryna nie rozpoznaje, jest traktowany jak prywatny, dopóki nie okaże się inaczej, więc literówka prowadzi tutaj, a nie na stronę, która mówi, że adresu nie ma. Programy, ramki i ćwiczenia komputerowe w ogóle nie wymagają konta.',
+      whyHereNoAccounts: ' A tutaj nie ma kont, więc nie ma się do czego logować.',
+    },
+    // Impersonal wherever the English says what the reader did (`co wpisano`, not *co
+    // wpisałeś*), for ADR-0016's reason; the instructions are imperatives, which pick none.
+    signInProblems: {
+      incomplete: {
+        title: 'Potrzebne są oba pola.',
+        detail: 'Wpisz adres e-mail i hasło do swojego konta.',
+      },
+      rejected: {
+        title: 'Ten adres e-mail i hasło nie zostały przyjęte.',
+        detail:
+          'Sprawdź oba i spróbuj ponownie. Celowo nic więcej tu nie ma: ta strona nie zdradza, które z nich było błędne.',
+      },
+      locked: {
+        title: 'Konto jest zablokowane na kilka minut.',
+        detail:
+          'Zbyt wiele prób logowania się nie powiodło. Odczekaj i spróbuj ponownie — niczego nie trzeba resetować i nie przyjdzie żaden e-mail.',
+      },
+      unverified: {
+        title: 'Ten adres e-mail nie został jeszcze potwierdzony.',
+        detail:
+          'Konto istnieje, a hasło było poprawne. Otwórz wiadomość z potwierdzeniem, którą serwis tożsamości wysłał przy zakładaniu konta, a potem zaloguj się tutaj.',
+      },
+      // `drugi składnik`, the word Polish interfaces use for a second factor.
+      'second-factor': {
+        title: 'To konto używa drugiego składnika, a tego logowania nie udało się dokończyć.',
+        detail:
+          'Hasło było poprawne, a kod nawet nie został sprawdzony: coś między tą witryną a serwisem tożsamości zawiodło na drugim kroku. To problem po naszej stronie, nie twojej, a logowanie trzeba zacząć od hasła jeszcze raz.',
+      },
+      'second-factor-rejected': {
+        title: 'Ten kod nie został przyjęty.',
+        detail:
+          'Sprawdź aktualny kod w aplikacji uwierzytelniającej i wpisz go ponownie — kody zmieniają się co trzydzieści sekund, a taki, który właśnie wygasł, zostanie odrzucony. Działa tu też kod odzyskiwania, jeśli jakiś jeszcze masz.',
+      },
+      'second-factor-expired': {
+        title: 'To logowanie trwało zbyt długo i trzeba je zacząć od nowa.',
+        detail:
+          'Pierwszy krok logowania jest ważny przez około pięć minut. Z kontem i hasłem wszystko w porządku — wpisz je ponownie, a dostaniesz nowy.',
+      },
+      'rate-limited': {
+        title: 'Ostatnio podjęto zbyt wiele prób logowania.',
+        detail:
+          'Serwis tożsamości przez mniej więcej minutę odrzuca nowe próby. Limit dotyczy adresu, a nie konta, więc można na niego trafić już przy pierwszej próbie — mógł go wyczerpać ktoś inny w tej samej sieci albo korzystający z tej witryny w tym samym czasie.',
+      },
+      unavailable: {
+        title: 'Nie udało się połączyć z serwisem tożsamości.',
+        detail:
+          'To problem po naszej stronie, nie twojej. Czytanie i ćwiczenia komputerowe nie wymagają konta i działają bez zmian; spróbuj zalogować się ponownie za kilka minut.',
+      },
+      // `w ustawieniach tej witryny` for "how this site is set up": the reader's word for it,
+      // where *konfiguracja* is the operator's (issue #162).
+      'token-rejected': {
+        title: 'Hasło zostało przyjęte, ale ta witryna nie mogła cię zalogować.',
+        detail:
+          'To błąd w ustawieniach tej witryny, a nie w tym, co wpisano, i ponowne próby nic nie dadzą, dopóki nie zostanie naprawiony. Czytanie nie wymaga konta i działa bez zmian.',
+      },
+      unverifiable: {
+        title: 'Nie udało się potwierdzić logowania.',
+        detail:
+          'Hasło zostało przyjęte, ale potem nie udało się połączyć z serwisem tożsamości, żeby potwierdzić logowanie. Spróbuj ponownie za chwilę.',
+      },
+      'not-configured': {
+        title: 'Tutaj nie ma kont.',
+        detail:
+          'Nie ma się do czego logować, a nic innego nie wymaga konta: ramki i ćwiczenia komputerowe działają bez niego.',
+      },
+    },
+    secondFactorPage: {
+      heading: 'Twój kod',
+      lede: 'Jeszcze jeden krok.',
+      standfirst:
+        'To konto ma drugi składnik logowania. Hasło zostało przyjęte; to jest druga połowa i ostatnia rzecz, która dzieli cię od strony, o którą prosisz.',
+      instructions:
+        'Otwórz aplikację uwierzytelniającą i wpisz aktualny kod. Jeśli nie masz do niej dostępu, zadziała też jeden z kodów odzyskiwania — każdego z nich można użyć tylko raz.',
+      codeLabel: 'Kod z aplikacji uwierzytelniającej',
+      recoveryLabel: 'Albo kod odzyskiwania',
+      submit: 'Dokończ logowanie',
+      noChallenge: {
+        before:
+          'Na tym urządzeniu nie trwa żadne logowanie. Pierwszy krok jest ważny przez około pięć minut, a jeśli minęło więcej, nic złego się nie stało — konto i hasło są w porządku. ',
+        link: 'Zacznij od nowa',
+        after: ', a dostaniesz nowy.',
+      },
+      lostBothTitle: 'Jeśli nie masz ani aplikacji, ani kodów',
+      lostBoth:
+        'Kody odzyskiwania są drogą powrotu, gdy aplikacji uwierzytelniającej już nie ma, i mogą się skończyć. ab-ovo nie może zresetować drugiego składnika ani wydać nowych kodów odzyskiwania; może to zrobić tylko serwis tożsamości, w którym jest twoje konto.',
+      lostBothReading:
+        'Konto jest potrzebne tylko do tego, żeby pozycja w lekturze przechodziła z tobą między urządzeniami, więc bez dostępu do konta nadal masz całą książkę i wszystkie ćwiczenia komputerowe.',
+      backToSignIn: 'Wróć do logowania',
+    },
+    registerPage: {
+      heading: 'Załóż konto',
+      lede: 'Konto jest opcjonalne, a zakłada się je tutaj.',
+      standfirst:
+        'Ramki, notatki i programy działają bez niego, a twoja pozycja w lekturze jest już zapisana na tym urządzeniu. Konto przenosi ją między urządzeniami. Tylko to daje i nic z tego, co czytasz, nie jest na nim zapisywane.',
+      noAccounts: 'Tutaj nie ma kont, więc nie ma tu czego zakładać.',
+      versionsUnavailable:
+        'Nie udało się zapytać serwisu tożsamości, na jakich warunkach zakłada się konto, więc formularza tu nie ma — konto założone bez tej odpowiedzi serwis by odrzucił. To problem po naszej stronie, nie twojej; czytanie nie wymaga konta i działa bez zmian. Spróbuj ponownie za kilka minut.',
+      noticeNext: {
+        before: 'Nic więcej nie trzeba tu robić. Gdy adres zostanie potwierdzony, ',
+        link: 'zaloguj się',
+        after: '.',
+      },
+      signInInstead: {
+        before: 'Nie ma czego zakładać, więc formularza tu nie ma. Zamiast tego ',
+        link: 'zaloguj się',
+        after: '.',
+      },
+      answered: {
+        before:
+          'Ponowne wysłanie tych samych danych nie zmieni tej odpowiedzi, więc formularza tu nie ma. Gdy zdanie powyżej powie, że warto spróbować, ',
+        link: 'zacznij od nowa',
+        after: ' na świeżej stronie.',
+      },
+      documentsUnavailable:
+        'Nie da się teraz pokazać Warunków korzystania ani Polityki prywatności, na których zakłada się tutaj konto, więc formularza tu nie ma — akceptacja bez przeczytania nie byłaby zgodą. To problem po naszej stronie, nie twojej; czytanie nie wymaga konta i działa bez zmian.',
+      askedPrivateNext: {
+        before: ' Załóż konto, a trafisz prosto na nią — albo ',
+        link: 'zaloguj się',
+        after: ', jeśli już je masz.',
+      },
+      takenBack: {
+        before: 'Załóż konto, a wrócisz do miejsca, z którego tu przychodzisz — albo ',
+        link: 'zaloguj się',
+        after: ', jeśli już je masz.',
+      },
+      whereItGoes: {
+        before:
+          'Adres i hasło trafiają do serwisu tożsamości, w którym są tutejsze konta; ta witryna nie przechowuje ani jednego, ani drugiego. ',
+        link: 'Zaloguj się',
+        after: ', jeśli już masz konto.',
+      },
+      // `polska litera` for the English "accented letter": `ą` and `ł` are what a Polish reader
+      // types, and to the identity service they are the symbol, not a letter.
+      passwordRules:
+        'Od ośmiu do stu znaków, w tym wielka i mała litera od A do Z, cyfra oraz jeden znak, który nie jest żadnym z nich — wystarczy spacja albo polska litera.',
+      accept: {
+        before: 'Akceptuję ',
+        terms: 'Warunki korzystania',
+        between: ' i ',
+        privacy: 'Politykę prywatności',
+        after:
+          '. Każdy dokument otwiera się w nowej karcie, więc nic, co tu wpisano, nie przepadnie. Te wersje są zapisywane przy koncie razem z czasem i adresem tego urządzenia, bo dopiero to czyni akceptację dowodem, a nie deklaracją.',
+      },
+      submit: 'Załóż konto',
+      whatNotTitle: 'Czego konto nie robi',
+      // `ocena`, `invitationNoReader`'s word for a score about the reader.
+      whatNot:
+        'Nie odblokowuje żadnej części książki i nie służy do jej mierzenia. Za twoją zgodą ab-ovo liczy, czy odpowiedzi zgadzały się z tymi z książki — osobno dla każdej ramki, każdej wersji książki i każdej próby, nigdy dla poszczególnych czytelników — więc nie ma żadnej twojej oceny, którą można by zobaczyć po zalogowaniu, a założenie konta jej nie tworzy.',
+    },
+    registrationProblems: {
+      incomplete: {
+        title: 'Potrzebne są oba pola.',
+        detail: 'Wpisz adres e-mail, pod którym ma być konto, i hasło.',
+      },
+      'consent-required': {
+        title: 'Przed założeniem konta trzeba zaakceptować warunki.',
+        detail:
+          'Serwis tożsamości zapisuje, w której wersji Warunków korzystania i Polityki prywatności założono konto, i bez tego żadnego nie założy. Zaznacz pole i wyślij ponownie.',
+      },
+      'consent-stale': {
+        title: 'Warunki zmieniły się, gdy ta strona była otwarta.',
+        detail:
+          'To, co formularz proponował do akceptacji, nie jest już aktualną wersją, więc nic nie zostało zapisane. Wczytaj stronę ponownie i przeczytaj, co mówi, zanim to zaakceptujesz.',
+      },
+      taken: {
+        title: 'Ten adres e-mail ma już konto.',
+        detail:
+          'Nic nie zostało zmienione i nie wysłano żadnego e-maila. Zamiast tego zaloguj się nim — a jeśli brakuje hasła, resetuje się je w serwisie tożsamości.',
+      },
+      'weak-password': {
+        title: 'Serwis tożsamości nie przyjmie tego hasła.',
+        detail:
+          'Wymaga od ośmiu do stu znaków, w tym wielkiej i małej litery od A do Z, cyfry i jednego znaku, który nie jest żadnym z nich. Nic nie zostało założone; wybierz inne hasło i wyślij ponownie.',
+      },
+      'invalid-email': {
+        title: 'Ten adres nie został przyjęty jako adres e-mail.',
+        detail: 'Sprawdź, czy nie ma w nim literówki — brakującej @, zbędnej spacji — i wyślij ponownie.',
+      },
+      refused: {
+        title: 'Serwis tożsamości odrzucił te dane.',
+        detail:
+          'Nie podał powodu, który ta strona umiałaby wyjaśnić, i nic nie zostało założone. Sprawdź adres i hasło i spróbuj jeszcze raz.',
+      },
+      'rate-limited': {
+        title: 'Ostatnio podjęto zbyt wiele prób.',
+        detail:
+          'Serwis tożsamości przez mniej więcej minutę odrzuca nowe. Limit dotyczy adresu, a nie konta, więc można na niego trafić już przy pierwszej próbie — mógł go wyczerpać ktoś inny w tej samej sieci.',
+      },
+      unavailable: {
+        title: 'Nie udało się połączyć z serwisem tożsamości.',
+        detail:
+          'To problem po naszej stronie, nie twojej, i nic nie zostało założone. Czytanie i notatki nie wymagają konta i działają bez zmian; spróbuj ponownie za kilka minut.',
+      },
+      'token-rejected': {
+        title: 'Konto zostało założone, ale ta witryna nie mogła cię zalogować.',
+        detail:
+          'To błąd w ustawieniach tej witryny, a nie w tym, co wpisano. Konto istnieje; logowanie będzie się kończyć tak samo, dopóki błąd nie zostanie naprawiony.',
+      },
+      unverifiable: {
+        title: 'Konto zostało założone, ale nie udało się potwierdzić logowania.',
+        detail:
+          'Nie udało się połączyć z serwisem tożsamości, żeby je potwierdzić. Konto istnieje — odczekaj chwilę i zaloguj się.',
+      },
+      'not-configured': {
+        title: 'Tutaj nie ma kont.',
+        detail:
+          'Nie ma gdzie założyć konta, a nic innego go nie wymaga: ramki i notatki działają bez niego.',
+      },
+    },
+    registrationNotices: {
+      // "A message is on its way", not *wysłaliśmy*: the English names no sender either.
+      'verify-email': {
+        title: 'Konto zostało założone. Został jeden krok.',
+        detail:
+          'Logowanie poczeka, aż adres zostanie potwierdzony, więc jest już do niego w drodze wiadomość z linkiem. Otwórz ją, a potem zaloguj się tutaj.',
+      },
+    },
+    aboutPage: {
+      tabTitle: 'O ab-ovo',
+      description:
+        'Czym jest ab-ovo, jak działa pętla czytelnika i co mierzy instrument — książkę, nigdy czytelnika.',
+      // `do przerabiania`, `siteTitle`'s verb for working a course.
+      lede: 'Książka do przerabiania, nie do czytania.',
+      standfirst: {
+        before: 'ab-ovo zawiera książkę ',
+        work: 'Matematyka od zera dla inżyniera AI',
+        after:
+          ' — 47 programów złożonych z ramek nauczania programowanego, po angielsku i po polsku, razem z ćwiczeniami komputerowymi z książki. Ramki są w stylu Strouda: każda o coś prosi, zanim cokolwiek powie, a następna zaczyna się od odpowiedzi, którą należało napisać.',
+      },
+      antigoalLabel: 'Do czego służy ten instrument',
+      // `mierzy książkę, nigdy czytelnika` — `deleteAccount.cannotReach`'s words for the same
+      // promise, with the English sentence's subject — so the promise is said one way.
+      antigoalClaim: 'Instrument mierzy książkę, nigdy czytelnika.',
+      // `twoich słabych stron` rather than "what you are bad at": *w czym jesteś słaby* would
+      // pick a gender (ADR-0016).
+      antigoal:
+        'Gdy na ramkę błędnie odpowiada wielu czytelników, jest to wniosek o samej ramce — o jej sformułowaniu, miejscu, ramce przed nią — i trafia on do poprawek książki. ab-ovo cię nie ocenia, nie klasyfikuje i nie buduje profilu twoich słabych stron. Nie ma rankingu i nie będzie.',
+      loopTitle: 'Pętla',
+      loop: [
+        'Przeczytaj ramkę. Z założenia jest krótka — jedna myśl, czasem jedna linijka.',
+        // `notatki`, `obliczenia` and `szkic` are the worksheet's own words for its three parts
+        // (`exportWorksheets`, `workingLabel`, `showMySketch`).
+        'Policz to na papierze albo w notatkach pod ramką, która o coś prosi: jest tam linijka na odpowiedź, miejsce na obliczenia, które samo liczy, i miejsce na szkic. Ramka prosi o liczbę, słowo albo linijkę obliczeń — nie o program — więc nic w pętli nie wymaga pisania kodu.',
+        // `zanim przejdziesz dalej`, `writeItDown`'s own words for the same moment.
+        'Zdecyduj się na odpowiedź, zanim przejdziesz dalej. To zobowiązanie jest mechanizmem: pobieżnie przejrzana ramka niczego nie uczy, a książka jest zbudowana na tym założeniu.',
+        'Odsłoń następną ramkę, która zaczyna się od odpowiedzi. Porównaj i czytaj dalej albo cofnij się o jedną.',
+      ],
+      needsTitle: 'Czego to od ciebie wymaga',
+      needs:
+        'Czytanie nie wymaga konta, ale wymaga serwera książki tej witryny: każda ramka i każde odsłonięcie jest z niego pobierane w trakcie czytania, więc gdy nie działa, żadna ramka się nie otworzy. Konto służy do przenoszenia pozycji w lekturze z jednego urządzenia na drugie.',
+      editionTitle: 'W jakiej edycji czytasz',
+      edition:
+        'W dowolnej — wybór należy do ciebie, a nie do naszych domysłów. Książka ma dwie edycje, zgodne ramka w ramkę, i żadna nie jest pierwsza — ale witryna musi się otworzyć w jednej z nich, więc otwiera się po angielsku i na górze każdego ekranu oferuje przełącznik. Zmień edycję raz, a zmiana zostanie: w tej przeglądarce i na twoim koncie, jeśli je masz. Nic nie jest zgadywane z ustawień przeglądarki, a każda pozycja przełącznika to zwykły link, który można komuś wysłać.',
+      exercisesTitle: 'Ćwiczenia komputerowe',
+      exercises:
+        'Niektóre programy mają ćwiczenia komputerowe z książki, w Pythonie. Działają w przeglądarce, są opcjonalne i pojawiają się na końcu programu, który je ma — nigdy obok ramki, bo żadna ramka nie prosi o pisanie kodu.',
+      colophon:
+        'Ta strona jest w całości serwowana z własnego źródła. Żadna czcionka, arkusz stylów, skrypt ani ikona nie są pobierane skądinąd, a przeglądarka nigdy nie łączy się bezpośrednio z backendem — wszystko przechodzi przez tę witrynę.',
+    },
+    notFound: {
+      tabTitle: 'Nie znaleziono — ab-ovo',
+      title: 'Pod tym adresem nie ma strony.',
+      standfirst:
+        'Numer ramki za końcem programu, program, którego książka nie ma, albo edycja, w której jej nie wydano — każde z nich prowadzi tutaj. Z książką wszystko w porządku, a programy są o jeden link stąd.',
+      followedTitle: 'Jeśli trafiasz tu z linku',
+      followed:
+        'Adres ramki kończy się jej numerem. Usuń ten numer razem z ukośnikiem przed nim, a trafisz do spisu treści programu, gdzie jest każda sekcja i ramka, od której się zaczyna.',
     },
     // Impersonal, `przeczytano`, and so is `readWhileSignedIn`: the second person past tense
     // is gendered in Polish (`przeczytałeś`, `przeczytałaś`), and the book does not know who
@@ -1144,6 +2097,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     programsLead:
       'Każdy program to rozdział kursu złożony z ramek: krótkich, ponumerowanych kroków, po jednym na ekran. Większość ramek kończy się pytaniem, a następna ramka zaczyna się od odpowiedzi — więc napisz swoją, zanim przejdziesz dalej.',
     about: 'O ab-ovo',
+    // `Witryna`, the site as a whole, and not `Serwis`: `serwis tożsamości` is this table's
+    // identity service (`deleteAccount`), and a landmark sharing its word would read as that.
+    siteNav: 'Witryna',
     courses: 'Kursy',
     coursesLead:
       'Wszystkie kursy dost\u0119pne w ab-ovo \u2014 ka\u017cdy to ci\u0105g program\u00f3w przerabianych ramka po ramce. Otw\u00f3rz kurs, a zobaczysz tylko jego programy; dop\u00f3ki tego nie zrobisz, strona z programami pokazuje programy wszystkich kurs\u00f3w.',
@@ -1165,6 +2121,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     // forwards — and it was `backToLastFrame`'s wording too, so two controls with opposite
     // jobs spoke alike. `od`, as in `startAtFrame` one line up, so the pair reads as a pair.
     continueAtFrame: (n) => `Kontynuuj od ramki ${n}`,
+    // `od`, the pair above's own preposition: the card starts a reader FROM a program.
+    startWith: (unit) => `Zacznij od ${unit}`,
     frame: { one: 'ramka', few: 'ramki', many: 'ramek', other: 'ramki' },
     section: { one: 'sekcja', few: 'sekcje', many: 'sekcji', other: 'sekcji' },
     // `other` is the genitive singular, as it is for the two nouns above: it is the form a
@@ -1184,6 +2142,18 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     // supplies the colon.
     youWrote: 'Twoja odpowiedź',
     matchesBook: 'Tak jak w książce',
+    // The nouns the panes already use — `obliczenia` is `workingLabel`'s and `mój szkic` is
+    // `showMySketch`'s — so the reveal does not name the reader's work a second way; `ramka`
+    // in the nominative, as `frameNumbered` has it. `Pokaż` is imperative and `moje` agrees
+    // with the noun, so nothing here picks a gender for the reader (ADR-0016).
+    showMyWork: (n, kept) =>
+      kept === 'working'
+        ? `Pokaż moje obliczenia (ramka ${n})`
+        : kept === 'sketch'
+          ? `Pokaż mój szkic (ramka ${n})`
+          : `Pokaż moje obliczenia i szkic (ramka ${n})`,
+    yourSketch: 'Twój szkic',
+    sketchNotKept: 'Ta przeglądarka nie zachowała szkicu.',
     writtenBefore: 'zapisane przed odsłonięciem',
     earlierEdition: 'zapisane przy wcześniejszej wersji książki',
     clearAnswer: 'Wyczyść moją odpowiedź',
@@ -1215,6 +2185,13 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     exportWorksheets: 'Pobierz moje notatki',
     clearWorksheets: 'Wyczyść moje notatki',
     clearWorksheetsConfirm: 'Wyczyść — nie da się cofnąć',
+    yourData: 'Twoje dane w tej przeglądarce',
+    // `accountOverview.worksheets`' own first clause, and `pozycja w lekturze`, the table's
+    // word for the reader's place (docs/how-to/translate-a-document.md). The passive `są
+    // liczone` below chooses no gender for the reader, as `nothingLost` does.
+    yourDataLead:
+      'To, co piszesz przy ramkach, zostaje w tej przeglądarce i nigdzie nie jest wysyłane, a twoja pozycja w lekturze też jest tu zapisana.',
+    toYourData: 'Twoje dane w tej przeglądarce i to, czy twoje odpowiedzi są liczone',
     programsCrumb: '← Programy',
     goToFrame: 'Przejdź do ramki',
     ofTotal: (total) => `z ${total}`,
@@ -1326,6 +2303,10 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       `Ta ramka nie jest jeszcze dostępna. Najdalsza przeczytana ramka w tym programie: ${furthest}.`,
     readWhileSignedIn: 'Tę ramkę przeczytano po zalogowaniu.',
     signInToContinue: 'Zaloguj się, aby czytać dalej',
+    // `pozycja w lekturze`, as `yourDataLead` says it; `ją` is that `pozycja`, so the link
+    // reads on from the sentence before it. An imperative, which picks no gender.
+    placeKeptHere: 'Twoja pozycja w lekturze jest zapisana w tej przeglądarce.',
+    signInToCarry: 'Zaloguj się, aby zabrać ją na inne urządzenie',
     summaryNotReachedBody: (last, furthest) =>
       `Podsumowanie otworzy się na końcu tego programu, po ramce ${last}. Najdalsza przeczytana ramka w tym programie: ${furthest}.`,
     backToLastFrame: (n) => `Wróć do ramki ${n}`,
@@ -1408,6 +2389,20 @@ export interface Chrome {
   readonly account: string;
   readonly accountOverview: AccountOverviewStrings;
   readonly deleteAccount: DeleteAccountStrings;
+  readonly siteTitle: string;
+  readonly emailAddress: string;
+  readonly password: string;
+  readonly backToReader: string;
+  readonly openPrograms: string;
+  readonly askedPrivate: Around;
+  readonly signInPage: SignInPageStrings;
+  readonly signInProblems: Readonly<Record<SignInProblemCode, Explained>>;
+  readonly secondFactorPage: SecondFactorPageStrings;
+  readonly registerPage: RegisterPageStrings;
+  readonly registrationProblems: Readonly<Record<RegistrationProblemCode, Explained>>;
+  readonly registrationNotices: Readonly<Record<RegistrationNoticeCode, Explained>>;
+  readonly aboutPage: AboutPageStrings;
+  readonly notFound: NotFoundStrings;
   readonly consent: ConsentStrings;
   readonly raised: (unit: string, step: number) => string;
   readonly dismiss: string;
@@ -1420,6 +2415,7 @@ export interface Chrome {
   readonly programs: string;
   readonly programsLead: string;
   readonly about: string;
+  readonly siteNav: string;
   readonly courses: string;
   readonly coursesLead: string;
   readonly allCourses: string;
@@ -1433,6 +2429,7 @@ export interface Chrome {
   readonly position: (n: number, total: number) => string;
   readonly startAtFrame: (n: number) => string;
   readonly continueAtFrame: (n: number) => string;
+  readonly startWith: (unit: string) => string;
   readonly frames: (n: number) => string;
   readonly sections: (n: number) => string;
   /**
@@ -1445,6 +2442,9 @@ export interface Chrome {
   readonly writeItDown: string;
   readonly youWrote: string;
   readonly matchesBook: string;
+  readonly showMyWork: (n: number, kept: 'working' | 'sketch' | 'both') => string;
+  readonly yourSketch: string;
+  readonly sketchNotKept: string;
   readonly writtenBefore: string;
   readonly earlierEdition: string;
   readonly clearAnswer: string;
@@ -1467,6 +2467,9 @@ export interface Chrome {
   readonly exportWorksheets: string;
   readonly clearWorksheets: string;
   readonly clearWorksheetsConfirm: string;
+  readonly yourData: string;
+  readonly yourDataLead: string;
+  readonly toYourData: string;
   readonly programsCrumb: string;
   readonly goToFrame: string;
   readonly ofTotal: (total: number) => string;
@@ -1510,6 +2513,8 @@ export interface Chrome {
   readonly renderError: RenderErrorStrings;
   readonly readWhileSignedIn: string;
   readonly signInToContinue: string;
+  readonly placeKeptHere: string;
+  readonly signInToCarry: string;
   readonly readingUnavailable: string;
   readonly notReachedHeading: string;
   readonly notReachedBody: (furthest: number) => string;

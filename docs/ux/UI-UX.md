@@ -73,9 +73,11 @@ brings the frame back into the same page once it answers, and its way back is th
 contents. The page knows that cause because the reading page marks the error it throws;
 any other failure gets the same page saying the fault is on this side, not in the address,
 and names no cause it cannot know. Its tab is the frame's number and never "Not found",
-which is a claim about the address nobody could check. The 404 is English only, on
-`/login`'s reasoning; the 500 follows the edition in the address and is English where there
-is none, and `app/global-error.tsx` says the same when the root layout itself fails. The
+which is a claim about the address nobody could check. Both follow the edition in the
+address; where it names none, the 404 speaks the edition this browser remembers and the 500
+speaks English (issue #166 moved the 404's words into `chrome.ts`, and the 404's tab is titled
+in its edition too), and `app/global-error.tsx` says the same as the 500 when the root layout
+itself fails. The
 middleware is private by default, so an unknown *top-level* path meets the sign-in redirect
 first; the pages are met under `/read/` and `/lab/`, and anywhere at all once signed in.
 `specs/navigation.spec.ts` asserts the 404's way back, and `specs/error-page.spec.ts` the
@@ -123,42 +125,34 @@ under the heading and a legend above the grid. Neither is the argument coming ba
 program and a frame are is orientation, and why the loop is built the way it is stays on
 `/about`.
 
+**And its top is the reader's way in, with the reader's data at the foot** (#165). The same
+audit found the masthead, once a reader had read one frame, holding *Courses*, *About ab-ovo*,
+the theme switch, `F01 · Continue at frame 3`, *Export my worksheets*, *Clear my worksheets*,
+*Forget where I am* and *Sign in*: two rows at 1280 px, two destructive controls beside the
+page's primary action, all in a `<nav>` named after the heading. A reader with no record was
+offered no way to begin, the consent question was some 3170 px down a desktop's page, and
+nothing told a reader with no account where their place was kept. The masthead now holds the
+ways off the page and nothing that destroys anything, a card above the grid is the way in for
+every reader, and the reader's own controls are a block of their own at the foot, beside the
+question.
+
 Its parts, in order:
 
-1. **The top row** — the wordmark, a link to `/courses`, a link to `/about`, the theme
-   switch, the resume control, *Export my worksheets*, the two destructive controls, and the
-   account control, in that order. The two links that lead somewhere else come first and the
-   controls that are about this reader follow them; *Courses* is offered whatever the
-   deployment pins, because a page listing one course states what ab-ovo carries where a
-   switch with one position would be a control that cannot move (ADR-0048). The theme switch
-   is the one control in the row rendered on the server
-   ([ADR-0048](../adr/0048-the-theme-is-a-choice-and-the-system-is-a-position.md)), so it
-   comes before everything that is not: all that follows it is read from the browser and
-   arrives after the first paint, so the row extends rather than the page moving (the
-   constraint issue #7 put on the resume controls). The
-   resume control — `F01 · Continue at frame 12` — is the index's one filled control: for
-   a reader who has been here before it is the page's primary action, and it used to be
-   the faintest thing on it. It names the program last read and that program's furthest
-   frame, not the frame last looked at, so going back to re-read does not move it (#157).
-   It is padded outwards and the padding given back as margin, so the row it arrives in
-   does not grow. *Export my worksheets* is one press and sits
-   before the two ways to lose something, because nothing it does is destructive
-   ([ADR-0055](../adr/0055-the-notebook-exports-what-stands-today-never-a-history.md)); it
-   renders nothing when there is nothing to export. *Clear my worksheets* and *Forget where
-   I am* are both two presses — the control renames itself to say what the second press does —
-   and *Forget* is the last of them, furthest from the link a returning reader is reaching
-   for ([ADR-0047](../adr/0047-forgetting-is-two-presses-because-it-reaches-the-account.md)).
-   An armed control stands down when the reader presses another control, moves focus
-   elsewhere or presses Esc, and not on a clock: the five seconds it used to allow were a
-   time limit a screen-reader or switch user could run out of. A press on bare page does not
-   stand it down, because both second labels are longer than the first and can carry the
-   control onto the next line of this row, so a second press where the first one was would
-   land on the space it left; that press is a miss, and the control is still armed where it
-   went. Reserving the longer label's width instead would widen a row that already arrives
-   after the first paint. The first press is also said aloud,
-   through a polite live region beside the control, because a button renamed under focus is
-   silent in most screen readers; and since both controls are gone once they have acted,
-   focus then lands on the page's heading rather than on nothing (#151).
+1. **The masthead** — the wordmark, the theme switch, and a navigation named *Site* that holds
+   a link to `/courses`, a link to `/about` and the account control, in that order: one row at
+   1280 px with every control a reader can have, and nothing in it that destroys anything
+   (#165, `specs/landing.spec.ts`). The navigation was named *Programs*, the heading's word,
+   and held the theme switch and both destructive controls as well. *Courses* is offered
+   whatever the deployment pins, because a page listing one course states what ab-ovo carries
+   where a switch with one position would be a control that cannot move (ADR-0048). The theme
+   switch is outside the navigation, because it goes nowhere, and before it: it is rendered on
+   the server ([ADR-0048](../adr/0048-the-theme-is-a-choice-and-the-system-is-a-position.md)),
+   and the account control, which is read from the session after the first paint, arrives at
+   the row's end, so the row extends rather than the page moving (the constraint issue #7 put
+   on the resume controls). On a phone the wordmark and the switch share the first line and
+   the navigation has the second to itself, with room for *Sign in*, or *Account* and
+   *Sign out*, when they land. The reading screens keep the theme one press down in *Reading
+   settings*; this page has no such panel, so here the switch is three quiet words.
 2. **The heading and the language control**, sharing a line — where the three-position
    edition switch used to be, and the only language control on the page
    ([ADR-0052](../adr/0052-one-language-control-remembered-and-english-by-default.md)). It
@@ -181,7 +175,46 @@ Its parts, in order:
    the loop runs on: most frames end with a question and the next one opens with its answer,
    so the answer is written down first. In the book's own terms, from its *How to use this
    book*. It is the same for every reader, so it is rendered on the server and moves nothing.
-4. **The course's title**, at level two, in the reader's edition — and beside it the one
+4. **The card** — *Start with F01* under the first program's title for a reader with no
+   place, and `F01 · Continue at frame 12` under the title of the program last read for one
+   with a place (#165, `components/programs/start-card.tsx`). It is the index's one filled
+   control. It comes after the line saying that no program will open, above, and after the shut
+   notice, under 6 below, because a reader told that no program will open should read that
+   before a button that opens one. *Start* is rendered on the server, so it is in the first
+   paint: the first program of the first course on screen, which is open to everybody
+   ([ADR-0051](../adr/0051-a-program-opens-when-the-one-before-it-has-been-opened.md)), and it
+   opens that program's contents, whose own filled control is *Start at frame 1*. *Continue*
+   opens the furthest frame of the program last read — not the frame last looked at, so going
+   back to re-read does not move it (#157) — and it is the only link on the page into the
+   reader's frame (`specs/progress.spec.ts`): the tile's `at frame 12` is text. The record is in
+   the browser, so *Continue* replaces *Start* after hydration **in the same box** — the title
+   is one line in every state, cut with an ellipsis where it does not fit, and the button's row
+   is a finger tall — so the swap moves nothing. The link is named by its own words and never by
+   the title, which would make it a second link called by the tile's name; the title is its
+   description instead, read out with it. A place in a program this deployment no longer lists
+   is no place to continue to, and the card offers the start.
+
+   **The quiet line**, for a reader with no account who has a place: *Your place is kept in
+   this browser. Sign in to carry it to another device.* The audit found that nothing told that
+   reader where their place was kept. It is offered only where this deployment can sign a
+   reader in (`backendConfigured('authservice')`, P8), only once the session has answered that
+   nobody is signed in — never while the answer is on its way — and never to a signed-in
+   reader. It arrives after the session's round trip, so it goes only where arriving moves
+   nothing: beside *Continue*, in the button's own row, from 48rem up, where both editions fit
+   in two lines inside the row's height. On a phone there is no room beside the button, and
+   under it the line pushed the grid down once the session answered, on every visit — so there
+   it is at the foot instead, ending the sentence of *Your data in this browser* (7, below),
+   which says for every reader that the place is kept in this browser. Its link returns to this
+   page as the reader left it, as the account control's does.
+
+   **Under the card, a link: *Your data in this browser, and whether your answers are
+   counted*** — the way from the first screen to the block at the foot and the consent question
+   beside it, which the audit measured some 3170 px down a desktop's page and further down a
+   phone's. It is rendered on the server, and it is the same words for every reader whatever
+   they have answered: a way to where a setting is, not a second ask
+   ([ADR-0022](../adr/0022-consent-is-local-versioned-and-three-valued.md)). The question
+   itself stays at the foot.
+5. **The course's title**, at level two, in the reader's edition — and beside it the one
    control that narrows: *Only this course* on the index that is showing every one,
    *All courses* on the index narrowed to one. It is absent entirely while the deployment
    pins a single course, where both labels would lead to the page the reader is on. The
@@ -205,7 +238,7 @@ Its parts, in order:
    because taking it away after hydration would move the grid up under them — the shift
    `specs/progress.spec.ts` bounds — and every clause is still true for them. It is not a
    `status` and never takes focus.
-5. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
+6. **The grid**, in the book's own runs — *Foundation* and *Main sequence* by id prefix, or
    the parts themselves once a bundle carries them (`groupsOf`, in `@ab-ovo/web-kit`'s `bundle.ts`,
    which the MCP server's `list_programs` shares, so the two surfaces divide the book one
    way). Each run is headed at level three, under the track's title. One tile per program,
@@ -215,7 +248,7 @@ Its parts, in order:
    reader has a place in says so beside the id — `at frame 12` — as text arriving after
    hydration into a row that already has its height. It is a **position and never a
    progress** (ADR-0041): no fraction, no bar, nothing about how far, and not a link,
-   because the way back into the frame is the resume control and `progress.spec.ts` holds
+   because the way back into the frame is the card's *Continue* and `progress.spec.ts` holds
    the page to exactly one. The run headings are set at 13 px and a tile's id and its note at
    12 px (`program-grid.module.css`); the run headings were 11 px until #163 asked for labels
    of 12–13 px or more.
@@ -260,15 +293,40 @@ Its parts, in order:
    again, one program further back. A reloaded address paints that first program's link, and
    the reader's record then moves it to their own nearest one. The link is a finger's target
    (`specs/targets.spec.ts`).
-6. **The consent invitation**, last, absent from the first paint, and an invitation rather
-   than a gate — a reader who came to read reaches the programs first and the question
-   afterwards. The same invitation is on a program's summary, below the list, where a
-   reader has just finished the frames the instrument is about; one record, so an answer
-   on either page is the answer on both (ADR-0022, Consequences). It is worded for a reader
-   rather than a schema — what is counted, and that neither the answer nor the reader ever
-   is — and the accept says what it does: *Yes, count my answers anonymously* (#153).
-   Answering replaces the card with one line, a `role="status"` region that takes focus,
-   so the button that went away does not leave a keyboard reader at the top of the page.
+7. **Your data in this browser**, at the foot, under its own heading (#165): one sentence saying
+   that what the reader writes on a frame stays in this browser and is never sent anywhere, and
+   that their place in the book is kept here too, and under it the reader's own controls —
+   *Export my worksheets*, *Clear my worksheets* and *Forget where I am*, which were in the
+   masthead. They read this browser, so none is in the first paint, and each renders nothing
+   when there is nothing to act on; arriving at the foot, below every tile, they move nothing a
+   reader is looking at. *Export my worksheets* is one press and comes first, because nothing
+   it does is destructive
+   ([ADR-0055](../adr/0055-the-notebook-exports-what-stands-today-never-a-history.md)); it is
+   on `/account` too, beside the sentence saying the worksheets never reach the account.
+   *Clear my worksheets* and *Forget where I am* are both two presses — the control renames
+   itself to say what the second press does — and *Forget* is last, a screen away from the
+   *Continue* a returning reader is reaching for
+   ([ADR-0047](../adr/0047-forgetting-is-two-presses-because-it-reaches-the-account.md)).
+   **Each is on a line of its own, start-aligned**, so a second label longer than the first
+   grows the control to the right of where it was pressed, and the second press, where the
+   first one was, lands on it; in the masthead's wrapping row the longer label could carry the
+   control onto the next line. An armed control stands down when the reader presses another
+   control, moves focus elsewhere or presses Esc, and not on a clock: the five seconds it used
+   to allow were a time limit a screen-reader or switch user could run out of. A press on bare
+   page is a miss, not a cancel. The first press is also said aloud, through a polite live
+   region beside the control, because a button renamed under focus is silent in most screen
+   readers; and since both controls are gone once they have acted, focus then lands on this
+   block's heading rather than on nothing (#151). Each is a finger's target (#147).
+8. **The consent invitation**, last, beside *Your data in this browser*, absent from the first
+   paint, and an invitation rather than a gate — a reader who came to read reaches the programs
+   first and the question afterwards, and the link under the card reaches it in one press
+   (#165). The same invitation is on a program's summary, below the list, where a reader has
+   just finished the frames the instrument is about; one record, so an answer on either page is
+   the answer on both (ADR-0022, Consequences). It is worded for a reader rather than a schema —
+   what is counted, and that neither the answer nor the reader ever is — and the accept says
+   what it does: *Yes, count my answers anonymously* (#153). Answering replaces the invitation
+   with one line, a `role="status"` region that takes focus, so the button that went away does
+   not leave a keyboard reader at the top of the page.
 
 `/read` is a 308 to this page and the deep links under it do not move.
 
@@ -327,6 +385,15 @@ the order IS the argument:
 8. **Colophon** — that the page is served entirely from its own origin, and the repository
    link.
 
+**All of it is in the reader's edition** (issue #166): *O ab-ovo* on the Polish index opened
+this page in English, and a commitment made in one edition is made to half the readers. The
+index's and `/courses`' links carry `?lang=`, the page falls back to the edition this browser
+remembers, and the words — the anti-goal included — are `chrome.ts`'s. The integration panel is
+the exception and says so with `lang="en"`: what it reports is the API's own English words. The
+page reads a cookie to do this, so it is rendered per request where it used to be prerendered
+([ADR-0067](../adr/0067-the-documents-language-follows-the-edition-and-the-page-sets-it.md)
+records what changed in the build).
+
 ### `/login` — a form, and no token in the document
 
 `web/app/src/app/login/page.tsx`. **This section claimed for several weeks that there was no
@@ -354,8 +421,23 @@ explained by "the issuer or audience this app expects". The heading now says wha
 is for, a site with no identity service says it has no accounts, and a fault in the setup is
 called that, with the mechanism kept in `lib/sign-in-problem.ts`. `/login/2fa` and
 `/register` had the same sentences and were rewritten with it, and so were
-`lib/registration-problem.ts`'s. They are still English only; 660 in
-[the order](#the-order) moves them into `chrome.ts`.
+`lib/registration-problem.ts`'s.
+
+**It speaks the reader's edition** (660 in [the order](#the-order)). From the Polish index,
+*Zaloguj się* opened an English page. Every link into `/login`, `/login/2fa` and `/register`
+carries `?lang=` now (`lib/account-href.ts`) — the index's *Sign in*, a frame's *Sign in to
+continue*, each of these pages' links to the others — and each resolves it as the index does,
+falling back to the edition this browser remembers for an address that carries none, such as
+the gate's own bounce. Their words, and the problem sentences, are `chrome.ts`'s in both
+editions; `lib/sign-in-problem.ts` and `lib/registration-problem.ts` keep the codes and what
+each code does. The forms carry the edition on in a hidden field, so the page a route answers
+with is in it too. The smaller frictions went with it: the wordmark is the way home on these
+pages and the account's, as it was everywhere else; *Start again* on the code screen keeps the
+destination, where it used to link a bare `/login`; and a failed attempt keeps the address in
+the field — not through the URL, which [ADR-0018](../adr/0018-password-sign-in-happens-server-side.md)
+refused, but through a minute-long HttpOnly cookie this origin's server sets on the redirect
+and scopes to `/login`. `specs/edition-pages.spec.ts` follows a Polish reader through all of
+it.
 
 **It says what stands at the address it was handed**, because the gate cannot. The middleware
 is private by default, so a mistyped `/nope` is redirected here exactly as `/account` is, and
@@ -417,9 +499,14 @@ form is what `/register` shows from the AppHost today (ADR-0049's amendment).
 The outcomes are a closed set in this app's words, looked up from a code on the query string
 exactly as `/login`'s are. Three of them are separated because each is fixed somewhere
 different — an address that already has an account (the form is withdrawn and the sign-in
-link offered instead), a password the policy refuses (the page states all five rules rather
-than waiting to refuse again), and a consent that was not given. A fourth, *the account was
-created and the address needs verifying*, is a NOTICE and not a problem: reporting it in the
+link offered instead), a password the policy refuses (the page states the rules rather than
+waiting to refuse again), and a consent that was not given. **The rules are the password
+field's description** (`aria-describedby`), so a screen reader says them with the field, and
+since issue #166 the browser checks them before anything is sent: the length as `minlength`,
+the four kinds of character and the hundred-character ceiling as `pattern`, all read from the
+pinned authservice's source (`lib/password-policy.ts`, which also names the passwords the two
+count differently: those with astral characters in them, such as emoji). A fourth, *the account
+was created and the address needs verifying*, is a NOTICE and not a problem: reporting it in the
 warning panel would tell a reader whose registration succeeded that it had failed.
 
 **A registration grants no role**, which is a fact about authservice rather than a choice
@@ -652,9 +739,11 @@ from any of them, and `←` on frame 1 did nothing while the button beside it we
 `specs/reading-loop.spec.ts` holds the rest.
 
 **The frame itself** is quiet: the heading it is under, a real `<h2>` set small in the UI
-face; the answer box labelled with the frame it answers; the book's text; and, on a frame that
-asks, the answer line under a visible `Your answer` label with `Clear my answer` beside it, the
-cue under the line, and the two pane buttons. **The cue is *The next frame answers this.*** —
+face; the answer box labelled with the frame it answers, with the reader's own line under the
+book's answer and, when the frame before holds working or a sketch, a way to them (#168,
+below); the book's text; and, on a frame that asks, the answer line under a visible
+`Your answer` label with `Clear my answer` beside it, the cue under the line, and the two pane
+buttons. **The cue is *The next frame answers this.*** —
 on every frame that asks, for good, and tied to the line as its description
 (`aria-describedby`), so a screen reader hears it with `Your answer`. It is what `Next` does
 there, said where the reader acts on it, because the placeholder that used to be the frame's
@@ -774,6 +863,56 @@ fonts loaded, at every width from 360 to 560 px, against the same button with it
 label taken out). `Clear my answer` is the same two presses, keeps its box the same way at
 no cost — its first label is the longer — and sends focus to the line it emptied.
 
+#### The next frame shows the reader's working and sketch, not only their line
+
+*You wrote* puts the reader's line beside the book's answer, and that was half of what they
+had to compare: the pad's lines and the drawing stayed on the frame before. **When that frame
+holds either, the answer box goes on for one more row under *You wrote*** (#168) — *Show my
+working (frame 3)*, *Show my sketch (frame 3)* or *Show my working and sketch (frame 3)*, in
+the reader's edition — and opening it shows the lines as they were written and the drawing
+again, on the background the reader chose, by the pad's own painter
+(`components/read/sketch-paint.ts`). A frame whose predecessor holds neither offers nothing
+new.
+
+What it shows is read from where this browser already keeps it, under the keys the panes wrote:
+the lines from the frame's sheet, the strokes from IndexedDB, and those only when the row is
+opened.
+Nothing is fetched, sent or newly stored
+([ADR-0039](../adr/0039-a-frame-accepts-the-readers-answer-as-a-commitment.md)); where the
+browser kept the flag saying a sketch was drawn and not the strokes, the row says so instead
+of drawing an empty box. The lines carry no results: the pad runs when asked, and a column of
+the machine's arithmetic beside the book's answer is not the comparison the reveal is for. It
+never opens itself
+([ADR-0043](../adr/0043-a-sketch-is-strokes-and-the-pane-never-opens-itself.md)).
+
+**Its arrival moves nothing, by one rule for each way a frame arrives.** Whether there is
+anything to offer is in the reader's browser, so the page learns it there, and when depends on
+how the frame came. A frame the router brings — *Next*, `→` — is rendered in the browser, where
+the sheet is read before the first paint: nothing is reserved, and the row is there when there
+is something behind it and absent when there is not. A frame the server rendered — a reload, a
+deep link — is painted before anything can read the sheet, so the server renders the closed
+row unseen and the browser shows it in the same box. That costs a loaded frame with nothing to
+offer a row's gap under the answer box, which a frame reached by *Next* does not have: 28 px
+from 360 px up, where the longest label takes one line, and 48 px at 320 px, where it takes
+two — the same in both editions, and the same box the row has when it is shown (measured on
+2026-09-26 against a production build in Chromium, on F01's frame 2, at 320, 360, 390, 414,
+768 and 1280 px). The row's labels share one cell, the arrangement *Show my sketch* has
+beside *Draw it*, so the words it settles on never change its height.
+
+It is the box's last row to the eye — the box's tint and edge, the box's corner — and the box's
+sibling in the document, so the heading a turn lands on is still described by the book's answer
+and the reader's line (#159), and the row is the next Tab stop after them. Its one control is a
+line of text, so the row is a line tall rather than a button's height, and the box a press
+lands in is drawn round it a finger tall — reaching up over the answer box's own padding and
+never over the reader's words, so the focus ring stays on the label rather than crossing the
+*You wrote* line above it. On paper it prints as the panes do: open, under its label and joined
+to the box; shut — or held unseen — not at all, and the box then prints with its own gap and
+corner, as it does on a frame with no row at all. `specs/reveal-working.spec.ts` holds both
+halves of the issue, both ways a frame arrives, and the paper: on a turn, the frame's answer
+line is where the new frame's first animation frame put it; on a load, the server's page, read
+with no script, puts the row and the frame below it where the hydrated page does; printed, a
+row that prints as nothing leaves the box as a frame with no row prints it.
+
 #### The lab pane is not on this route any more
 
 `.../lab/<id>/<step>` is deleted, with `frame-beside-lab.tsx`, the check offer on every frame,
@@ -856,7 +995,7 @@ end it. It answers what a reader asks of an account, in the order they ask it:
    per-reader view the second of the [rules every screen inherits](#rules-every-screen-inherits)
    forbids — that rule is about the instrument, which has no reader in it to show — and it
    shows a reader nothing but where they left off. A program this deployment no longer
-   carries is left out, as the index's resume control leaves it out; an API that does not
+   carries is left out, as the index's card leaves it out of *Continue*; an API that does not
    answer is a sentence saying so, never an account shown as holding nothing
    (`lib/server/account-places.ts`).
 3. **What it does not hold.** The worksheets stay in this browser and never reach the
@@ -983,14 +1122,15 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   links are 44 px by their line and padding. The language control, a pair of words on a line,
   is padded to about 44 px and given the space back with a matching negative margin, so its
   hit area grew and nothing moved. Off the reading screens the same pattern holds the index's
-  and the courses page's top-row links, the quiet buttons beside them (*Forget where I am*,
-  *Export my worksheets*, the account's), the consent line's toggle and the sync notice's
-  *Got it* (#147), *Go to frame N* (#157) and the shut notice's way on (#163). The index's
-  filled *Continue* is the one exception to the pattern, because a fill is painted over its
-  padding: the link is the padded target and a span inside it is the button a reader sees, at
-  the size it always had. The index's language control is not an exception but a different
-  shape: it is drawn as outlined boxes 44 px tall, so its target is the box a reader sees
-  (#163).
+  and the courses page's top-row links and the account's quiet buttons beside them, the
+  consent line's toggle and the sync notice's *Got it* (#147), *Go to frame N* (#157), the
+  shut notice's way on (#163), and the index's controls that #165 moved or added: the reader's
+  own in *Your data in this browser* (*Export my worksheets*, *Clear my worksheets*, *Forget
+  where I am*), the link under the card and the quiet line's *Sign in to carry it to another
+  device*. The index's filled *Continue* needs no such pattern: since #165 it is the card's
+  button, 44 px as drawn, where it used to be a padded link round a painted span. The index's
+  language control is not an exception but a different shape: it is drawn as outlined boxes
+  44 px tall, so its target is the box a reader sees (#163).
   `specs/reading.spec.ts` and `specs/pager.spec.ts` measure the box on the reading screens, and
   `specs/targets.spec.ts` off them, at 390 px and 1280 px — where it also checks that a press
   on a control's words lands on that control, since grown boxes overlap wherever a row wraps.
@@ -1063,6 +1203,17 @@ it. They are listed here rather than left to be rediscovered per screen.
    moves nothing. The root layout cannot render it, because it does not know the edition;
    a new page that forgets it is a page a keyboard reader tabs through the masthead of
    (`specs/skip-link.spec.ts`).
+10. **A page says which language it is in, wherever a reader or a screen reader meets it.**
+    Its `<main lang>`, from the first byte; its tab, titled in that language, because the tab
+    is what the router's announcer reads out after every client navigation; and the
+    document's own `lang`, which the skip link sets in the browser and puts back when the page
+    goes ([ADR-0067](../adr/0067-the-documents-language-follows-the-edition-and-the-page-sets-it.md)).
+    The root layout says English and cannot do better: it sees neither the query nor the
+    path, and is not rendered again when a reader changes edition without a page load. **And
+    nothing prefetches a page whose tab follows the edition through the query or the
+    remembered choice** — the index, `/courses`, `/about`, the sign-in pages, the account's:
+    Next serves the head it prefetched for a path whatever edition the reader has changed to
+    since, so a prefetched link titled the next page in the edition they had left.
 
 ---
 
@@ -1265,9 +1416,9 @@ by construction.*
 | 3.1 | **Local progress first.** Place in the book, kept in the browser, with no account. | A reader who never signs in still returns to where they were. |
 | 3.2 | **Sign-in**, against `authservice` ([ADR-0004](../adr/0004-identity-authservice-and-anonymous-reader.md)). Built one step stronger than this row planned: the form posts *credentials* to `/api/auth/login`, which talks to `authservice` server-side, so the tokens are never in the document at all rather than passing through it on the way to `/api/auth/session` ([ADR-0018](../adr/0018-password-sign-in-happens-server-side.md)). No JavaScript on the happy path. | `/login` becomes a form. The middleware's redirect target is finally a screen that does something. |
 | 3.2a | **Registration**, which 3.2 assumed and no row planned — `/register` was in the middleware's public list with no page behind it, so an account could only be made with `curl`. The form is `/login`'s, one step earlier, plus the consent `AuthController.Register` requires: the versions come from the instance and are checked against what the reader was shown before anything is recorded ([ADR-0049](../adr/0049-registering-is-a-page-here-and-the-consent-comes-from-the-instance.md)). A registration grants no role, so a local machine gets its example accounts from a dashboard resource instead ([ADR-0050](../adr/0050-the-example-accounts-are-a-resource-you-start.md)). | A reader with no account can get one without leaving the product, and a fresh clone can reach every authorization group the API declares. |
-| 3.3 | **Synchronisation**, local progress to the account and back, with a conflict rule a reader can predict. The rule is **furthest-frame-wins**, applied on the service as well as in the browser, and the sentence saying so is on the screen where the conflict happened ([ADR-0019](../adr/0019-furthest-frame-wins.md)). Forgetting reaches both copies or is not finished. | Two machines converge. Signing out leaves local progress intact. |
+| 3.3 | **Synchronisation**, local progress to the account and back, with a conflict rule a reader can predict. The rule is **furthest-frame-wins**, applied on the service as well as in the browser, and the sentence saying so is on the screen where the conflict happened ([ADR-0019](../adr/0019-furthest-frame-wins.md)). Forgetting reaches every copy or is not finished. Since #176 the browser sends the account nothing: what the web app puts on the account comes from the API's own writes, the places read without an account are adopted at sign-in, and a forget reaches that anonymous cursor as well as the browser and, for a signed-in reader, the account ([ADR-0068](../adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md)). | Two machines converge. Signing out leaves local progress intact. |
 | 3.4 | **Progress is state, not evidence.** It is the reader's own, readable by that reader, and is never an input to an aggregate ([ADR-0009](../adr/0009-the-instrument-measures-the-book.md) §1). Held by three enforcements rather than a promise — a runtime refusal of any query that does not pin one reader, a closed column list, and every key leading with the reader ([ADR-0020](../adr/0020-no-aggregate-touches-the-progress-store.md)). | No aggregate query touches the progress store. |
-| 3.5 | **Account deletion** that deletes. The progress goes first and the account second, because the likely failure is a mistyped password and that order is the one whose worst case repairs itself ([ADR-0021](../adr/0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md)). The screen says what goes, what stays, what no deletion can reach, and that the identity service marks and schedules rather than erases. | It removes the account and the progress, and it says plainly that it cannot retract an anonymous outcome already folded into a rate. |
+| 3.5 | **Account deletion** that deletes. The progress goes first and the account second, because the likely failure is a mistyped password and that order was the one whose worst case repaired itself ([ADR-0021](../adr/0021-deletion-removes-the-progress-first-and-says-what-it-cannot-reach.md)); since [ADR-0068](../adr/0068-the-account-adopts-the-places-read-without-it-at-sign-in-and-the-browser-sends-it-none.md) that failure costs the account's copy of the reader's places, the refusal says so, and the order stands because the other order's worst case is still rows nobody can remove. The screen says what goes, what stays, what no deletion can reach, and that the identity service marks and schedules rather than erases. | It removes the account and the progress, and it says plainly that it cannot retract an anonymous outcome already folded into a rate. |
 
 ### Phase 4 — the instrument
 

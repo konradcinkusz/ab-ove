@@ -129,7 +129,7 @@ is the one that needs no JavaScript
 
 ### The landing page is the index
 
-![The landing page. A wordmark; links to Courses and About, a three-position theme switch reading System, Light and Dark, and a link to Sign in; then the Programs heading, with the language control at the end of its line — English and polski as two outlined boxes, English filled. Under the heading, a paragraph saying what a program and a frame are; then the course's title, and under it a line saying that programs open in order, that the Main sequence is built on the Foundation programs, and that one frame of a program opens the next. Then a grid of tiles — one per program, each with its id, the program that opens it, its title, and how many frames and sections it has. At the foot of the page, a card headed "Help fix the book?" with two buttons.](assets/screenshots/landing-english.png)
+![The landing page. A wordmark; a three-position theme switch reading System, Light and Dark; links to Courses and About ab-ovo, and a link to Sign in; then the Programs heading, with the language control at the end of its line — English and polski as two outlined boxes, English filled. Under the heading, a paragraph saying what a program and a frame are; then a card holding the first program's title, "Numbers, powers and roots", over a filled "Start with F01" button, and under the card a link reading "Your data in this browser, and whether your answers are counted". Then the course's title, and under it a line saying that programs open in order, that the Main sequence is built on the Foundation programs, and that one frame of a program opens the next. Then a grid of tiles — one per program, each with its id, the program that opens it, its title, and how many frames and sections it has. At the foot of the page, under the heading "Your data in this browser", a sentence saying that what is written on a frame stays in this browser and that the place in the book is kept there too; and last a card headed "Help fix the book?" with two buttons.](assets/screenshots/landing-english.png)
 
 The first screen is the thing a reader came for, one navigation from a frame instead of two
 ([ADR-0036](adr/0036-the-landing-page-is-the-index-and-the-argument-is-a-page.md)). It is a
@@ -149,8 +149,14 @@ frame of a program opens the next (#163,
 [ADR-0065](adr/0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md)).
 It says so in text on the first screen, not in a tooltip a finger never reaches.
 
-The card at the foot is the **consent invitation**, and it is last on purpose: a reader who
-came to read reaches the programs first and the question afterwards. It is an invitation
+The card above the grid is the way in (#165): *Start with F01* on a first visit, as in the
+picture, and `F01 · Continue at frame 12` in the same box once a place is stored. Under it,
+one press from the first screen, is the way to *Your data in this browser* at the foot, and to
+the question beside it. That is where the worksheets are exported or cleared and the place in
+the book forgotten — by controls that used to sit in the masthead, beside *Continue*.
+
+The last card on the page is the **consent invitation**, and it is last on purpose: a reader
+who came to read reaches the programs first and the question afterwards. It is an invitation
 rather than a gate, it is three-valued — granted, declined, not yet asked — and it lives in
 the browser ([ADR-0022](adr/0022-consent-is-local-versioned-and-three-valued.md)).
 
@@ -164,7 +170,7 @@ inferred from `Accept-Language` — and **it is remembered**: in this browser, a
 reader's account when they have one, so the question is asked once rather than on every
 screen (ADR-0052).
 
-![The landing page in dark mode.](assets/screenshots/landing-dark.png)
+![The landing page in dark mode, for a reader who has read to frame 3 of F01: the card says "F01 · Continue at frame 3", F01's tile says "at frame 3", and "Forget where I am" is at the foot, beside the question.](assets/screenshots/landing-dark.png)
 
 ### A program's contents
 

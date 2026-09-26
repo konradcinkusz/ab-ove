@@ -39,8 +39,11 @@ import styles from '../../legal.module.css';
  * PUBLIC, and carved out of the login redirect by `middleware.ts` (FRONTEND-BFF.md §4): a
  * reader deciding whether to make an account has, by definition, none yet.
  *
- * English only in its own words, as `/register` is and for its reason; the document itself
- * is in whatever language the deployment published it in.
+ * English only in its own words, and the document itself is in whatever language the
+ * deployment published it in. `/register` names the two documents in the reader's edition
+ * since issue #166 (`chrome.registerPage.accept`) and links here unchanged: this page is a
+ * frame round a text this repository does not write, and it did not move with the pages that
+ * issue named.
  */
 
 export const dynamic = 'force-dynamic';
@@ -97,8 +100,12 @@ export default async function LegalDocumentPage({
   return (
     <main className="shell">
       <header className="masthead">
+        {/*
+          English, as the document is — and its links to the index do not prefetch, because
+          the index titles its tab in the edition this browser remembers (ADR-0067).
+        */}
         <p className="wordmark">
-          <Link href="/">
+          <Link href="/" prefetch={false}>
             ab<span>-</span>ovo
           </Link>
         </p>
@@ -119,7 +126,7 @@ export default async function LegalDocumentPage({
 
       <footer className="colophon">
         <p>
-          <Link href="/">Back to the reader</Link>
+          <Link href="/" prefetch={false}>Back to the reader</Link>
         </p>
       </footer>
     </main>
