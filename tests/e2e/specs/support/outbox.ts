@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
 /**
@@ -57,7 +59,7 @@ export async function followEmailLink(page: Page, address: string, label: string
  * `UNCONFIRMED_DOMAIN`. Fresh for `register.ts`'s `freshEmail` reason: the fixture remembers.
  */
 export const unconfirmedAddress = (): string =>
-  `new-reader-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@unconfirmed.example.test`;
+  `new-reader-${Date.now()}-${randomUUID().slice(0, 8)}@unconfirmed.example.test`;
 
 /**
  * The consent the fixture requires of a registration — `ConsentSettings`' defaults, which its

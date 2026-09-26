@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { expect, test, type Page } from '@playwright/test';
 
 import { track } from './support/bundle.ts';
@@ -170,7 +172,7 @@ const THE_INDEX = /\/(\?lang=[a-z]{2,3})?$/;
  * `registration.spec.ts` drives, by the same field names.
  */
 async function aFreshAccount(page: Page): Promise<Credentials> {
-  const email = `furthest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.test`;
+  const email = `furthest-${Date.now()}-${randomUUID().slice(0, 8)}@example.test`;
   await page.goto('/register');
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
