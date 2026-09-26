@@ -20,10 +20,12 @@ import { signIn } from './support/sign-in.ts';
  * compose from that file now, and `lib/theme/tokens.test.ts` refuses a stylesheet that paints a
  * button of its own.
  *
- * What this file holds is what a reader gets: every one of those buttons has the SAME SHAPE as
- * the index's *Start*, which was the shared set's before this change — the same corner, height,
- * face, size and weight — is at least a finger tall, and answers the pointer with a change of
- * fill or edge rather than a filter.
+ * What this file holds is what a reader gets, for each button it names below: it has the SAME
+ * SHAPE as the index's *Start*, which was the shared set's before this change — the same corner,
+ * height, face, size and weight — is at least a finger tall, and answers the pointer with a
+ * change of fill or edge rather than a filter. The second step of signing in is not among them:
+ * its form renders only for a browser holding a challenge, and its submit is the sign-in form's
+ * own class (`credentials-form.module.css`'s `.submit`), measured on `/login`.
  * ──────────────────────────────────────────────────────────────────────────────────────────
  *
  * WHAT IT DOES NOT ASSERT: colours. A primary is filled and a secondary is outlined, and which is
@@ -101,7 +103,7 @@ test.describe('one family of buttons off the reading screens', () => {
     await isOfTheFamily(page, page.getByRole('button', { name: en.consent.decline }), 'the decline', reference);
   });
 
-  test('the argument’s and the 404’s way to the programs are the shared set’s @core', async ({ page }) => {
+  test('the argument’s and the 404s’ ways to the programs are the shared set’s @core', async ({ page }) => {
     const reference = await referenceShape(page);
 
     await page.goto('/about?lang=en');
@@ -109,6 +111,16 @@ test.describe('one family of buttons off the reading screens', () => {
 
     await page.goto(`/read/${track}/NOPE/en`);
     await isOfTheFamily(page, page.getByRole('link', { name: en.openPrograms, exact: true }), 'the 404’s way back', reference);
+
+    // The 404 under `/legal/`: English only, as the documents are, and in words of its own rather
+    // than `chrome.ts`'s (`app/legal/not-found.tsx`), so they are the page's here too.
+    await page.goto('/legal/nope/1');
+    await isOfTheFamily(
+      page,
+      page.getByRole('main').getByRole('link', { name: 'Open the programs', exact: true }),
+      'the legal 404’s way back',
+      reference,
+    );
 
     await page.goto('/nope');
     await isOfTheFamily(

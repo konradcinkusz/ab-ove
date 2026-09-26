@@ -61,7 +61,7 @@ was first written with.
 | `adopt-at-sign-in.spec.ts` | reading without an account and then signing in — with a password, with a second factor, or by making an account — leaves the account at the frame read, with no step sent from the browser, and the place read without an account still there after signing out; and a forget — with no account, with one, or cut off once — that no later sign-in brings back (ADR-0068) |
 | `app-icon.spec.ts` | the tab shows the mark, served by this origin to a reader with no account, and `theme-color` is the paper in each scheme |
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
-| `buttons.spec.ts` | every button off the reading screens — the index's, the argument's, the 404's, the error page's, the lab's, the forms' and the account's — has the shared set's shape, a finger tall, and answers the pointer with a change of fill or edge, never a filter (#169) |
+| `buttons.spec.ts` | the buttons it names off the reading screens — the index's, the argument's, the 404s', the error page's, the lab's, the sign-in and registration forms' and the account's — have the shared set's shape, are a finger tall, and answer the pointer with a change of fill or edge, never a filter (#169) |
 | `consent.spec.ts` | being asked once whether answers may be counted, the question one press from the index's first screen, focus landing on the answer given, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
 | `edition-pages.spec.ts` | from the Polish index, sign-in, registration and `/about` are Polish, down to the document's own language and the tab's title — after the edition changes in place too, because no link into those pages prefetches them (ADR-0067); a failed sign-in keeps the address without the URL; restarting the second step keeps the destination; a new password's rules are its field's description, checked by the browser (#166) |
@@ -78,7 +78,7 @@ was first written with.
 | `lab-p01.spec.ts` | the Lab P1 pane, Python in the browser |
 | `landing.spec.ts` | the landing page is the programs, one click from one of them, and a first-time reader is told what they are looking at |
 | `language-choice.spec.ts` | the same frame in the other edition, and the choice remembered |
-| `masthead.spec.ts` | every page off the reading screens has the one masthead — one header, first in its `<main>`, the wordmark leading home in the page's edition, the heading after it — in one place, with a finger-sized way home (#169) |
+| `masthead.spec.ts` | every page off the reading screens has the one masthead — one header, first in its `<main>`, the wordmark leading home in the page's edition, the heading after it — in one place, with a way home and a trail a finger can press (#169) |
 | `narrow-screen.spec.ts` | the reading surface at 360 px: nothing scrolls sideways, and the loop still runs |
 | `navigation.spec.ts` | finding a program, opening it, and coming back to the same frame; the contents lock what the gate would refuse, and the summary opens only from the last frame |
 | `no-backend.spec.ts` | the app with no backend in reach of the browser, and the index saying that no program will open |

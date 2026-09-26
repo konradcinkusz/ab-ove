@@ -157,8 +157,11 @@ the book forgotten — by controls that used to sit in the masthead, beside *Con
 
 The row at the top is the masthead every page off the reading screens has, and the buttons on
 the page — the card's, the question's two answers — are the reading screens' own family
-(#169): the pictures of `/about`, sign-in and the lab below carry the same row, with the
-wordmark leading back here, in the same place, and the same buttons.
+(#169). The pictures of `/about`, sign-in and the lab below carry the same row, with the
+wordmark leading back here: in the same place on `/about` and sign-in, which are laid out at
+this page's width, and nearer the left edge on the lab, laid out wider because it is a workbench.
+`/about`'s *Open the programs* and the lab's bar are the same family of buttons; the sign-in
+picture, taken with no identity service, has no button to show.
 
 The last card on the page is the **consent invitation**, and it is last on purpose: a reader
 who came to read reaches the programs first and the question afterwards. It is an invitation

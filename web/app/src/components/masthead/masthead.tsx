@@ -87,8 +87,9 @@ export interface MastheadProps {
  * (`index-href.ts` has the measurement); the trail's steps lead to pages rendered in English
  * whatever the edition, and are held to the same rule rather than to an exception.
  *
- * A Server Component with no state of its own, so it renders in the first paint wherever it is
- * put — inside the 404's and the error page's Client Components too.
+ * A shared component with no state and no directive of its own: a Server Component under a
+ * server page, and part of the client bundle under the lab's, the 404's and the error page's
+ * Client Components. Either way it renders in the first paint.
  */
 export function Masthead({
   language,

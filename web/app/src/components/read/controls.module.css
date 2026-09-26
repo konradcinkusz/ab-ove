@@ -15,8 +15,9 @@
  * own — a 3 px radius, about 34 px tall, a brightness on hover — and the lab's buttons yet
  * another shape at 4 px. They compose from this file now, as the reading screens' modules do,
  * and `lib/theme/tokens.test.ts` refuses a control painted as a button anywhere outside it and
- * the reading screens' own modules. It lives beside the screens it was first drawn for, which
- * is where `composes:` has always found it.
+ * the reading screens' own modules — a class that composes a button or the field from here
+ * counted as a control, since that `composes:` is all such a class says about itself. It lives
+ * beside the screens it was first drawn for, which is where `composes:` has always found it.
  *
  * So there is one shape here, in weights, with a tone and a field beside it:
  *
@@ -96,11 +97,11 @@
  * THE FILL LEANS TOWARD THE INK UNDER THE POINTER, AND FURTHER WHILE PRESSED — NOT A
  * BRIGHTNESS (#169). This was `filter: brightness(1.08)`, and the family it replaced brightened
  * too; a filter is a change of a few percent that the eye barely separates from the button at
- * rest, and it is the one hover `lib/theme/tokens.test.ts` now refuses everywhere. Mixed with
- * `--ink`, the light scheme's blue darkens and the dark scheme's lightens, so in both the
- * label's contrast only grows — the same file computes it from the percentages here. A
- * browser without `color-mix()` drops the declaration and the button keeps its fill: a hover
- * lost and nothing else (P8).
+ * rest, and `lib/theme/tokens.test.ts` now refuses one on every control in every stylesheet,
+ * these weights included. Mixed with `--ink`, the light scheme's blue darkens and the dark
+ * scheme's lightens, so in both the label's contrast only grows — the same file computes it
+ * from the percentages here. A browser without `color-mix()` drops the declaration and the
+ * button keeps its fill: a hover lost and nothing else (P8).
  */
 .primary:not(:disabled):hover {
   background: color-mix(in srgb, var(--accent) 86%, var(--ink));

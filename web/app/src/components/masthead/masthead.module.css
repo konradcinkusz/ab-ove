@@ -76,7 +76,8 @@
 /*
  * A step of the trail that leads somewhere — `lab` on a lab's own page. Underlined, as a link in
  * this row is, and a finger's target by the home link's pattern: the half-rem each side is what
- * takes `lab` past 44 px across, and the slash's margins keep two neighbours' boxes apart.
+ * takes `lab` past 44 px across, by a pixel or two, which `specs/masthead.spec.ts` measures; and
+ * the slash's margins keep two neighbours' boxes apart.
  */
 .crumb {
   color: inherit;

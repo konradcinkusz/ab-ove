@@ -159,8 +159,12 @@ przyciskami, które stały dawniej w nagłówku strony, tuż obok *Continue*.
 
 Wiersz u góry to nagłówek strony, który ma każda strona poza ekranami czytania, a przyciski na
 stronie — przycisk karty i dwie odpowiedzi na pytanie — należą do tej samej rodziny co przyciski
-ekranów czytania (#169): obrazki `/about`, logowania i laboratorium niżej mają ten sam wiersz,
-ze znakiem prowadzącym z powrotem tutaj, w tym samym miejscu, i te same przyciski.
+ekranów czytania (#169). Obrazki `/about`, logowania i laboratorium niżej mają ten sam wiersz,
+ze znakiem prowadzącym z powrotem tutaj: w tym samym miejscu na `/about` i przy logowaniu, które
+są złożone na szerokość tej strony, a bliżej lewej krawędzi w laboratorium, złożonym szerzej, bo
+jest warsztatem. *Open the programs* na `/about` i pasek laboratorium to ta sama rodzina
+przycisków; obrazek logowania, zrobiony bez serwisu tożsamości, nie ma żadnego przycisku do
+pokazania.
 
 Ostatnia karta na stronie to **zaproszenie do zgody** i stoi na końcu celowo: czytelnik, który
 przyszedł czytać, dociera najpierw do programów, a do pytania potem. Jest zaproszeniem, a nie

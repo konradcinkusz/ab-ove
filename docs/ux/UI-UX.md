@@ -1043,9 +1043,9 @@ whose interval is not disjoint from the row below it. Session-gated, and there i
 view on it — by architectural absence rather than by policy.
 
 Its header is the one masthead (#169) — `ab-ovo / instrument / P01` on a unit's ranking — and
-its column is the measure inside the frame every page off the reading screens shares, where the
-whole page used to be the measure wide and centred, with its header in the middle of a
-desktop's screen.
+its column is the measure inside the index's frame, which every page off the reading screens
+shares except the lab's wider workbench. The whole page used to be the measure wide and
+centred, with its header in the middle of a desktop's screen.
 
 **Two instruments reach it now, and the screen says which produced each cell.** A lab check
 asks whether the reader's code satisfied an assertion; a worksheet answer asks whether the
@@ -1123,17 +1123,22 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   height, and the skip link, which is the outlined button once it shows. The link-weight controls
   are not buttons and stay words: the theme switch, the account's *Sign in*, the quiet controls in
   *Your data in this browser*. `lib/theme/tokens.test.ts` fails any stylesheet outside the
-  reading screens' own modules that paints a control's fill, edge or corner itself, and names
-  its one exception: the index's edition choice (#163), two addresses drawn as joined boxes with
-  the set's tokens and its ring. `specs/buttons.spec.ts` holds every button off the reading
-  screens to the shape of the index's *Start*.
+  reading screens' own modules that paints a control's fill, edge or corner itself — a control
+  being what its stylesheet says is one: a focus rule, a pointer cursor, or a `composes:` of the
+  shared set's buttons or field, which is all most of them say. It lifts that only for what its
+  `DRAWN_ON_PURPOSE` names, each with its reason: the index's edition choice (#163), two
+  addresses drawn as joined boxes with the set's tokens and its ring. `specs/buttons.spec.ts`
+  measures the buttons it names in a browser against the shape of the index's *Start*: the
+  index's, `/about`'s, the 404s', the error page's, the lab's, the sign-in and registration
+  forms', and the account's.
 - **A hover is a change of fill or edge, never a brightness** (#169). A filled button's fill
   leans toward the ink under the pointer and further while it is pressed (`color-mix()`, which
   darkens the light scheme's blue and lightens the dark scheme's, so the label's contrast only
   grows); an outlined one's edge and label take the accent. `filter: brightness()` was the
   hover of both families, the reading screens' `Next` included, and it is a change of a few
   percent the eye barely separates from the button at rest. The same test fails a filter on any
-  control in any state, and computes the label's contrast on each hovered fill in both schemes.
+  control in any state and any stylesheet, the shared set's own included, and computes the
+  label's contrast on each filled button's fill under the pointer and the press, in both schemes.
 - **One page header off the reading screens** (`components/masthead/masthead.tsx`, #169). The
   index's row, on every page: the wordmark, which is the way home in the page's edition —
   except on the index, which is home — then, on the lab's and the author's pages, the trail to
@@ -1170,7 +1175,8 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   `--rule`, a hairline the eye reads as decoration. A floor says nothing about a control that
   never uses the token, so the same file also reads every stylesheet in the app and fails when
   a control draws its edge in `--rule` — a control being anything its own stylesheet gives a
-  `:focus-visible` rule or a pointer cursor. The sign-in and account fields, the consent's
+  `:focus-visible` rule or a pointer cursor, or that composes a control, as a field or a button
+  composed from the shared set does (#169). The sign-in and account fields, the consent's
   *No thanks* and the sketch's canvas were still `--rule` until #146, and axe, which has no
   rule for 1.4.11, had passed all of them.
 - **A line a reader writes on is `--ink-faint`; a rule that is only a rule is `--rule`.**
@@ -1197,7 +1203,8 @@ sans, code in mono, all three from the reader's own system — there is no webfo
   `specs/reading.spec.ts` and `specs/pager.spec.ts` measure the box on the reading screens, and
   `specs/targets.spec.ts` off them, at 390 px and 1280 px — where it also checks that a press
   on a control's words lands on that control, since grown boxes overlap wherever a row wraps;
-  `specs/masthead.spec.ts` measures the wordmark, and `specs/buttons.spec.ts` the buttons.
+  `specs/masthead.spec.ts` measures the wordmark and the lab's trail, and `specs/buttons.spec.ts`
+  the buttons it names.
 - **A move made from a frame's pager or its program map, or from *Not there yet*, says when
   it is under way** (#160). A frame is rendered on the server, per request, from live calls to
   the API, so each move to one is a round trip, and the page being left stays on screen until

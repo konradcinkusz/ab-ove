@@ -310,6 +310,10 @@ for (const [scheme, selector] of [
  *
  *   - a class the same stylesheet gives a `:focus-visible` rule — it takes keyboard focus;
  *   - a class the same stylesheet gives `cursor: pointer` — it is pressed;
+ *   - a class that COMPOSES a control: one of the shared set's buttons or its field, from
+ *     `components/read/controls.module.css`, or a control of its own stylesheet (#169). Since
+ *     #169 that is all most buttons and fields say about themselves — the pointer and the ring
+ *     are the set's — so a scan that stopped at the stylesheet's own rules would see none of them;
  *   - a form element, a button, a link or a `<summary>` named by its element.
  *
  * `--rule` stays right for everything else: a panel, a card, a divider, a `<kbd>`. Those are
@@ -325,6 +329,12 @@ for (const [scheme, selector] of [
 interface CssRule {
   readonly selectors: readonly string[];
   readonly declarations: Readonly<Record<string, string>>;
+  /**
+   * Every `composes:` in the rule, in order. CSS Modules take one per stylesheet a class is
+   * composed from, and `declarations` keeps only a property's last value — so a second
+   * `composes:` there would hide the first, and with it a button's being one (#169).
+   */
+  readonly composes: readonly string[];
   /** The preludes of the at-rules around it, outermost first: `@media print`, and so on. */
   readonly within: readonly string[];
 }
@@ -382,13 +392,16 @@ function rulesOf(css: string): CssRule[] {
         if (!/^@(-webkit-)?keyframes/.test(prelude)) walk(open + 1, close, [...within, prelude]);
       } else {
         const declarations: Record<string, string> = {};
+        const composes: string[] = [];
         for (const line of text.slice(open + 1, close).split(';')) {
           const [property, ...rest] = line.split(':');
           const name = property?.trim();
           if (!name || rest.length === 0) continue;
-          declarations[name] = rest.join(':').trim().replace(/\s+/g, ' ');
+          const value = rest.join(':').trim().replace(/\s+/g, ' ');
+          declarations[name] = value;
+          if (name === 'composes') composes.push(value);
         }
-        rules.push({ selectors: splitTopLevel(prelude, /,/), declarations, within });
+        rules.push({ selectors: splitTopLevel(prelude, /,/), declarations, composes, within });
       }
       at = close + 1;
     }
@@ -425,11 +438,32 @@ const EDGE = /^border(-(top|right|bottom|left|block|inline)(-(start|end))?)?(-co
 const FOCUS_VISIBLE = /:focus-visible/;
 
 /**
- * The classes a stylesheet marks as controls: those it gives a rule matching `focus`, and those
- * it gives `cursor: pointer`. Per stylesheet, for the reason above.
+ * A `:focus` or a `:focus-visible` rule, and not `:focus-within` — the button scan's mark below,
+ * which is how the skip link says it takes focus, and the one the shared set is read with (#169).
  */
-function controlClassesOf(rules: readonly CssRule[], focus: RegExp): Set<string> {
+const FOCUS = /:focus(-visible)?(?![\w-])/;
+
+/** What a `composes:` names: its classes, and the stylesheet they are from — none for its own. */
+function composedFrom(value: string): { readonly names: readonly string[]; readonly from: string | undefined } {
+  const [names = '', from] = value.split(/\s+from\s+/);
+  return {
+    names: names.split(' ').filter((name) => name.length > 0).map((name) => `.${name}`),
+    from: from?.replace(/^(['"])(.*)\1$/, '$2'),
+  };
+}
+
+/** A `from` that reaches the shared set — by whatever relative path the module takes to it. */
+const FROM_THE_SHARED_SET = /(^|\/)controls\.module\.css$/;
+
+/**
+ * The classes a stylesheet marks as controls: those it gives a rule matching `focus`, those it
+ * gives `cursor: pointer`, and those that compose a control — one of `shared` from the shared
+ * set's file, or one this stylesheet marks. Per stylesheet, for the reason above.
+ */
+function controlClassesOf(rules: readonly CssRule[], focus: RegExp, shared: ReadonlySet<string>): Set<string> {
   const controls = new Set<string>();
+  /** Each class that composes classes of its own stylesheet, with the classes it composes. */
+  const composingOwn: (readonly [string, readonly string[]])[] = [];
   for (const rule of rules) {
     for (const selector of rule.selectors) {
       const compounds = compoundsOf(selector);
@@ -438,11 +472,48 @@ function controlClassesOf(rules: readonly CssRule[], focus: RegExp): Set<string>
         if (name && focus.test(compound)) controls.add(name);
       }
       const subject = classOf(compounds.at(-1) ?? '');
-      if (subject && rule.declarations['cursor'] === 'pointer') controls.add(subject);
+      if (!subject) continue;
+      if (rule.declarations['cursor'] === 'pointer') controls.add(subject);
+      for (const value of rule.composes) {
+        const { names, from } = composedFrom(value);
+        if (from === undefined) composingOwn.push([subject, names]);
+        else if (FROM_THE_SHARED_SET.test(from) && names.some((name) => shared.has(name))) controls.add(subject);
+      }
+    }
+  }
+  // Round again until a round adds nothing: a class may compose one that composes a control, and
+  // a stylesheet may declare the two in either order.
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const [subject, names] of composingOwn) {
+      if (!controls.has(subject) && names.some((name) => controls.has(name))) {
+        controls.add(subject);
+        grew = true;
+      }
     }
   }
   return controls;
 }
+
+/**
+ * THE SHARED SET'S OWN CONTROLS, read from `controls.module.css` by the same rules rather than
+ * listed: `.button`, which takes the pointer and the ring, the weights that compose it, and the
+ * field. A class anywhere else that composes one of these is a control (#169).
+ */
+const SHARED_CONTROLS = controlClassesOf(rulesOf(readFileSync(CONTROLS, 'utf8')), FOCUS, new Set());
+
+test('the scans read the shared set’s controls from its own file', () => {
+  // The weights say only `composes: button`, so this is the rule for a stylesheet's own classes
+  // at work. Were it to stop, every button composed from a weight would stop being a control, and
+  // every scan below would pass over all of them in silence.
+  for (const name of ['.button', '.primary', '.secondary', '.ghost', '.field']) {
+    assert.ok(SHARED_CONTROLS.has(name), `controls.module.css's ${name} is not read as a control`);
+  }
+  // A part of a button is not one, and composing it makes nothing a control.
+  for (const name of ['.icon', '.label', '.visuallyHidden']) {
+    assert.ok(!SHARED_CONTROLS.has(name), `controls.module.css's ${name} is read as a control`);
+  }
+});
 
 /** Whether a selector's subject — its last compound — is one of `controls`, or a control element. */
 function subjectIsControl(selector: string, controls: ReadonlySet<string>): boolean {
@@ -458,7 +529,7 @@ function subjectIsControl(selector: string, controls: ReadonlySet<string>): bool
 /** Every border in `--rule` on a control, as `selector { property: value }`. */
 function ruleEdgesOnControls(css: string): string[] {
   const rules = rulesOf(css);
-  const controls = controlClassesOf(rules, FOCUS_VISIBLE);
+  const controls = controlClassesOf(rules, FOCUS_VISIBLE, SHARED_CONTROLS);
 
   const found: string[] = [];
   for (const rule of rules) {
@@ -506,6 +577,8 @@ test('the edge scan tells a control drawn in --rule from a separator drawn in it
     .list kbd { border: 1px solid ${edge}; }
     .row input { border: 1px solid ${edge}; }
     .ok { border: 1px solid var(--control-edge); cursor: pointer; }
+    .entry { composes: field from '../read/controls.module.css'; border-color: ${edge}; }
+    .caption { composes: label from '../read/controls.module.css'; border-bottom: 1px solid ${edge}; }
     @media print { .field { border-bottom: 1px solid ${edge}; } }
     @media (max-width: 30rem) { .field { border-width: 2px; border-color: ${edge}; } }
   `;
@@ -515,6 +588,9 @@ test('the edge scan tells a control drawn in --rule from a separator drawn in it
     `.go { border-color: ${edge} }`,
     `.pane[open] > .go { border-bottom: 1px solid ${edge} }`,
     `.row input { border: 1px solid ${edge} }`,
+    // A field composed from the shared set is one, though nothing here says it takes focus; a
+    // label composed from it is not.
+    `.entry { border-color: ${edge} }`,
     `.field { border-color: ${edge} }`,
   ]);
 });
@@ -619,9 +695,10 @@ test('no control in the app takes its focus outline away or shows focus as a bri
  * of height and a brightness on hover, and the lab's buttons a corner of 4 px. Each looked like
  * a button; together they looked like two products.
  *
- * So a CONTROL — recognised as the edge scan above recognises one, and by a `:focus` rule as
- * well, which is how the skip link says it takes focus — is never PAINTED by a rule of its own
- * in a stylesheet outside `components/read/`:
+ * So a CONTROL — recognised as the edge scan above recognises one, a `composes:` of the shared
+ * set's buttons or field included, and by a `:focus` rule as well, which is how the skip link
+ * says it takes focus — is never PAINTED by a rule of its own in a stylesheet outside
+ * `components/read/`:
  *
  *   - no fill: a `background` that is not `none` or `transparent`;
  *   - no edge all the way round: a `border`, or its colour, width or style, that draws one;
@@ -634,18 +711,17 @@ test('no control in the app takes its focus outline away or shows focus as a bri
  * side rule (`border-left`) is a mark rather than an edge, and a `@media print` rule paints
  * nothing a reader presses.
  *
- * ONE EXCEPTION, NAMED IN `DRAWN_ON_PURPOSE`: the index's edition choice (#163) — two ADDRESSES
- * drawn as joined boxes, which no shape in the shared set is. It is drawn with the set's
- * tokens and its ring, and `landing.spec.ts` holds the shape.
+ * WHAT IS DRAWN AS A BOX ON PURPOSE IS NAMED IN `DRAWN_ON_PURPOSE`, with its reason here: the
+ * index's edition choice (#163) — two ADDRESSES drawn as joined boxes, which no shape in the
+ * shared set is. It is drawn with the set's tokens and its ring, and `landing.spec.ts` holds the
+ * shape.
  *
  * AND NO CONTROL CHANGES BY A FILTER, ANYWHERE: the brightness on hover was both families'
- * (`controls.module.css`'s `.primary` had it too), and it is now neither's. The focus scan above
- * already refused one on focus.
+ * (`controls.module.css`'s `.primary` had it too), and it is now neither's — the set's own
+ * weights are held here as well, which are controls only by composing `.button`. The focus scan
+ * above already refused one on focus.
  * ────────────────────────────────────────────────────────────────────────────────────────
  */
-
-/** The focus rules that mark a control for this scan: `:focus` and `:focus-visible`, not `:focus-within`. */
-const FOCUS = /:focus(-visible)?(?![\w-])/;
 
 /** What a declaration paints, if anything: a fill, an edge all the way round, or a corner. */
 function paints(property: string, value: string): boolean {
@@ -670,7 +746,7 @@ function paints(property: string, value: string): boolean {
  */
 function buttonPaint(css: string, what: 'paint' | 'filter'): string[] {
   const rules = rulesOf(css);
-  const controls = controlClassesOf(rules, FOCUS);
+  const controls = controlClassesOf(rules, FOCUS, SHARED_CONTROLS);
 
   const found: string[] = [];
   for (const rule of rules) {
@@ -687,8 +763,8 @@ function buttonPaint(css: string, what: 'paint' | 'filter'): string[] {
 }
 
 /**
- * The one control outside the shared set that is drawn as a box on purpose, by its file and the
- * class of its subject — the section's header says why, and so does `language-choice.module.css`.
+ * The controls outside the shared set that are drawn as boxes on purpose, by file and by the
+ * class of the subject — the section's header says why each is, and so does its stylesheet.
  */
 const DRAWN_ON_PURPOSE: ReadonlyMap<string, ReadonlySet<string>> = new Map([
   [join('components', 'language', 'language-choice.module.css'), new Set(['.other'])],
@@ -717,9 +793,24 @@ test('the button scan tells a painted control from a placed or a composed one', 
     .notice:focus-visible { outline: 2px solid var(--accent); }
     .card { background: var(--paper-raised); border: 1px solid var(--rule); border-radius: 6px; }
     .card:focus-within { border-color: var(--accent); }
+    .send { composes: primary from '../components/read/controls.module.css'; border-radius: 3px; justify-self: start; }
+    .send:hover { filter: brightness(1.1); }
+    .wide { composes: primary from './controls.module.css'; composes: row from './layout.module.css'; background: var(--accent); }
+    .caption { composes: label from './controls.module.css'; background: var(--accent-soft); }
+    .next { composes: primary; }
+    .next:active { filter: brightness(0.9); }
+    .button { cursor: pointer; }
+    .primary { composes: button; }
+    .primary:hover { filter: brightness(1.08); }
     @media print { .submit { border: 1px solid; } }
   `;
 
+  /*
+    From `.send` on, the shapes a control has taken since #169: a button that says only that it
+    composes the shared set's `primary`, by whatever path — with a second `composes:` after it,
+    too — is one; a label composed from the set is not; and in a stylesheet shaped like the set's
+    own, `.primary` composes `.button`, and `.next` composes `.primary` before it is declared.
+  */
   assert.deepEqual(buttonPaint(sheet, 'paint'), [
     '.enter a { background: var(--accent) }',
     '.enter a { border-radius: 3px }',
@@ -728,8 +819,15 @@ test('the button scan tells a painted control from a placed or a composed one', 
     '.submit { background: var(--accent) }',
     '.decline { border: 1px solid var(--control-edge) }',
     '.skip:focus { border-radius: var(--radius-control) }',
+    '.send { border-radius: 3px }',
+    '.wide { background: var(--accent) }',
   ]);
-  assert.deepEqual(buttonPaint(sheet, 'filter'), ['.enter a:hover { filter: brightness(1.1) }']);
+  assert.deepEqual(buttonPaint(sheet, 'filter'), [
+    '.enter a:hover { filter: brightness(1.1) }',
+    '.send:hover { filter: brightness(1.1) }',
+    '.next:active { filter: brightness(0.9) }',
+    '.primary:hover { filter: brightness(1.08) }',
+  ]);
   assert.equal(subjectClassOf('.offered .other:hover { border-color: var(--accent) }'), '.other');
 });
 

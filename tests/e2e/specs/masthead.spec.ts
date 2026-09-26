@@ -58,6 +58,8 @@ const SCREENS: readonly Screen[] = [
   { what: 'a page that does not exist', path: `/read/${track}/NOPE/en`, home: '/?lang=en', layer: '@core' },
   // The gate bounces an unknown top-level path to sign-in, which says there is no page there.
   { what: 'an address no page answers', path: '/nope', home: '/?lang=en', layer: '@core' },
+  // No such document, so `legal/not-found.tsx` — public, and English only, as the documents are.
+  { what: 'a legal document that is not published', path: '/legal/nope/1', home: '/', layer: '@core' },
   { what: 'the lab', path: '/lab', home: '/', trail: ['lab'], wide: true, layer: '@core' },
   { what: 'a lab’s own page', path: '/lab/p01', home: '/', trail: ['lab', 'p01'], wide: true, layer: '@core' },
 ];
@@ -158,28 +160,36 @@ test.describe('the one masthead', () => {
     ['a phone', { width: 390, height: 844 }],
     ['a desktop', { width: 1280, height: 800 }],
   ] as const) {
-    test(`on ${screen}, the way home is a finger’s target @core`, async ({ page }) => {
+    test(`on ${screen}, the way home and the trail’s steps are a finger’s target @core`, async ({ page }) => {
       /*
-        It was an underlined word on the pages of `.shell` and a 21 px box on `/courses`. It is
-        the reading bar's mark now, 44 px tall by its line and padding and given back as margin,
-        and a press on its words lands on it (`targets.spec.ts`'s two measures, for the one
-        control that file leaves to this one).
+        The way home was an underlined word on the pages of `.shell` and a 21 px box on
+        `/courses`. It is the reading bar's mark now, 44 px tall by its line and padding and given
+        back as margin, and a press on its words lands on it (`targets.spec.ts`'s two measures,
+        for the controls that file leaves to this one). A step of the trail that leads somewhere
+        is the same pattern, and `lab` is the shortest word it holds: half a rem each side is
+        what takes it past 44 px across (`masthead.module.css`), by a pixel or two, so it is
+        measured here rather than trusted to the sum.
       */
       await page.setViewportSize(viewport);
-      for (const path of ['/about?lang=en', '/lab/p01']) {
+      for (const [path, names] of [
+        ['/about?lang=en', ['ab-ovo']],
+        ['/lab/p01', ['ab-ovo', 'lab']],
+      ] as const) {
         await page.goto(path);
-        const home = masthead(page).getByRole('link', { name: 'ab-ovo', exact: true });
-        const measured = await home.evaluate((node) => {
-          const box = node.getBoundingClientRect();
-          const range = document.createRange();
-          range.selectNodeContents(node);
-          const words = range.getBoundingClientRect();
-          const hit = document.elementFromPoint(words.left + words.width / 2, words.top + words.height / 2);
-          return { width: box.width, height: box.height, lands: hit !== null && (hit === node || node.contains(hit)) };
-        });
-        expect(measured.height, `${path}: the way home is ${measured.height} px tall`).toBeGreaterThanOrEqual(44);
-        expect(measured.width, `${path}: the way home is ${measured.width} px wide`).toBeGreaterThanOrEqual(44);
-        expect(measured.lands, `${path}: a press on the wordmark lands somewhere else`).toBe(true);
+        for (const name of names) {
+          const link = masthead(page).getByRole('link', { name, exact: true });
+          const measured = await link.evaluate((node) => {
+            const box = node.getBoundingClientRect();
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            const words = range.getBoundingClientRect();
+            const hit = document.elementFromPoint(words.left + words.width / 2, words.top + words.height / 2);
+            return { width: box.width, height: box.height, lands: hit !== null && (hit === node || node.contains(hit)) };
+          });
+          expect(measured.height, `${path}: “${name}” is ${measured.height} px tall`).toBeGreaterThanOrEqual(44);
+          expect(measured.width, `${path}: “${name}” is ${measured.width} px wide`).toBeGreaterThanOrEqual(44);
+          expect(measured.lands, `${path}: a press on “${name}” lands somewhere else`).toBe(true);
+        }
       }
     });
   }
