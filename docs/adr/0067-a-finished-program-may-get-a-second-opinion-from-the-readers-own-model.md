@@ -10,7 +10,8 @@ never inside it, with its output labelled as a suggestion and recorded nowhere".
 else in ADR-0010 stands, and its decision about a frame stands whole. On acceptance, ADR-0010's
 Status gains one line naming this ADR, and the refused list in
 [`docs/ux/UI-UX.md`](../ux/UI-UX.md#what-is-deliberately-not-on-this-list) narrows its model
-entry to a frame.
+entry. A model stays refused at a frame, and it stays refused wherever it would be ab-ovo's
+rather than the reader's.
 
 Constrained by these, and amends none of them:
 [ADR-0009](0009-the-instrument-measures-the-book.md) (the instrument),
@@ -57,12 +58,13 @@ answer the model could mention has been revealed.
   Pyodide. The smallest instruction models worth asking about Polish prose weigh hundreds of
   megabytes, and [ADR-0040](0040-the-python-lab-leaves-the-reader-loop.md) took a 6.4 MB
   runtime out of the loop on cost.
-- **A server-side call would send the reader's words off their device for the first time.**
-  A worksheet is "never counted, listed, synced or sent" (`web/app/src/lib/sheet/store.ts`,
-  ADR-0039), and its one way out is a download the reader's own browser makes
-  ([ADR-0055](0055-the-notebook-exports-what-stands-today-never-a-history.md)). A model behind
-  `AbOvo.Api` reverses that, and it puts a key, a bill and a provider or a GPU machine on the
-  path ADR-0010's Consequences keep clear.
+- **A model behind the server would be the operator's, not the reader's.** Whoever runs the
+  instance would choose it, pay for it and see what goes into it. It would also send the
+  reader's words off their device for the first time: a worksheet is "never counted, listed,
+  synced or sent" (`web/app/src/lib/sheet/store.ts`, ADR-0039), and its one way out is a
+  download the reader's own browser makes
+  ([ADR-0055](0055-the-notebook-exports-what-stands-today-never-a-history.md)). And it puts a
+  key, a bill and a provider or a GPU machine on the path ADR-0010's Consequences keep clear.
 - **On the MCP surface a model is already there: the host.** The reader chose it and has typed
   every answer into it. If the host runs a local model, nothing leaves the reader's machine. If
   it is a hosted assistant, the answers are already in it. The server does not need to call a
@@ -81,12 +83,29 @@ ab-ovo process, and that is a property of the design rather than a rule somebody
 
 ## Decision
 
-### 1. A frame stays as ADR-0010 left it
+### 1. The only model is the reader's own
+
+**The one model that may compare a reader's answers with the book's is the one the reader
+brought:** the model behind the MCP host they chose, local or hosted, on their machine or
+their account and at their cost. ab-ovo never runs, hosts, configures, proxies, pays for or
+chooses one.
+
+- **No instance supplies a model.** Not `AbOvo.Api`, not the BFF, not the hosted MCP server of
+  #173, and not an operator's configuration. No model endpoint, key or parameter exists in
+  `src/AbOvo.AppHost/AppHost.cs`, `flyio/*.fly.toml`, `secrets.env.example` or a workflow.
+  Adding one is not a setting; it supersedes this ADR.
+- **No ab-ovo process calls one, not even the reader's.** No MCP sampling (Context above), and
+  no other request from the server to the host's model. The server hands the host data, and
+  whatever the host's model does with it happens in the host.
+- **The reader decides whether their answers reach a model at all, and which.** They typed
+  them into that host already; nothing here sends them anywhere else.
+
+### 2. A frame stays as ADR-0010 left it
 
 No model at a frame, on any surface. `SERVER_INSTRUCTIONS` rule 5 keeps its sentence for the
 whole of a program. The machine's only verdict at a frame stays ADR-0039's "matches the book".
 
-### 2. A finished program may get a second opinion, on the MCP surface, from the host's model
+### 3. A finished program may get a second opinion, on the MCP surface, from the host's model
 
 **`compare_answers` is a new read-only tool in `web/mcp`.**
 
@@ -130,7 +149,7 @@ request, not a rule, and it stays one here:
 
 `SERVER_INSTRUCTIONS` rule 5 gains this as its one exception, in the same words.
 
-### 3. The server keeps this session's answers in memory, and nowhere else
+### 4. The server keeps this session's answers in memory, and nowhere else
 
 **`submit_answer` keeps what it recorded,** so that `compare_answers` has the reader's side. It
 keeps the answer and the confirmed flag, in a map inside the process, keyed by track, unit and
@@ -155,34 +174,34 @@ restart, beside the id ADR-0066 §2 keeps. But a reader's words on disk need a f
 and a decision of their own. **Exit:** if readers lose answers to restarts in practice, that
 is the ADR that adds the file.
 
-### 4. The Quiz gets no model, on any surface
+### 5. The Quiz gets no model, on any surface
 
 The Quiz screen waits for a v2 bundle (ADR-0046). When it is built, the reader judges their
 answer against Appendix A's, and the reader takes the route it opens. A model there would
 decide which frames get skipped, and its mistake would be invisible: a reader who skipped the
 frames they needed does not know which ones. This is refused, not deferred.
 
-**Test exercises are the natural next use of §2.** When they are rendered, `compare_answers`
+**Test exercises are the natural next use of §3.** When they are rendered, `compare_answers`
 may carry them, after the reader has written their own answer and seen Appendix A's. That is
 one paragraph in a later ADR, not a new mechanism.
 
-### 5. The reading surface gets nothing from this ADR
+### 6. The reading surface gets no second opinion, and that is refused, not deferred
 
-The web `/summary` screen gains no second-opinion button here. One needs decisions this ADR
-does not take:
+The website has no model of the reader's to reach, so under §1 it has none to use.
 
-- **Where the model runs.** A server-side call from `AbOvo.Api` to an OpenAI-compatible
-  endpoint the operator configures (Ollama, llama.cpp, vLLM or a provider), because the
-  browser may call only its own origin.
-- **ADR-0039 amended.** The worksheet's words would leave the browser for the first time, once
-  per press, and the press has to say where they go.
-- **The privacy text under `/legal`, and ADR-0022's versioned consent**, re-read against that.
-- **Capacity and cost** in `flyio/INFRASTRUCTURE-ANALYSIS.md`, which ADR-0060 asks of every API
-  endpoint.
-- **P8.** An instance with no model configured is a supported state: `/api/config` says so,
-  and the button is absent rather than broken.
+- **The reader's own model is out of the browser's reach.** The page may call only its own
+  origin, so it cannot reach a model on the reader's machine.
+- **Every model the website could reach would be ab-ovo's choice, not the reader's.** That
+  covers an endpoint the operator configures behind `AbOvo.Api` and a provider behind the BFF.
+  It also covers a model served into the page from this origin: ab-ovo would have picked it
+  and shipped it.
+- **A web worksheet stays in the browser** (ADR-0039), so it never reaches the reader's host
+  either. `compare_answers` covers answers given through the host, and no others.
 
-That is its own ADR, written when somebody decides to pay for it.
+A reader who wants a second opinion on the website's worksheets can export them (ADR-0055)
+and take the file to any model they like. That happens outside ab-ovo, and the export still
+carries none of the book's text
+([ADR-0033](0033-the-content-is-the-books-to-licence-and-noncommercial-is-the-binding-term.md)).
 
 ### How it is built, if accepted
 
@@ -207,7 +226,10 @@ schema, and no new entity (`AGENTS.md` item 3).
   - the text and the data carry no total;
   - a retried `submit_answer` overwrites nothing;
   - an answer recorded under another tag reads as not recorded;
-  - every result validates against the `outputSchema`.
+  - every result validates against the `outputSchema`;
+  - a client that records every request the server sends it works a program through
+    and asks for the comparison, and finds no `sampling/createMessage`: §1 as a test, not
+    a sentence.
 - **Documents:** `web/mcp/README.md`'s tool list,
   [`MCP-SERVER-SKETCH.md`](../architecture/MCP-SERVER-SKETCH.md), the refused list in
   `docs/ux/UI-UX.md`, and ADR-0010's Status.
@@ -234,6 +256,10 @@ that nothing the host says is recorded.
 is lost at a restart. A reader who finishes a program across two sessions gets a second
 opinion on the second half only, and the result tells them so.
 
-**The two surfaces differ, on purpose.** A reader on the website gets no second opinion until
-§5's ADR exists. The difference is where the model is: the MCP host brings one, and the
-website would have to buy one.
+**The two surfaces differ, and they stay different.** A reader on the website gets no second
+opinion, now or later. The reason is where the model is: the MCP host is the reader's, and
+nothing the website can reach is.
+
+**An operator cannot turn this on.** No instance has a model setting to fill in. A
+deployment that wants to supply its own model supersedes §1 in an ADR; it does not change a
+configuration.
