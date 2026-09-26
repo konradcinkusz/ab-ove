@@ -157,8 +157,9 @@ const topRow = (page: Page): Locator => page.locator('header nav');
 
 for (const [screen, viewport] of SCREENS) {
   for (const language of languages) {
-    // One run in the smoke layer — the phone, where the row wraps and the overlap is — so a
-    // pull request is gated on the case most likely to break; the rest are regression.
+    // One run of each test below in the smoke layer — the phone, where the row wraps and the
+    // overlap is — so a pull request is gated on the case most likely to break; the rest are
+    // regression.
     const layer = screen === 'a phone' && language === 'en' ? '@smoke' : '@core';
 
     test(`on ${screen}, in ${language}, the index's top-row links and quiet buttons are finger's targets ${layer}`, async ({
@@ -193,15 +194,23 @@ for (const [screen, viewport] of SCREENS) {
 
       // And *Sign in*, which renders once the session has answered.
       await isAFingersTarget(row.locator('a[href^="/login"]'), where);
+    });
 
+    test(`on ${screen}, in ${language}, the index's edition choice is a finger's target ${layer}`, async ({
+      page,
+    }) => {
       /*
-        The other edition, on the heading's line: drawn as a control on the index since issue
-        #163, where its quiet words were easy to miss. Found by where it goes, like the rest —
-        the index in the other edition, and nothing else on the page links there.
+        The other edition, on the heading's line rather than in the top row: drawn as a control
+        on the index since issue #163, where its quiet words were easy to miss. Found by where
+        it goes, like the rest — the index in the other edition, and nothing else on the page
+        links there. A fresh browser, because the reader it was drawn for has not chosen yet.
       */
+      await page.setViewportSize(viewport);
+      await page.goto(`/?lang=${language}`);
+
       const other = languages.find((candidate) => candidate !== language);
       expect(other, 'the book has one edition, so there is no choice to measure').toBeDefined();
-      await isAFingersTarget(page.locator(`a[href="/?lang=${other}"]`), where);
+      await isAFingersTarget(page.locator(`a[href="/?lang=${other}"]`), `on ${screen}, in ${language}`);
     });
   }
 

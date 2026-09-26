@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 
 import { chromeFor } from '../../../web/app/src/lib/i18n/chrome.ts';
 
@@ -307,7 +307,8 @@ test.describe('landing page', () => {
  * tiles marked `opens after …`, and nothing saying what a program or a frame is. The one
  * sentence that said nothing is paid for or hidden was a `title` on each shut tile, which a
  * finger and a keyboard never reach. What is asserted here is that both things are now TEXT
- * ON THE FIRST SCREEN: visible, inside the viewport of a phone, with nothing hovered.
+ * ON THE FIRST SCREEN: visible, inside the viewport of a phone, at least a line tall, with
+ * nothing hovered.
  *
  * THE WORDS ARE READ FROM `chrome.ts` ITSELF, on `skip-link.spec.ts`'s reasoning: a copy here
  * would be a second source for a string that has one. What would let a wrong page pass that
@@ -323,6 +324,24 @@ test.describe('the first visit', () => {
   /** The legend as the book's own runs make it: the Main sequence, built on Foundation. */
   const legendFor = (chrome: typeof en): string => chrome.orderLegend([chrome.runReasons['P']!.says]);
 
+  /**
+   * ON THE FIRST SCREEN, AND READABLE THERE: wholly inside the viewport, and at least one line
+   * of its own type tall. The halves catch different things. `toBeInViewport` measures how
+   * much of the box is on screen, not how big the box is. The `.offScreen` idiom
+   * (`program-grid.module.css`) already fails it, because its clip leaves the box no area on
+   * screen. A sentence collapsed to a strip a pixel high, its overflow hidden, is wholly on
+   * screen and passes it; only the height says that nobody can read it. Both were watched:
+   * the first fails the viewport half, and the second fails only the height half.
+   */
+  const onTheFirstScreen = async (text: Locator, what: string): Promise<void> => {
+    await expect(text, `${what} is not on the first screen`).toBeInViewport({ ratio: 1 });
+    const { height, size } = await text.evaluate((node) => ({
+      height: node.getBoundingClientRect().height,
+      size: parseFloat(getComputedStyle(node).fontSize),
+    }));
+    expect(height, `${what} is ${height.toFixed(1)} px tall, under a line of its ${size} px type`).toBeGreaterThanOrEqual(size);
+  };
+
   test('a new reader is told what programs and frames are, and why the tiles are shut, without hovering @smoke', async ({
     page,
   }) => {
@@ -335,11 +354,10 @@ test.describe('the first visit', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(en.programs);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
 
-    const standfirst = page.getByText(en.programsLead, { exact: true });
-    await expect(standfirst, 'the standfirst is not on the first screen').toBeInViewport({ ratio: 1 });
+    await onTheFirstScreen(page.getByText(en.programsLead, { exact: true }), 'the standfirst');
 
     const legend = page.getByText(legendFor(en), { exact: true });
-    await expect(legend, 'the legend is not on the first screen').toBeInViewport({ ratio: 1 });
+    await onTheFirstScreen(legend, 'the legend');
 
     /*
       WHY THE FOUNDATION PROGRAMS COME FIRST, said about the runs on this page: the legend
@@ -362,9 +380,9 @@ test.describe('the first visit', () => {
     await page.goto('/?lang=pl');
 
     await expect(page.locator('main')).toHaveAttribute('lang', 'pl');
-    await expect(page.getByText(pl.programsLead, { exact: true })).toBeVisible();
+    await onTheFirstScreen(page.getByText(pl.programsLead, { exact: true }), 'the Polish standfirst');
     const legend = page.getByText(legendFor(pl), { exact: true });
-    await expect(legend).toBeVisible();
+    await onTheFirstScreen(legend, 'the Polish legend');
 
     // The Main sequence by the name its heading has here. `Podstawy` is declined inside the
     // sentence, which is why the reason is a sentence of its own and not built from labels.

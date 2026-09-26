@@ -24,7 +24,8 @@
  * page beside a blue link, which reads as "disabled" beside "choose me": the selected edition
  * looked like the one you could not have. It now says "this one" the way the theme switch
  * already did (`theme-switch.module.css`), so the two switches a reader meets on the same
- * screens mark their current position the same way.
+ * screens mark their current position with the same underline. On the index, the `offered`
+ * shape below also fills the current edition's box.
  */
 .current {
   color: var(--ink);

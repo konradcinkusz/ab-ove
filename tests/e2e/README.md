@@ -151,9 +151,11 @@ screen, with nothing hovered, a reader who has never been here sees the standfir
 program and a frame are — and the legend above the grid, which says why most tiles are shut
 ([ADR-0065](../../docs/adr/0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md)).
 The words come from `web/app/src/lib/i18n/chrome.ts` itself, so what the block asserts is
-where they are: inside the viewport, not in a tooltip, and not a `status`. The part about the
-book is relational: the legend names the run headings the grid is divided under. The Polish
-edition says the same in Polish, and the other edition is drawn as a control with an edge.
+where they are: inside the viewport and at least a line of their own type tall, because a
+sentence collapsed to a strip a pixel high is inside the viewport too; not in a tooltip; and
+not a `status`. The part about the book is relational: the legend names the run headings the
+grid is divided under. The Polish edition says the same in Polish, also on its first screen,
+and the other edition is drawn as a control with an edge.
 The notice a reader gets when the gate turns them away, and its way on, are
 `specs/gate.spec.ts`'s.
 

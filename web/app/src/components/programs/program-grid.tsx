@@ -224,10 +224,13 @@ export function ProgramGrid({
             when it lands. A control that is in the markup from the start belongs before
             them, where nothing can push it sideways.
 
-            It is three words of furniture and not a filled control, on the language
-            control's reasoning (`language-choice.tsx`): a reader touches it once and then
-            wants it out of the way. Both are now that shape, and both are remembered — the
-            theme in `localStorage`, the edition there and on the account (ADR-0052).
+            It is three words of furniture and not a filled control: a reader touches it
+            once and then wants it out of the way. The language control is quiet words of
+            the same weight on every other screen, but this page draws it `offered` (issue
+            #163) — outlined boxes, the current one filled — because the edition is the
+            choice a first-time reader makes here, so on this page the two deliberately
+            differ. Both are remembered: the theme in `localStorage`, the edition there and
+            on the account (ADR-0052).
           */}
           <ThemeSwitch language={chrome.language} />
           <ResumeLast language={chrome.language} limits={limits} />

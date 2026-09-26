@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { AUTHOR, READER } from '../fixtures/accounts.mts';
 
-import { track, unitNamed } from './support/bundle.ts';
+import { served, track, unitNamed } from './support/bundle.ts';
 import { openPane } from './support/pane.ts';
 import { signIn } from './support/sign-in.ts';
 import { walkTo } from './support/walk.ts';
@@ -106,6 +106,10 @@ const openBothPanes = async (page: Page): Promise<void> => {
 /** Every screen of the reading surface and its shell, as a reader with no account meets it. */
 const SCREENS: readonly Screen[] = [
   { what: 'the index', path: '/' },
+  // The shut notice and its way on (issue #163): a link inside a `status` region, painted by
+  // the server for a reader with no record, whom the gate turns away from every program but
+  // the first.
+  { what: 'the index, after the gate turned a reader away', path: `/?shut=${served.units[1]!.id}` },
   { what: 'the argument', path: '/about' },
   { what: 'the courses', path: '/courses' },
   { what: 'a program’s contents', path: contentsAt('en') },

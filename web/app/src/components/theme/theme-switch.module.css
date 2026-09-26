@@ -1,7 +1,11 @@
 /*
- * The theme switch. Deliberately the same weight as the edition switch beside it
- * (`language-switch.module.css`): three words in the page's furniture, not three buttons.
+ * The theme switch. Deliberately the same weight as the edition control's quiet shape
+ * (`language-choice.module.css`): three words in the page's furniture, not three buttons.
  * A reader touches it once a season, and it must not compete with the reveal.
+ *
+ * NOT THE WEIGHT OF THE EDITION CONTROL ON THE INDEX, which draws that control `offered` —
+ * outlined boxes a finger tall, the current one filled (issue #163) — because there the
+ * edition is a choice a first-time reader has to find, and the theme is not.
  */
 .switch {
   display: flex;
@@ -9,9 +13,9 @@
 }
 
 /*
- * NO FONT OF ITS OWN, on `language-switch.module.css`'s reasoning applied to two places at
- * once. This control renders in the index's chrome row, which is set in `--font-ui`, and in
- * the foot of three reading screens, which are set in the reading serif. A family declared
+ * NO FONT OF ITS OWN, because it is put in two places that are not set alike: the index's
+ * chrome row (`program-grid.module.css`) and the reading screens' settings panel
+ * (`sheet.module.css`, ADR-0063), which share the UI face and not its size. A font declared
  * here would be right in one of them and conspicuous in the other; inheriting is what makes
  * it look like the words beside it wherever it is put.
  */
