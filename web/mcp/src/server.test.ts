@@ -26,6 +26,7 @@ import type { Bundle, Unit } from '@ab-ovo/web-kit';
 import { AbOvoApi } from './api.ts';
 import { apiFromEnvironment, createServer } from './server.ts';
 import { handle } from './tools.ts';
+import { NO_HOME, withNoHome } from './testing/no-home.ts';
 import { STUB_API, StubApi, fixtureBundle } from './testing/stub-api.ts';
 
 const READER_ID = '2a7e5c1b-3d4f-4a6b-9c8d-7e6f5a4b3c2d';
@@ -373,6 +374,52 @@ test('an id that cannot be kept is held in memory, and stderr says where and why
   assert.match(said[0]!, /could not be kept in .*in-the-way.*reader-ids/);
   const id = stub.calls[0]!.readerId!;
   assert.ok(!said[0]!.includes(id), 'stderr said the id');
+});
+
+test('with no home directory, XDG_STATE_HOME still keeps the id, and without it the id is held in memory and said', async () => {
+  /*
+    #171's review. `os.homedir()` throws when HOME is unset and the user has no entry in the
+    system's user database. The state directory was worked out through it before XDG_STATE_HOME
+    was looked at, and the throw escaped from inside the request's `try`. Every call then said
+    the API could not be reached, no request reached it, and the P8 fallback never ran.
+  */
+  await withNoHome(async () => {
+    // XDG_STATE_HOME names the directory, so the home directory is never asked for.
+    const keeping = new StubApi([fixtureBundle()]);
+    const state = mkdtempSync(join(tmpdir(), 'ab-ovo-state-'));
+    const kept = apiFromEnvironment(
+      { AB_OVO_API_URL: STUB_API, XDG_STATE_HOME: state },
+      { fetch: keeping.fetch, warn: () => assert.fail('the id was kept, so nothing is said') },
+    );
+    const listed = await handle('list_programs', {}, { api: kept, session: { ephemeralNoteSaid: false } });
+    assert.ok(!listed.isError, listed.text);
+    assert.equal(listed.structured?.placeIsEphemeral, undefined);
+    const id = keeping.calls[0]?.readerId;
+    assert.ok(id, 'no request reached the API');
+    assert.ok(readFileSync(join(state, 'ab-ovo', 'reader-ids'), 'utf8').includes(`${STUB_API} ${id}`));
+
+    // Nothing names it: the id is held in memory, the reader is told, and stderr says why.
+    const holding = new StubApi([fixtureBundle()]);
+    const said: string[] = [];
+    const held = apiFromEnvironment({ AB_OVO_API_URL: STUB_API }, { fetch: holding.fetch, warn: (line) => said.push(line) });
+    const session = { ephemeralNoteSaid: false };
+    const first = await handle('list_programs', {}, { api: held, session });
+    assert.ok(!first.isError, first.text);
+    assert.equal(first.structured?.placeIsEphemeral, true);
+    assert.match(first.text, /kept for this session only/);
+    const opened = await handle('open_program', { unit: 'P01', language: 'en' }, { api: held, session });
+    assert.ok(!opened.isError, opened.text);
+    assert.equal(opened.structured?.placeIsEphemeral, true);
+
+    const ids = [...new Set(holding.calls.map((call) => call.readerId))];
+    assert.equal(ids.length, 1, 'the id held in memory was not held for the life of the process');
+    assert.ok(ids[0], 'no request reached the API');
+    assert.equal(said.length, 1, 'stderr said it more than once, or not at all');
+    assert.match(said[0]!, /no state directory was found/);
+    assert.ok(said[0]!.includes(NO_HOME), 'stderr did not say why');
+    assert.match(said[0]!, /XDG_STATE_HOME/, 'stderr did not say what fixes it');
+    assert.ok(!said[0]!.includes(ids[0]), 'stderr said the id');
+  });
 });
 
 test('the server keeps no book and no gate: none of its modules reads a bundle', () => {

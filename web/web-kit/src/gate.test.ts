@@ -47,8 +47,10 @@ test('a reader already inside a program is never shut out of it — the valve', 
 });
 
 test('it asks about this program and the one before it, and about nothing else', () => {
-  // The contract the MCP server's two-read fetch depends on: a scan of forty-seven rows
-  // would be a different implementation with the same answer, and a worse one.
+  // `gate.ts`'s promise, held: `hasPlaceIn` is asked about this program and the one before
+  // it and no other, so a caller may answer it from those two places alone. Both callers pass
+  // a predicate over places they already hold — `@ab-ovo/app`'s record, and the places the
+  // MCP server read in one call — and a rule that looked further would ask them for more.
   const asked: string[] = [];
   isOpenWhere(
     (unit) => {

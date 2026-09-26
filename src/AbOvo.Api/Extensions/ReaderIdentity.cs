@@ -64,8 +64,9 @@ public static class ReaderIdentity
     /// like one. <see cref="Resolve"/> lets a bearer win, which is right for every read and
     /// every advance: one request, one cursor. A call that acts on the anonymous cursor as a
     /// cursor of its own — beside the account the bearer names, as adoption at sign-in and the
-    /// account's forget do, or with no account at all, as the anonymous forget does — asks for
-    /// this half by name (ADR-0068, issue #176).
+    /// account's forget do (ADR-0068, issue #176), or with no account at all, as the anonymous
+    /// read and the anonymous forget do (ADR-0066 §2, issue #171; ADR-0068 §5) — asks for this
+    /// half by name.
     /// </summary>
     public static string? Anonymous(HttpContext context) =>
         context.Request.Headers.TryGetValue(HeaderName, out var values)

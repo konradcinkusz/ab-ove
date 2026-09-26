@@ -1353,8 +1353,9 @@ async function dispatch(
   if (name === 'list_programs') {
     const asked = typeof args.language === 'string' && args.language !== '' ? args.language : undefined;
     const every = args.all === true;
-    // One read of every place the reader has, whatever the number of programs: `list_programs`
-    // used to ask for one place per program — forty-seven requests of the same list.
+    // One read of every place the reader has, whatever the number of programs. It has been one
+    // request since PR #109 replaced a read per program; #171 made it the API's list for an
+    // anonymous reader too (`GET /api/v1/progress/anonymous`).
     const places = await deps.api.places();
     const placeOf = placeIn(places);
     const listings: { readonly track: string; readonly content: TrackContent }[] = [];

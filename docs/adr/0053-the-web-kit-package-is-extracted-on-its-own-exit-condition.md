@@ -4,6 +4,10 @@
 
 **Accepted.** Date: 2026-09-20.
 
+Since 2026-09-26 (#171) the MCP server loads no bundle, and `web/mcp/src/content.ts` and
+`reveal.ts`, named below, are gone: it reads the book from `AbOvo.Api`, and takes the reading
+order and the content API's wire shapes (`@ab-ovo/web-kit/wire`) from this package.
+
 ## Context
 
 The trigger has been on record since before `@ab-ovo/mcp` existed. `web/package.json` said

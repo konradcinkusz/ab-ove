@@ -291,10 +291,10 @@ as the deployment's.
 What the note tells the reader follows their edition: the one the call named, if the track is
 published in it, else the one the session last spoke in, else English. The API that says which
 editions a track has is the thing out of reach, so nothing is asked of it: the track's editions
-are the ones it last listed. The named
-edition passes `languageIn`, as a named edition does everywhere else in this server, and is
-never used as sent. A host's arguments reach `handle()` unchecked, and the first version
-of this note took `language` raw. `constructor` then found `Object.prototype`'s member in the
+are the ones it last listed. The named edition is looked up among those (`editionIn` in
+`tools.ts`), as a named edition is everywhere else in this server, and is never used as sent.
+A host's arguments reach `handle()` unchecked, and the first version of this note took
+`language` raw. `constructor` then found `Object.prototype`'s member in the
 table and threw out of `handle()`, the defect #137 exists to end, and `PL` was honoured where
 every other call refuses it. `framingFor()` looks up only the table's own entries besides. The
 fixes for whoever runs the server stay English with the variables they name, and so does the

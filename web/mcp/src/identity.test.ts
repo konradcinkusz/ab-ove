@@ -1,8 +1,8 @@
 /**
  * The anonymous reader's id and the file it is kept in (ADR-0066 §2, issue #171): where the
  * file is, what it holds, that it is created once and readable by its user alone, that the
- * first line for an origin wins a race, and that a file that cannot be kept is said and not
- * failed on.
+ * first line for an origin wins a race, and that a file that cannot be kept, or a state
+ * directory that cannot be found, is said and not failed on.
  */
 import { strict as assert } from 'node:assert';
 import { spawn } from 'node:child_process';
@@ -11,7 +11,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { READER_IDS_FILE, idIn, originOf, readerIdFor, stateDirectory } from './identity.ts';
+import { READER_IDS_FILE, heldReaderId, idIn, originOf, readerIdFor, stateDirectory } from './identity.ts';
+import { NO_HOME, withNoHome } from './testing/no-home.ts';
 
 const ORIGIN = 'https://api.example';
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -31,6 +32,30 @@ test("the state directory is XDG_STATE_HOME's when it is absolute, and the platf
   assert.equal(stateDirectory({}, 'win32', 'C:\\Users\\r'), 'C:\\Users\\r\\AppData\\Local\\ab-ovo');
   // Set, it wins on every platform: a person who says where their state lives is believed.
   assert.equal(stateDirectory({ XDG_STATE_HOME: '/srv/state' }, 'darwin', '/Users/r'), '/srv/state/ab-ovo');
+});
+
+test('the home directory is asked for only when nothing names the state directory, and none found is held in memory', async () => {
+  // #171's review: `os.homedir()` throws when there is no home directory, and it used to be
+  // asked first, so XDG_STATE_HOME — set to say exactly where — could not help.
+  await withNoHome(() => {
+    assert.equal(stateDirectory({ XDG_STATE_HOME: '/srv/state' }, 'linux'), '/srv/state/ab-ovo');
+    assert.equal(stateDirectory({ XDG_STATE_HOME: '/srv/state' }, 'darwin'), '/srv/state/ab-ovo');
+    assert.equal(stateDirectory({ LOCALAPPDATA: 'C:\\Users\\r\\AppData\\Local' }, 'win32'), 'C:\\Users\\r\\AppData\\Local\\ab-ovo');
+    for (const platform of ['linux', 'darwin', 'win32'] as const) {
+      assert.throws(() => stateDirectory({ XDG_STATE_HOME: 'relative' }, platform), { message: NO_HOME }, platform);
+    }
+
+    // Nowhere to look: an id all the same, held in memory, with why and no file.
+    const held = heldReaderId(ORIGIN, {}, 'linux');
+    assert.deepEqual([held.kept, held.file, held.why], [false, undefined, NO_HOME]);
+    assert.match(held.id, GUID);
+
+    // Named: kept there, the home directory never asked for.
+    const state = scratch();
+    const kept = heldReaderId(ORIGIN, { XDG_STATE_HOME: state }, 'linux');
+    assert.deepEqual([kept.kept, kept.file], [true, join(state, 'ab-ovo', READER_IDS_FILE)]);
+    assert.equal(idIn(readFileSync(kept.file!, 'utf8'), ORIGIN), kept.id);
+  });
 });
 
 test('an id is keyed by the origin of AB_OVO_API_URL, and an address with no http origin keys none', () => {
@@ -61,10 +86,12 @@ test('the directory and the file are readable by their user alone', () => {
   assert.equal(statSync(directory).mode & 0o777, 0o700);
   assert.equal(statSync(file).mode & 0o777, 0o600);
 
-  // A file someone widened is narrowed again the next time it is read.
+  // A file or a directory someone widened is narrowed again the next time the file is read.
   chmodSync(file, 0o644);
+  chmodSync(directory, 0o755);
   readerIdFor(ORIGIN, directory);
   assert.equal(statSync(file).mode & 0o777, 0o600);
+  assert.equal(statSync(directory).mode & 0o777, 0o700);
 });
 
 test('one id per API origin, each on its own line, and an origin never answered with another\'s', () => {

@@ -101,12 +101,14 @@ one, sends it as `X-Ab-Ovo-Reader-Id`, and the API keeps the place under it. The
 reads as the same reader:
 
 - **Where:** `reader-ids` in `$XDG_STATE_HOME/ab-ovo`, else `~/.local/state/ab-ovo`;
-  `~/Library/Application Support/ab-ovo` on macOS, `%LOCALAPPDATA%\ab-ovo` on Windows.
+  `~/Library/Application Support/ab-ovo` on macOS, `%LOCALAPPDATA%\ab-ovo` on Windows. An
+  `XDG_STATE_HOME` set to an absolute path wins on every platform, and then no home directory
+  is needed.
 - **What it holds:** one line per API origin, the origin and the id minted for it, under a
   comment saying what the file is. The id is sent to the origin on its line and to nothing
   else, and a redirect is not followed. It is never said in a result or on stderr.
-- **Who can read it:** the user alone. The file is 0600 in a 0700 directory, and a file
-  someone widened is narrowed again when it is next read.
+- **Who can read it:** the user alone. The file is 0600 in a 0700 directory, and a file or a
+  directory someone widened is narrowed again when the file is next read.
 - **Treat it as a credential.** Holding an id is holding that reader's place: keep the file out
   of bug reports and dotfile repositories. Deleting it starts a new reader; the old place stays
   on the API under an id nobody holds.
@@ -115,11 +117,14 @@ An anonymous reader of this server and an anonymous reader of the website are tw
 nothing joins them: an account is the way to one place on both (ADR-0066 §2).
 
 **When the state file cannot be written** — a sandbox with no lasting home, a directory that is
-not writable — the id is held in this process's memory. The API keeps the place for as long as
-the process runs, and a restart begins every program again. The process says why on stderr,
-naming the file and the error, and **the first result of a session says so too**, because a
-reader of an MCP host sees results and never the log. It is said once, at the end of the first
-result that is not an error, and the data of every result carries it as `placeIsEphemeral`.
+not writable, or no state directory to be found at all (no home directory, as in a container
+run under a user ID the system has no entry for, and no `XDG_STATE_HOME`) — the id is held in
+this process's memory. The API keeps the place for as long as the process runs, and a restart
+begins every program again. The process says why on stderr: the file and the error, or that no
+state directory was found and that `XDG_STATE_HOME`, set to an absolute path, names one. **The
+first result of a session says so too**, because a reader of an MCP host sees results and never
+the log. It is said once, at the end of the first result that is not an error, and the data of
+every result carries it as `placeIsEphemeral`.
 
 When the API cannot be reached, the call answers with a result, not a protocol error. It says
 that nothing is lost, because the API keeps the place. A write that failed may still have been

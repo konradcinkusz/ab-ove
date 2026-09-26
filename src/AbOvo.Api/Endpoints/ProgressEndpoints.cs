@@ -18,8 +18,10 @@ namespace AbOvo.Api.Endpoints;
 /// clients' writes arrive in stops mattering. The alternative — store whatever arrives and
 /// let clients sort it out — converges only if every client implements the same rule, which
 /// is a rule nobody can enforce and a reader cannot predict. Since #171 no write here raises
-/// a step either: a step is raised by <c>POST .../content/{track}/{unit}/advance</c> alone,
-/// and the furthest-frame rule is applied where two copies meet, at adoption (ADR-0068).
+/// a step past one the reveal gate has served: <c>PUT</c> raises none, and adoption copies
+/// into the account only the anonymous cursor's steps, which nothing but
+/// <c>POST .../content/{track}/{unit}/advance</c> raises, applying the furthest-frame rule
+/// where the two copies meet (ADR-0068).
 /// </para>
 /// <para>
 /// Every write therefore answers with the row AS IT NOW STANDS rather than with a status.

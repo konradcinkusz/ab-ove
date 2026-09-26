@@ -15,7 +15,7 @@
     "reveal gate and the reader's place are the API's, reached by src/api.ts over the global",
     "fetch, and nothing here loads a bundle — no book, no fetch script and no compiler are",
     "needed to run it, only AB_OVO_API_URL. The unit tier runs against a stub of the API",
-    "(src/testing/stub-api.ts), which is the one place the committed fixture is read."
+    "(src/testing/stub-api.ts), which serves it the committed fixture."
   ],
   "name": "@ab-ovo/mcp",
   "version": "0.1.0",

@@ -32,7 +32,7 @@ import {
 
 import { AbOvoApi } from './api.ts';
 import { framingFor } from './framing.ts';
-import { originOf, readerIdFor, stateDirectory } from './identity.ts';
+import { heldReaderId, originOf } from './identity.ts';
 import type { HeldIn } from './identity.ts';
 import { PROMPTS, completeArgument, promptMessages } from './prompts.ts';
 import { SERVER_INSTRUCTIONS, TOOLS, handle } from './tools.ts';
@@ -207,9 +207,10 @@ export function createServer(api: AbOvoApi): Server {
  * - Otherwise the reader is anonymous, under an opaque id kept in the user's state directory,
  *   one per API origin (`identity.ts`). It is looked for, or minted, the first time a call
  *   needs it — ADR-0066 §2's "the first time it needs a place" — and when it cannot be kept
- *   the process holds it in memory and says so: stderr names the file and the error, for
- *   whoever runs the server, and the results tell the reader their place lasts only as long
- *   as this process (P8). Stderr never carries the id.
+ *   the process holds it in memory and says so: stderr names the file and the error, or that
+ *   no state directory was found and what names one, for whoever runs the server, and the
+ *   results tell the reader their place lasts only as long as this process (P8). Stderr never
+ *   carries the id.
  */
 export function apiFromEnvironment(
   env: NodeJS.ProcessEnv,
@@ -241,14 +242,20 @@ export function apiFromEnvironment(
   const origin = originOf(baseUrl);
   if (origin === undefined) return new AbOvoApi({ baseUrl, reader: { kind: 'nobody' }, ...through });
 
+  // `heldReaderId` does not throw: whatever keeps the id from being kept, including no state
+  // directory to be found, ends here as an id held in memory, and is said (#171's review).
   const hold = (): HeldIn => {
-    const held = readerIdFor(origin, stateDirectory(env, options.platform, options.home));
+    const held = heldReaderId(origin, env, options.platform, options.home);
     if (!held.kept) {
+      const why = held.why ?? 'unknown';
       warn(
-        `ab-ovo MCP: the reader id for ${origin} could not be kept in ${held.file} ` +
-          `(${held.why ?? 'unknown'}), so this process holds it in memory: the API keeps the ` +
-          "reader's place under an id only this process knows, and a restart begins every " +
-          'program again. The results say so to the reader.\n',
+        `ab-ovo MCP: the reader id for ${origin} ` +
+          (held.file === undefined
+            ? `could not be kept: no state directory was found (${why}). Setting XDG_STATE_HOME to an ` +
+              'absolute path names one. Until then this process holds the id in memory: '
+            : `could not be kept in ${held.file} (${why}), so this process holds it in memory: `) +
+          "the API keeps the reader's place under an id only this process knows, and a restart " +
+          'begins every program again. The results say so to the reader.\n',
       );
     }
     return held;

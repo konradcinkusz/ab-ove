@@ -16,8 +16,13 @@
  * `~/Library/Application Support/ab-ovo` on macOS, `%LOCALAPPDATA%\ab-ovo` on Windows. Not
  * the working directory, which the host chooses (`web/mcp/README.md`), and not the package's
  * directory, which a package runner's cache may throw away. The directory is made readable by
- * its user alone (0700) and the file likewise (0600); on Windows the per-user profile's own
- * permissions are what keep it the user's.
+ * its user alone (0700) and the file likewise (0600), and both are narrowed again whenever the
+ * file is read; on Windows the per-user profile's own permissions are what keep it the user's.
+ *
+ * The home directory is asked for only when nothing names the directory, because there may be
+ * none: `os.homedir()` throws when HOME is unset and the user has no entry in the system's user
+ * database, a container run under a UID of its own being the usual case. Asked first, it made
+ * XDG_STATE_HOME, the variable that says where, unable to help (#171's review).
  *
  * WHAT. One line per API origin — the origin of `AB_OVO_API_URL`, a space, and the id minted
  * for it. Anyone may run an instance (ADR-0033), so one id sent everywhere would let any
@@ -38,11 +43,12 @@
  * neither, which a file rewritten whole and renamed into place could not promise without a lock.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
- * A PLACE THAT CANNOT BE KEPT IS SAID OUT LOUD (P8). When the directory or the file cannot be
- * made, read or written, an id is minted all the same and held in this process's memory alone:
- * the reader reads on, the API keeps the place under that id, and a restart loses it. The
- * results say so to the reader and stderr says why to whoever runs the server — the file and
- * the error, never the id (`server.ts`).
+ * A PLACE THAT CANNOT BE KEPT IS SAID OUT LOUD (P8). When no state directory can be found, or
+ * the directory or the file cannot be made, read or written, an id is minted all the same and
+ * held in this process's memory alone: the reader reads on, the API keeps the place under that
+ * id, and a restart loses it. The results say so to the reader and stderr says why to whoever
+ * runs the server — the file and the error, never the id (`server.ts`). `heldReaderId`, which
+ * `server.ts` calls, does not throw.
  */
 import { randomUUID } from 'node:crypto';
 import { chmodSync, closeSync, constants, mkdirSync, openSync, readFileSync, writeSync } from 'node:fs';
@@ -57,7 +63,8 @@ export interface HeldId {
 
 /** Where the id was looked for, and — when it could not be kept there — why, for stderr. */
 export interface HeldIn extends HeldId {
-  readonly file: string;
+  /** The file it is kept in, or was to be; absent when no state directory was found to look in. */
+  readonly file?: string;
   readonly why?: string;
 }
 
@@ -80,21 +87,28 @@ const LINE = /^(\S+) ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
  * The directory the file lives in, for this environment. `XDG_STATE_HOME` wins wherever it is
  * set to an absolute path — the XDG specification ignores a relative one, and so does this —
  * and the platform's own place for an application's state is used otherwise.
+ *
+ * `home` is asked for last, and only on the branches that need it: `os.homedir()` throws when
+ * there is no home directory (the header's WHERE), and that must not stop a directory the
+ * environment names. So this throws only when nothing names one and there is no home to find
+ * one in — which `heldReaderId` answers with an id held in memory.
  */
 export function stateDirectory(
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform = process.platform,
-  home: string = homedir(),
+  home?: string,
 ): string {
   const path = platform === 'win32' ? win32 : posix;
   const xdg = env['XDG_STATE_HOME'];
   if (xdg && path.isAbsolute(xdg)) return path.join(xdg, 'ab-ovo');
   if (platform === 'win32') {
     const local = env['LOCALAPPDATA'];
-    return path.join(local && path.isAbsolute(local) ? local : path.join(home, 'AppData', 'Local'), 'ab-ovo');
+    if (local && path.isAbsolute(local)) return path.join(local, 'ab-ovo');
   }
-  if (platform === 'darwin') return path.join(home, 'Library', 'Application Support', 'ab-ovo');
-  return path.join(home, '.local', 'state', 'ab-ovo');
+  const user = home ?? homedir();
+  if (platform === 'win32') return path.join(user, 'AppData', 'Local', 'ab-ovo');
+  if (platform === 'darwin') return path.join(user, 'Library', 'Application Support', 'ab-ovo');
+  return path.join(user, '.local', 'state', 'ab-ovo');
 }
 
 /** The origin an id is keyed by and sent to, or `undefined` for an address that is not http or https. */
@@ -137,6 +151,26 @@ function describe(error: unknown): string {
 }
 
 /**
+ * The anonymous reader id for an API origin, in the state directory this environment names:
+ * `readerIdFor` there — or, when no state directory can be found, one held in memory alone,
+ * with why. It does not throw, so the P8 fallback runs whatever fails (`server.ts` says it).
+ */
+export function heldReaderId(
+  origin: string,
+  env: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform = process.platform,
+  home?: string,
+): HeldIn {
+  let directory: string;
+  try {
+    directory = stateDirectory(env, platform, home);
+  } catch (error) {
+    return { id: randomUUID(), kept: false, why: describe(error) };
+  }
+  return readerIdFor(origin, directory);
+}
+
+/**
  * The anonymous reader id for an API origin: the one the file already holds, else one minted
  * now and appended, else — when the file cannot be kept — one held in memory alone.
  */
@@ -148,11 +182,12 @@ export function readerIdFor(
    * can land. A test puts one there to lose the race on purpose; nothing else passes it.
    */
   beforeAppend?: () => void,
-): HeldIn {
+): HeldIn & { readonly file: string } {
   const file = join(directory, READER_IDS_FILE);
   try {
     const held = idIn(readIfThere(file), origin);
     if (held !== undefined) {
+      tighten(directory, 0o700);
       tighten(file, 0o600);
       return { id: held, kept: true, file };
     }

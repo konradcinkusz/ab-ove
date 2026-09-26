@@ -410,11 +410,19 @@ export class AbOvoApi {
       });
     }
 
+    /*
+      THE HEADERS ARE BUILT OUTSIDE THE `try`, because only the request belongs in it. Building
+      them is where an anonymous reader's id is first looked for, and a failure there is this
+      process's, not the network's: inside the `try` it was reported as `unreachable`, "try
+      again shortly", on every call (#171's review). `hold()` does not throw now, and anything
+      that still did would reach `handle()` as the defect it is.
+    */
+    const headers = this.#headers(options.body !== undefined);
     let response: Response;
     try {
       response = await this.#fetch(url, {
         method,
-        headers: this.#headers(options.body !== undefined),
+        headers,
         ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
         redirect: 'manual',
       });
