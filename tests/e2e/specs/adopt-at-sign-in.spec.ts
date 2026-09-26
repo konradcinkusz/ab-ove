@@ -61,10 +61,11 @@ const NEEDS_API =
   'names; CI always has one. Skipped rather than made conditional, as bearer-hop.spec.ts does.';
 
 /**
- * Where signing in and registering land when no destination was asked for, waited for exactly
- * — `furthest-frame.spec.ts` says what a looser pattern would let through.
+ * Where signing in and registering land when no destination was asked for: the index, in the
+ * edition the form was in (`/?lang=en` since issue #166, `/` for a caller that sends none).
+ * Waited for exactly — `furthest-frame.spec.ts` says what a looser pattern would let through.
  */
-const THE_INDEX = /\/$/;
+const THE_INDEX = /\/(\?lang=[a-z]{2,3})?$/;
 
 /**
  * Every place this browser sends the account — `PUT /progress/{track}/{unit}`, through this
