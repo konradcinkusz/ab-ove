@@ -166,14 +166,26 @@ const PASSWORD = 'Fixture-password-1!';
  */
 const HOLD_MS = 3_000;
 
-/** An account nobody else in the suite has touched, signed in on `page`. */
+/**
+ * Where registering and signing in land when no destination was asked for: the index (`/`,
+ * each route's `DEFAULT_DESTINATION`). Waited for exactly. A looser pattern such as
+ * `/\/$|\/[a-z]/` already matches `/register` and `/login`, where the page is before the form
+ * is sent — and where a refused one lands again — so the wait would return at once, prove
+ * nothing, and leave a failed sign-in to surface later as a sync that never saw the account.
+ */
+const THE_INDEX = /\/$/;
+
+/**
+ * An account nobody else in the suite has touched, signed in on `page` — the form
+ * `registration.spec.ts` drives, by the same field names.
+ */
 async function aFreshAccount(page: Page): Promise<Credentials> {
   const email = `furthest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.test`;
   await page.goto('/register');
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
   await page.check('input[name="accept"]');
-  await Promise.all([page.waitForURL(/\/$|\/[a-z]/), page.click('button[type="submit"]')]);
+  await Promise.all([page.waitForURL(THE_INDEX), page.click('button[type="submit"]')]);
   return { email, password: PASSWORD };
 }
 
@@ -187,8 +199,8 @@ const nextPull = (page: Page) =>
   );
 
 /**
- * A sync now, rather than after the debounce: the tab "becoming visible" is one of the three
- * moments `sync.ts` runs a cycle, and the event is the one a reader's own tab switch sends.
+ * A sync now, rather than after the debounce: the tab becoming visible is a moment `startSync`
+ * in `sync.ts` runs a cycle at, and the event is the one a reader's own tab switch sends.
  */
 const syncNow = (page: Page) =>
   page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
@@ -233,7 +245,7 @@ test.describe('the account, when the reader goes back and when they read elsewhe
     // Read to frame 3, and let the sync the landing schedules run — so what comes next is
     // measured against an account and a browser that already agree, and the pull awaited
     // after going back cannot be this one arriving late. Armed as the record says 3, which
-    // is where the three-second debounce starts.
+    // is where the sync's debounce starts.
     await readForwardTo(page, 3, { signedIn: true });
     await nextPull(page);
     await expect
@@ -266,7 +278,7 @@ test.describe('the account, when the reader goes back and when they read elsewhe
     try {
       const other = await elsewhere.newPage();
       await other.goto('/login');
-      await signIn(other, account, /\/$|\/[a-z]/);
+      await signIn(other, account, THE_INDEX);
       await walkTo(other, UNIT, 'en', 5);
     } finally {
       await elsewhere.close();

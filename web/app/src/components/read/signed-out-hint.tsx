@@ -47,8 +47,9 @@ export interface SignedOutHintProps {
  *
  * The record is read through `useSyncExternalStore` (`lib/progress/client.ts` says why), so
  * the server renders nothing here and the sentence arrives after hydration, at the end of the
- * screen's text, where appearing moves nothing above it. FOUR STRINGS AND A NUMBER cross the
- * client boundary — no title and nothing of the frame, `remember-position.tsx`'s rule.
+ * screen's text, where appearing moves nothing above it. IDENTIFIERS, AN EDITION, AN ADDRESS
+ * AND A FRAME NUMBER cross the client boundary — no title and nothing of the frame,
+ * `remember-position.tsx`'s rule.
  */
 export function SignedOutHint({
   track,

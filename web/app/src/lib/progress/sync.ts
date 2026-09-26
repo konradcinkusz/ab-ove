@@ -77,6 +77,10 @@ const DEBOUNCE_MS = 3_000;
  * action and one page load — with room left for a slow connection. It is the notice that
  * waits, never the record: the raise is adopted at once, so *Continue* already offers the
  * frame.
+ *
+ * `tests/e2e/specs/furthest-frame.spec.ts` keeps a copy as `HOLD_MS`, because a spec cannot
+ * import the application, and times its waits against it. Change the two together: a longer
+ * hold here leaves that spec's waits too short to prove what they say.
  */
 const OWN_REVEAL_GRACE_MS = 3_000;
 
@@ -321,8 +325,21 @@ const setForgetPending = (pending: boolean): void => {
  *
  * So the local record goes immediately, because it is theirs and clearing it always works;
  * and a marker is left saying the account has not been told yet. While that marker is set,
- * `cycle()` below will not PULL — it retries the DELETE and does nothing else. The
- * resurrection is therefore not merely unlikely, it is unreachable.
+ * `cycle()` below will not PULL — it retries the DELETE and does nothing else.
+ *
+ * A cycle ALREADY ON THE WIRE is the other way back. A reader who presses Forget just after
+ * a page opens presses it during that page's first pull, and the pull answers with the
+ * account's copy from before the DELETE. Written back, it was the place they had just
+ * watched go, back on the screen under a line saying they had read it elsewhere — which a
+ * full run of the core layer caught in `tests/e2e/specs/sync.spec.ts`, and which a test there
+ * now provokes on every run by holding the pull until Forget has been pressed. So a cycle that
+ * finds the marker set after an await writes nothing back and sends nothing more, and the
+ * DELETE waits for that cycle to end: the marker is still set whenever the cycle looks, and a
+ * PUT it had already sent lands before the DELETE rather than after it.
+ *
+ * From this tab, the resurrection is therefore unreachable. A forget pressed in ANOTHER tab
+ * waits for that tab's cycle, not this one's, so this one sees it only while its DELETE is
+ * still on the way.
  * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export async function forgetEverywhere(): Promise<void> {
@@ -330,6 +347,7 @@ export async function forgetEverywhere(): Promise<void> {
   forgetAll();
   dismissRaised();
 
+  await running;
   if (await deleteRemote()) setForgetPending(false);
 }
 
@@ -354,6 +372,8 @@ async function cycle(): Promise<void> {
   const late: Raised[] = [];
 
   for (const entry of result.toPush) {
+    // Forgotten since the pull: what is left to send is what the reader asked to lose.
+    if (forgetIsPending()) return;
     const answer = await push(entry);
     if (!answer) continue;
 
@@ -371,6 +391,10 @@ async function cycle(): Promise<void> {
       late.push({ program: entry.program, from: entry.position.step, to: landed });
     }
   }
+
+  // Forgotten during an await above: the record was emptied, and the pull's rows are the
+  // account's copy from before that. Writing them back would undo it (`forgetEverywhere`).
+  if (forgetIsPending()) return;
 
   /*
     Against the record as it is NOW, not as it was when the pull left — the reader kept

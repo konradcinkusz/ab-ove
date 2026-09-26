@@ -181,10 +181,20 @@ furthest read frame in this program is 1*, with no reason given.
   *Sign in to continue* returning the reader to the frame (`components/read/signed-out-hint.tsx`).
   It can be wrong for a reader who never signed in and whose cookie was cleared while their
   `localStorage` was not; nothing on this origin can tell that reader apart.
+- **A forget pressed while a sync is on the wire stays a forget.** The marker in *Forgetting
+  reaches both copies* stops the next pull, not one already sent: that pull answered with the
+  account's copy from before the `DELETE`, and writing it back put the forgotten place back on
+  the screen under *You had read … elsewhere*. A cycle that finds the marker set after any of
+  its round trips now writes nothing and sends nothing more, and the `DELETE` waits for that
+  cycle to end (`forgetEverywhere` in `lib/progress/sync.ts`). From the tab that pressed it,
+  the resurrection is unreachable, as that section says; a forget pressed in another tab is
+  seen only while its `DELETE` is still on its way.
 
 Asserted in `store.test.ts` and `reconcile.test.ts`, and end to end, against the identity
 fixture and a real `AbOvo.Api`, in
-[`furthest-frame.spec.ts`](../../tests/e2e/specs/furthest-frame.spec.ts).
+[`furthest-frame.spec.ts`](../../tests/e2e/specs/furthest-frame.spec.ts); the forget, with the
+pull held until Forget has been pressed, in
+[`sync.spec.ts`](../../tests/e2e/specs/sync.spec.ts).
 
 ## Consequences
 

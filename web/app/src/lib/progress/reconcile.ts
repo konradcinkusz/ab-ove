@@ -361,7 +361,8 @@ export function stillNews(entry: Raised, progress: Progress): boolean {
  * past it, so a raise to the frame after `last` means `last` IS the furthest — the one frame
  * a reveal can move the account from, and a reveal moves it by one. A raise of two or more,
  * or in another program, is therefore not a reveal from the frame this browser last showed,
- * and is told at once — wrongly in one case `sync.ts` names, a reveal made in another tab.
+ * and is told at once — wrongly for a reveal made in another tab, which `sync.ts` names in
+ * `tell`'s comment among the raises a pull cannot distinguish from reading done elsewhere.
  * Holding a real one-frame raise from elsewhere costs its line a few seconds, and nothing else.
  */
 export function couldBeOwnReveal(entry: Raised, progress: Progress): boolean {
