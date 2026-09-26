@@ -10,9 +10,9 @@
     "",
     "Two runtime dependencies now: the MCP SDK, and @ab-ovo/web-kit for the loader, the",
     "schema types and the validator. The gate this server exists to hold is still pure",
-    "TypeScript in src/reveal.ts, whose one import that runs is its refusals' own sentences",
-    "in src/framing.ts (#167), which imports nothing — so the thing most worth testing",
-    "needs no install to test (P13: test at the layer with the logic)."
+    "TypeScript in src/reveal.ts. What it imports at run time is src/framing.ts (#167),",
+    "its refusals' own sentences, and that imports nothing — so the thing most worth",
+    "testing needs no install to test (P13: test at the layer with the logic)."
   ],
   "name": "@ab-ovo/mcp",
   "version": "0.1.0",

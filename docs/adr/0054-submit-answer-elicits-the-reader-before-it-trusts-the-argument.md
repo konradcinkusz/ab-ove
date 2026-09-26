@@ -63,9 +63,11 @@ declares `elicitation: {}` may mean URL-mode only, which this server does not us
 **`tools.ts` stays testable without a real transport.** `Deps.elicit` is injected exactly
 like `cursors` and `bundles` already are, so the dispatch logic for confirmed, declined,
 unavailable, and "never called without a cue" is asserted directly (`tools.test.ts`, five
-new cases) — P13, test at the layer with the logic. `server.ts`'s own closure stays
-untested by design, on the file's own long-standing rule: it is wiring, and reading it
-tells you nothing worth asserting that the SDK's types don't already guarantee.
+new cases) — P13, test at the layer with the logic. `server.ts`'s own closure was left
+untested when this was decided, as wiring whose shape the SDK's types already guarantee.
+`server.test.ts` has since driven it over the SDK's in-memory transport: a reader who
+declines the form, and, with #167, the form's words in the edition of the step it confirms,
+which no type can check.
 
 **The tool's input schema did not change.** `answer` was already optional on
 `submit_answer` — required only where `here.step.cue` is true, and only of the value that

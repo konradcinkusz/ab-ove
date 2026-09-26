@@ -12,15 +12,16 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
 import { FALLBACK_LANGUAGE, FRAMING_LANGUAGES, TABLE, framingFor } from './framing.ts';
-import type { Strings } from './framing.ts';
+import type { Framing, Strings } from './framing.ts';
 import { TOOLS } from './tools.ts';
 
 /**
  * Every sentence of one entry, by key: each function called with the same two arguments,
  * so an entry's sentences can be read, and two entries' compared, without knowing which
  * key takes what. A number in a string's place prints as itself, which is all a scan needs.
+ * An entry of the table or what `framingFor()` builds from one, whose counts are functions.
  */
-function sentencesOf(strings: Strings): Map<string, string> {
+function sentencesOf(strings: Strings | Framing): Map<string, string> {
   const found = new Map<string, string>();
   for (const [key, value] of Object.entries(strings)) {
     if (typeof value === 'string') found.set(key, value);
@@ -69,6 +70,19 @@ test('an edition with no sentences here gets English ones, and says they are Eng
   // The positive control: without it, a framingFor() that always answered English would pass.
   assert.equal(framingFor('pl').language, 'pl');
   assert.notEqual(framingFor('pl').asks, framingFor('en').asks);
+});
+
+test('a name every object answers to is not a language: it gets English, every sentence of it', () => {
+  // `sign-in-problem.test.ts`'s gate, one package over, for the same lookup: the table is an
+  // object literal, and `TABLE['constructor']` used to find `Object.prototype`'s member and
+  // build a Framing whose every sentence was undefined — a TypeError out of handle(), or the
+  // word "undefined" said to a reader (#167, on #137's note).
+  const english = sentencesOf(framingFor(FALLBACK_LANGUAGE));
+  for (const inherited of ['constructor', '__proto__', 'toString']) {
+    const framing = framingFor(inherited);
+    assert.equal(framing.language, FALLBACK_LANGUAGE, `"${inherited}" was taken for a language`);
+    assert.deepEqual(sentencesOf(framing), english, `"${inherited}" is not framed as English is`);
+  }
 });
 
 test('no sentence is left untranslated: every Polish one differs from its English twin', () => {

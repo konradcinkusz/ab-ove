@@ -189,8 +189,8 @@ the model about its call, such as `Starting "P01".`, the answer it recorded, and
 `open_program` call that opens a program. The list of programs is the model's menu, so only its
 titles and group headings follow the edition. The edition question is asked because no edition
 is known, and is English. When the reader's place cannot be reached, the note says so in the
-edition the call named, or else in the one the session last spoke in. An edition with no
-sentences in the table is framed in English.
+edition the call named if the track is published in it, or else in the one the session last
+spoke in. An edition with no sentences in the table is framed in English.
 
 ## Tests
 

@@ -22,8 +22,8 @@ const BUNDLES = fixtureBundles();
 
 /**
  * Every edition the fixture is published in. The leak walks run once in each (#167): the
- * server's own sentences follow the edition now, so the words around a step differ between
- * the two, and "no answer before its step" is a claim about every one of them.
+ * server's own sentences follow the edition now, so the words around a step differ from one
+ * edition to another, and "no answer before its step" is a claim about every one of them.
  */
 const EDITIONS = BUNDLES.for(TRACK)!.track.languages;
 
@@ -1200,6 +1200,51 @@ test('a place out of reach is told in the edition the session last spoke in, and
   // An edition the call names is the one it is told in, with no session to remember one.
   const named = await handle('list_programs', { language: 'pl' }, { cursors, bundles: BUNDLES });
   assert.match(named.text, /nic nie przepadło/);
+});
+
+test('a language no track is published in is not the edition a place out of reach is told in, and never throws', async () => {
+  /*
+    #137's guarantee, kept through #167's note. The SDK's low-level server checks no argument,
+    so `language` is whatever a host sent, and the note used to take it raw: `constructor`
+    found Object.prototype's member in framing.ts's table and threw out of handle() on a 503,
+    and printed "undefined" to the reader on a 401 or a 404. `PL`, and an edition the track
+    does not have, were honoured where every other call refuses them.
+  */
+  const english = /^Your place in the book could not be reached just now, and nothing is lost/;
+  for (const status of [401, 404, 503]) {
+    const cursors = apiAnswering(async () => new Response('', { status }));
+    for (const language of ['constructor', '__proto__', 'toString', 'valueOf', 'hasOwnProperty']) {
+      const where = `HTTP ${status}, "${language}"`;
+      // Resolving at all is the first assertion: it used to reject, as a protocol error.
+      const result = await handle('list_programs', { language }, { cursors, bundles: BUNDLES });
+      assert.ok(result.isError, where);
+      assert.match(result.text, english, where);
+      assert.doesNotMatch(result.text, /undefined/, where);
+    }
+  }
+
+  // A name `languageIn` does not resolve falls through to the edition the session last spoke.
+  const down = apiAnswering(async () => new Response('', { status: 503 }));
+  const spokePolish = { cursors: down, bundles: BUNDLES, session: { ephemeralNoteSaid: false, spokenIn: 'pl' } };
+  for (const language of ['PL', 'pl-PL', 'de']) {
+    const result = await handle('list_programs', { language }, spokePolish);
+    assert.match(result.text, /^Nie udało się teraz dotrzeć do twojej pozycji w lekturze/, `"${language}"`);
+  }
+  // An edition the track does not have is not honoured either, though the table has words for it.
+  const bundle = BUNDLES.for(TRACK)!;
+  const englishOnly: Bundle = { ...bundle, track: { ...bundle.track, languages: ['en'] } };
+  const onlyEnglish: BundleSource = { for: (id) => (id === TRACK ? englishOnly : undefined), all: () => [englishOnly] };
+  const lacked = await handle('open_program', { unit: UNIT, language: 'pl' }, { cursors: down, bundles: onlyEnglish });
+  assert.match(lacked.text, english);
+  // The positive control: the same call on the track that has it is told in Polish.
+  const had = await handle('open_program', { unit: UNIT, language: 'pl' }, { cursors: down, bundles: BUNDLES });
+  assert.match(had.text, /^Nie udało się teraz dotrzeć do twojej pozycji w lekturze/);
+
+  // With no book either, no edition can be named, and the note owed is still the place's.
+  const neither = { cursors: down, bundles: failingWith(notFound([`${REPOSITORY_ROOT}/web/content/bundle/bundle.json`])) };
+  const lost = await handle('list_programs', { language: 'pl' }, neither);
+  assert.ok(lost.isError);
+  assert.match(lost.text, english);
 });
 
 test('the form that confirms an answer is asked in the edition of the step it confirms', async () => {

@@ -583,8 +583,8 @@ type Built =
       readonly isError?: undefined;
       /**
        * The edition its words to the reader are in (#167), which the in-memory note is said
-       * in too. Absent from the one result that speaks none: the edition question, asked
-       * because no edition is known.
+       * in too. Absent from a result that speaks no edition: the edition question, asked
+       * because no edition is known, and a list with no track to title.
        */
       readonly language?: string;
       readonly data: Omit<Structured, 'text' | 'placeIsEphemeral'>;
@@ -1176,8 +1176,8 @@ export interface Session {
   /**
    * The edition of the last result that spoke one (#167). When the reader's place cannot be
    * reached — the place being where an edition is otherwise read from — `handle()` says
-   * `placeUnavailableNote()` in the edition the call named, else in this one. Nothing else
-   * reads it.
+   * `placeUnavailableNote()` in the edition the call named if the track has it, else in this
+   * one (`unreachableEdition()`). Nothing else reads it.
    */
   spokenIn?: string;
 }
@@ -1226,9 +1226,9 @@ export interface Deps {
  * Anything else still throws, on purpose: an error this file cannot name is a defect in
  * this package, and a sentence would dress it up as the deployment's.
  *
- * A PLACE OUT OF REACH IS TOLD IN AN EDITION NOTHING HAD TO READ (#167): the one the call
- * named, else the one this session last spoke in, else English. Asking the store which
- * edition the reader reads in would be asking the thing that has just failed.
+ * A PLACE OUT OF REACH IS TOLD IN AN EDITION THE STORE DID NOT HAVE TO SAY (#167) —
+ * `unreachableEdition()`'s. Asking the store which edition the reader reads in would be
+ * asking the thing that has just failed.
  */
 export async function handle(
   name: string,
@@ -1240,13 +1240,43 @@ export async function handle(
     built = await dispatch(name, args, deps);
   } catch (error) {
     if (error instanceof ContentUnavailable) return problem(noContentNote(error));
-    if (error instanceof PlaceUnavailable) {
-      const named = typeof args.language === 'string' && args.language !== '' ? args.language : undefined;
-      return problem(placeUnavailableNote(error, named ?? deps.session?.spokenIn ?? FALLBACK_LANGUAGE));
-    }
+    if (error instanceof PlaceUnavailable) return problem(placeUnavailableNote(error, unreachableEdition(args, deps)));
     throw error;
   }
   return delivered(built, deps);
+}
+
+/**
+ * The edition a place out of reach is told in (#167): the one the call named, if a track the
+ * call can mean is published in it; else the one this session last spoke in; else English.
+ *
+ * RESOLVED, NEVER TAKEN AS SENT. The SDK's low-level `Server` checks no argument against a
+ * tool's schema, so `language` is whatever the host passed, and the first version handed it
+ * to `placeUnavailableNote()` as it came: `constructor` threw out of `handle()` on the path
+ * #137 exists to keep a result, and `PL`, or an edition the track does not have, was
+ * honoured where every other call refuses it. So it passes `languageIn`, as an edition a
+ * call names does everywhere else here — and `framingFor()` is total besides.
+ *
+ * THE BOOK IS ASKED, AND MAY BE MISSING TOO. A deployment can lose its book and its store at
+ * once; the note owed is still the place's, and with no book no edition can be named, since
+ * the editions are the book's.
+ */
+function unreachableEdition(args: Record<string, unknown>, deps: Deps): string {
+  const asked = typeof args.language === 'string' && args.language !== '' ? args.language : undefined;
+  let named: string | undefined;
+  if (asked !== undefined) {
+    let carried: readonly Bundle[] = [];
+    try {
+      carried = deps.bundles.all();
+    } catch (error) {
+      if (!(error instanceof ContentUnavailable)) throw error;
+    }
+    // The track the call names, or any this server carries when it names none (`list_programs`).
+    const track = typeof args.track === 'string' && args.track !== '' ? args.track : undefined;
+    const meant = track === undefined ? carried : carried.filter((bundle) => bundle.track.id === track);
+    named = meant.map((bundle) => languageIn(bundle, asked)).find((edition) => edition !== undefined);
+  }
+  return named ?? deps.session?.spokenIn ?? FALLBACK_LANGUAGE;
 }
 
 /**
@@ -1258,8 +1288,8 @@ export async function handle(
  * note spent there may never reach the reader. So the note goes on the first result that is
  * not an error, whichever tool gives it — and an error carries no data to flag it in.
  *
- * In the result's own edition (#167), and English on the one result that speaks none; the
- * session keeps that edition for the one error that is told in it (`handle()`).
+ * In the result's own edition (#167), and English on a result that speaks none; the session
+ * keeps that edition for the error that is told in it, a place out of reach (`handle()`).
  */
 function delivered(built: Built, deps: Deps): ToolResult {
   if (built.isError) return built;

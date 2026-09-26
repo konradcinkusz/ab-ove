@@ -30,7 +30,9 @@
  * the two surfaces say the same thing — `Napisz odpowiedź, zanim przejdziesz dalej`, `Czy
  * potrafisz?`, `Następny program`, `Podstawy` — COPIED rather than imported, because this
  * package reaches into `@ab-ovo/app` for nothing (ADR-0053).
- * `docs/how-to/translate-a-document.md` is the vocabulary both copies are held to.
+ * `docs/how-to/translate-a-document.md` is the vocabulary both copies are held to, and it
+ * names both tables. NOTHING CHECKS ONE COPY AGAINST THE OTHER, so a shared word changed in
+ * either is changed in both, in the same commit (MCP-SERVER-SKETCH.md §7 names the gate).
  *
  * THE POLISH SAYS `ramka` WHERE THE ENGLISH SAYS `step`. This server's English calls the
  * numbered unit a step, after the schema's `steps` and its own tool names; the book and
@@ -228,9 +230,12 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     // `Podsumowanie` and `Czy potrafisz?` are the reading surface's `summaryHeading` and
     // `canYouHeading`. The English idiom *return index* is said as the thing it is: frames
     // to read again. `co po tym programie powinno się umieć` is impersonal, where *what the
-    // reader should now be able to do* would have to pick the reader's gender in Polish.
+    // reader should now be able to do* would have to pick the reader's gender in Polish. An
+    // item of the list is a `punkt`: `pozycja` is the vocabulary's word for the reader's
+    // place (`placeIsEphemeral` below), and one word naming two things is the drift
+    // translate-a-document.md exists to stop.
     summary:
-      '**Podsumowanie** z samej książki — każda pozycja mówi, co ustalił ciąg ramek, i ' +
+      '**Podsumowanie** z samej książki — każdy punkt mówi, co ustalił ciąg ramek, i ' +
       'wskazuje ramki do ponownego przeczytania:',
     canYou: '**Czy potrafisz?** — co po tym programie powinno się umieć:',
     range: (from, to) => (from === to ? `ramka ${from}` : `ramki ${from}–${to}`),
@@ -302,7 +307,16 @@ const count = (language: string, n: number, forms: Plural): string =>
 
 /** The sentences for a reader of `language`, falling back to English rather than failing. */
 export function framingFor(language: string): Framing {
-  const found = TABLE[language];
+  /*
+    AN ENTRY OF THE TABLE'S OWN, NEVER ONE IT INHERITS. `TABLE` is an object literal, so
+    `TABLE['constructor']`, `TABLE['__proto__']` and `TABLE['toString']` answer with
+    `Object.prototype`'s members, and the first version built a Framing from them whose
+    every sentence was `undefined`: thrown out of `handle()` as `placeOutOfReach is not a
+    function`, or said to the reader as the word "undefined" — #137's note, broken by the
+    lookup meant to translate it (#167). The fallback promises a Framing for any string, so
+    the lookup is `Object.hasOwn`, as `sign-in-problem.ts` looks up a code off a URL.
+  */
+  const found = Object.hasOwn(TABLE, language) ? TABLE[language] : undefined;
   const used = found ? language : FALLBACK_LANGUAGE;
   // Non-null: the fallback entry is required to exist, and framing.test.ts asserts it.
   const { step, ...strings } = found ?? TABLE[FALLBACK_LANGUAGE]!;

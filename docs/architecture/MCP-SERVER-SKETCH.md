@@ -75,9 +75,9 @@ It holds by construction: no field of the data is read from an answer's words, a
 read every string of both halves, value by value rather than through a serialisation that
 would escape a backslash, and one of them walks a three-program track whose answers name
 their program. At every place in every program it asks every tool about every program, and
-checks that no step shown in the data lies past the furthest. Each walk runs once in each
-edition, because the server's own sentences differ between the two (#167), and each checks
-that it was framed in the edition it names.
+checks that no step shown in the data lies past the furthest. Each walk runs once in each of
+the fixture's editions, because the server's own sentences differ from one edition to another
+(#167), and each checks that it was framed in the edition it names.
 
 Watched failing: carrying the next step's answer in a step's data turns the leak walks red,
 and the output-schema validation in `server.test.ts` with them. Carrying the next program's
@@ -270,11 +270,17 @@ is `refused` before anything is sent, rather than `unreachable` and retried for 
 a JSON answer that is not an object is `refused` rather than a `TypeError` out of
 `handle()`. The gate's refusals are untouched. Anything else `handle()` cannot name still
 throws, because a sentence would dress a defect in this package up as the deployment's.
-What the note tells the reader follows their edition: the one the call named, else the one the
-session last spoke in. The store that says which edition a reader reads in is the thing out of
-reach, so nothing is asked of it. The fixes for whoever runs the server stay English with the
-variables they name, and so does the whole of the note for a deployment with no book, which has
-no editions to follow.
+
+What the note tells the reader follows their edition: the one the call named, if the track is
+published in it, else the one the session last spoke in, else English. The store that says which
+edition a reader reads in is the thing out of reach, so nothing is asked of it. The named
+edition passes `languageIn`, as a named edition does everywhere else in this server, and is
+never used as sent. A host's arguments reach `handle()` unchecked, and the first version
+of this note took `language` raw. `constructor` then found `Object.prototype`'s member in the
+table and threw out of `handle()`, the defect #137 exists to end, and `PL` was honoured where
+every other call refuses it. `framingFor()` looks up only the table's own entries besides. The
+fixes for whoever runs the server stay English with the variables they name, and so does the
+whole of the note for a deployment with no book, which has no editions to follow.
 
 **A place kept in memory is said in the results, once.** `server.ts` warned on stderr, which
 no reader of a host sees, so the results carry the same sentence, and the reader learns it
@@ -461,6 +467,12 @@ Nothing else in this package reaches into `@ab-ovo/app` any more, and nothing ne
   Next's and not this package's.
 - **Concurrency.** `MemoryCursorStore` has no locking. Over stdio a host waits for each
   result, so it does not arise; a deployed server should not rely on that.
+- **The copied words.** `web/mcp/src/framing.ts` copies the Polish words it shares with the
+  reading surface's `chrome.ts` rather than importing them (ADR-0053), and nothing checks one
+  copy against the other; [`translate-a-document.md`](../how-to/translate-a-document.md) asks
+  for both to change in one commit, which is a convention and not a gate. A gate has a
+  decision of its own to take first: either package's tests reading the other's source, or
+  the shared words moving into `@ab-ovo/web-kit`.
 - **The licence.** Serving the book's prose through third-party hosts is a redistribution
   question and it is the book's to answer, not this repository's (ADR-0033). The book's
   `LICENSE-CONTENT` still carries its undecided block, and neither of its licence files
