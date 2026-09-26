@@ -51,13 +51,40 @@ var postgres = builder.AddPostgres("postgres", password: authDbPassword)
 var apiDb = postgres.AddDatabase("apidb");
 var authDb = postgres.AddDatabase("authdb");
 
+// The host-facing address authservice is published on, written once because two things have
+// to agree on it: the port the endpoint binds, and Jwt__PublicBaseUrl below.
+//
+// A LITERAL rather than authservice.GetEndpoint("http"), deliberately. PublicBaseUrl is the
+// address a caller OUTSIDE the container uses, and the caller that matters is `api`, which
+// runs as a host process and reaches this container through the published port. An endpoint
+// reference resolved for the container's OWN environment is not that address.
+const int authServicePort = 8081;
+var authServicePublicUrl = $"http://localhost:{authServicePort}";
+
 var authservice = builder.AddContainer("authservice", "ghcr.io/konradcinkusz/authservice", "v0.3.1")
-    .WithHttpEndpoint(port: 8081, targetPort: 8080, name: "http")
+    .WithHttpEndpoint(port: authServicePort, targetPort: 8080, name: "http")
     .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
     .WithEnvironment("Jwt__Algorithm", "RS256")
     .WithEnvironment("Jwt__PrivateKeyPem", authSigningKey)
     .WithEnvironment("Jwt__Issuer", AbOvoIdentity.Issuer)
     .WithEnvironment("Jwt__Audience", AbOvoIdentity.Audience)
+    // WITHOUT THIS, EVERY BEARER THIS SERVICE ISSUES IS REFUSED BY AbOvo.Api WITH A 401.
+    //
+    // ADR-0004 has the API validate RS256 against authservice's JWKS, and
+    // ServiceDefaults/AuthenticationExtensions.cs reaches it through the discovery document
+    // alone. v0.3.1 builds that document's `jwks_uri` from Jwt:PublicBaseUrl, and treats the
+    // unset default as an empty string: the address it then publishes is the bare path
+    // "/.well-known/jwks.json", which no client can resolve, so the API holds no key and
+    // answers "The signature key was not found".
+    //
+    // This is the ONE knob that fixes it. The document's `issuer` comes from Jwt:Issuer and
+    // not from here (AUTHSERVICE-OAUTH-PROBE.md §2.3), so the bare `iss` of "AbOvo" that
+    // ADR-0004 §4 records — and every validator of it — is untouched by this line.
+    //
+    // Plain http, which a DEPLOYED instance must never have: flyio/authservice.fly.toml sets
+    // its own https origin, and `api` is given Jwt__RequireHttpsMetadata=false here and
+    // nowhere else (AGENTS.md item 1).
+    .WithEnvironment("Jwt__PublicBaseUrl", authServicePublicUrl)
     .WithEnvironment("Database__SchemaMode", "EnsureCreated")
     .WithEnvironment("ConnectionStrings__DefaultConnection", authDb.Resource.ConnectionStringExpression)
     .WithEnvironment("Cors__AllowedOrigins__0", "http://localhost:3000")

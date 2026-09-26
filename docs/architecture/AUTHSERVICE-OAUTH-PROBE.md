@@ -348,9 +348,12 @@ This is what moving the pin would take, measured where it says so.
   that environment `v0.3.1`'s discovery document gives `jwks_uri` as the bare path
   `/.well-known/jwks.json`, and `v0.3.4`'s gives an absolute URL built from the request
   (`http://127.0.0.1:5308/.well-known/jwks.json`, captured), because `Program.cs:119–124` at
-  `v0.3.4` treats a blank `Jwt:PublicBaseUrl` as unset. That bare path is the gap
-  [`docs/tutorials/01-first-run.md`](../tutorials/01-first-run.md) step 3 records against
-  `v0.3.1`.
+  `v0.3.4` treats a blank `Jwt:PublicBaseUrl` as unset. That bare path was the gap
+  [`docs/tutorials/01-first-run.md`](../tutorials/01-first-run.md) step 3 recorded against
+  `v0.3.1`. `AppHost.cs` sets `Jwt__PublicBaseUrl` to the container's published address as of
+  2026-09-26, so the pin publishes an absolute `jwks_uri` as well and that step now records
+  the gap as closed. The `issuer` comes from `Jwt:Issuer` either way (§2.3), so nothing about
+  the bare `iss` changes.
 
 ## 4. What it means for 730
 
