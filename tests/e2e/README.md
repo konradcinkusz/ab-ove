@@ -61,7 +61,7 @@ was first written with.
 | `bearer-hop.spec.ts` | this app's proxy carrying a real bearer from an HttpOnly cookie to a real `AbOvo.Api` |
 | `consent.spec.ts` | being asked once whether answers may be counted, focus landing on the answer given, and being left alone |
 | `courses.spec.ts` | the courses, and the index narrowed to one of them |
-| `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload |
+| `error-page.spec.ts` | the book's server stops answering under a frame: the page says so in the frame's edition, and *Try again* brings the frame back without a reload; a program's contents and summary fail the same way |
 | `focus-ring.spec.ts` | the controls that showed focus by a colour or a brightness wear the shared ring, in light, dark and forced colours |
 | `frame-view.spec.ts` | the answer is absent before the reveal, asserted in both directions and both editions |
 | `furthest-frame.spec.ts` | going back to re-read: *Continue* keeps the furthest frame, the sync tells only reading done elsewhere and offers a way to that frame, and a frame refused after signing out says why — the signed-in half against an account registered for the test and a real `AbOvo.Api` |
@@ -74,10 +74,10 @@ was first written with.
 | `landing.spec.ts` | the landing page is the programs, one click from one of them |
 | `language-choice.spec.ts` | the same frame in the other edition, and the choice remembered |
 | `narrow-screen.spec.ts` | the reading surface at 360 px: nothing scrolls sideways, and the loop still runs |
-| `navigation.spec.ts` | finding a program, opening it, and coming back to the same frame |
-| `no-backend.spec.ts` | the app with no backend in reach of the browser |
+| `navigation.spec.ts` | finding a program, opening it, and coming back to the same frame; the contents lock what the gate would refuse, and the summary opens only from the last frame |
+| `no-backend.spec.ts` | the app with no backend in reach of the browser, and the index saying that no program will open |
 | `pager.spec.ts` | `Previous` and `Next` on screen and clickable on every frame, desktop and phone, with and without JavaScript (ADR-0063) |
-| `program-ends.spec.ts` | the summary's return index and its way on, and the contents page's way back |
+| `program-ends.spec.ts` | the summary's return index and its way on, named in the reader's edition, and the contents page's way back |
 | `progress.spec.ts` | coming back to where one was, with no account |
 | `reader-identity.spec.ts` | an anonymous reader's place is held in a cookie the page cannot read, and no header can claim it (ADR-0061) |
 | `reading.spec.ts` | reading a program end to end from the keyboard, the frame's ergonomics, and the frame on paper |
@@ -206,11 +206,14 @@ specified to need no account and no server, and
 [ADR-0060](../../docs/adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
 kept the first half and reversed the second: every frame is now a live call to `AbOvo.Api`, so an
 API that does not answer stops reading. What this journey still holds is the part that stays true
-with the browser cut off from the API — the index reaches a program, and `/about` renders whole and
-says legibly which fault it was — because neither page needs the API to render: the index reads the
-compiled bundle built into the web app, and `/about`'s one live part is the panel, which crashing or
-spinning forever would be the product failing twice. It says nothing about a frame; ADR-0062 records
-why the suite no longer runs a whole deployment with no API.
+with the browser cut off from the API — the index reaches a program and says that none will open
+right now (#158), and `/about` renders whole and says legibly which fault it was — because neither
+page needs the API to render: the index reads the compiled bundle built into the web app (a
+deviation the architecture document's register records), and `/about`'s one live part is the panel,
+which crashing or spinning forever would be the product failing twice. It says nothing about a
+frame or a program's contents, which fail on the server where no browser route reaches;
+`specs/error-page.spec.ts` covers those. ADR-0062 records why the suite no longer runs a whole
+deployment with no API.
 
 The failure is injected in the browser with route interception, which is both deterministic
 (no waiting for a real backend to be down, no 45-second ladder walk) and faithful to what a
@@ -218,8 +221,8 @@ reader experiences. Four faults are covered separately because the product says 
 different things about them: an aborted request, the proxy's 503 (nothing answered), the
 proxy's 504 (something answered too slowly, e.g. cold-starting), and an unexpected 500.
 
-Each test asserts three properties, because any one alone would be satisfied by a broken
-page:
+The test that renders the whole of `/about` with the API cut off asserts three properties,
+because any one alone would be satisfied by a broken page:
 
 - **the product is intact** — the heading, the anti-goal, the four loop steps, the four
   phases, asserted element by element exactly as journey 1 asserts them with a backend
@@ -230,10 +233,15 @@ page:
   throws during render leaves the server-rendered HTML on screen, so the first two assertions
   can both pass against a page that crashed.
 
-The last test asserts the landing page does not redirect to sign-in when there is no session
-and no identity service. The middleware is private-by-default and opts routes out one at a
-time, so `/` being public is a list entry somebody wrote; if it ever falls out of that list,
-the symptom is a redirect to a page a deployment without an identity service cannot serve.
+The index's tests make the same kind of claim about `/`: the programs are there and one of them
+is a link into a program, the line above them speaks only when the book's server does not
+answer, and the page threw nothing.
+
+Neither the landing page nor `/about` may redirect to sign-in when there is no session and no
+identity service, and the file asserts both. The middleware is private-by-default and opts
+routes out one at a time, so `/` being public is a list entry somebody wrote; if it ever falls
+out of that list, the symptom is a redirect to a page a deployment without an identity service
+cannot serve.
 
 ### 5. The Lab P1 pane — `specs/lab-p01.spec.ts`
 

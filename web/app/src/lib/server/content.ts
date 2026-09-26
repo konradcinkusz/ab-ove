@@ -1,5 +1,6 @@
 import type {
   AdvanceBody,
+  ReturnIndexResponse,
   StepResponse,
   TrackContent,
   UnitSummary,
@@ -10,8 +11,11 @@ import { backendCandidates } from './backends.ts';
 /**
  * The reading surface's only door to the book — ADR-0060. Every read and every advance goes
  * through `AbOvo.Api`'s content endpoints; nothing under `src/app/read/**` reads a compiled
- * bundle from disk any more (that path, `@ab-ovo/web-kit`'s `bundleFor`, still exists for
- * `web/mcp` and for the unit tier, which is deliberately not this).
+ * bundle from disk any more — the contents and the summary were the last two that did, until
+ * issue #158 (`@ab-ovo/web-kit`'s `bundleFor` still exists for `web/mcp` and for the unit
+ * tier, which is deliberately not this). The index, `/courses` and `/instrument` still list
+ * the programs from the bundle compiled into the app, and the deviation register in
+ * `docs/architecture/00-ARCHITECTURE.md` says why and until when.
  *
  * The wire shapes live in `lib/content/wire.ts`, not here — see that file for why. This
  * module holds only the calls: the candidate ladder, the per-candidate timeout, and an
@@ -219,6 +223,20 @@ export function fetchStep(
   fetchImpl: FetchLike = fetch,
 ): Promise<ContentOutcome<StepResponse>> {
   return request('GET', path(track, unit, step), identity, undefined, fetchImpl);
+}
+
+/**
+ * A program's return index — its Summary, its outcomes and its lab — subject to the reveal
+ * gate as the program's last step (issue #158): `refusal` rather than a thrown error when the
+ * reader has not reached that step, exactly as `fetchStep` answers for a frame.
+ */
+export function fetchReturnIndex(
+  track: string,
+  unit: string,
+  identity: ReaderIdentity,
+  fetchImpl: FetchLike = fetch,
+): Promise<ContentOutcome<ReturnIndexResponse>> {
+  return request('GET', path(track, unit, 'summary'), identity, undefined, fetchImpl);
 }
 
 /**

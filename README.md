@@ -380,10 +380,12 @@ ingested into the API whole, and served from there one step at a time. The revea
 a form that asks the API to raise the reader's place, and the next frame is served only once
 it has — the gate is the server's rather than a convention in the browser. So reading is
 exactly as available as the API. With the API down the index and `/courses` still render,
-because they read the compiled bundle built into the web app and call no API while rendering
-(580 in [the order](docs/ux/UI-UX.md#the-order) decides whether they stay that way); a frame
-answers with the error page instead. That is the honest state rather than a fault to paper
-over: content is the one integration this product does not treat as optional, so P8's
+because they list the programs from the compiled bundle built into the web app — a deviation
+recorded with its exit in
+[the register](docs/architecture/00-ARCHITECTURE.md#deviation-register) — and the index says that
+no program will open; a program's contents, its summary and every frame answer with the error
+page instead. That is the honest state rather than a fault to paper over: content is the one
+integration this product does not treat as optional, so P8's
 degrade-rather-than-fail rule does not reach it
 ([`docs/architecture/00-ARCHITECTURE.md`](docs/architecture/00-ARCHITECTURE.md), P8).
 

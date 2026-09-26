@@ -1,7 +1,17 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { languages, probe, served, track, uniqueProbeIn, unitNamed } from './support/bundle.ts';
+import {
+  languages,
+  probe,
+  served,
+  track,
+  trackTitles,
+  uniqueProbeIn,
+  unitNamed,
+  type ServedUnit,
+} from './support/bundle.ts';
 import { openThrough } from './support/gate.ts';
+import { walkTo } from './support/walk.ts';
 
 /**
  * JOURNEY — the two ends of a program: the summary a reader reaches after its last frame, and
@@ -31,6 +41,16 @@ const summaryAt = (unit: string, language: string): string => `${contentsAt(unit
 
 const pager = (page: Page) => page.locator('[data-pager]');
 
+/** A literal, as a pattern — a title may carry characters a bare RegExp would read. */
+const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * To the end of a program, through the real `advance` endpoint — the summary is served only
+ * once the reader has reached the last frame (issue #158), so every visit below is a reader
+ * who has. The cursor is the program's, whatever the edition, so one walk opens both.
+ */
+const finish = (page: Page, unit: ServedUnit): Promise<void> => walkTo(page, unit.id, 'en', unit.steps.length);
+
 test.describe('the summary', () => {
   test('prints the program’s return index — its Summary items and its outcomes, each with its frames @core', async ({
     page,
@@ -41,6 +61,7 @@ test.describe('the summary', () => {
     expect(items.length, `${FIRST.id} has no Summary items, so this proves nothing`).toBeGreaterThan(0);
     expect(outcomes.length, `${FIRST.id} has no outcomes, so this proves nothing`).toBeGreaterThan(0);
 
+    await finish(page, FIRST);
     for (const language of languages) {
       await page.goto(summaryAt(FIRST.id, language));
       const main = page.locator('main');
@@ -84,11 +105,15 @@ test.describe('the summary', () => {
     // A place in the first program is what opens the second (ADR-0051), so the way on is a
     // way somewhere rather than a bounce off the gate — seeded as `gate.ts` seeds it.
     await openThrough(page, SECOND.id);
+    await finish(page, FIRST);
     await page.goto(summaryAt(FIRST.id, 'en'));
 
     const onward = pager(page).getByRole('link', { name: new RegExp(SECOND.id) });
     await expect(onward, 'the summary offers no way on').toHaveCount(1);
-    // The next program's title rides in the tooltip, the label being a phone's third of the pager.
+    // The next program is named by its title on the button itself (issue #158), not only in
+    // a tooltip a touch screen never shows; the tooltip stays for a title the cell cuts short.
+    await expect(onward).toContainText('Next program');
+    await expect(onward).toContainText(`${SECOND.id} · ${SECOND.titles['en']!}`);
     await expect(onward).toHaveAttribute('title', `${SECOND.id} · ${SECOND.titles['en']!}`);
 
     await onward.click();
@@ -106,6 +131,7 @@ test.describe('the summary', () => {
     // A `Next program` with no next program would be a control that names a place and does
     // not go there. The last summary's way on is the index — and `→` has nowhere else to go.
     await openThrough(page, LAST.id);
+    await finish(page, LAST);
     await page.goto(summaryAt(LAST.id, 'en'));
     await expect(page.getByRole('heading', { level: 1 })).toContainText(LAST.titles['en']!);
 
@@ -129,11 +155,13 @@ test.describe('the summary', () => {
     expect(withLab, 'the served bundle declares no lab, so this proves nothing').toBeTruthy();
     const labUnit = unitNamed(withLab!.id);
 
+    await finish(page, FIRST);
     await page.goto(summaryAt(FIRST.id, 'en'));
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(FIRST.titles['en']!);
     await expect(page.locator('main a[href^="/lab/"]'), `${FIRST.id} offers a lab it does not have`).toHaveCount(0);
 
     await openThrough(page, labUnit.id);
+    await finish(page, labUnit);
     await page.goto(summaryAt(labUnit.id, 'en'));
     const lab = page.locator(`main a[href="/lab/${labUnit.id.toLowerCase()}"]`);
     await expect(lab, `${labUnit.id}'s summary does not lead to its exercises`).toHaveCount(1);
@@ -144,11 +172,38 @@ test.describe('the summary', () => {
 
   test('switches edition without leaving the summary @core', async ({ page }) => {
     const [first, second] = languages;
+    await finish(page, FIRST);
     await page.goto(summaryAt(FIRST.id, first!));
     const control = page.getByRole('navigation').filter({ has: page.locator(`a[lang="${second}"]`) });
     await control.locator(`a[lang="${second}"]`).click();
     await expect(page).toHaveURL(new RegExp(`${summaryAt(FIRST.id, second!)}$`));
     await expect(page.locator(`main[lang="${second}"]`)).toContainText(FIRST.titles[second!]!);
+  });
+
+  test('names itself in the reader’s edition, as its program’s contents do @core', async ({ page }) => {
+    /*
+      ISSUE #158. The contents' description said "N frames." and the summary's tab and
+      description said "Summary — …" and "The return index for …" — in English, on the
+      Polish pages. They are the reader's edition's words now, and the description names the
+      program and quotes nothing of its index.
+    */
+    const description = page.locator('meta[name="description"]');
+    const n = FIRST.steps.length;
+
+    await page.goto(contentsAt(FIRST.id, 'pl'));
+    await expect(page).toHaveTitle(`${FIRST.titles['pl']!} — ab-ovo`);
+    await expect(description).toHaveAttribute(
+      'content',
+      new RegExp(`^${escaped(trackTitles['pl']!)} · ${n} ram(ka|ki|ek)\\.$`),
+    );
+
+    await finish(page, FIRST);
+    await page.goto(summaryAt(FIRST.id, 'pl'));
+    await expect(page).toHaveTitle(`Podsumowanie — ${FIRST.titles['pl']!} — ab-ovo`);
+    await expect(description).toHaveAttribute(
+      'content',
+      `Podsumowanie programu „${FIRST.titles['pl']!}” i to, czego ma nauczyć.`,
+    );
   });
 });
 
@@ -165,7 +220,10 @@ test.describe('a program’s way back', () => {
     // The second program is open once the first has a place (ADR-0051).
     await openThrough(page, SECOND.id);
     await page.goto(contentsAt(SECOND.id, 'en'));
-    const back = pager(page).getByRole('link', { name: `← ${FIRST.id}` });
+    // Found by the id, the label a reader sees. The arrow is the pager's drawn one now and
+    // hidden from the name (issue #158), so the name says the direction in words instead.
+    const back = pager(page).getByRole('link', { name: FIRST.id });
+    await expect(back).toHaveAccessibleName(/previous program$/i);
     await expect(back).toHaveAttribute('href', contentsAt(FIRST.id, 'en'));
     await back.click();
     await expect(page).toHaveURL(new RegExp(`${contentsAt(FIRST.id, 'en')}$`));

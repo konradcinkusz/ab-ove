@@ -519,14 +519,24 @@ interface Strings {
   /** The program map's answer to a frame number the program does not have. */
   readonly frameRange: (last: number) => string;
   readonly summaryHeading: string;
+  /**
+   * The summary's description, for link previews and a tab's tooltip — in the reader's edition
+   * like every other word on the screen (issue #158: it was English on the Polish summary).
+   * It names the program by its title and says what the page holds, and quotes none of it.
+   */
+  readonly summaryDescription: (unit: string) => string;
   readonly canYouHeading: string;
   /** Honest, for now: schema v1 carries no Test exercises or Further problems to show. */
   readonly exercisesNotYet: string;
   readonly nextProgramLabel: string;
   /** Its mirror, on the contents page's foot: the program before this one. */
   readonly previousProgramLabel: string;
-  /** The summary screen's way back to the program's last frame, in its pager's back cell. */
-  readonly backToLastFrame: string;
+  /**
+   * The summary screen's way back to the program's last frame, in its pager's back cell. It
+   * names the frame by its number (issue #158): *Back to the frame* named none, and a reader
+   * who opened the summary from a link, or from another edition, had come from no frame.
+   */
+  readonly backToLastFrame: (n: number) => string;
   readonly labOptional: string;
   /**
    * THE INDEX FOR A READER WHO CAME BACK.
@@ -616,6 +626,13 @@ interface Strings {
   readonly readWhileSignedIn: string;
   readonly signInToContinue: string;
   /**
+   * The index's line when the book's server does not answer (issue #158). The index renders
+   * from the bundle compiled into the app, so it is still there when no program would open;
+   * this says so above the list rather than leaving every tile to lead to the error page.
+   * `renderError`'s words, for the one failure it names, said before rather than after.
+   */
+  readonly readingUnavailable: string;
+  /**
    * ADR-0060 — the FRAME-level refusal, answered by the same live call that serves the
    * frame rather than by a client-side redirect. `shutNotice` above is the PROGRAM-level
    * gate's sentence and a different mechanism (`ProgramGate`, localStorage, a client
@@ -625,6 +642,12 @@ interface Strings {
    */
   readonly notReachedHeading: string;
   readonly notReachedBody: (furthest: number) => string;
+  /**
+   * The same refusal, of a program's summary: `AbOvo.Api` serves it as it serves the last
+   * frame (issue #158), so a reader short of that frame gets `notReachedHeading` over this
+   * sentence, which names the frame the summary opens from as well as the furthest one read.
+   */
+  readonly summaryNotReachedBody: (last: number, furthest: number) => string;
 }
 
 /**
@@ -782,6 +805,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     frameNumbered: (n) => `Frame ${n}`,
     frameRange: (last) => `Enter a frame from 1 to ${last}.`,
     summaryHeading: 'Summary',
+    summaryDescription: (unit) => `The Summary of “${unit}”, and what it sets out to teach.`,
     canYouHeading: 'Can you?',
     exercisesNotYet:
       'The Test exercises and Further problems for this program are not in this edition of the app yet.',
@@ -811,12 +835,16 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       reportTitle: 'If you report this',
       reference: 'reference',
     },
+    readingUnavailable:
+      'The book’s server is not answering, so no program will open right now. Try again in a moment.',
     notReachedHeading: 'Not there yet',
     notReachedBody: (furthest) =>
       `This frame has not been reached yet. The furthest read frame in this program is ${furthest}.`,
     readWhileSignedIn: 'You read this while signed in.',
     signInToContinue: 'Sign in to continue',
-    backToLastFrame: 'Back to the frame',
+    summaryNotReachedBody: (last, furthest) =>
+      `The Summary opens at the end of this program, after frame ${last}. The furthest read frame in this program is ${furthest}.`,
+    backToLastFrame: (n) => `Back to frame ${n}`,
     labOptional: 'This program also has computer exercises in Python, optional',
   },
   pl: {
@@ -1000,6 +1028,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     frameNumbered: (n) => `Ramka ${n}`,
     frameRange: (last) => `Wpisz numer ramki od 1 do ${last}.`,
     summaryHeading: 'Podsumowanie',
+    // The title in quotation marks after `programu`, so it stays in the case the book gives
+    // it rather than being declined; impersonal, like `nothingLost` below.
+    summaryDescription: (unit) => `Podsumowanie programu „${unit}” i to, czego ma nauczyć.`,
     canYouHeading: 'Czy potrafisz?',
     exercisesNotYet:
       'Zadania testowe i Dalsze zadania tego programu nie są jeszcze w tej wersji aplikacji.',
@@ -1039,12 +1070,19 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       reportTitle: 'Jeśli zgłaszasz ten błąd',
       reference: 'identyfikator',
     },
+    // `unavailableTitle`'s server in the present tense, then `tryLater` as it stands. The first
+    // sentence is impersonal and the second an imperative, so neither picks a gender for the
+    // reader (`nothingLost`'s reason).
+    readingUnavailable:
+      'Serwer książki nie odpowiada, więc żaden program się teraz nie otworzy. Spróbuj ponownie za chwilę.',
     notReachedHeading: 'Jeszcze nie tutaj',
     notReachedBody: (furthest) =>
       `Ta ramka nie jest jeszcze dostępna. Najdalsza przeczytana ramka w tym programie: ${furthest}.`,
     readWhileSignedIn: 'Tę ramkę przeczytano po zalogowaniu.',
     signInToContinue: 'Zaloguj się, aby czytać dalej',
-    backToLastFrame: 'Wróć do ramki',
+    summaryNotReachedBody: (last, furthest) =>
+      `Podsumowanie otworzy się na końcu tego programu, po ramce ${last}. Najdalsza przeczytana ramka w tym programie: ${furthest}.`,
+    backToLastFrame: (n) => `Wróć do ramki ${n}`,
     labOptional: 'Ten program ma też ćwiczenia komputerowe w Pythonie, opcjonalne',
   },
 };
@@ -1200,11 +1238,12 @@ export interface Chrome {
   readonly frameNumbered: (n: number) => string;
   readonly frameRange: (last: number) => string;
   readonly summaryHeading: string;
+  readonly summaryDescription: (unit: string) => string;
   readonly canYouHeading: string;
   readonly exercisesNotYet: string;
   readonly nextProgramLabel: string;
   readonly previousProgramLabel: string;
-  readonly backToLastFrame: string;
+  readonly backToLastFrame: (n: number) => string;
   readonly labOptional: string;
   readonly groupLabels: Readonly<Record<string, string>>;
   readonly sectionsLabel: string;
@@ -1216,8 +1255,10 @@ export interface Chrome {
   readonly renderError: RenderErrorStrings;
   readonly readWhileSignedIn: string;
   readonly signInToContinue: string;
+  readonly readingUnavailable: string;
   readonly notReachedHeading: string;
   readonly notReachedBody: (furthest: number) => string;
+  readonly summaryNotReachedBody: (last: number, furthest: number) => string;
 }
 
 /** The controls for a reader of `language`, falling back to English rather than failing. */

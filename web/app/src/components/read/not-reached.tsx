@@ -19,7 +19,7 @@ export interface NotReachedProps {
   readonly trackLanguages: readonly string[];
   readonly unitId: string;
   readonly unitTitle: string;
-  /** The frame number that was asked for. */
+  /** The frame number that was asked for — the last frame, when `refused` is the summary. */
   readonly requested: number;
   readonly furthest: number;
   readonly contentsHref: string;
@@ -30,6 +30,12 @@ export interface NotReachedProps {
    * says it reached is refused (`signed-out-hint.tsx`, issue #157).
    */
   readonly signInHref?: string | undefined;
+  /**
+   * What the address asked for: a frame (the default), or the program's summary, which
+   * `AbOvo.Api` refuses as it refuses the last frame (issue #158). For the summary the other
+   * edition's link stays on `/summary` and the sentence names the frame it opens after.
+   */
+  readonly refused?: 'frame' | 'summary';
 }
 
 /**
@@ -48,6 +54,10 @@ export interface NotReachedProps {
  * unexplained (issue #157): the record still offers the frame read on the account, and the
  * anonymous cursor refuses it. `SignedOutHint` says so, with a way to sign in, when the page
  * hands it `signInHref` and the record reaches this frame.
+ *
+ * THE SUMMARY IS REFUSED ON THIS SCREEN TOO (issue #158): `AbOvo.Api` serves a program's
+ * return index as it serves the last frame, so `/summary` before that frame is the same "Not
+ * there yet" a frame gets, rather than a second page with its own words for one rule.
  */
 export function NotReached({
   chrome,
@@ -61,7 +71,9 @@ export function NotReached({
   contentsHref,
   furthestHref,
   signInHref,
+  refused = 'frame',
 }: NotReachedProps): React.JSX.Element {
+  const segment = refused === 'summary' ? 'summary' : `${requested}`;
   return (
     <ReadingScreen
       lang={language}
@@ -90,7 +102,7 @@ export function NotReached({
           language={language}
           languageHrefs={editionHrefs(
             trackLanguages,
-            (other) => `/read/${track}/${unitId}/${other}/${requested}`,
+            (other) => `/read/${track}/${unitId}/${other}/${segment}`,
           )}
           languages={trackLanguages}
           unitId={unitId}
@@ -102,7 +114,9 @@ export function NotReached({
         {chrome.notReachedHeading}
       </h1>
       <p className={styles.subtitle} lang={chrome.language}>
-        {chrome.notReachedBody(furthest)}
+        {refused === 'summary'
+          ? chrome.summaryNotReachedBody(requested, furthest)
+          : chrome.notReachedBody(furthest)}
       </p>
       {signInHref ? (
         <SignedOutHint

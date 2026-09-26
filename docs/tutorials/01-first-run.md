@@ -139,8 +139,10 @@ is the one integration this product does not treat as optional, and a frame rend
 anywhere else would be a defect rather than a fallback.
 
 Open the index at <http://localhost:3000>. **It is still there** — it reads the compiled bundle
-built into the web app and calls no API while rendering — and so is `/about`, whose integration
-panel now reports that no API answered.
+built into the web app and calls no API while rendering — and a line above the programs says
+that none of them will open right now. Open one anyway: its contents are the same error page as
+the frame, because a program's contents come from the API too. `/about` is still there as well,
+and its integration panel now reports that no API answered.
 
 Start the `api` resource again and reload the frame. You are back on it, and you never signed
 in: your place is held by the API under an opaque cookie this origin set on your first visit —

@@ -137,9 +137,11 @@ Pierwszy ekran jest tym, po co czytelnik przyszedł, o jedną nawigację od ramk
 komponent serwerowy, który czyta paczkę treści wkompilowaną w aplikację webową i nie woła API
 podczas renderowania — wciąż, choć
 [ADR-0060](adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)
-przeniósł ramki do API, a to, czy tak zostanie, rozstrzyga 580 w
-[kolejności](ux/UI-UX.md#the-order). Czyta jedno ciasteczko, własne tego origin, w którym
-trzymana jest wybrana przez czytelnika edycja — dzięki temu pierwsze malowanie jest już w niej
+przeniósł ramki do API, i jest to odstępstwo od niego zapisane w
+[rejestrze](architecture/00-ARCHITECTURE.md#deviation-register); gdy API nie odpowiada, wiersz
+nad programami mówi, że żaden z nich się nie otworzy. Czyta jedno ciasteczko, własne tego
+origin, w którym trzymana jest wybrana przez czytelnika edycja — dzięki temu pierwsze
+malowanie jest już w niej
 ([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)).
 
 Karta u dołu to **zaproszenie do zgody** i stoi na końcu celowo: czytelnik, który przyszedł
@@ -161,11 +163,11 @@ ekranie (ADR-0052).
 
 ### Spis treści programu
 
-![Spis treści programu F01: ten sam pasek u góry, tytuł programu, wypełniony przycisk "Start at frame 1" i wypisane sekcje z zakresem ramek, które każda obejmuje. Na dole "← Programs" i zdanie mówiące, kiedy otwiera się F02.](assets/screenshots/program-contents-english.png)
+![Spis treści programu F01 dla czytelnika, który go jeszcze nie zaczął: ten sam pasek u góry, tytuł programu, wypełniony przycisk "Start at frame 1" i wypisane sekcje z zakresem ramek, które każda obejmuje — pierwsza jako link, a każda następna bladsza, pokazana z kłódką i napisem "not reached yet". Na dole "← Programs" i zdanie mówiące, kiedy otwiera się F02.](assets/screenshots/program-contents-english.png)
 
 ### I jego podsumowanie
 
-![Koniec programu F01: sekcja Summary, lista "Can you?" powtarzająca, czego program miał nauczyć, a przypięte na dole "← Back to the frame" i wypełnione "Next program: F02 →".](assets/screenshots/program-summary-english.png)
+![Koniec programu F01: sekcja Summary, lista "Can you?" powtarzająca, czego program miał nauczyć, a przypięte na dole "← Back to frame 45" i wypełniony przycisk ze strzałką, na którym "Next program" stoi nad "F02 · The language of algebra".](assets/screenshots/program-summary-english.png)
 
 *Summary* i *Can you?* to własne sekcje zamykające książki, a nie coś, co ta aplikacja
 wymyśliła.

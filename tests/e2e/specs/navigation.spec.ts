@@ -93,23 +93,39 @@ test.describe('navigation', () => {
     await expect(page).toHaveURL(new RegExp(`${contentsAt('en')}$`));
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(unitTitles.en!);
 
-    // Every heading the program declares, linking at the frame it opens on. The section
-    // anchors are the one thing a contents page is FOR: "where does the part about the gap
-    // start?" is the question, and the answer is a frame number.
-    expect(sections.length, `${unit} no longer declares sections to list`).toBeGreaterThan(0);
+    /*
+      EVERY HEADING THE PROGRAM DECLARES, AND ONLY THE ONES THIS READER HAS REACHED AS LINKS
+      (issue #158). The section anchors are the one thing a contents page is FOR — "where
+      does the part about the gap start?" is the question, and the answer is a frame number —
+      and a heading past the reader's furthest frame used to be a link too, which a new reader
+      pressed and landed on "Not there yet". It is named and locked now, as the program map
+      locks it: the reader here has read nothing, so everything after frame 1 is shut.
+    */
+    expect(sections.length, `${unit} no longer declares sections to list`).toBeGreaterThan(1);
+    const list = page.getByRole('main').locator('ol');
     for (const section of sections) {
-      await expect(
-        page.getByRole('link', { name: section.titles.en! }),
-        `section "${section.id}" is not linked from the contents`,
-      ).toHaveAttribute('href', frameAt('en', section.firstStep));
+      const title = section.titles.en!;
+      if (section.firstStep <= 1) {
+        await expect(
+          page.getByRole('link', { name: title }),
+          `section "${section.id}" opens at frame 1 and is not linked from the contents`,
+        ).toHaveAttribute('href', frameAt('en', section.firstStep));
+      } else {
+        const row = list.getByRole('listitem').filter({ hasText: title });
+        await expect(row, `section "${section.id}" is not on the contents`).toHaveCount(1);
+        await expect(
+          row.getByRole('link'),
+          `section "${section.id}" starts past a new reader's furthest frame and is still a link`,
+        ).toHaveCount(0);
+        await expect(row, `section "${section.id}" does not say why it is shut`).toContainText('not reached yet');
+      }
     }
 
-    const second = sections[1] ?? sections[0]!;
-    // The contents page links to every section regardless of the reader's own progress —
-    // it is a map of the program, not a filtered one — so clicking ahead is gated exactly
-    // like typing the URL would be (ADR-0060), and this reader has to have actually
-    // reached it for the click to land on the frame rather than on `NotReached`.
+    // Once the reader has reached a heading, the same page offers it — the lock is the
+    // gate's cursor speaking, read when the page is served, not a property of the heading.
+    const second = sections[1]!;
     await walkTo(page, unit, 'en', second.firstStep);
+    await page.reload();
     await page.getByRole('link', { name: second.titles.en! }).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt('en', second.firstStep)}$`));
     await expect(page.locator('body')).toContainText(uniqueProbeIn(program, second.firstStep, 'en'));
@@ -184,9 +200,46 @@ test.describe('navigation', () => {
     await page.getByRole('link', { name: /summary/i }).click();
     await expect(page).toHaveURL(new RegExp(`${summaryAt('en')}$`));
 
-    // And the way back is on it, pointing at the frame that sent them.
-    await page.getByRole('link', { name: /back to the frame/i }).click();
+    // And the way back is on it, naming the frame it goes to (issue #158: it said "Back to
+    // the frame", which named none).
+    await page.getByRole('link', { name: `Back to frame ${steps.length}` }).click();
     await expect(page).toHaveURL(new RegExp(`${frameAt('en', steps.length)}$`));
+  });
+
+  test('the summary is not there yet before the last frame, and opens once it is reached @core', async ({
+    page,
+  }) => {
+    /*
+      ISSUE #158, READ LITERALLY: "/summary before the last frame gets the same 'not there
+      yet' as a frame, and after the last frame it renders." The summary used to render at any
+      frame — three frames into the program it printed what the whole program concludes —
+      where the MCP server shows the same block only after the last step. `AbOvo.Api` serves it
+      now under the last frame's gate, so this reader is refused it exactly as they are refused
+      that frame, with the same heading and the same way on to the furthest frame they have.
+    */
+    const furthest = Math.min(3, steps.length - 1);
+    await walkTo(page, unit, 'en', furthest);
+
+    await page.goto(frameAt('en', steps.length));
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Not there yet');
+
+    const response = await page.goto(summaryAt('en'));
+    expect(response?.status(), 'the gate refusing is the product working, not an error').toBe(200);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Not there yet');
+    await expect(page.getByRole('main')).toContainText(`after frame ${steps.length}`);
+    await expect(page.getByRole('link', { name: `Go to frame ${furthest}` })).toHaveAttribute(
+      'href',
+      frameAt('en', furthest),
+    );
+    // Nothing of the index is on the page: no Summary list, no *Can you?*.
+    await expect(page.getByRole('heading', { name: 'Can you?' })).toHaveCount(0);
+    // And the other edition's link stays on the summary rather than jumping to a frame.
+    await expect(page.locator(`a[lang="pl"]`)).toHaveAttribute('href', summaryAt('pl'));
+
+    await walkTo(page, unit, 'en', steps.length);
+    await page.goto(summaryAt('en'));
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(unitTitles.en!);
+    await expect(page.getByRole('heading', { name: 'Can you?' })).toBeVisible();
   });
 
   test('the summary carries no frame’s text, in either edition @core', async ({ page }) => {
@@ -195,17 +248,31 @@ test.describe('navigation', () => {
     //
     // This screen exists to print the book's return index — the Summary items and the
     // declared outcomes — and those PARAPHRASE what a run of frames concluded. A
-    // paraphrase is the right thing to print here and a quotation is not: a reader can
-    // reach this page by URL without having read a frame of the program.
+    // paraphrase is the right thing to print here and a quotation is not: the page is the
+    // program's return index, and a reader goes back to the frames from it.
     //
     // The positive control is in the same block, and it matters more here than on the
     // contents page: a summary screen that rendered nothing at all would satisfy every
     // absence assertion below and look, from a test, exactly like a correct one.
+    //
+    // THE READER HAS FINISHED THE PROGRAM FIRST (issue #158): the summary is served only
+    // once the last frame is reached, and a page that printed "Not there yet" would pass
+    // every absence below for the wrong reason. The cursor is the program's, not the
+    // edition's, so one walk opens both.
+    //
+    // The two unfollowed requests go BEFORE the walk, and that was measured: `page.request`
+    // shares the context's cookie jar, and a request carrying no reader cookie (it is
+    // SameSite=Strict, `walk.ts`) is one the middleware mints a new reader for — whose cookie
+    // then replaced the walked reader's, and the summary said "Not there yet".
     // ──────────────────────────────────────────────────────────────────────────────────
     for (const language of languages) {
       const response = await page.request.get(summaryAt(language), { maxRedirects: 0 });
       expect(response.status(), 'a summary page must answer 200 with no session').toBe(200);
+    }
+    await page.goto(contentsAt('en'));
+    await walkTo(page, unit, 'en', steps.length);
 
+    for (const language of languages) {
       await page.goto(summaryAt(language));
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(unitTitles[language]!);
 

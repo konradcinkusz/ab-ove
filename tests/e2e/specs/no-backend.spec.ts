@@ -20,10 +20,11 @@ import { served, track } from './support/bundle.ts';
  * WHAT IT STILL ASSERTS IS TRUE, AND IS WORTH ASSERTING. The failure here is injected in the
  * BROWSER, so it cuts off exactly what the browser reaches through the proxy — and the pages
  * driven below need none of it to render: the index reads the bundle compiled into the app
- * (`app/page.tsx` says why that is today's placement rather than a requirement), and `/about`'s
- * one live part is the integration panel, which must say which fault it was rather than
- * crash or spin. It asserts nothing about a frame, and must not be read as a claim that one
- * renders without the API.
+ * (`app/page.tsx` says why, and the architecture document's deviation register records it,
+ * issue #158) and says, once the browser finds the API out of reach, that no program will
+ * open; and `/about`'s one live part is the integration panel, which must say which fault it
+ * was rather than crash or spin. It asserts nothing about a frame or a program's contents,
+ * and must not be read as a claim that either renders without the API.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * SINCE ADR-0036 THE INDEX IS DRIVEN FIRST. The landing page is the index of programs, so the
@@ -36,9 +37,11 @@ import { served, track } from './support/bundle.ts';
  * and it reproduces the reader's experience rather than the server's: a dead network, a
  * blocked request, a deployment with nothing behind it, all arriving as the same thing.
  *
- * Each test asserts three separate properties, because any one of them alone would be
- * satisfied by a broken page: the product's own content is fully there, the panel says
- * which fault it was, and the page threw nothing on the way.
+ * The test that renders the whole of `/about` asserts three separate properties, because any
+ * one of them alone would be satisfied by a broken page: the product's own content is fully
+ * there, the panel says which fault it was, and the page threw nothing on the way. The
+ * index's tests make the same kind of claim about `/`: the programs and a link into one, the
+ * line above them speaking only when the server does not answer, and nothing thrown.
  */
 
 /*
@@ -92,6 +95,54 @@ test.describe('no backend', () => {
 
     // It did not throw on the way. A client component that throws during render leaves the
     // server-rendered HTML on screen, so every assertion above can pass on a crashed page.
+    expect(pageErrors, describePageErrors(pageErrors)).toEqual([]);
+  });
+
+  test('the index says that no program will open while the book’s server does not answer @core', async ({
+    page,
+  }) => {
+    /*
+      ISSUE #158'S DECISION FOR THE INDEX. It stays on the bundle compiled into the app — a
+      recorded deviation from ADR-0060 — so it renders with the API gone, and every tile on it
+      then leads to a program that opens on the error page. So it asks the API, from the
+      browser and through this origin's proxy, what a program's contents would ask, and says
+      so above the list when the answer is nothing. The list stays: it is still true.
+
+      The control comes first, because a line that always spoke would pass the second half:
+      with the server answering, the line is in the page and says nothing.
+    */
+    const pageErrors = collectPageErrors(page);
+    const notice = page.getByTestId('reading-unavailable');
+
+    const probed = page.waitForResponse((response) =>
+      response.url().includes(`/api/proxy/api/v1/content/${track}`),
+    );
+    await page.goto('/');
+    expect((await probed).status(), 'the index did not ask the API about its course').toBe(200);
+    // Read, and not only received. The response reaches this test before the component has
+    // handled it, so an empty line checked in between would pass a component that spoke on
+    // every answer; `data-probed` is the component saying it has read this one.
+    await expect(notice).toHaveAttribute('data-probed', 'yes');
+    await expect(notice).toBeEmpty();
+
+    await page.route('**/api/proxy/api/v1/content/**', (route) => route.abort('failed'));
+    await page.goto('/?lang=pl');
+    await expect(notice).toHaveText(
+      'Serwer książki nie odpowiada, więc żaden program się teraz nie otworzy. Spróbuj ponownie za chwilę.',
+    );
+    // Announced when it arrives, without being a second `status` on the page (the shut
+    // notice is that, and `gate.spec.ts` holds an ordinary visit to having none).
+    await expect(notice).toHaveAttribute('aria-live', 'polite');
+    await expect(
+      page.getByRole('link', { name: FIRST.titles['pl']! }),
+      'the notice took the list with it — the titles are compiled in and still true',
+    ).toHaveAttribute('href', `/read/${track}/${FIRST.id}/pl`);
+
+    await page.goto('/?lang=en');
+    await expect(notice).toHaveText(
+      'The book’s server is not answering, so no program will open right now. Try again in a moment.',
+    );
+
     expect(pageErrors, describePageErrors(pageErrors)).toEqual([]);
   });
 

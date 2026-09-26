@@ -135,8 +135,10 @@ The first screen is the thing a reader came for, one navigation from a frame ins
 Server Component that reads the bundle compiled into the web app and calls no API while
 rendering — still true since
 [ADR-0060](adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md) moved
-the frames onto the API, and 580 in [the order](ux/UI-UX.md#the-order) decides whether it stays
-so. It reads one cookie, this origin's own, which is where the reader's chosen edition is kept
+the frames onto the API, and a recorded deviation from it
+([the register](architecture/00-ARCHITECTURE.md#deviation-register)); when the API does not
+answer, a line above the programs says that none of them will open. It reads one cookie, this
+origin's own, which is where the reader's chosen edition is kept
 so that the first paint is already in it
 ([ADR-0052](adr/0052-one-language-control-remembered-and-english-by-default.md)).
 
@@ -159,11 +161,11 @@ screen (ADR-0052).
 
 ### A program's contents
 
-![The contents of program F01: the same top bar, the program's title, a filled "Start at frame 1" button, and its sections listed with the range of frames each one covers. At the foot, "← Programs" and the sentence saying when F02 opens.](assets/screenshots/program-contents-english.png)
+![The contents of program F01 for a reader who has not started it: the same top bar, the program's title, a filled "Start at frame 1" button, and its sections listed with the range of frames each one covers — the first one a link, and every one after it in faint type with a lock and "not reached yet". At the foot, "← Programs" and the sentence saying when F02 opens.](assets/screenshots/program-contents-english.png)
 
 ### And its summary
 
-![The end of program F01: a Summary section, a "Can you?" checklist restating what the program set out to teach, and, pinned at the bottom, "← Back to the frame" and a filled "Next program: F02 →".](assets/screenshots/program-summary-english.png)
+![The end of program F01: a Summary section, a "Can you?" checklist restating what the program set out to teach, and, pinned at the bottom, "← Back to frame 45" and a filled button reading "Next program" over "F02 · The language of algebra", with an arrow.](assets/screenshots/program-summary-english.png)
 
 *Summary* and *Can you?* are the book's own closing sections, not something this application
 invented.

@@ -157,8 +157,8 @@ export function FrameKeys({ base, last, after }: FrameKeysProps): null {
         // The end of the program used to be a wall; now `→` opens the one thing past it.
         // Still nothing on `←`, and still nothing at all when nowhere has been declared —
         // a program's own summary route may not exist yet on every caller of this component.
-        // `/summary` is not part of ADR-0060's gate (out of this change's scope), so this
-        // stays a plain navigation rather than a reveal.
+        // `/summary` is gated as the last frame is (issue #158), and a reader on the last
+        // frame has reached it, so this is a plain navigation rather than a reveal.
         if (!after) return;
         event.preventDefault();
         router.push(after);

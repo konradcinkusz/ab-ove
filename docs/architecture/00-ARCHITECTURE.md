@@ -193,10 +193,12 @@ reader is identified by an opaque cookie rather than anything `authservice` issu
 ([ADR-0061](../adr/0061-an-anonymous-readers-cursor-is-an-opaque-cookie-not-a-token.md)). It is
 not optional for the estate as a whole: ingesting the book takes an `Admin` bearer only an issuer
 can mint, so an estate that has never had one has nothing to read
-([INFRASTRUCTURE-ANALYSIS §3(c)](../../flyio/INFRASTRUCTURE-ANALYSIS.md#c-do-not-deploy-authservice-at-all-until-phase-3--1-machine--3month)). The pages
-that read the compiled bundle built into the web app — the index, `/courses`, a program's contents
-and its summary — still render without the API; that is today's placement rather than a requirement,
-and 580 in [the order](../ux/UI-UX.md#the-order) moves the contents and the summary onto it.
+([INFRASTRUCTURE-ANALYSIS §3(c)](../../flyio/INFRASTRUCTURE-ANALYSIS.md#c-do-not-deploy-authservice-at-all-until-phase-3--1-machine--3month)). A
+program's contents and its summary come from the API as a frame does (#158), so with it
+unreachable they are the same error page. The index and `/courses` still list the programs from
+the compiled bundle built into the web app and render without the API, and the index says when no
+program will open; that is a recorded deviation, with its exit, in the
+[register](#deviation-register) below.
 
 ### P9 — `Program.cs` is a manifest
 
@@ -607,6 +609,53 @@ and not above `Reveal.FirstStep` when it creates a row (or the field is dropped 
 `src/AbOvo.Api/Endpoints/ProgressEndpoints.cs`, at the `MapPut` handler. Reason and Exit
 amended on 2026-09-25 by
 [ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md).
+
+### 2026-09-25 — The index and `/courses` list the programs from the bundle compiled into the app
+
+**What.** [ADR-0060](../adr/0060-content-is-served-live-by-the-api-and-the-reader-stays-anonymous.md)'s
+Decision makes every read of a program a live call to `AbOvo.Api`. The pages that list the
+programs do not make one: the index (`web/app/src/app/page.tsx`) and `/courses`
+(`web/app/src/app/courses/page.tsx`) render every title, part, frame count and section count
+from `@ab-ovo/web-kit`'s `allBundles()`, the compiled bundle built into the web app, and the
+author's view (`web/app/src/app/instrument/page.tsx`) takes its list of programs from the same
+place. A program's contents and its summary did the same until #158 (580 in
+[the order](../ux/UI-UX.md#the-order)), which moved them onto the API and took this decision for
+the pages that stay.
+
+**Reason.** The first reason below is what makes this a deviation rather than a defect, and
+the rest are why it is not ended now:
+
+- Nothing on these pages is behind the reveal gate. They print a program's title and how long
+  it is, never a step, so the gate ADR-0060 put in the API is not bypassed; what is not live is
+  the list of what the book holds, which changes only when a new bundle is pinned.
+- The API does not serve what these pages draw in the shape they draw it. No endpoint lists the
+  courses, and `TrackContent`'s list of a course's programs carries their titles and parts but
+  not how long each one is: the index's tiles print a program's frame and section counts, and
+  `/courses` adds up a course's frames. `UnitSummary` has both counts, but for one program per
+  call, so drawing the index from it would cost a request for every tile. Moving the pages
+  means both of those first — a listing of the courses, and the counts on `TrackContent` or on
+  a listing endpoint of their own — and then `ProgramGrid` and `CourseList` rebuilt on the wire
+  shapes rather than on a `Bundle`.
+- The index is being reworked by other items of the order (630 and 650), and another change to
+  it at the same time would be the collision the order's stages exist to avoid.
+
+What a reader loses is named and paid for. With the API stopped the index still renders, and
+every tile on it leads to a program that will not open — so the index says so: a line above the
+list (`web/app/src/components/programs/reading-unavailable.tsx`) asks the API, from the browser
+and through this origin's proxy, the question a program's contents ask, and says that no program
+will open right now when the book's server does not answer it. A program's contents, one click
+on, is the error page a frame gets.
+
+**Exit.** `AbOvo.Api` lists the courses it holds, and `TrackContent` (or a listing endpoint of
+its own) carries each program's frame and section counts, so one call draws every tile. The
+index, `/courses` and the author's list of programs then render from
+`web/app/src/lib/server/content.ts` like every reading page, failing as a program's contents do,
+and the index's line above has nothing left to say and goes with the deviation. This row is
+discharged by the change that moves them.
+
+**Recorded in.** `web/app/src/app/page.tsx` and `web/app/src/app/courses/page.tsx`, in their
+headers; `web/app/src/lib/server/content.ts`'s header; `web/app/Dockerfile`, where the image
+copies the bundle in; `docs/ux/UI-UX.md`, the `/` and `/courses` sections.
 
 ---
 

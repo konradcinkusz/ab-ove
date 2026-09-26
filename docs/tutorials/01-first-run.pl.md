@@ -139,8 +139,10 @@ integracja, której ten produkt nie traktuje jako opcjonalnej, a ramka wyrendero
 byłaby defektem, a nie wyjściem awaryjnym.
 
 Otwórz indeks pod <http://localhost:3000>. **Wciąż tam jest** — czyta skompilowaną paczkę
-treści wbudowaną w aplikację webową i nie woła API podczas renderowania — podobnie `/about`,
-którego panel integracji zgłasza teraz, że żadne API nie odpowiedziało.
+treści wbudowaną w aplikację webową i nie woła API podczas renderowania — a wiersz nad
+programami mówi, że żaden z nich się teraz nie otworzy. Otwórz któryś mimo to: jego spis treści
+to ta sama strona błędu co ramka, bo spis treści programu też pochodzi z API. `/about` również
+wciąż tam jest, a jego panel integracji zgłasza teraz, że żadne API nie odpowiedziało.
 
 Uruchom zasób `api` ponownie i przeładuj ramkę. Jesteś z powrotem na niej, choć nigdy się nie
 zalogowałeś: twoją pozycję w lekturze przechowuje API pod nieprzezroczystym ciasteczkiem, które

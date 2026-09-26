@@ -58,8 +58,8 @@ const useEntry = ({ track, unit, last, language }: EntryControlProps) => {
  *
  * A POSITION OF N DOES NOT MEAN FINISHED. The store holds a frame number, so "read the
  * last frame" and "opened the summary" are the same record; `program-summary.tsx` declines
- * to write one at all precisely because N would be a lie on a deep link. Branching a
- * control on a value that cannot carry the distinction is guessing with extra steps.
+ * to write one at all, because the summary is not a frame. Branching a control on a value
+ * that cannot carry the distinction is guessing with extra steps.
  *
  * AND THE TWO RESUME CONTROLS MUST AGREE. `ResumeLast` on the index and this one look
  * alike and mean the same thing, so one of them quietly leading somewhere else is worse

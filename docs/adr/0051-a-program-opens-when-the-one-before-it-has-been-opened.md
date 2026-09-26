@@ -10,6 +10,11 @@ Confirmed on 2026-09-25 by
 [ADR-0065](0065-the-foundation-programs-stay-in-the-reading-order-and-the-index-says-why.md),
 which keeps the Foundation programs in the order and records what would reopen it.
 
+Amended on 2026-09-26 by issue #158, with no ADR of its own: a program's summary is served
+only once the reader has reached its last frame, so the summary's *Next program* link is shown
+only to a reader who has. The paragraph about that link is annotated below; the rule is
+unchanged.
+
 Date: 2026-09-20. Narrows
 [ADR-0041](0041-the-reading-surface-shows-position-and-never-progress.md); constrained by
 [ADR-0004](0004-identity-authservice-and-anonymous-reader.md),
@@ -131,6 +136,11 @@ who has walked one course has opened nothing in another. The index that narrows 
 course ([ADR-0048](0048-the-courses-are-a-page-and-the-index-narrows-to-one.md)) therefore
 needs no rule of its own, and the redirect carries the reader's course as well as their
 edition — through `indexHref`, which is the one place that address is built.
+
+> **Amended by issue #158:** a deep link to `/summary` short of the program's last frame is
+> now refused on arrival, with the frame's *Not there yet*: `AbOvo.Api` serves the summary
+> under the last frame's own gate (`Reveal.ServeReturnIndex`). The *Next program* link below
+> is still not gated, and is now shown only to a reader who has reached the last frame.
 
 **The summary's *Next program* link is not gated, and that is a judgement rather than an
 omission.** Reaching a summary the way the product intends means having read to the last

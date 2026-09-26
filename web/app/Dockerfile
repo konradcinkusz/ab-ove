@@ -136,9 +136,11 @@ COPY --from=builder --chown=nextjs:nodejs /workspace/app/public ./app/public
 # `@ab-ovo/web-kit`'s `bundle.ts` reads the compiled content bundle with `fs.readFileSync`
 # at request time, which is not an `import` or a `require` — nothing in Next's dependency
 # graph ever points at this file, so `output: 'standalone'`'s tracer has no way to know it
-# is needed and never copies it. Without this line every `/read/**` route 500s in this
-# image alone, because bundle.ts's own candidate paths do resolve to something under
-# `WORKDIR /app` — they just find nothing there.
+# is needed and never copies it. Without this line the index, `/courses` and `/instrument`
+# 500 in this image alone, because bundle.ts's own candidate paths do resolve to something
+# under `WORKDIR /app` — they just find nothing there. Nothing under `/read/**` reads it
+# since issue #158 (ADR-0060); the pages that still do are a deviation, recorded with its
+# exit in docs/architecture/00-ARCHITECTURE.md's register.
 #
 # Deliberately NOT under public/: `web/content/bundle/bundle.json` carries the answer to
 # every frame in the book (ADR-0014), and public/ is served to any browser that asks. The

@@ -7,6 +7,8 @@ namespace AbOvo.Api.Content;
 /// <para>
 /// ONE RULE: step <c>k</c> of a unit is served if and only if <c>k &lt;= </c> the reader's
 /// FURTHEST step, and the only thing that raises the furthest step is submitting an answer.
+/// The unit's return index is served under the same rule, as its last step
+/// (<see cref="ServeReturnIndex"/>).
 /// The reveal is the request for the next step; there is no field to strip on refusal,
 /// because the object carrying the answer was never selected (ADR-0014's "absent rather than
 /// hidden", reproduced on a transport with no DOM).
@@ -80,6 +82,21 @@ public static class Reveal
 
         return new Served(true, requested, null);
     }
+
+    /// <summary>
+    /// The program's return index — its Summary and its outcomes — gated AS ITS LAST STEP IS,
+    /// which adds a place to serve rather than a second rule (issue #158).
+    /// <para>
+    /// A Summary item paraphrases what a run of steps concluded, so the index is the end of
+    /// the program in the same sense the last step is: a reader whose furthest step is the
+    /// last one may open both, and a reader short of it is refused both, with the same
+    /// <c>NotReached</c> naming the last step as the one to reach. It is not a step past the
+    /// last one — <see cref="Advance"/> still answers <c>ProgramComplete</c> there, and nothing
+    /// here moves a cursor — so the rule above stays whole: only an answer raises the ceiling.
+    /// </para>
+    /// </summary>
+    public static Served ServeReturnIndex(int totalSteps, int cursorStep)
+        => Serve(totalSteps, cursorStep, totalSteps);
 
     /// <summary>
     /// THE ONLY OPERATION THAT RAISES THE CEILING, which is why submitting an answer is the

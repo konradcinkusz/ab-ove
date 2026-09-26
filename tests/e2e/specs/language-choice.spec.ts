@@ -154,6 +154,9 @@ test.describe('one control, remembered', () => {
 
   for (const [what, where] of screens) {
     test(`${what} carries exactly one language control @core`, async ({ page }) => {
+      // The summary opens only past the last frame (issue #158); before it, the address is
+      // the gate's "Not there yet", which is a different screen from the one named here.
+      if (where.endsWith('/summary')) await walkTo(page, unit, first, program.steps.length);
       await page.goto(where);
 
       /*
@@ -175,6 +178,8 @@ test.describe('one control, remembered', () => {
   }) => {
     // "At the top" is a requirement and not a decoration, so it is measured rather than
     // assumed: the control sits above the page's own heading on every screen that has one.
+    // The summary's is the one past the last frame (issue #158).
+    await walkTo(page, unit, first, program.steps.length);
     for (const where of [contentsAt(first), `${contentsAt(first)}/summary`]) {
       await page.goto(where);
 

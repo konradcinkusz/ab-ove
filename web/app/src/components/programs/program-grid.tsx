@@ -17,6 +17,7 @@ import { ClearWorksheets, ExportWorksheets } from '../read/clear-controls.tsx';
 import { ForgetProgress, ResumeLast, type Limits } from '../read/resume.tsx';
 
 import styles from './program-grid.module.css';
+import { ReadingUnavailable } from './reading-unavailable.tsx';
 import { ShutNotice } from './shut-notice.tsx';
 import { TileEntry } from './tile-entry.tsx';
 import { TilePosition } from './tile-position.tsx';
@@ -267,6 +268,18 @@ export function ProgramGrid({
           languages={editionsOffered(courses)}
         />
       </div>
+
+      {/*
+        THAT NO PROGRAM WILL OPEN, WHEN THE BOOK'S SERVER DOES NOT ANSWER (issue #158) — under
+        the heading and above the grid it is about, so a reader the skip link sends to the
+        heading meets it before the first tile. Empty, with no box, on every visit the server
+        answers (`reading-unavailable.tsx`).
+      */}
+      <ReadingUnavailable
+        language={chrome.language}
+        message={chrome.readingUnavailable}
+        tracks={courses.map((course) => course.track.id)}
+      />
 
       {/*
         WHY THIS PAGE, WHEN THE READER ASKED FOR ANOTHER ONE.
