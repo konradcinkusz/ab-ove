@@ -91,6 +91,15 @@ const afterTheAnnouncementMs = (): number => (document.readyState === 'complete'
  * nothing on a load either: the announcer skips the first title, which a screen reader reads on
  * a load by itself.)
  *
+ * TAKING FOCUS NEVER SCROLLS (`preventScroll`). By the time it happens the page has already been
+ * put where it belongs: on a turn forward, the router has scrolled the new frame's top into view;
+ * on Back and Forward — the browser's button, Alt+←, a phone's swipe — the browser has restored
+ * the reader's own position on the frame they return to; and a reader who scrolled during the
+ * wait has put it somewhere themselves. A focus that scrolled undid all three, about 200 ms
+ * late: measured at 360×640, Back restored 275 px and the heading's focus then took it to 0
+ * (`specs/reading-loop.spec.ts`). `settings-key.tsx` returns focus the same way, for the same
+ * reason.
+ *
  * Inside the frame's keyed `<article>`, so every frame mounts a new one and nothing here has to
  * notice a change of frame; a turn made while one waits unmounts it, and only the frame the
  * reader stops on takes focus. A failed reveal renders no new frame (#138), so focus stays on
@@ -107,7 +116,10 @@ export function FrameFocus(): null {
 
     const land = (): void => {
       announced.disconnect();
-      if (document.activeElement === leftOn) document.getElementById(FRAME_HEADING_ID)?.focus();
+      if (document.activeElement === leftOn) {
+        // Never a scroll — see the header's last paragraph.
+        document.getElementById(FRAME_HEADING_ID)?.focus({ preventScroll: true });
+      }
     };
     const wait = (): void => {
       window.clearTimeout(timer);

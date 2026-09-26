@@ -283,6 +283,36 @@ test.describe('a turn of the page', () => {
     await expect(page.locator('#answer-line')).toBeFocused();
   });
 
+  test('taking focus moves no page: Back keeps the position the browser restores @core', async ({ page }) => {
+    /*
+      THE HEADING'S FOCUS IS `preventScroll` (`frame-focus.tsx`). Measured before it was, at
+      360×640: a frame scrolled down, then Next, then Back — the browser restored the reader's
+      position, and about 200 ms later the heading took focus and the page went to the top.
+    */
+    await page.setViewportSize({ width: 360, height: 640 });
+    const n = 10;
+    await open(page, 'en', n);
+    const room = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
+    expect(room, `frame ${n} no longer scrolls at 360×640 — pick a longer one`).toBeGreaterThan(250);
+
+    await page.evaluate(() => window.scrollTo(0, 250));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
+
+    await reveal(page).click();
+    await expect(page).toHaveURL(new RegExp(`${at('en', n + 1)}$`));
+    await expect(heading(page)).toBeFocused();
+
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`${at('en', n)}$`));
+    // The browser puts the reader back where they were on this frame…
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    const restored = await page.evaluate(() => window.scrollY);
+
+    // …and the heading takes focus without taking the page away from there.
+    await expect(heading(page), 'after Back, focus is not on the frame’s heading').toBeFocused();
+    expect(await page.evaluate(() => window.scrollY), 'taking focus scrolled the page').toBe(restored);
+  });
+
   test('the heading takes focus after the router has announced the page, an accessibility update later @core', async ({
     page,
   }) => {
