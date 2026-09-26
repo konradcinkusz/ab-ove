@@ -31,9 +31,8 @@ export const SKIP_TARGET_ID = 'content';
 
 export interface SkipLinkProps {
   /**
-   * The language this page speaks: the reader's edition on a page that follows it — which
-   * since issue #166 is every page a reader meets outside the lab, the author's view and the
-   * legal texts — and `en` on those, which are English only. It is also the document's
+   * The language this page speaks: the reader's edition on a page that follows one, and `en`
+   * on the lab and the author's view, which are English only. It is also the document's
    * language (ADR-0067), which this component sets.
    */
   readonly language: string;
@@ -53,9 +52,10 @@ export interface SkipLinkProps {
  * and a page that renders none is one a keyboard reader has to tab the whole masthead of.
  *
  * THE SAME REASON MAKES IT THE PLACE THE DOCUMENT'S LANGUAGE IS SET (ADR-0067). `<html lang>`
- * is the layout's, and it is the page that knows the answer; this is the one component every
- * page renders exactly once, with exactly that answer, so `DocumentLanguage` rides with it
- * rather than being a second thing each page must remember to render.
+ * is the layout's, and it is the page that knows the answer; every page a reader meets renders
+ * this component once, with exactly that answer — except the legal documents' pages, which are
+ * English and render none — so `DocumentLanguage` rides with it rather than being a second
+ * thing each page must remember to render.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * A PLAIN `<a>`, NOT `next/link`: the destination is a fragment of this document, which

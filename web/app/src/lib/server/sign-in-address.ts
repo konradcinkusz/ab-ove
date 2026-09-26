@@ -19,10 +19,11 @@ import { sessionCookieAttributes } from '@/lib/session-cookies';
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * Its attributes are the session pair's (`sessionCookieAttributes`: HttpOnly, Secure outside
- * dev, SameSite=strict) except the PATH, which is `/login`: the sign-in page and its second
- * step are the only pages that read it, so no other request carries a reader's address. It
- * authenticates nothing and is not in `CLEARABLE_COOKIES` — a sign-out deletes with the
- * session pair's path, which would not reach it, and a minute is the whole of its life.
+ * dev, SameSite=strict) except the PATH, which is `/login`: that scope sends it with requests
+ * for `/login` and the pages under it — the second step is one — and with nothing else on
+ * this origin, and of those only `/login` reads it. It authenticates nothing and is not in
+ * `CLEARABLE_COOKIES` — a sign-out deletes with the session pair's path, which would not
+ * reach it, and a minute is the whole of its life.
  *
  * The page cannot delete it — a Server Component cannot set a cookie — so it lives out its
  * minute, and a reload inside that minute fills the field again, which is what a reload is

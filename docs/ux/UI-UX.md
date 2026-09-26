@@ -448,9 +448,9 @@ waiting to refuse again), and a consent that was not given. **The rules are the 
 field's description** (`aria-describedby`), so a screen reader says them with the field, and
 since issue #166 the browser checks them before anything is sent: the length as `minlength`,
 the four kinds of character and the hundred-character ceiling as `pattern`, all read from the
-pinned authservice's source (`lib/password-policy.ts`, which also names the one password the
-two count differently). A fourth, *the account was
-created and the address needs verifying*, is a NOTICE and not a problem: reporting it in the
+pinned authservice's source (`lib/password-policy.ts`, which also names the passwords the two
+count differently: those with astral characters in them, such as emoji). A fourth, *the account
+was created and the address needs verifying*, is a NOTICE and not a problem: reporting it in the
 warning panel would tell a reader whose registration succeeded that it had failed.
 
 **A registration grants no role**, which is a fact about authservice rather than a choice
@@ -1100,7 +1100,11 @@ it. They are listed here rather than left to be rediscovered per screen.
     document's own `lang`, which the skip link sets in the browser and puts back when the page
     goes ([ADR-0067](../adr/0067-the-documents-language-follows-the-edition-and-the-page-sets-it.md)).
     The root layout says English and cannot do better: it sees neither the query nor the
-    path, and is not rendered again when a reader changes edition without a page load.
+    path, and is not rendered again when a reader changes edition without a page load. **And
+    nothing prefetches a page whose tab follows the edition through the query or the
+    remembered choice** — the index, `/courses`, `/about`, the sign-in pages, the account's:
+    Next serves the head it prefetched for a path whatever edition the reader has changed to
+    since, so a prefetched link titled the next page in the edition they had left.
 
 ---
 

@@ -70,7 +70,8 @@ export default async function SecondFactorPage({
   const problemWords = problem ? chrome.signInProblems[problem.code] : null;
 
   // The password screen, carrying the destination and the edition — the way back from here
-  // in every state, and the one that was a bare `/login` (issue #166).
+  // in every state, and the one that was a bare `/login` (issue #166). No link on this page
+  // prefetches, for `/login`'s reason (ADR-0067).
   const startAgainHref = signInHref({ redirect: intended, edition });
 
   /**
@@ -91,7 +92,7 @@ export default async function SecondFactorPage({
       <header className="masthead">
         {/* The way home, as on `/login` (issue #166). */}
         <p className="wordmark">
-          <Link href={indexHref({ edition })}>
+          <Link href={indexHref({ edition })} prefetch={false}>
             ab<span>-</span>ovo
           </Link>
         </p>
@@ -170,7 +171,7 @@ export default async function SecondFactorPage({
         ) : (
           <p>
             {strings.noChallenge.before}
-            <Link href={startAgainHref}>{strings.noChallenge.link}</Link>
+            <Link href={startAgainHref} prefetch={false}>{strings.noChallenge.link}</Link>
             {strings.noChallenge.after}
           </p>
         )}
@@ -184,8 +185,8 @@ export default async function SecondFactorPage({
 
       <footer className="colophon">
         <p>
-          <Link href={startAgainHref}>{strings.backToSignIn}</Link> ·{' '}
-          <Link href={indexHref({ edition })}>{chrome.backToReader}</Link>
+          <Link href={startAgainHref} prefetch={false}>{strings.backToSignIn}</Link> ·{' '}
+          <Link href={indexHref({ edition })} prefetch={false}>{chrome.backToReader}</Link>
         </p>
       </footer>
     </main>

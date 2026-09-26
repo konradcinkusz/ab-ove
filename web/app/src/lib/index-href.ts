@@ -17,6 +17,22 @@
  * to the same page are the same string; a set that varied by construction order would give
  * the browser two history entries and `aria-current` two answers.
  * ──────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ──────────────────────────────────────────────────────────────────────────────────────
+ * A LINK TO ANY OF THESE PAGES IS `prefetch={false}` (ADR-0067), WHOEVER BUILT ITS HREF.
+ *
+ * The index, `/courses` and `/about` title their tab in the reader's edition, and Next keeps
+ * the head it prefetched for a path and serves it for that path whatever the query or the
+ * remembered edition says by the time a link to it is followed. So a prefetch made before a
+ * reader changed edition titled the page in the edition they had just left — measured on
+ * 2026-09-26: the index in English, *polski* pressed, *O ab-ovo* followed, and the Polish page
+ * titled "About — ab-ovo", which since ADR-0067 is read out in a Polish voice. A prefetch made
+ * by ANY link to the path does it, the language control's own press included, so the rule is
+ * every link and not the ones beside the control. It costs nothing a reader waits for: these
+ * pages are rendered per request, and the press asks the server for the page whatever was
+ * prefetched (the language control's reason for the same attribute, #160) — the head was all
+ * a prefetch kept, and it was the part that went stale.
+ * ──────────────────────────────────────────────────────────────────────────────────────
  */
 export interface IndexChoices {
   /** The track id the reader narrowed to, or `undefined` for every course. */

@@ -99,9 +99,13 @@ export default async function AccountDeletePage({
     <main className="shell" lang={chrome.language}>
       <SkipLink language={chrome.language} />
       <header className="masthead">
-        {/* The way home, to the programs in this edition — it was text (issue #166). */}
+        {/*
+          The way home, to the programs in this edition — it was text (issue #166). Neither it
+          nor the way back to the overview prefetches: both pages title their tab in the
+          edition (ADR-0067, `index-href.ts`).
+        */}
         <p className="wordmark">
-          <Link href={indexHref({ edition: chrome.language })}>
+          <Link href={indexHref({ edition: chrome.language })} prefetch={false}>
             ab<span>-</span>ovo
           </Link>
         </p>
@@ -207,7 +211,7 @@ export default async function AccountDeletePage({
             Back to the overview this screen is reached from, in the same edition — keeping
             the account is staying on the account's page, not leaving for the programs.
           */}
-          <Link href={`/account?lang=${encodeURIComponent(chrome.language)}`}>
+          <Link href={`/account?lang=${encodeURIComponent(chrome.language)}`} prefetch={false}>
             {strings.cancel}
           </Link>
         </p>

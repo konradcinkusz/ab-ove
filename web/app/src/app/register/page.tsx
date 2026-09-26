@@ -158,6 +158,7 @@ export default async function RegisterPage({
 
   // Every way on carries the destination and the edition (issue #166) — the fresh page
   // under an answer too, which was a bare `/register` and dropped where the reader was going.
+  // None of them prefetches, for `/login`'s reason (ADR-0067).
   const signIn = signInHref({ redirect: intended, edition });
   const startAgain = registerHref({ redirect: intended, edition });
   const home = indexHref({ edition });
@@ -168,7 +169,7 @@ export default async function RegisterPage({
       <header className="masthead">
         {/* The way home, as on `/login` (issue #166). */}
         <p className="wordmark">
-          <Link href={home}>
+          <Link href={home} prefetch={false}>
             ab<span>-</span>ovo
           </Link>
         </p>
@@ -215,19 +216,19 @@ export default async function RegisterPage({
             {notice ? (
               <>
                 {strings.noticeNext.before}
-                <Link href={signIn}>{strings.noticeNext.link}</Link>
+                <Link href={signIn} prefetch={false}>{strings.noticeNext.link}</Link>
                 {strings.noticeNext.after}
               </>
             ) : problem?.signInInstead ? (
               <>
                 {strings.signInInstead.before}
-                <Link href={signIn}>{strings.signInInstead.link}</Link>
+                <Link href={signIn} prefetch={false}>{strings.signInInstead.link}</Link>
                 {strings.signInInstead.after}
               </>
             ) : (
               <>
                 {strings.answered.before}
-                <Link href={startAgain}>{strings.answered.link}</Link>
+                <Link href={startAgain} prefetch={false}>{strings.answered.link}</Link>
                 {strings.answered.after}
               </>
             )}
@@ -249,19 +250,19 @@ export default async function RegisterPage({
                   <code>{intended}</code>
                   {chrome.askedPrivate.after}
                   {strings.askedPrivateNext.before}
-                  <Link href={signIn}>{strings.askedPrivateNext.link}</Link>
+                  <Link href={signIn} prefetch={false}>{strings.askedPrivateNext.link}</Link>
                   {strings.askedPrivateNext.after}
                 </>
               ) : destination === 'open' ? (
                 <>
                   {strings.takenBack.before}
-                  <Link href={signIn}>{strings.takenBack.link}</Link>
+                  <Link href={signIn} prefetch={false}>{strings.takenBack.link}</Link>
                   {strings.takenBack.after}
                 </>
               ) : (
                 <>
                   {strings.whereItGoes.before}
-                  <Link href={signIn}>{strings.whereItGoes.link}</Link>
+                  <Link href={signIn} prefetch={false}>{strings.whereItGoes.link}</Link>
                   {strings.whereItGoes.after}
                 </>
               )}
@@ -392,7 +393,7 @@ export default async function RegisterPage({
 
       <footer className="colophon">
         <p>
-          <Link href={home}>{chrome.backToReader}</Link>
+          <Link href={home} prefetch={false}>{chrome.backToReader}</Link>
         </p>
       </footer>
     </main>

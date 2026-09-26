@@ -90,11 +90,16 @@ export function AccountControl({
     // middleware's own bounce uses, and validated by the same `safeRedirectTarget`. And the
     // edition rides beside it, as it rides to `/account` below: the sign-in page follows it
     // since issue #166, and *Zaloguj się* used to open an English one.
+    //
+    // Neither link here prefetches: both pages title their tab in the edition, and a head
+    // prefetched before the reader changed edition titled the page in the one they had left
+    // (ADR-0067 — *polski* pressed on the index, *Zaloguj się* followed, "Sign in — ab-ovo").
     return (
       <Link
         className={styles.account}
         href={signInHref({ redirect: target, edition: chrome.language })}
         lang={chrome.language}
+        prefetch={false}
       >
         {chrome.signIn}
       </Link>
@@ -119,6 +124,7 @@ export function AccountControl({
         className={styles.account}
         href={`/account?lang=${encodeURIComponent(chrome.language)}`}
         lang={chrome.language}
+        prefetch={false}
       >
         {chrome.account}
       </Link>

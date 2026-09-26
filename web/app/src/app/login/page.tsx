@@ -165,7 +165,9 @@ export default async function LoginPage({
   const offersForm =
     identityConfigured && (problem === null || problem.retryable || problem.startsOver === true);
 
-  // Every way on carries where the reader was going and the edition they read in (#166).
+  // Every way on carries where the reader was going and the edition they read in (#166), and
+  // no link on this page prefetches: the pages they open title their tab in the edition, and a
+  // prefetched head outlives a change of it (ADR-0067, `index-href.ts`).
   const startAgainHref = signInHref({ redirect: intended, edition });
   const createHref = registerHref({ redirect: intended, edition });
   const home = indexHref({ edition });
@@ -214,7 +216,7 @@ export default async function LoginPage({
           `/about` and the 404. On the account's pages it was text (issue #166).
         */}
         <p className="wordmark">
-          <Link href={home}>
+          <Link href={home} prefetch={false}>
             ab<span>-</span>ovo
           </Link>
         </p>
@@ -255,7 +257,7 @@ export default async function LoginPage({
             */}
             <p>
               {strings.withdrawn.before}
-              <Link href={startAgainHref}>{strings.withdrawn.link}</Link>
+              <Link href={startAgainHref} prefetch={false}>{strings.withdrawn.link}</Link>
               {strings.withdrawn.after}
             </p>
             {asked}
@@ -330,7 +332,7 @@ export default async function LoginPage({
             */}
             <p>
               {strings.noAccount.before}
-              <Link href={createHref}>{strings.noAccount.link}</Link>
+              <Link href={createHref} prefetch={false}>{strings.noAccount.link}</Link>
               {strings.noAccount.after}
             </p>
           </>
@@ -357,9 +359,9 @@ export default async function LoginPage({
       <footer className="colophon">
         <p>
           {destination?.kind === 'open' ? (
-            <Link href={destination.address}>{strings.backToWhereYouWere}</Link>
+            <Link href={destination.address} prefetch={false}>{strings.backToWhereYouWere}</Link>
           ) : (
-            <Link href={home}>{chrome.backToReader}</Link>
+            <Link href={home} prefetch={false}>{chrome.backToReader}</Link>
           )}
         </p>
       </footer>
@@ -378,7 +380,7 @@ export default async function LoginPage({
  *
  * The way to sign in is a FRESH `/login`, with no destination: the one this address would
  * have carried is a page that does not exist. It keeps the edition, as every way out of these
- * pages does (issue #166), and it has the skip link and the wordmark home every page has.
+ * pages does (issue #166), and it has the skip link and the wordmark home `LoginPage` has.
  */
 function NoPageAt({
   address,
@@ -392,13 +394,14 @@ function NoPageAt({
   identityConfigured: boolean;
 }): React.JSX.Element {
   const strings = chrome.signInPage;
+  // No link here prefetches, for the page's own reason (`LoginPage`, ADR-0067).
   const home = indexHref({ edition });
   return (
     <main className="shell" lang={chrome.language}>
       <SkipLink language={chrome.language} />
       <header className="masthead">
         <p className="wordmark">
-          <Link href={home}>
+          <Link href={home} prefetch={false}>
             ab<span>-</span>ovo
           </Link>
         </p>
@@ -411,9 +414,9 @@ function NoPageAt({
           {strings.noPage.after}
         </p>
         <p className="enter">
-          <Link href={home}>{chrome.openPrograms}</Link>
+          <Link href={home} prefetch={false}>{chrome.openPrograms}</Link>
           {identityConfigured ? (
-            <Link className="quiet" href={signInHref({ edition })}>
+            <Link className="quiet" href={signInHref({ edition })} prefetch={false}>
               {chrome.signIn}
             </Link>
           ) : null}

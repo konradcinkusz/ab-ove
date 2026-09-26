@@ -1914,7 +1914,7 @@ export const TABLE: Readonly<Record<string, Strings>> = {
     aboutPage: {
       tabTitle: 'O ab-ovo',
       description:
-        'Czym jest ab-ovo, jak działa pętla czytania i co mierzy instrument — książkę, nigdy czytelnika.',
+        'Czym jest ab-ovo, jak działa pętla czytelnika i co mierzy instrument — książkę, nigdy czytelnika.',
       // `do przerabiania`, `siteTitle`'s verb for working a course.
       lede: 'Książka do przerabiania, nie do czytania.',
       standfirst: {
@@ -1924,7 +1924,8 @@ export const TABLE: Readonly<Record<string, Strings>> = {
           ' — 47 programów złożonych z ramek nauczania programowanego, po angielsku i po polsku, razem z ćwiczeniami komputerowymi z książki. Ramki są w stylu Strouda: każda o coś prosi, zanim cokolwiek powie, a następna zaczyna się od odpowiedzi, którą należało napisać.',
       },
       antigoalLabel: 'Do czego służy ten instrument',
-      // `deleteAccount.cannotReach`'s own sentence, so the promise is said one way.
+      // `mierzy książkę, nigdy czytelnika` — `deleteAccount.cannotReach`'s words for the same
+      // promise, with the English sentence's subject — so the promise is said one way.
       antigoalClaim: 'Instrument mierzy książkę, nigdy czytelnika.',
       // `twoich słabych stron` rather than "what you are bad at": *w czym jesteś słaby* would
       // pick a gender (ADR-0016).
@@ -1933,7 +1934,9 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       loopTitle: 'Pętla',
       loop: [
         'Przeczytaj ramkę. Z założenia jest krótka — jedna myśl, czasem jedna linijka.',
-        'Policz to na papierze albo w notatkach pod ramką, która o coś prosi: jest tam linijka na odpowiedź, notes, który sam liczy, i płótno do rysowania. Ramka prosi o liczbę, słowo albo linijkę obliczeń — nie o program — więc nic w pętli nie wymaga pisania kodu.',
+        // `notatki`, `obliczenia` and `szkic` are the worksheet's own words for its three parts
+        // (`exportWorksheets`, `workingLabel`, `showMySketch`).
+        'Policz to na papierze albo w notatkach pod ramką, która o coś prosi: jest tam linijka na odpowiedź, miejsce na obliczenia, które samo liczy, i miejsce na szkic. Ramka prosi o liczbę, słowo albo linijkę obliczeń — nie o program — więc nic w pętli nie wymaga pisania kodu.',
         // `zanim przejdziesz dalej`, `writeItDown`'s own words for the same moment.
         'Zdecyduj się na odpowiedź, zanim przejdziesz dalej. To zobowiązanie jest mechanizmem: pobieżnie przejrzana ramka niczego nie uczy, a książka jest zbudowana na tym założeniu.',
         'Odsłoń następną ramkę, która zaczyna się od odpowiedzi. Porównaj i czytaj dalej albo cofnij się o jedną.',

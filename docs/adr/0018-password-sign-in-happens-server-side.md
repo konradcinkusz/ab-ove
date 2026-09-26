@@ -2,7 +2,10 @@
 
 ## Status
 
-**Accepted.** Date: 2026-09-14.
+**Accepted.** Date: 2026-09-14. Amended on 2026-09-26 (#166): a failed attempt fills the address
+back in, through a cookie this origin's server sets and never through the URL, and the sign-in
+page follows the reader's edition — see the struck paragraphs under *A plain form* and in
+*Consequences*. The route, the form and the reasoning against the URL are unchanged.
 
 ## Context
 

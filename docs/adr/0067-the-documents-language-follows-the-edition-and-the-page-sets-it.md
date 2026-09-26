@@ -46,15 +46,26 @@ Every other route was per-request on `main` already.
 **`<html lang>` is the language of the page on screen, and the page sets it, in the browser.**
 `components/language/document-language.tsx` writes the page's language onto
 `document.documentElement` in a layout effect and puts the root layout's `FALLBACK_LANGUAGE`
-back when the page goes. It is rendered by `SkipLink`, which every page already renders exactly
+back when the page goes. It is rendered by `SkipLink`, which every page a reader meets renders
 once with exactly that language — the reading screens with their edition, every other page with
-the language of its own words — so no page has a second thing to remember. The root layout
-stays static and says English, which is the server's answer and not the last word.
+the language of its own words — so no page has a second thing to remember. The legal documents'
+pages are the exception: they render no `SkipLink`, and they are English. The root layout stays
+static and says English, which is the server's answer and not the last word.
 
 **A page that speaks an edition titles its tab in it.** The title is what the announcer reads,
 and it is spoken in the document's language, so a Polish page with the site's English title
 would be read out in a Polish voice. The index, the account's pages, the sign-in pages,
 `/about`, and the reading routes' and the root's 404s all title themselves in their edition.
+
+**And no link into a page whose title follows the edition through the query or the cookie
+prefetches it.** Next keeps the head it prefetched for a link and serves it for that link's
+path whatever the query, or the remembered edition, says by the time a link to the path is
+followed — so a title that follows the edition is only as current as the last prefetch of its
+path. Every `<Link>` into the index, `/courses`, `/about`, the sign-in pages and the account's
+pages is `prefetch={false}`, whoever builds its href, as the language control's links have been
+since issue #160; `web/app/src/lib/index-href.ts` carries the reason where those hrefs are
+built. A reading route names its edition in its path, and a head prefetched for one edition's
+path is not served for the other's, so the links between reading screens keep their own rules.
 
 **The root 404's component reads nothing from the request.** The root not-found is
 rendered into every route's payload as its boundary: measured on this branch, a cookie read in
@@ -74,15 +85,24 @@ Chromium against a production build: the index in English, the language control 
 `<html lang>` becomes `pl`, and `en` again when pressed back, with no page load between.
 `specs/edition-pages.spec.ts` holds it.
 
-**A title can still be the previous edition's after the edition changes in place, and that
-predates this decision.** Next prefetches a route's head for a link in view, keyed without its
-query; change the edition on the index and follow a link to `/courses` or `/about`, and the
-page is in the new edition under the old title until a reload. Measured on `/courses`, whose
-title has followed `?lang=` since before this change, and on `/about`; with prefetch requests
-blocked, both titles are right. The document's language is now the new edition's, so that stale
-title is read in the new voice. The remedy is a prefetch policy for every link whose
-destination's head follows the edition — the language control already declines to prefetch
-(issue #160) — and it is left to its own change rather than made link by link here.
+**A title is the page's own edition however the reader arrived, because nothing prefetches
+it.** Measured in Chromium against a production build on 2026-09-26, with the links as they
+were: the index opened in English, *polski* pressed, then *O ab-ovo*, *Zaloguj się* or *Kursy*
+followed — each Polish page was titled in English ("About — ab-ovo", "Sign in — ab-ovo",
+"Courses — ab-ovo"). So was the Polish index reached by *← Programy* after *polski* was pressed
+on `/courses`, or by the wordmark after it was pressed on a frame, and so was the language
+control's own press once another link had prefetched the page it leads to: the index reached
+from `/courses` in English and switched there stayed "ab-ovo — courses you work, a frame at a
+time". A prefetch by any link to the path did it, which is why the rule is every link. With
+prefetch requests blocked every one of those titles was the page's edition, and with the links
+declining to prefetch it is: `specs/edition-pages.spec.ts` follows those journeys, and walks
+the pages that link into these ones to hold that none of them is prefetched.
+
+**It costs nothing a reader waits for.** These pages are rendered per request, so the press
+asked the server for the page whatever had been prefetched (the language control's reason for
+the same attribute, issue #160): the head was all a prefetch kept, and it was the part that
+went stale. A new link into one of these pages that prefetches brings the stale title back;
+on a page the spec walks, the spec fails.
 
 **`/about` and the 404 render per request, where they were prerendered.** They read the
 edition, and a page that reads a cookie or a query is rendered per request. Neither calls a
@@ -92,8 +112,7 @@ backend, so the cost is a render of a page of text, per request.
 remembered choice from the store every control reads, whose server snapshot is "none"; a
 reading address names its edition and is right from the first paint.
 
-**A page that renders no `SkipLink` keeps the root layout's English**, which is right for the
-legal documents' pages, the only pages a reader sees that render none: they are English, and
-the document says so.
+**A page that renders no `SkipLink` keeps the root layout's English.** The legal documents'
+pages render none, and for them that is right: they are English, and so the document says.
 
 Not a deviation from the reference architecture; no register row.

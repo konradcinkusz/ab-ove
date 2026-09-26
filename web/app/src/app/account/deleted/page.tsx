@@ -56,7 +56,8 @@ export default async function AccountDeletedPage({
   const requested = params['lang'];
   const chrome = chromeFor(typeof requested === 'string' ? requested : '');
   const strings = chrome.deleteAccount;
-  // The programs, in the edition this page is in, so leaving it does not undo the choice.
+  // The programs, in the edition this page is in, so leaving it does not undo the choice — and
+  // not prefetched, since the index titles its tab in it (ADR-0067, `index-href.ts`).
   const programs = indexHref({ edition: chrome.language });
 
   return (
@@ -65,7 +66,7 @@ export default async function AccountDeletedPage({
       <header className="masthead">
         {/* The way home, as on the account's other pages (issue #166). */}
         <p className="wordmark">
-          <Link href={programs}>
+          <Link href={programs} prefetch={false}>
             ab<span>-</span>ovo
           </Link>
         </p>
@@ -94,7 +95,7 @@ export default async function AccountDeletedPage({
 
       <footer className="colophon">
         <p>
-          <Link href={programs}>{strings.keepReading}</Link>
+          <Link href={programs} prefetch={false}>{strings.keepReading}</Link>
         </p>
       </footer>
     </main>

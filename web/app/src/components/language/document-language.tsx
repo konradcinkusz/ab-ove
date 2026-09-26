@@ -18,7 +18,9 @@ import { isLanguageTag } from '@/lib/language/store';
  * have cost every page its static rendering, and would STILL have been wrong the moment a
  * reader pressed the language control, which is a client navigation to the same layout.
  * ADR-0067 has the measurement. The page knows its language at every navigation, so the page
- * says it: `SkipLink`, which every page renders once with that language, renders this.
+ * says it: `SkipLink` renders this, and every page a reader meets renders `SkipLink` once with
+ * that language — except the legal documents' pages, which are English and render none, and
+ * so keep the root layout's English here.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *
  * What it buys is the voice of the two things `<main lang>` could not reach, both of which

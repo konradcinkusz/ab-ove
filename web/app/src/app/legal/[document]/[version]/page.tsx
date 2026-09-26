@@ -100,8 +100,12 @@ export default async function LegalDocumentPage({
   return (
     <main className="shell">
       <header className="masthead">
+        {/*
+          English, as the document is — and its links to the index do not prefetch, because
+          the index titles its tab in the edition this browser remembers (ADR-0067).
+        */}
         <p className="wordmark">
-          <Link href="/">
+          <Link href="/" prefetch={false}>
             ab<span>-</span>ovo
           </Link>
         </p>
@@ -122,7 +126,7 @@ export default async function LegalDocumentPage({
 
       <footer className="colophon">
         <p>
-          <Link href="/">Back to the reader</Link>
+          <Link href="/" prefetch={false}>Back to the reader</Link>
         </p>
       </footer>
     </main>

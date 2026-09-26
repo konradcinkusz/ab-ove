@@ -3,7 +3,8 @@
 ## Status
 
 **Accepted.** Date: 2026-09-20. Amended 2026-09-25 — the documents the versions name, and
-what the form does when they are not published (#141); see the end.
+what the form does when they are not published (#141); see the end. Amended on 2026-09-26
+(#166): the page follows the reader's edition — see the struck paragraph in *Consequences*.
 
 Extends [ADR-0018](0018-password-sign-in-happens-server-side.md) to the step before it. That
 decision is not superseded: registering takes the same route shape, the same same-origin

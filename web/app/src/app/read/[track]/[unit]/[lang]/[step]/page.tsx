@@ -15,6 +15,7 @@ import { READER_ID_COOKIE } from '@/lib/reader-cookie';
 import { backendConfigured } from '@/lib/server/backends';
 import type { ReaderIdentity } from '@/lib/server/content';
 import { fetchFrame, fetchProgram, frameNumberOf, type ProgramFetch } from '@/lib/server/frame';
+import { readerEdition } from '@/lib/server/reader-edition';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/session-cookies';
 import type { TrackContent } from '@/lib/content/wire';
 
@@ -118,9 +119,11 @@ export async function generateMetadata({
   if (program.kind === 'unavailable') {
     return { title: n === undefined ? 'ab-ovo' : `${chromeFor(lang).frameNumbered(n)} — ab-ovo` };
   }
-  // A 404 is titled as one, in the address's edition too (issue #166): the 404 page speaks it.
+  // A 404 is titled as one, in the edition its page speaks (issue #166): the address's, else
+  // the one this browser remembers — `NotFoundPage`'s rule, so an edition the course is not
+  // published in does not put an English tab over a Polish page.
   if (program.kind === 'not-found' || n === undefined || n > program.unit.stepCount) {
-    return { title: chromeFor(lang).notFound.tabTitle };
+    return { title: chromeFor(await readerEdition(lang)).notFound.tabTitle };
   }
 
   const chrome = chromeFor(program.language);

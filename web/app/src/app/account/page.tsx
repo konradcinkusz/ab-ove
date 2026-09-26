@@ -111,6 +111,8 @@ export default async function AccountPage({
 
   // Where the reader goes back to, and where signing out sends them: the programs, in the
   // edition this page is in, so leaving does not undo the choice that labelled the link here.
+  // No link here prefetches a page whose tab follows the edition through the query or the
+  // cookie (ADR-0067, `index-href.ts`); a place's address names its edition in its path.
   const programs = indexHref({ edition: chrome.language });
 
   return (
@@ -119,7 +121,7 @@ export default async function AccountPage({
       <header className="masthead">
         {/* The way home, to the programs in this edition — it was text (issue #166). */}
         <p className="wordmark">
-          <Link href={programs}>
+          <Link href={programs} prefetch={false}>
             ab<span>-</span>ovo
           </Link>
         </p>
@@ -202,6 +204,7 @@ export default async function AccountPage({
           <Link
             className={styles.delete}
             href={`/account/delete?lang=${encodeURIComponent(chrome.language)}`}
+            prefetch={false}
           >
             {chrome.deleteAccount.title}
           </Link>
@@ -210,7 +213,7 @@ export default async function AccountPage({
 
       <footer className="colophon">
         <p>
-          <Link href={programs}>{strings.keepReading}</Link>
+          <Link href={programs} prefetch={false}>{strings.keepReading}</Link>
         </p>
       </footer>
     </main>

@@ -33,6 +33,8 @@ export function NotFoundPage({ offered }: NotFoundPageProps): React.JSX.Element 
   const edition = resolvedEdition(offered, failedReading(usePathname()).language, remembered);
   const chrome = chromeFor(edition);
   const strings = chrome.notFound;
+  // Both links to it decline to prefetch: the index titles its tab in the edition, and a
+  // prefetched head outlives a change of it (ADR-0067, `index-href.ts`).
   const programs = indexHref({ edition });
 
   return (
@@ -40,7 +42,7 @@ export function NotFoundPage({ offered }: NotFoundPageProps): React.JSX.Element 
       <SkipLink language={chrome.language} />
       <header className="masthead">
         <p className="wordmark">
-          <Link href={programs}>
+          <Link href={programs} prefetch={false}>
             ab<span>-</span>ovo
           </Link>
         </p>
@@ -49,7 +51,7 @@ export function NotFoundPage({ offered }: NotFoundPageProps): React.JSX.Element 
         </h1>
         <p className="standfirst">{strings.standfirst}</p>
         <p className="enter">
-          <Link href={programs}>{chrome.openPrograms}</Link>
+          <Link href={programs} prefetch={false}>{chrome.openPrograms}</Link>
         </p>
       </header>
 

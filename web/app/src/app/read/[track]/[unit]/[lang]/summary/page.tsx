@@ -9,6 +9,7 @@ import { chromeFor } from '@/lib/i18n/chrome';
 import { contentUnavailable } from '@/lib/read/render-failure';
 import { fetchReturnIndex } from '@/lib/server/content';
 import { resolveProgram } from '@/lib/server/program';
+import { readerEdition } from '@/lib/server/reader-edition';
 import { readerIdentity } from '@/lib/server/reader-identity';
 
 /**
@@ -50,8 +51,12 @@ export async function generateMetadata({
   if (resolved.kind === 'unavailable') {
     return { title: `${chromeFor(resolvedParams.lang).summaryHeading} — ab-ovo` };
   }
-  // A 404 is titled as one, in the address's edition too (issue #166): the 404 page speaks it.
-  if (resolved.kind === 'not-found') return { title: chromeFor(resolvedParams.lang).notFound.tabTitle };
+  // A 404 is titled as one, in the edition its page speaks (issue #166): the address's, else
+  // the one this browser remembers — `NotFoundPage`'s rule, so an edition the course is not
+  // published in does not put an English tab over a Polish page.
+  if (resolved.kind === 'not-found') {
+    return { title: chromeFor(await readerEdition(resolvedParams.lang)).notFound.tabTitle };
+  }
 
   // In the reader's edition (issue #158: "Summary — …" and "The return index for …" were
   // English on the Polish page). The title names the program and not a word of its index,

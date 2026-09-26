@@ -89,6 +89,8 @@ export default async function AboutPage({
   const edition = await readerEdition((await searchParams)['lang']);
   const chrome = chromeFor(edition);
   const strings = chrome.aboutPage;
+  // Both links to it decline to prefetch: the index titles its tab in the edition, and a
+  // prefetched head outlives a change of it (ADR-0067, `index-href.ts`).
   const programs = indexHref({ edition });
 
   return (
@@ -100,7 +102,7 @@ export default async function AboutPage({
           detour from the loop rather than a step in it.
         */}
         <p className="wordmark">
-          <Link href={programs}>
+          <Link href={programs} prefetch={false}>
             ab<span>-</span>ovo
           </Link>
         </p>
@@ -118,7 +120,7 @@ export default async function AboutPage({
           server, which is the claim the section two below it makes (ADR-0060).
         */}
         <p className="enter">
-          <Link href={programs}>{chrome.openPrograms}</Link>
+          <Link href={programs} prefetch={false}>{chrome.openPrograms}</Link>
         </p>
       </header>
 

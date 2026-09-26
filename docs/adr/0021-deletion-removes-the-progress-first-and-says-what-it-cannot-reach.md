@@ -4,6 +4,9 @@
 
 **Accepted.** Date: 2026-09-15.
 
+Amended on 2026-09-26 (#166): the screen is no longer a deviation from `/login`, which follows
+the reader's edition too — see the end of _The screen is bilingual_ in _Consequences_.
+
 ## Context
 
 Issue #13 asks for account deletion that removes the account **and the progress**, and adds

@@ -208,10 +208,15 @@ export function ProgramGrid({
             one position would be a control that cannot move. It carries the chosen edition
             so the page it opens is in the language this one is in.
           */}
-          <Link className={styles.chromeLink} href={coursesHref(chosen)}>
+          <Link className={styles.chromeLink} href={coursesHref(chosen)} prefetch={false}>
             {chrome.courses}
           </Link>
-          <Link className={styles.chromeLink} href={aboutHref(chosen)}>
+          {/*
+            Neither link prefetches: both pages title their tab in the edition, and a head
+            prefetched before *polski* was pressed titled the Polish page in English (ADR-0067,
+            `index-href.ts`).
+          */}
+          <Link className={styles.chromeLink} href={aboutHref(chosen)} prefetch={false}>
             {chrome.about}
           </Link>
           {/*
@@ -383,10 +388,16 @@ export function ProgramGrid({
               */}
               {bundles.length > 1 ? (
                 <p className={styles.allCourses}>
+                  {/* The index titles its tab in the edition: no prefetch (`index-href.ts`). */}
                   {chosenTrack ? (
-                    <Link href={indexHref({ edition: chosen })}>{chrome.allCourses}</Link>
+                    <Link href={indexHref({ edition: chosen })} prefetch={false}>
+                      {chrome.allCourses}
+                    </Link>
                   ) : (
-                    <Link href={indexHref({ track: bundle.track.id, edition: chosen })}>
+                    <Link
+                      href={indexHref({ track: bundle.track.id, edition: chosen })}
+                      prefetch={false}
+                    >
                       {chrome.onlyThisCourse}
                     </Link>
                   )}
