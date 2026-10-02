@@ -3,11 +3,12 @@
  * identity.ts, and the gate is `AbOvo.Api`'s; this file turns those into a protocol and is
  * deliberately thin enough that reading it tells you nothing you would want to assert.
  *
- * TRANSPORT: stdio today, which is the one a reader can run locally against a checkout and
- * the one this package can be exercised on without a deployment. The shape a stranger using
- * claude.ai or ChatGPT would connect to is Streamable HTTP with OAuth, and it is NOT here —
- * see MCP-SERVER-SKETCH.md §4, which says what it needs and why it is a second commit
- * rather than a flag on this one. Nothing is deployed (AGENTS.md #2).
+ * TRANSPORT: stdio today, which is the one a reader can run locally, from a checkout or from
+ * the packed package (#172), and the one this package can be exercised on without a
+ * deployment. The shape a stranger using claude.ai or ChatGPT would connect to is Streamable
+ * HTTP with OAuth, and it is NOT here — see MCP-SERVER-SKETCH.md §4, which says what it
+ * needs and why it is a second commit rather than a flag on this one. Nothing is deployed
+ * (AGENTS.md #2).
  *
  * The low-level `Server` is used rather than `McpServer` because TOOLS already carries JSON
  * Schema — the same dialect the content bundle is validated with — and the high-level
@@ -30,22 +31,28 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
+import manifest from '../package.json' with { type: 'json' };
+
 import { AbOvoApi } from './api.ts';
 import { framingFor } from './framing.ts';
 import { heldReaderId, originOf } from './identity.ts';
 import type { HeldIn } from './identity.ts';
 import { PROMPTS, completeArgument, promptMessages } from './prompts.ts';
-import { SERVER_INSTRUCTIONS, TOOLS, handle } from './tools.ts';
+import { TOOLS, handle, instructionsFor } from './tools.ts';
 import type { EditionOffered, EditionOutcome, ElicitOutcome, Session } from './tools.ts';
 
 /**
  * A server over one reader's `AbOvo.Api` — the book and the place both (`api.ts`). The unit
  * tier hands it one whose `fetch` is a stub API; `main()` hands it the one the environment
  * names (`apiFromEnvironment`).
+ *
+ * ITS VERSION IS THE PACKAGE'S (#172): `package.json` is one file up from this one both in a
+ * checkout (`src/`) and in the published package (`dist/`, which `scripts/build.ts` writes),
+ * so the version a host is told, `--version` and the tarball's name come from the one field.
  */
 export function createServer(api: AbOvoApi): Server {
   const server = new Server(
-    { name: 'ab-ovo', version: '0.1.0' },
+    { name: 'ab-ovo', version: manifest.version },
     {
       /*
         Declared, or the registrations below throw at start-up: the SDK checks a handler's
@@ -56,8 +63,9 @@ export function createServer(api: AbOvoApi): Server {
       capabilities: { tools: {}, prompts: {}, completions: {} },
       // The host shows these to the model before any tool is called. The method has to
       // arrive before the first step does, or the first thing that happens is an assistant
-      // helpfully working frame 1.
-      instructions: SERVER_INSTRUCTIONS,
+      // helpfully working frame 1. The credit of each book this server carries follows it
+      // (ADR-0066 §4, #172): the model is what puts the book's words in front of the reader.
+      instructions: instructionsFor(api.tracks),
     },
   );
 
@@ -200,7 +208,8 @@ export function createServer(api: AbOvoApi): Server {
  *
  * - `AB_OVO_API_URL` is where the book and the reader's place both are. Unset, there is
  *   nothing to serve: every call says so, with the fix (`tools.ts`'s `noBookNote`), and so
- *   does stderr, once.
+ *   does stderr, once. Set to something that is not an http or https address, nothing is sent
+ *   to it: every call says so (`api.ts`), and so does stderr, once.
  * - `AB_OVO_READER_TOKEN`, when set, is a bearer, and it wins — the order
  *   `ReaderIdentity.Resolve` reads in. It is the developer's way to an account's place, for as
  *   long as the token lives; nothing refreshes it (ADR-0066 §2).
@@ -235,11 +244,23 @@ export function apiFromEnvironment(
     );
     return new AbOvoApi({ baseUrl, reader: { kind: 'nobody' }, ...through });
   }
-  if (token !== undefined) return new AbOvoApi({ baseUrl, reader: { kind: 'account', bearer: token }, ...through });
 
-  // An address with no http or https origin keys no id, and nothing is sent to it: every call
-  // is refused before a request, with the fix (`api.ts`).
+  /*
+    AN ADDRESS WITH NO HTTP OR HTTPS ORIGIN keys no id, and nothing is sent to it: every call is
+    refused before a request, with the fix (`api.ts`). It is said on stderr too, once, as an
+    unset variable is (#172): a package started by a host is configured by its environment
+    alone, and the host's log is where whoever wrote that environment looks. The value is not
+    repeated, because an address can carry a password.
+  */
   const origin = originOf(baseUrl);
+  if (origin === undefined) {
+    warn(
+      'ab-ovo MCP: AB_OVO_API_URL is not an http or https address, so nothing will be sent to it ' +
+        "and every call will say so. Set it to the ab-ovo API's address, scheme included, such as " +
+        'http://localhost:8180.\n',
+    );
+  }
+  if (token !== undefined) return new AbOvoApi({ baseUrl, reader: { kind: 'account', bearer: token }, ...through });
   if (origin === undefined) return new AbOvoApi({ baseUrl, reader: { kind: 'nobody' }, ...through });
 
   // `heldReaderId` does not throw: whatever keeps the id from being kept, including no state

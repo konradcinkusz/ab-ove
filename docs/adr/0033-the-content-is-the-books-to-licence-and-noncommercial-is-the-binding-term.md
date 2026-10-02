@@ -133,6 +133,7 @@ confirmed by it. If it moves the content to CC BY 4.0, the edit is:
 | --- | --- |
 | `web/content/book.lock.json` | the `license` string, and move the pin to the revision that carries the new terms |
 | `README.md` § License | the content row, and the NonCommercial sentence under the table |
+| `web/mcp/src/credit.ts` | the licence's name and link, and the copyright notice, which the MCP server's instructions and `list_programs` credit the book with ([ADR-0066](0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md) §4); `credit.test.ts` moves with them |
 | `site/index.html` | the "Two licences" section |
 | this ADR | superseded, with the successor naming what the deployment may now do |
 

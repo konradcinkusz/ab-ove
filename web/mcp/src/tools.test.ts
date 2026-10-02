@@ -12,6 +12,7 @@ import {
   TOOLS,
   ephemeralNote,
   handle,
+  instructionsFor,
 } from './tools.ts';
 import type { ToolResult } from './tools.ts';
 import { STUB_API, StubApi, fixtureBundle } from './testing/stub-api.ts';
@@ -1477,14 +1478,20 @@ function wholeBook(): Bundle {
   return { ...bundle, units: ids.map((id) => ({ ...(bare as Unit), id })) };
 }
 
-/** What a new reader's list is allowed to cost: 1.5 KiB, the ephemeral note included. */
+/**
+ * What a new reader's list is allowed to cost: 1.5 KiB, the ephemeral note and the book's
+ * credit included. Measured at 1369 bytes on 2026-09-26, 291 of them the credit (#172).
+ */
 const LIST_BUDGET_BYTES = 1536;
 
 /**
  * What the same list may cost a host that reads only its structured half (#164): the same
- * words, and half a KiB for the programs they name. Measured at 1378 bytes on 2026-09-26.
+ * words, half a KiB for the programs they name, and 384 bytes for the book's credit as fields
+ * (#172, ADR-0066 §4). Measured at 1378 bytes on 2026-09-26, and at 2041 once the credit was
+ * in the words and its 331 bytes of fields beside them — a raise made in this diff and not
+ * left to a later failure.
  */
-const LIST_DATA_BUDGET_BYTES = LIST_BUDGET_BYTES + 512;
+const LIST_DATA_BUDGET_BYTES = LIST_BUDGET_BYTES + 512 + 384;
 
 test('for a new reader, list_programs fits its budget and still names the open program and the next', async () => {
   // #145: measured on 2026-09-24 at about 7 KB — every unopened program in both editions,
@@ -1570,6 +1577,81 @@ test('the list names as data the programs its text names: open or not, where the
       assert.ok(result.text.includes(`${entry.id} · ${title}`), entry.id);
     }
   }
+});
+
+/*
+  ──────────────────────────────────────────────────────────────────────────────────────
+  THE BOOK'S CREDIT (#172, ADR-0066 §4): in the instructions and in list_programs, in the
+  list's edition, in words and as data. The notice, the licence's name and its link are the
+  book's and the licence's own, and read the same in every edition.
+  ──────────────────────────────────────────────────────────────────────────────────────
+*/
+
+test('list_programs credits the book under its track, in the list\'s edition, in words and as data', async () => {
+  const d = deps();
+  const licence = 'CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)';
+
+  const english = await handle('list_programs', {}, d);
+  const [track, credit, rule] = english.text.split('\n');
+  assert.match(track!, /^Track "math-for-ai-engineers"/);
+  assert.equal(
+    credit,
+    '  The book: "Mathematics from Zero for the AI Engineer" by Konrad Cinkusz ' +
+      '(https://github.com/konradcinkusz/math-for-ai-engineers). Copyright (c) 2026 Konrad Cinkusz. ' +
+      `Its text is licensed under ${licence}, as-is and without warranties.`,
+    'the credit is the line under the track it credits',
+  );
+  assert.match(rule!, /Programs open in order/, 'the rule still follows the track');
+  assert.deepEqual(english.structured?.credits, [
+    {
+      track: TRACK,
+      title: 'Mathematics from Zero for the AI Engineer',
+      author: 'Konrad Cinkusz',
+      copyright: 'Copyright (c) 2026 Konrad Cinkusz',
+      licence: 'CC BY-NC-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-nc-sa/4.0/',
+      source: 'https://github.com/konradcinkusz/math-for-ai-engineers',
+    },
+  ]);
+
+  // The Polish list: the sentence and the title are the reader's; the rest is the book's own.
+  const polish = await handle('list_programs', { language: 'pl' }, d);
+  assert.ok(
+    polish.text.includes(
+      '  Książka: „Matematyka od zera dla inżyniera AI”, autor: Konrad Cinkusz ' +
+        '(https://github.com/konradcinkusz/math-for-ai-engineers). Copyright (c) 2026 Konrad Cinkusz. ' +
+        `Tekst udostępniony na licencji ${licence}, w takim stanie, w jakim jest, bez żadnych gwarancji.`,
+    ),
+    polish.text,
+  );
+  assert.equal(polish.structured?.credits?.[0]?.title, 'Matematyka od zera dla inżyniera AI');
+  for (const part of ['track', 'author', 'copyright', 'licence', 'licenceUrl', 'source'] as const) {
+    assert.equal(polish.structured?.credits?.[0]?.[part], english.structured?.credits?.[0]?.[part], `${part} moved with the edition`);
+  }
+
+  // A list of a reader in Polish is credited in Polish without being asked.
+  await handle('open_program', { unit: UNIT, language: 'pl' }, d);
+  assert.match((await handle('list_programs', {}, d)).text, /\n {2}Książka: „Matematyka od zera/);
+});
+
+test('the instructions credit each book the server carries, and ask for the credit to be passed on', () => {
+  const credited = instructionsFor([TRACK]);
+  assert.ok(credited.startsWith(SERVER_INSTRUCTIONS), 'the method comes first, as it always has');
+  const credit = credited.slice(SERVER_INSTRUCTIONS.length);
+  for (const part of [
+    'Mathematics from Zero for the AI Engineer',
+    'Konrad Cinkusz',
+    'Copyright (c) 2026 Konrad Cinkusz',
+    'CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)',
+    'without warranties',
+    'https://github.com/konradcinkusz/math-for-ai-engineers',
+  ]) {
+    assert.ok(credit.includes(part), `the instructions do not say "${part}"`);
+  }
+  assert.match(credit, /pass it on to the reader as it stands/);
+  // A track with no credit adds nothing, and a server with no track says only the method.
+  assert.equal(instructionsFor([]), SERVER_INSTRUCTIONS);
+  assert.equal(instructionsFor(['constructor']), SERVER_INSTRUCTIONS);
 });
 
 test('list_programs divides the book the way the index does', async () => {

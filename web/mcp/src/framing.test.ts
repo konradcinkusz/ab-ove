@@ -11,20 +11,34 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
+import { CREDITS, creditIn } from './credit.ts';
 import { FALLBACK_LANGUAGE, FRAMING_LANGUAGES, TABLE, framingFor } from './framing.ts';
-import type { Framing, Strings } from './framing.ts';
+import type { BookCredit, Framing, Strings } from './framing.ts';
 import { TOOLS } from './tools.ts';
+
+/** A credit for the sentence that takes one, whose every part can be looked for in what it says. */
+const BOOK: BookCredit = {
+  title: 'The Title',
+  author: 'The Author',
+  copyright: 'Copyright (c) 1999 The Holder',
+  licence: 'CC BY-NC-SA 4.0',
+  licenceUrl: 'https://licence.example/',
+  source: 'https://source.example/book',
+};
 
 /**
  * Every sentence of one entry, by key: each function called with the same two arguments,
  * so an entry's sentences can be read, and two entries' compared, without knowing which
  * key takes what. A number in a string's place prints as itself, which is all a scan needs.
+ * The one sentence that takes a record, the credit, is given `BOOK`: a number in its place
+ * would print "undefined" for each part, and the gates below would be reading that.
  * An entry of the table or what `framingFor()` builds from one, whose counts are functions.
  */
 function sentencesOf(strings: Strings | Framing): Map<string, string> {
   const found = new Map<string, string>();
   for (const [key, value] of Object.entries(strings)) {
     if (typeof value === 'string') found.set(key, value);
+    else if (key === 'credit') found.set(key, (value as (book: BookCredit) => string)(BOOK));
     else if (typeof value === 'function') found.set(key, (value as unknown as (a: number, b: number) => string)(7, 9));
     else for (const [part, words] of Object.entries(value as Record<string, string>)) found.set(`${key}.${part}`, words);
   }
@@ -96,6 +110,26 @@ test('no sentence is left untranslated: every Polish one differs from its Englis
     assert.deepEqual(groups(own), groups(english), `${language} heads other groups than English does`);
     for (const [key, words] of english) {
       assert.notEqual(own.get(key), words, `${language} "${key}" is the English sentence`);
+    }
+  }
+});
+
+test('the credit says every part of it in every edition, and translates none but its own words', () => {
+  // ADR-0066 §4 and #172: the notice, the licence's name and its link are the book's and the
+  // licence's own. A translation may move them within its sentence; it may not drop one, or
+  // say it in other words — which is what a translated licence name or link would be.
+  for (const language of FRAMING_LANGUAGES) {
+    const said = TABLE[language]!.credit(BOOK);
+    for (const [part, words] of Object.entries(BOOK)) {
+      assert.ok(said.includes(words), `${language}: the credit leaves out its ${part}`);
+    }
+  }
+  // And the real one, in each edition the book has: its title in that edition, the rest as is.
+  for (const credit of Object.values(CREDITS)) {
+    for (const language of Object.keys(credit.titles)) {
+      const said = framingFor(language).credit(creditIn(credit, language));
+      assert.ok(said.includes(credit.titles[language]!), `${language}: the credit is not titled in its edition`);
+      assert.ok(said.includes(`${credit.licence} (${credit.licenceUrl})`), `${language}: the licence is not named with its link`);
     }
   }
 });
