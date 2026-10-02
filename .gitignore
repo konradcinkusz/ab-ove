@@ -147,6 +147,16 @@ __pycache__/
 ## programs/{en,pl} at the pinned revision, and nothing under it is authored here either.
 /web/content/bundle/
 
+## ── The MCP package's build output (#172). `web/mcp/scripts/build.ts` writes dist/ from the
+## server's TypeScript and copies this repository's LICENSE in beside it, so the tarball
+## carries both; neither is authored, and a committed dist/ would be a second copy of the
+## source that goes stale under it. The launcher at web/mcp/bin/ is the one file the package
+## carries that IS source (see the `!web/mcp/bin/` line above). A tarball a developer packs
+## by hand is output too. ADR-0070.
+/web/mcp/dist/
+/web/mcp/LICENSE
+/web/mcp/*.tgz
+
 ## ── Visual Studio IDE state. .vs/ is one developer's machine: the solution's .suo,
 ## the window layout, the design-time build cache and the Copilot semantic index —
 ## binary, rewritten on every keystroke, and meaningless in anyone else's checkout.

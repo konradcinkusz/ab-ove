@@ -97,6 +97,7 @@ adoption. [`CONTRIBUTING.md`](CONTRIBUTING.md) is the same ground for a human.
 | Which address reaches what | `flyio/README.md` |
 | What is a secret and where it lives | `flyio/SECRETS.md` for the deployed estate; `secrets.env.example` for the authoritative list of every variable by tier |
 | How a machine gets set up | `scripts/setup.sh` and `scripts/setup.ps1`, described in `scripts/README.md` |
+| What the MCP package's tarball carries, and who publishes it | `web/mcp/package.json` (`files`, `private`, `name`), `web/mcp/scripts/verify-tarball.ts`, and [ADR-0070](docs/adr/0070-the-mcp-package-is-built-and-checked-in-ci-and-published-by-its-owner.md); `docs/how-to/publish-the-mcp-package.md` is the owner's checklist |
 | Package versions | `Directory.Packages.props` — one version per package; no `.csproj` carries a `Version` |
 | Everything that is not a version | `Directory.Build.props` |
 | The SDK version | `global.json` — and only there |
@@ -236,6 +237,12 @@ and inventing a second word for a concept it already names is the thing that rul
   is `ab-ovo`; the rename is coming and every derived name is already `ab-ovo`
   ([ADR-0005](docs/adr/0005-slug-ab-ovo.md)). Do not "fix" a document by changing `ab-ovo`
   to `ab-ove`.
+- **That the MCP package is published, or that CI may publish it.** CI builds, packs, checks and
+  uploads its tarball (`.github/workflows/mcp-package.yml`) and holds no npm token. Publishing is
+  the owner's manual step, and `web/mcp/package.json` stays `private` until they take it
+  ([ADR-0070](docs/adr/0070-the-mcp-package-is-built-and-checked-in-ci-and-published-by-its-owner.md)).
+  Do not add a publish step or a token, and do not put the book in the package: it is
+  CC BY-NC-SA 4.0 and is not redistributed through npm.
 - **That a version pin is neglect.** `eslint` is held at 9.x and `authservice` at `v0.3.1`,
   and both pins carry their reasoning at the pin. Moving either is a decision, not an
   update.

@@ -7,8 +7,9 @@
  * output schemas reach a client's `listTools`, every result a client receives matches its
  * tool's output schema, the prompt is listed and renders, and a completion answers with ids.
  * A capability declared wrongly throws at registration, which is the one failure this catches
- * before a host does. And two things about the whole package: that the environment a host
- * starts it with is read as README.md says, and that none of its modules reads a book.
+ * before a host does. The instructions a host is given carry the book's credit (#172). And two
+ * things about the whole package: that the environment a host starts it with is read as
+ * README.md says, and that none of its modules reads a book.
  */
 import { strict as assert } from 'node:assert';
 import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -22,6 +23,8 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ElicitRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv';
 import type { Bundle, Unit } from '@ab-ovo/web-kit';
+
+import manifest from '../package.json' with { type: 'json' };
 
 import { AbOvoApi } from './api.ts';
 import { apiFromEnvironment, createServer } from './server.ts';
@@ -95,6 +98,19 @@ test('the tools are listed with their annotations, and a re-read is marked read-
   for (const tool of tools) {
     assert.equal(tool.annotations?.openWorldHint, false, `${tool.name} reaches no open world`);
   }
+  await client.close();
+});
+
+test('a host is told the method and the book\'s credit before any tool is called, by a server of the package\'s version', async () => {
+  // #172, ADR-0066 §4: the credit reaches the host in the instructions, over the protocol. And
+  // the version a host is told is package.json's, the one `--version` and the tarball carry.
+  const client = await connected();
+  const instructions = client.getInstructions() ?? '';
+  assert.match(instructions, /Do not answer the step for them/);
+  assert.match(instructions, /"Mathematics from Zero for the AI Engineer" by Konrad Cinkusz/);
+  assert.match(instructions, /Copyright \(c\) 2026 Konrad Cinkusz/);
+  assert.ok(instructions.includes('CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)'));
+  assert.deepEqual(client.getServerVersion(), { name: 'ab-ovo', version: manifest.version });
   await client.close();
 });
 
@@ -319,6 +335,27 @@ test('with no AB_OVO_API_URL, stderr says so once and every call says what to se
   const listed = await handle('list_programs', {}, { api });
   assert.ok(listed.isError);
   assert.match(listed.text, /AB_OVO_API_URL is not set/);
+});
+
+test('an AB_OVO_API_URL that is not an http or https address is said on stderr once, without repeating it', async () => {
+  // #172: a package started by a host is configured by its environment alone, so the fault
+  // is said where whoever wrote that environment looks, as an unset variable is.
+  for (const env of [
+    { AB_OVO_API_URL: 'api.example:8180' },
+    { AB_OVO_API_URL: 'ftp://user:secret@api.example', AB_OVO_READER_TOKEN: 'the-token' },
+  ]) {
+    const said: string[] = [];
+    const stub = new StubApi([fixtureBundle()]);
+    const api = apiFromEnvironment(env, { warn: (line) => said.push(line), fetch: stub.fetch });
+    assert.equal(said.length, 1, `said ${said.length} times for ${env.AB_OVO_API_URL}`);
+    assert.match(said[0]!, /AB_OVO_API_URL is not an http or https address/);
+    assert.match(said[0]!, /http:\/\/localhost:8180/, 'the line does not say what an address looks like');
+    assert.ok(!said[0]!.includes(env.AB_OVO_API_URL), 'the line repeats the address, which can carry a password');
+    const listed = await handle('list_programs', {}, { api });
+    assert.ok(listed.isError);
+    assert.match(listed.text, /not an http or https address/);
+    assert.equal(stub.calls.length, 0, 'something was sent');
+  }
 });
 
 test('AB_OVO_READER_TOKEN, when set, is the reader: a bearer, and no id is minted or sent', async () => {

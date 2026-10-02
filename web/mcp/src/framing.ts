@@ -16,7 +16,8 @@
  * ONLY WHAT THE READER IS SHOWN. A sentence lives here when the model is to show it or
  * pass it on as it stands: the step as rendered, the gate's refusals (`explain()`), the
  * hand-off at the end of a program, the notes about the reader's place, the list's group
- * headings, and the form a host puts in front of the reader to confirm an answer. What is
+ * headings and the book's credit under each track (#172), and the form a host puts in front
+ * of the reader to confirm an answer. What is
  * addressed to the assistant stays English and stays beside the code that says it: the
  * tool descriptions, `SERVER_INSTRUCTIONS`, the output schemas' descriptions, the prompt,
  * and every sentence of a result that tells the model about its call — which tool opens
@@ -119,6 +120,11 @@ export interface Strings {
 
   /** The list's group headings by id prefix — the reading surface's `groupLabels`. */
   readonly groupLabels: Readonly<Record<string, string>>;
+  /**
+   * The book's credit, which the list gives under each track (ADR-0066 §4, #172): the title
+   * in this edition, and the notice, the licence and the links as the book states them.
+   */
+  readonly credit: (book: BookCredit) => string;
 
   /** The form a host shows the reader before an answer is recorded (ADR-0054): its message… */
   readonly confirmAnswer: (n: number) => string;
@@ -127,6 +133,23 @@ export interface Strings {
   /** …and the field's title and description. */
   readonly answerLabel: string;
   readonly answerHint: string;
+}
+
+/**
+ * A book's credit as a reader of one edition is shown it — `credit.ts`'s `creditIn()` builds
+ * one. Declared here rather than imported, because nothing here imports anything.
+ */
+export interface BookCredit {
+  /** The book's title in the reader's edition. */
+  readonly title: string;
+  readonly author: string;
+  /** The copyright notice, verbatim, and untranslated in every edition. */
+  readonly copyright: string;
+  /** The licence's name and its address, which are the licence's own and never translated. */
+  readonly licence: string;
+  readonly licenceUrl: string;
+  /** Where the book itself is. */
+  readonly source: string;
 }
 
 /** What `framingFor()` answers: a language's entry, the language it is in, and its counts. */
@@ -196,6 +219,12 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       `The service that keeps it is out of reach or not answering right now${status}. Try again shortly.`,
 
     groupLabels: { F: 'Foundation', P: 'Main sequence' },
+    // ADR-0066 §4: the title, the author and where the book is, the notice as LICENSE-CONTENT
+    // states it, the licence with its link, and its disclaimer of warranties (its §5, "as-is").
+    // Every address is in parentheses, so no full stop is ever read as part of one.
+    credit: (book) =>
+      `The book: "${book.title}" by ${book.author} (${book.source}). ${book.copyright}. Its text ` +
+      `is licensed under ${book.licence} (${book.licenceUrl}), as-is and without warranties.`,
 
     confirmAnswer: (n) => `Step ${n}: check this before it is recorded as your answer.`,
     nothingSent: 'Type what you wrote — the assistant sent nothing.',
@@ -294,6 +323,14 @@ export const TABLE: Readonly<Record<string, Strings>> = {
       'Spróbuj ponownie za chwilę.',
 
     groupLabels: { F: 'Podstawy', P: 'Część główna' },
+    // The English's claims, in the title's own edition. The title is quoted „…”, as
+    // `exercise` quotes; `autor` is a label, where a verb (`napisał`) would be a past tense
+    // with a gender. The notice, the licence's name and both links stay as the book and the
+    // licence state them. `w takim stanie, w jakim jest` is the licence's §5 "as-is".
+    credit: (book) =>
+      `Książka: „${book.title}”, autor: ${book.author} (${book.source}). ${book.copyright}. ` +
+      `Tekst udostępniony na licencji ${book.licence} (${book.licenceUrl}), w takim stanie, w ` +
+      'jakim jest, bez żadnych gwarancji.',
 
     // `Twoja odpowiedź` is `yourAnswer`. Nothing here asks what the reader *wrote* in a past
     // tense (`napisałeś`), for ADR-0016's reason.

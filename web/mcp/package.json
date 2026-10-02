@@ -9,30 +9,101 @@
     "docs/architecture/MCP-SERVER-SKETCH.md §6, updated alongside this file rather than left",
     "describing a trigger that already fired.",
     "",
-    "Two runtime dependencies: the MCP SDK, and @ab-ovo/web-kit for the reading order",
-    "(isOpenWhere), the grouping and adjacency of a track's programs, and the content API's",
-    "wire shapes. Since #171 this server is a client of AbOvo.Api (ADR-0066 §1): the book, the",
-    "reveal gate and the reader's place are the API's, reached by src/api.ts over the global",
-    "fetch, and nothing here loads a bundle — no book, no fetch script and no compiler are",
-    "needed to run it, only AB_OVO_API_URL. The unit tier runs against a stub of the API",
+    "One runtime dependency: the MCP SDK. @ab-ovo/web-kit is a DEVELOPMENT dependency, and",
+    "that is deliberate (#172): it is a private workspace package no registry has, so it",
+    "cannot be a dependency of anything a registry installs. The server takes the reading",
+    "order (isOpenWhere), the grouping and adjacency of a track's programs, and the content",
+    "API's wire shapes from it, and scripts/build.ts carries the modules it uses into dist/",
+    "beside the server's own, so an installed package needs nothing from the workspace.",
+    "Since #171 this server is a client of AbOvo.Api (ADR-0066 §1): the book, the reveal gate",
+    "and the reader's place are the API's, reached by src/api.ts over the global fetch, and",
+    "nothing here loads a bundle — no book, no fetch script and no compiler are needed to",
+    "run it, only AB_OVO_API_URL. The unit tier runs against a stub of the API",
     "(src/testing/stub-api.ts), which serves it the committed fixture."
   ],
   "name": "@ab-ovo/mcp",
   "version": "0.1.0",
+  "description": "An MCP server that serves a programmed-learning book one step at a time, as a client of an ab-ovo API. It carries no book.",
+  "//name": [
+    "THE PACKAGE'S NAME IS THE OWNER'S TO CHOOSE (#172, ADR-0070), and this field is the one",
+    "place it is set: the launcher's --version and --help, the tarball's file name and every",
+    "`npx` command a README gives are read from or written against it. `@ab-ovo/mcp` is the",
+    "workspace's name for the package, which no one has registered with npm and which may not",
+    "be the owner's to publish under — a scope on npm belongs to an account. The server's own",
+    "name in the MCP handshake is `ab-ovo` and is not this field.",
+    "docs/how-to/publish-the-mcp-package.md is the checklist that sets it."
+  ],
+  "//private": [
+    "`private: true` STAYS UNTIL THE OWNER'S FIRST PUBLISH, and removing it is a step of that",
+    "checklist and not of this issue (ADR-0070). npm refuses to publish a private package, so",
+    "until a person removes the line no command run by accident — `pnpm -r publish`, an",
+    "`npm publish` in the wrong directory — can make a version public under a name nobody",
+    "chose, and a version number once published cannot be used again (ADR-0066 §3). Packing is",
+    "not publishing: `pnpm pack` makes the tarball of a private package, which is all CI",
+    "needs. The flip is one commit that also sets `name`, so what the owner publishes is a",
+    "revision the history shows them choosing."
+  ],
   "private": true,
+  "license": "MIT",
+  "//license": [
+    "MIT covers the code. The book is CC BY-NC-SA 4.0, is not in the package (ADR-0033,",
+    "ADR-0066 §4), and is credited where the server's prose reaches a reader (src/credit.ts)."
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "learning",
+    "mathematics"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/konradcinkusz/ab-ove.git",
+    "directory": "web/mcp"
+  },
+  "//repository": [
+    "The repository is `ab-ove` today and the rename to `ab-ovo` is coming (ADR-0005, #78).",
+    "GitHub redirects the old address, but npm's trusted publishing compares this URL with the",
+    "repository a workflow runs in (ADR-0070), so it is edited in the commit that renames."
+  ],
   "type": "module",
   "engines": {
     "node": ">=22.18.0"
   },
   "//bin": [
     "The launcher an MCP host is pointed at. Plain JavaScript on purpose: it checks the Node",
-    "version BEFORE importing the TypeScript server, because the Node that cannot strip",
-    "types cannot parse src/server.ts to be told so. `pnpm start` goes through it too, so",
-    "the one path a developer tries is the one a host uses."
+    "version BEFORE importing the server, because the Node that cannot strip types cannot",
+    "parse src/server.ts to be told so. It runs src/ in a checkout and dist/ in the package",
+    "(its own header says how it tells them apart). `pnpm start` goes through it too, so the",
+    "one path a developer tries is the one a host uses."
   ],
   "bin": {
     "ab-ovo-mcp": "bin/ab-ovo-mcp.mjs"
   },
+  "//files": [
+    "WHAT THE TARBALL CARRIES, AND NOTHING ELSE (#172). The launcher, the compiled server in",
+    "dist/, the licence and the README (npm adds package.json itself). NOT src/, which is",
+    "TypeScript Node would not strip under node_modules; NOT scripts/, the tests or the",
+    "stub API; and NO BOOK — the book is CC BY-NC-SA 4.0 and is not redistributed through npm",
+    "(ADR-0033, ADR-0066 §4). scripts/build.ts writes dist/ and refuses to carry a file under",
+    "web/content/ but the pin, and scripts/verify-tarball.ts refuses a tarball with a file it",
+    "does not recognise. LICENSE is the repository's, copied in by the build; both it and",
+    "dist/ are output and are gitignored."
+  ],
+  "files": [
+    "bin/",
+    "dist/",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "//publishConfig": [
+    "A scoped package is published restricted unless it is told otherwise, and this one is",
+    "free (ADR-0066 §4). An unscoped name is unaffected. No `provenance` here: that is for",
+    "a publish from CI, and ADR-0070 says when that is turned on."
+  ],
   "scripts": {
     "//test": [
       "Same unit tier as @ab-ovo/app: node --test runs .ts directly through Node 22's type",
@@ -49,13 +120,20 @@
       "See docs/architecture/MCP-SERVER-SKETCH.md section 7."
     ],
     "typecheck": "tsc --noEmit",
+    "//build": [
+      "dist/ and LICENSE, from the source: what the tarball carries beside the launcher.",
+      "`prepack` is the same step, so `pnpm pack` and `npm publish` can never package a dist/",
+      "older than the source; .github/workflows/mcp-package.yml runs it that way."
+    ],
+    "build": "node scripts/build.ts",
+    "prepack": "node scripts/build.ts",
     "start": "node bin/ab-ovo-mcp.mjs"
   },
   "dependencies": {
-    "@ab-ovo/web-kit": "workspace:*",
     "@modelcontextprotocol/sdk": "1.30.0"
   },
   "devDependencies": {
+    "@ab-ovo/web-kit": "workspace:*",
     "@types/node": "22.20.2",
     "typescript": "5.9.3"
   }

@@ -34,6 +34,15 @@ has the account adopt an anonymous reader's places at sign-in, and the browser s
 Where the Context and the Consequences below describe `sync.ts` pushing through `PUT`, they
 record how things stood when this was decided. Narrowing `PUT` now waits only on #171.
 
+**Built by #172 on 2026-10-02, and decided by [ADR-0070](0070-the-mcp-package-is-built-and-checked-in-ci-and-published-by-its-owner.md).**
+The package ships compiled JavaScript, carries no book, and credits the book in the instructions
+and in `list_programs`. CI builds, packs, checks and uploads the tarball and publishes nothing.
+Where §3 says whether to move to npm's trusted publishing "is #172's to decide", ADR-0070 decides
+it: CI publishes by trusted publishing and never by a stored token, once the owner turns that on,
+and the first publish is theirs, by hand. Nothing is published, and the credit the Consequences
+say is owed before a package is pointed at a deployed instance is in the package; the reading
+surface's is not.
+
 **Built by #171 on 2026-09-26.** `web/mcp` reads tracks, programs and steps from
 `GET /api/v1/content/**`, records an opening through the new
 `POST /api/v1/content/{track}/{unit}/open`, and advances through `POST …/advance`. It reads every

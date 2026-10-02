@@ -1,0 +1,216 @@
+# mcp-package.yml — the MCP server as a package: built, packed, checked as a reader will
+# receive it, started, and uploaded. IT PUBLISHES NOTHING.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# WHAT THIS WORKFLOW IS FOR (issue #172, ADR-0070)
+#
+# `web/mcp` is a package a host can start with one `npx` command, and the thing that command
+# fetches is a tarball. Whether that tarball is right cannot be read off the source tree: a
+# `files` entry that carries too much, a build that did not run, or a compiler's output that
+# differs from what the unit tier ran each go wrong between the tree and the file. So this
+# builds the tarball the way the owner will, and then checks the file and not the tree
+# (`web/mcp/scripts/verify-tarball.ts`): no TypeScript Node would not strip, no copy of the
+# book (CC BY-NC-SA 4.0, not redistributed through npm — ADR-0033, ADR-0066 §4), no test
+# code, the MIT licence present — and then installs it into an empty directory with the npm
+# that ships with Node, starts it as a host does, and has a client list the programs of an
+# API and find the book's credit in what comes back.
+#
+# THE TARBALL IS UPLOADED SO THE OWNER CAN CHECK THE FILE CI MADE and publish that one
+# (docs/how-to/publish-the-mcp-package.md). The owner's check is the same script, run on the
+# download.
+#
+# NO PUBLISH STEP AND NO NPM TOKEN, ON PURPOSE. A version number published to npm cannot be
+# used again (ADR-0066 §3), and the name is the owner's to choose, so making a version public
+# stays with a person. This workflow holds `contents: read` and nothing else: no secret, and
+# no `id-token`. ADR-0070 decides that publishing from CI, when it is turned on, is npm's
+# trusted publishing over GitHub OIDC and never a stored token, and says exactly what the
+# owner turns on. Until they do, the workflow that would do it is NOT in this directory, and
+# adding a step here that publishes would be that decision taken without them.
+#
+# WHY PATH-FILTERED, WHEN ci.yml IS NOT. The web job of ci.yml already runs the package's unit
+# tier on every change, including `src/package.test.ts`, which builds the compiled server and
+# starts it. This is the slower half, the one that needs a registry: it runs when something
+# the tarball is made of changes, and on demand (workflow_dispatch) for the owner, who runs
+# it on the commit they mean to publish.
+#
+# A SECOND JOB, FOR A SECOND CLAIM. `pack` makes and checks the tarball on the Node CI builds
+# everything else on. `installs` takes that same file to the oldest Node the package says it
+# runs on (`engines` in web/mcp/package.json) and to the newest long-term-support line, since
+# an `engines` range nobody runs is a claim and not a check (REPO-BASELINE.md §1) — and the
+# newest is what a host on a reader's machine is most likely to start.
+# ─────────────────────────────────────────────────────────────────────────────────────────
+
+name: MCP package
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'web/mcp/**'
+      # The modules of web-kit the server runs are carried into the package.
+      - 'web/web-kit/**'
+      # The pin is carried too: the book's revision, which `PINS` is derived from.
+      - 'web/content/book.lock.json'
+      - 'web/package.json'
+      - 'web/pnpm-lock.yaml'
+      - 'web/pnpm-workspace.yaml'
+      # The package carries the repository's licence.
+      - 'LICENSE'
+      - '.github/workflows/mcp-package.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'web/mcp/**'
+      - 'web/web-kit/**'
+      - 'web/content/book.lock.json'
+      - 'web/package.json'
+      - 'web/pnpm-lock.yaml'
+      - 'web/pnpm-workspace.yaml'
+      - 'LICENSE'
+      - '.github/workflows/mcp-package.yml'
+  workflow_dispatch:
+
+# Read access and nothing more: this workflow holds no credential, and the day it needs one
+# is the day ADR-0070's decision is acted on, in a workflow of its own.
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-package-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # The Node the rest of CI builds on (ci.yml's NODE_VERSION, the Dockerfile and web/.npmrc's
+  # engine-strict agree on the major). The versions the PACKAGE is started on are the
+  # `installs` job's own matrix.
+  NODE_VERSION: '22'
+
+jobs:
+  pack:
+    name: build, pack, check, install and start
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          # Declared once, in web/package.json's packageManager field.
+          package_json_file: web/package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install the workspace
+        run: pnpm --dir web install --frozen-lockfile
+
+      # `pnpm pack` and not `npm pack`: it rewrites the `workspace:` specifier of web-kit in the
+      # packed manifest, and it runs `prepack`, which is `scripts/build.ts` — so the tarball
+      # can never carry a dist/ older than the source, and no step has to remember to build.
+      # The book is NOT fetched: the package carries none, needs none to build, and a build
+      # that did need it would be the defect this job exists to find.
+      - name: Build and pack
+        id: pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Outside the checkout, so nothing of the workspace is on the way up from it.
+          out="$RUNNER_TEMP/mcp-package"
+          mkdir -p "$out"
+          pnpm --dir web/mcp pack --pack-destination "$out"
+          set -- "$out"/*.tgz
+          if [ "$#" -ne 1 ]; then
+            echo "::error::Expected exactly one tarball in $out, found $#."
+            exit 1
+          fi
+          echo "tarball=$1" >> "$GITHUB_OUTPUT"
+
+      # The checks of web/mcp/scripts/verify-tarball.ts, on the file: what is in it, then an
+      # install into an empty directory outside this checkout, then --version, --help and the
+      # MCP handshake against a stub of AbOvo.Api. A failure prints the sentence that fixes
+      # it. The tarball is `private` until the owner's first publish, which this does not
+      # refuse — it is checked for publishing by the owner, with --for-publish.
+      - name: Check the tarball, install it with only Node, and start it
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: node web/mcp/scripts/verify-tarball.ts "$TARBALL"
+
+      - name: Say what was packed
+        shell: bash
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          {
+            echo '### The MCP package'
+            echo
+            echo 'Built by this run. It is not published, and this workflow cannot publish it.'
+            echo
+            echo '```'
+            (cd "$(dirname "$TARBALL")" && sha256sum "$(basename "$TARBALL")")
+            tar -tzvf "$TARBALL"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: ab-ovo-mcp-package
+          path: ${{ steps.pack.outputs.tarball }}
+          if-no-files-found: error
+          retention-days: 30
+
+  # The same file, on the Nodes the package says it runs on.
+  installs:
+    name: install and start on Node ${{ matrix.node }}
+    needs: pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor `engines` declares (web/mcp/package.json), and the long-term-support line
+        # after the one CI builds on. Moving the floor is a decision, and moves this value.
+        node: ['22.18.0', '24']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+
+      # The harness is a script of this checkout and needs its workspace installed; what it
+      # tests, the installed package, does not (it is installed into an empty directory with
+      # npm, and sees none of this).
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install the workspace
+        run: pnpm --dir web install --frozen-lockfile
+
+      - name: Download the tarball the first job made
+        uses: actions/download-artifact@v4
+        with:
+          name: ab-ovo-mcp-package
+          path: ${{ runner.temp }}/mcp-package
+
+      - name: Check the tarball, install it with only Node, and start it
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -- "$RUNNER_TEMP/mcp-package"/*.tgz
+          if [ "$#" -ne 1 ]; then
+            echo "::error::Expected exactly one tarball in $RUNNER_TEMP/mcp-package, found $#."
+            exit 1
+          fi
+          node --version
+          node web/mcp/scripts/verify-tarball.ts "$1"

@@ -3,53 +3,79 @@
 An MCP server that serves the book's programs one step at a time to a reader working inside
 Claude, ChatGPT or any other MCP host, instead of inside the reading surface.
 
-**Nothing is deployed** (AGENTS.md #2). This runs over stdio from a checkout, as a client of an
-ab-ovo API somebody runs. The design, what it deliberately does not do, and what a deployed
-shape would need are in
+**Nothing is deployed** (AGENTS.md #2). This runs over stdio, as a client of an ab-ovo API that
+somebody runs; there is no public one yet. It starts from a package with one command, from a
+tarball CI built, or from a checkout, and every one of them reads the book from that API. The
+design, what it deliberately does not do, and what a deployed shape would need are in
 [`docs/architecture/MCP-SERVER-SKETCH.md`](../../docs/architecture/MCP-SERVER-SKETCH.md).
 
-## The one thing to understand before reading the code
+## Connect an agent: one command, no checkout
 
-The answer to a step is not stored on that step. It is **the opening of the next step** —
-that is the book's own mechanic and the content schema's definition of the `answer` field.
-So nothing filters answers out of responses; the reveal gate declines to serve a step the
-reader has not reached, and the answer is absent because the object carrying it was never
-sent.
+What has to be true is short: **Node 22.18 or later**, and **the address of an ab-ovo API**
+that holds the book. The package carries no book and needs no checkout, no pnpm and no
+compiler, and nothing is fetched at start-up but the API's answers.
 
-**That gate is `AbOvo.Api`'s, and so is the book** (ADR-0066 §1). This server keeps nothing of
-its own: no bundle on disk, no copy of the gate, no store of the reader's place. It asks the
-API for each step — `GET /api/v1/content/**` — and moves the reader only through
-`POST …/advance`, the way the reading surface does. `src/api.ts` is the client; everything else
-here is what a reader is told.
+```bash
+claude mcp add ab-ovo -e AB_OVO_API_URL=http://localhost:<port> -- npx -y <package-name>
+```
 
-## Running it
+or, in a host's own configuration file:
 
-What has to be true, and the server says which is not rather than failing on a line of
-TypeScript:
+```json
+{
+  "mcpServers": {
+    "ab-ovo": {
+      "command": "npx",
+      "args": ["-y", "<package-name>"],
+      "env": { "AB_OVO_API_URL": "http://localhost:<port>" }
+    }
+  }
+}
+```
 
-- **Node 22.18 or later.** The server is TypeScript that Node runs directly by stripping the
-  types itself, and an older Node fails on the first `import type` with a message that says
-  nothing about versions. `bin/ab-ovo-mcp.mjs` is plain JavaScript that checks first and
-  then hands over — a check inside `src/server.ts` could not run on the Node that needs it.
-- **The workspace installed**: `pnpm --dir web install`.
-- **An ab-ovo API to read from**, named by `AB_OVO_API_URL`, holding the book: the content is
-  ingested into the API (`docs/tutorials/01-first-run.md` says how), not fetched into this
-  package. Without the variable the server starts and answers every call with what to set;
-  with an API that holds no book for the track, every call says so and what fixes it.
+> **`<package-name>` is a placeholder, and the package is not on npm yet.** Publishing it is the
+> owner's manual step, under a name they choose, and that name is `name` in
+> [`package.json`](package.json), the one place it is set. When they have published, write the
+> name they chose where the placeholder is.
+> [`publish-the-mcp-package.md`](../../docs/how-to/publish-the-mcp-package.md) is their checklist.
+> `<port>` is the one the API answers on; the Aspire dashboard shows it when the AppHost runs
+> the API ([`01-first-run.md`](../../docs/tutorials/01-first-run.md) says how to run one).
+
+The host's model is told the method, and whose book it is (**the book's credit**, below), before
+it is told a step. `list_programs` is where a reader chooses what to read: every program, how far
+they have got, and the one that opens next.
+
+**Before the package is published,** the same command runs the tarball CI built. Download the
+artifact of a run of
+[`mcp-package.yml`](../../.github/workflows/mcp-package.yml), unzip it, and point the host at the
+file by its absolute path:
+
+```bash
+claude mcp add ab-ovo -e AB_OVO_API_URL=http://localhost:<port> -- \
+  npx -y --package=/absolute/path/to/<tarball>.tgz ab-ovo-mcp
+```
+
+`ab-ovo-mcp` there is the command the package declares (`bin` in `package.json`), and it is not
+the package's name. To check a tarball before trusting it, see
+[Checking a tarball](#checking-a-tarball).
+
+**The working directory does not matter.** Nothing here looks at it: the book is the API's, and
+the reader's id is in the user's state directory (below). The server starts the same from the
+repository root, from `web/mcp` or from `/`, with or without `CI` set.
+
+## From a checkout
+
+For working on the server, or before there is a tarball. The server is TypeScript that Node runs
+directly by stripping the types itself, which needs **Node 22.18 or later**; an older Node fails
+on the first `import type` with a message that says nothing about versions, so
+`bin/ab-ovo-mcp.mjs` is plain JavaScript that checks first and then hands over. The launcher
+runs `src/` wherever it is present, and the compiled `dist/` only where it is not, which is the
+package: a `dist/` a build left behind is never run under a developer.
 
 ```bash
 pnpm --dir web install
 AB_OVO_API_URL=http://localhost:<port> node web/mcp/bin/ab-ovo-mcp.mjs   # or: pnpm --dir web/mcp start
 ```
-
-`<port>` is the one the API answers on; the Aspire dashboard shows it when the AppHost runs
-the API.
-
-**The working directory does not matter.** Nothing here looks at it: the book is the API's,
-and the reader's id is in the user's state directory (below). The server starts the same from
-the repository root, from `web/mcp` or from `/`, with or without `CI` set.
-
-## Pointing a host at it
 
 A host starts the command from a working directory of its own choosing, so the path to the
 launcher has to be absolute — a relative one is the first thing that goes wrong. From the
@@ -73,17 +99,115 @@ or, in a host's own configuration file, with the path written out:
 }
 ```
 
+The API has to hold the book: the content is ingested into the API
+(`docs/tutorials/01-first-run.md` says how), not fetched into this package. Without
+`AB_OVO_API_URL` the server starts and answers every call with what to set; with an API that
+holds no book for the track, every call says so and what fixes it.
+
+## Using it in a host
+
 In a host that lists a server's prompts, **`read`** is the way in: pick it, name a program
 or leave it out, and the host's model is told the method before it is told a step. Its
 `program` argument completes to the ids as you type. A `language` given with no program is
-also the edition the list is asked for in, so the titles a reader chooses from are in it. The tools carry their annotations, so
-a host that reads them stops asking permission for a re-read: `list_programs`,
+also the edition the list is asked for in, so the titles a reader chooses from are in it. The
+tools carry their annotations, so a host that reads them stops asking permission for a re-read:
+`list_programs`,
 `current_step` and `review_step` are read-only; `open_program` and `submit_answer` write a
 place and never destroy one, and calling either again changes nothing more.
 
+## The one thing to understand before reading the code
+
+The answer to a step is not stored on that step. It is **the opening of the next step** —
+that is the book's own mechanic and the content schema's definition of the `answer` field.
+So nothing filters answers out of responses; the reveal gate declines to serve a step the
+reader has not reached, and the answer is absent because the object carrying it was never
+sent.
+
+**That gate is `AbOvo.Api`'s, and so is the book** (ADR-0066 §1). This server keeps nothing of
+its own: no bundle on disk, no copy of the gate, no store of the reader's place. It asks the
+API for each step — `GET /api/v1/content/**` — and moves the reader only through
+`POST …/advance`, the way the reading surface does. `src/api.ts` is the client; everything else
+here is what a reader is told.
+
+## The book's credit
+
+The book's prose is CC BY-NC-SA 4.0, and this server puts it into a conversation in somebody
+else's host, so **every place its prose reaches a reader credits it**
+([ADR-0066](../../docs/adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
+§4):
+
+- **the server's instructions,** which the host gives its model before any tool is called, tell
+  it whose words the steps are and to pass the credit on, never to present a step as its own;
+- **`list_programs`,** under each track, in the edition the list is in and as data in
+  `credits`: the book's title, its author, the copyright notice as the book's
+  `LICENSE-CONTENT` states it, the licence with its link, a note that it is offered as it is,
+  and where the book itself is.
+
+The table is [`src/credit.ts`](src/credit.ts), kept beside the code because the content bundle
+carries no author and no licence, and `src/credit.test.ts` fails on a pinned track with no entry.
+The notice is the book's own line, read at the pinned revision, and nothing checks it: a
+relicense is an edit somebody makes, and
+[ADR-0033](../../docs/adr/0033-the-content-is-the-books-to-licence-and-noncommercial-is-the-binding-term.md)'s
+relicense table names this file. The package carries **no part of the book**: it is MIT code, and
+the book stays on the API (ADR-0066 §4).
+
+### Before the package is pointed at a deployed instance
+
+None exists yet. When one does, what has to be true first:
+
+- **The credit is shown,** which a run of `scripts/verify-tarball.ts` with `--api` against that
+  instance checks (below), and which this package does by itself.
+- **The instance serves the book free.** NonCommercial binds the deployment: no charge for
+  access to it, no paid tier and no advertising against the content (ADR-0033).
+- **The reading surface credits the book too.** It does not yet; ADR-0066's Consequences give
+  that to the first deploy (#71), and it is not this package's to do.
+- **Anonymous readers' rows are retained on a rule.** Each machine that configures the package
+  is one reader of each instance it is pointed at, and ADR-0061's retention job has to cover
+  those rows (ADR-0066's Consequences).
+
+## Checking a tarball
+
+`scripts/verify-tarball.ts` checks a packed file as a reader will receive it, and CI runs it on
+every tarball it uploads. The owner runs it on the download before they publish. From a checkout
+with the workspace installed:
+
+```bash
+node web/mcp/scripts/verify-tarball.ts path/to/<tarball>.tgz
+node web/mcp/scripts/verify-tarball.ts path/to/<tarball>.tgz --api http://localhost:<port>
+node web/mcp/scripts/verify-tarball.ts path/to/<tarball>.tgz --for-publish
+```
+
+It reads the file: nothing but the launcher, JavaScript, the schemas and the pin, the licence and
+the README, with no TypeScript, no copy of the book and no test code. It installs it with the
+`npm` that ships with Node into an empty directory outside the checkout, starts it as a host
+does, and has a client list the programs, finding the credit in the instructions and in the list.
+With `--api` the list is read from an API somebody runs, and with none from a stub of it. With
+`--for-publish` it also refuses a package that is still `private`, which npm will not publish.
+It does not say that the name is free on npm, or that this version has not been published
+already.
+
+To make a tarball by hand, from the same source, and look at what it carries:
+
+```bash
+pnpm --dir web install
+pnpm --dir web/mcp pack --pack-destination <directory>   # runs the build first
+```
+
+`pnpm --dir web/mcp build` alone writes the compiled `dist/` and the `LICENSE` beside it, and
+says where each file came from. Both are output and are gitignored. The build is
+[`scripts/build.ts`](scripts/build.ts): it strips the types with Node's own stripper, rewrites
+the imports to the compiled files and carries the modules of `@ab-ovo/web-kit` the server runs
+beside the server's own, with no bundler. It refuses, with the sentence that says why, to carry
+anything under `web/content/` but the pin, or any test code.
+
 ## Configuration
 
-What a host sets in the environment it starts the server with:
+What a host sets in the environment it starts the server with (`-e` in `claude mcp add`, `env` in
+a host's JSON). **The server takes no arguments:** `--version` and `--help` are for a person at a
+terminal, and any other argument is refused with a sentence that does not repeat it, because a
+configuration that puts the address where an argument goes has put a password, if the address has
+one, where a log would show it. A variable that is missing or malformed is said once on stderr,
+which is where the host's log has it, and in every result, with what fixes it.
 
 - **`AB_OVO_API_URL`** — the ab-ovo API's address, such as `http://localhost:<port>`. Required:
   the book and the reader's place are both there. An address that is not an http or https one,
@@ -164,8 +288,8 @@ refusals do not, and nothing about them changes.
    is the hand-off: the book's Summary and *Can you?* for the program, and the next
    program with the call that opens it — the reading surface's summary screen, here.
 
-`track` can be left out: this server carries one, the track this checkout pins. A program id
-is matched in any case.
+`track` can be left out: this server carries one, the track the book's pin names
+(`web/content/book.lock.json`). A program id is matched in any case.
 
 What a refusal looks like: ask `review_step` for a step past the furthest and the answer is a
 sentence saying the method is working — an ordinary result, not an error, and the host shows
@@ -237,7 +361,14 @@ The unit tier needs no API, no book and no network: it runs against a stub of `A
 (`src/testing/stub-api.ts`) that serves the committed fixture and answers as the API does, gate
 and all. `src/restart.test.ts` starts the launcher itself, twice, as a host does — from a scratch
 directory, with `CI` set — against that stub over HTTP, and finds the anonymous reader where the
-first process left them. What the API does is `tests/AbOvo.Api.Tests`'s to assert.
+first process left them. `src/package.test.ts` builds the compiled server into a scratch
+directory with no `src/` beside it, starts it the same way, and shows each refusal of the build
+and of the tarball check firing. What the API does is `tests/AbOvo.Api.Tests`'s to assert.
 
-CI needs no rung of its own: `web/pnpm-workspace.yaml` lists this package and the `web` job
-runs `pnpm -r`. There is deliberately no `lint` script — see the sketch, section 7.
+CI needs no rung of its own for the unit tier: `web/pnpm-workspace.yaml` lists this package and
+the `web` job runs `pnpm -r`. The package has one of its own,
+[`mcp-package.yml`](../../.github/workflows/mcp-package.yml), which packs the tarball, checks it,
+installs it into an empty directory and starts it, on the oldest Node `engines` allows and on
+the next long-term-support line, and uploads it. It publishes nothing and holds no npm token
+([ADR-0070](../../docs/adr/0070-the-mcp-package-is-built-and-checked-in-ci-and-published-by-its-owner.md)).
+There is deliberately no `lint` script — see the sketch, section 7.

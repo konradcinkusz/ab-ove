@@ -36,6 +36,7 @@ jest czerwień, a nie pominięcie.
 | Warstwę jednostkową weba | `pnpm --dir web test` |
 | ESLint po przestrzeni | `pnpm --dir web lint` |
 | `tsc` po każdym członku przestrzeni | `pnpm --dir web typecheck` |
+| Pakiet MCP tak, jak zostałby zainstalowany | `pnpm --dir web/mcp pack --pack-destination <katalog>`, potem `node web/mcp/scripts/verify-tarball.ts <katalog>/<archiwum>.tgz` (CI: `mcp-package.yml`) |
 | Sprawdzenia dokumentacji | `npm run lint:docs` (po `npm install` w korzeniu) |
 
 ## Pakiet akceptacyjny
