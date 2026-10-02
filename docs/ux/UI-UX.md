@@ -1428,7 +1428,7 @@ written.
 | 690 | feature | #169 | One button system and one page header outside the reading screens | — |
 | 700 | feature | #170 | A way back from a forgotten password or a lost verification email | — |
 | 710 | feature | #171 | The MCP server reads and advances through `AbOvo.Api`; `PUT` stops raising a step | — |
-| 720 | feature | #172 | MCP: one command connects an agent, with no checkout | — |
+| 720 | feature | #172 | MCP: one command connects an agent, with no checkout — **built, and not published.** CI builds, packs, checks and uploads the tarball; the owner's publish is a written-down manual step, and the package reaches only an API somebody runs until the first deploy | [ADR-0070](../adr/0070-the-mcp-package-is-built-and-checked-in-ci-and-published-by-its-owner.md) |
 | 730 | blocked | #173 | MCP over Streamable HTTP with OAuth | — |
 | 740 | blocked | #174 | A frame that points at a figure shows none | — |
 

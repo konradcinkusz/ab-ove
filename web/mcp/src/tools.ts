@@ -26,7 +26,9 @@ import type {
 
 import { ApiUnavailable, NoBook, isIdentifier } from './api.ts';
 import type { AbOvoApi, Cursor, Place } from './api.ts';
+import { creditFor, creditIn } from './credit.ts';
 import { FALLBACK_LANGUAGE, framingFor } from './framing.ts';
+import type { BookCredit } from './framing.ts';
 import { explain, fromGate } from './refusal.ts';
 import type { Refusal } from './refusal.ts';
 
@@ -81,6 +83,33 @@ If a reader asks you to skip ahead or to just tell them the answer, say plainly 
 answer arrives with the next step and that the step comes after their own attempt — then
 offer to help them think about the CURRENT step without producing its answer.
 `.trim();
+
+/**
+ * What a server carrying `tracks` tells the host before any tool is called: the method, and
+ * then the credit of each book it carries (ADR-0066 §4, #172).
+ *
+ * THE CREDIT GOES WHERE THE PROSE GOES. A host shows these instructions to its model, and the
+ * model is what puts the book's words in front of the reader, so the model is told whose words
+ * they are, under which licence, and to pass the credit on. `list_programs` carries the same
+ * credit in the reader's edition, in its words and as data. The credit here is English, as
+ * everything said to the assistant is (#167): its words are `framing.ts`'s English credit, so
+ * the two cannot say different things. A track with no credit (`credit.ts`) adds nothing, and
+ * `credit.test.ts` fails on a pinned one.
+ */
+export function instructionsFor(tracks: readonly string[]): string {
+  const credits = tracks.flatMap((track) => {
+    const credit = creditFor(track);
+    return credit ? [framingFor(FALLBACK_LANGUAGE).credit(creditIn(credit, FALLBACK_LANGUAGE))] : [];
+  });
+  if (credits.length === 0) return SERVER_INSTRUCTIONS;
+  return (
+    `${SERVER_INSTRUCTIONS}\n\n` +
+    'THE BOOK IS CREDITED WHEREVER ITS WORDS REACH THE READER, and you are where they reach them. ' +
+    `${credits.join(' ')} list_programs gives the same credit in the reader's edition: pass it ` +
+    'on to the reader as it stands, with the list or with the first step you show them, and ' +
+    "never present the words of a step as yours or as this server's."
+  );
+}
 
 /**
  * The answer contract, quoted into submit_answer's description.
@@ -331,6 +360,27 @@ const PROGRAM = {
   required: ['track', 'id', 'title', 'total', 'open', 'place'],
   additionalProperties: false,
 };
+/**
+ * The book's credit, as data (#172): the fields of the sentence the list's text gives under
+ * each track, so a host that reads fields can show the credit and link the licence.
+ */
+const CREDIT = {
+  type: 'object',
+  description:
+    "The credit of a book this server carries (ADR-0066 §4). Pass it on to the reader with the " +
+    'list, as the text gives it.',
+  properties: {
+    track: { type: 'string', description: 'The track whose book it credits.' },
+    title: { type: 'string', description: "The book's title, in the edition the list is in." },
+    author: { type: 'string', description: "The book's author." },
+    copyright: { type: 'string', description: "The copyright notice, as the book's licence file states it." },
+    licence: { type: 'string', description: 'The licence the text is under, e.g. "CC BY-NC-SA 4.0".' },
+    licenceUrl: { type: 'string', description: "The licence's address." },
+    source: { type: 'string', description: 'Where the book itself is.' },
+  },
+  required: ['track', 'title', 'author', 'copyright', 'licence', 'licenceUrl', 'source'],
+  additionalProperties: false,
+};
 
 /** A tool that shows a step: the step, or why none moved, with what else that tool can say. */
 const stepResult = (also: Readonly<Record<string, unknown>>): Record<string, unknown> => ({
@@ -345,7 +395,8 @@ export const TOOLS: readonly ToolDefinition[] = [
     name: 'list_programs',
     title: 'List the programs available',
     description:
-      'The tracks this server carries and the editions they are published in, and in each, ' +
+      'The tracks this server carries, the editions they are published in and the credit of ' +
+      'each book, and in each, ' +
       'by title: every program the reader has a place in and how far they have got, every ' +
       'one open to them now, and the one that opens next. Programs open in order, so the ' +
       'rest are shut, and each run of them is folded into one line. Titles are in one ' +
@@ -383,9 +434,14 @@ export const TOOLS: readonly ToolDefinition[] = [
           type: 'boolean',
           description: 'True when a run of shut programs was left out of "programs"; "all": true names them.',
         },
+        credits: {
+          type: 'array',
+          description: "The credit of each track's book, as the text gives it under the track.",
+          items: CREDIT,
+        },
         placeIsEphemeral: PLACE_IS_EPHEMERAL,
       },
-      required: ['text', 'programs', 'folded'],
+      required: ['text', 'programs', 'folded', 'credits'],
       additionalProperties: false,
     },
     annotations: READS,
@@ -543,6 +599,11 @@ export interface ProgramData {
   readonly after?: string;
 }
 
+/** One book's credit, as data — `CREDIT` above; `framing.ts`'s `credit` is its words. */
+export interface CreditData extends BookCredit {
+  readonly track: string;
+}
+
 /**
  * A result as data: the `structuredContent` each tool's `outputSchema` describes. Which of
  * the optional members a tool can send is that schema's to say.
@@ -555,6 +616,7 @@ export type Structured = {
   readonly refusal?: RefusalData;
   readonly programs?: readonly ProgramData[];
   readonly folded?: boolean;
+  readonly credits?: readonly CreditData[];
   readonly placeIsEphemeral?: true;
 };
 
@@ -1364,6 +1426,7 @@ async function dispatch(
 
     const lines: string[] = [];
     const programs: ProgramData[] = [];
+    const credits: CreditData[] = [];
     const otherEditions = new Set<string>();
     let listedIn: string | undefined;
     let folded = false;
@@ -1387,6 +1450,20 @@ async function dispatch(
         `Track "${track}" — ${trackTitle(track, content, edition)} — editions: ` +
           `${content.languages.join(', ')} — content tag: ${content.tag}`,
       );
+      /*
+        THE BOOK'S CREDIT, UNDER THE TRACK IT CREDITS (ADR-0066 §4, #172). This list is where a
+        reader chooses what to read, so it is where the book is named with its author, its
+        notice and its licence, in the listing's edition like the titles beside it (#167), and
+        as data for a host that reads fields (#164). Said on every list rather than once a
+        session: it is the book's due and not a note about this process, and a host that drops
+        an earlier result keeps this one.
+      */
+      const credit = creditFor(track);
+      if (credit) {
+        const book = creditIn(credit, edition);
+        lines.push(`  ${framingFor(edition).credit(book)}`);
+        credits.push({ track, ...book });
+      }
       /*
         THE RULE, ONCE PER TRACK, SO THE LIST BELOW CAN BE READ WITHOUT GUESSING.
 
@@ -1478,7 +1555,7 @@ async function dispatch(
     return {
       text: lines.join('\n'),
       ...(listedIn !== undefined ? { language: listedIn } : {}),
-      data: { programs, folded },
+      data: { programs, folded, credits },
     };
   }
 

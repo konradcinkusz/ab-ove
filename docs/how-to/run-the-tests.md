@@ -35,6 +35,7 @@ a skip.
 | The web unit tier | `pnpm --dir web test` |
 | ESLint over the workspace | `pnpm --dir web lint` |
 | `tsc` over every workspace member | `pnpm --dir web typecheck` |
+| The MCP package as it would be installed | `pnpm --dir web/mcp pack --pack-destination <directory>`, then `node web/mcp/scripts/verify-tarball.ts <directory>/<tarball>.tgz` (CI: `mcp-package.yml`) |
 | The documentation checks | `npm run lint:docs` (after `npm install` in the root) |
 
 ## The acceptance suite

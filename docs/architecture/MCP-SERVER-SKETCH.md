@@ -512,10 +512,10 @@ reaches into `@ab-ovo/app`, and nothing needs to.
 - **Concurrency.** `AbOvoApi` holds one reader's edition switch and nothing guards it. Over
   stdio a host waits for each result, so it does not arise; a deployed server should not rely
   on that.
-- **The tracks it carries.** The server asks the API about the tracks this checkout pins
-  (`PINS`), because `AbOvo.Api` lists no courses yet — the index's row in the deviation
-  register names that listing. A package pointed at an instance that serves another track
-  (#172) needs it.
+- **The tracks it carries.** The server asks the API about the tracks the pin names
+  (`PINS`, carried into the package with the pin), because `AbOvo.Api` lists no courses yet —
+  the index's row in the deviation register names that listing. A package pointed at an
+  instance that serves another track needs it, and #172 packaged the server as it is.
 - **The copied words.** `web/mcp/src/framing.ts` copies the Polish words it shares with the
   reading surface's `chrome.ts` rather than importing them (ADR-0053), and nothing checks one
   copy against the other; [`translate-a-document.md`](../how-to/translate-a-document.md) asks
@@ -529,8 +529,9 @@ reaches into `@ab-ovo/app`, and nothing needs to.
   [ADR-0066](../adr/0066-the-mcp-server-is-a-typescript-client-of-the-api-installed-before-it-is-hosted.md)
   §4 says what each route may do under the licence as it stands. The package carries no
   book, since #171. An instance, and a hosted server, serve the prose free and credited, never
-  behind a payment. Every route must credit the book where its reader sees it, and today none
-  does.
+  behind a payment. Every route must credit the book where its reader sees it. The server's
+  routes do since #172: its instructions and `list_programs` carry the title, the author, the
+  notice, the licence and its link (`web/mcp/src/credit.ts`). The reading surface does not yet.
 - **Schema version.** The book's compiler at the pinned revision emits a v1 bundle; the
   application supports v1 and v2. Nothing here depends on the difference — `Step.answer`
   means the same in both — but the leak assertion above needs a v2 shape, which is why the
@@ -555,6 +556,19 @@ its tool's output schema, with the validator the SDK's own client uses. `restart
 the launcher itself as its own process, twice, against that stub served over HTTP, and finds
 the anonymous reader where the first process left them. What the API does is
 `tests/AbOvo.Api.Tests`'s to assert.
+
+To check the package a host would install, and not the source it was made from, pack it and
+run the check of the tarball (#172,
+[ADR-0070](../adr/0070-the-mcp-package-is-built-and-checked-in-ci-and-published-by-its-owner.md)):
+
+```bash
+pnpm --dir web/mcp pack --pack-destination <directory>
+node web/mcp/scripts/verify-tarball.ts <directory>/<tarball>.tgz --api http://localhost:<port>
+```
+
+It reads the file, installs it into an empty directory with the `npm` that ships with Node,
+starts it as a host does and lists the programs of that API, finding the credit in them.
+`.github/workflows/mcp-package.yml` runs it on every tarball it uploads.
 
 To drive the real protocol over stdio, against an API that holds the book:
 

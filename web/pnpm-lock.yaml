@@ -59,13 +59,13 @@ importers:
 
   mcp:
     dependencies:
-      '@ab-ovo/web-kit':
-        specifier: workspace:*
-        version: link:../web-kit
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0
         version: 1.30.0(zod@4.6.5)
     devDependencies:
+      '@ab-ovo/web-kit':
+        specifier: workspace:*
+        version: link:../web-kit
       '@types/node':
         specifier: 22.20.2
         version: 22.20.2
